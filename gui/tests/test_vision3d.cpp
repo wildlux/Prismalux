@@ -17,7 +17,6 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
-#include <QPlainTextEdit>
 #include <QTableWidget>
 #include <QComboBox>
 #include <QListWidget>
@@ -27,12 +26,18 @@
 #include <QTemporaryDir>
 #include <QBuffer>
 #include <QImage>
+#include <QPainter>
+#include <QTabWidget>
+#include <QShortcut>
+#include "../widgets/qr_code_widget.h"
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
+#include <QMouseEvent>
 
 #include "../pages/widget_vision3d.h"
 #include "../prismalux_paths.h"
+#include "../log_bus.h"
 
 namespace P = PrismaluxPaths;
 
@@ -50,7 +55,11 @@ private slots:
 
     void hasCoreUiElements() {
         Vision3DWidget w;
-        QVERIFY(w.findChild<QPlainTextEdit*>() != nullptr);   // log
+        // niente più QPlainTextEdit locale: il log va nel pannello centralizzato
+        // "Messaggi" (tab "3D", vedi LogBus) — qui si verificano le due tab
+        // Preparazione/Assembla e il QR di collegamento al loro posto.
+        QVERIFY(w.findChild<QTabWidget*>()     != nullptr);   // Preparazione | Assembla punti e texture
+        QVERIFY(w.findChild<QrCodeWidget*>()   != nullptr);   // QR di collegamento (tab Preparazione)
         QVERIFY(w.findChild<QTableWidget*>()   != nullptr);   // device attivi
         QVERIFY(w.findChild<QLineEdit*>()      != nullptr);   // porta
         QVERIFY(!w.findChildren<QPushButton*>().isEmpty());   // avvia/ferma
@@ -90,11 +99,24 @@ private slots:
         QVERIFY(found);
     }
 
+    /* Il messaggio "Pronto..." è statico (non legato a scatti/sessione):
+       va nel log centralizzato (LogBus), non nel log locale della scheda
+       — altrimenti occupa subito lo spazio di lavoro prima ancora di aver
+       avviato il server. */
+    /* Il messaggio "pronto" e tutti gli eventi Vision3D (appendLog) vanno
+       su LogBus con categoria "3d", non nella tab generica "Sistema" —
+       MainWindow la mappa alla tab dedicata "3D" del pannello Messaggi. */
     void logContainsReadyMessage() {
+        QSignalSpy spy(LogBus::instance(), &LogBus::event);
         Vision3DWidget w;
-        auto* log = w.findChild<QPlainTextEdit*>();
-        QVERIFY(log != nullptr);
-        QVERIFY(log->toPlainText().contains("Pronto"));
+        Q_UNUSED(w);
+        bool found = false;
+        for (const auto& args : spy)
+            if (args.at(0).toString().contains("pronto", Qt::CaseInsensitive)) {
+                QCOMPARE(args.at(1).toString(), QStringLiteral("3d"));
+                found = true; break;
+            }
+        QVERIFY(found);
     }
 
     void ifaceComboEndsWithLoopback() {
@@ -165,6 +187,299 @@ private slots:
         auto* req = w.findChild<QLabel*>("v3dPhotoReq");
         QVERIFY(req != nullptr);
         QVERIFY(req->text().contains("foto"));
+    }
+
+    /* CAT-A: gestione sessioni — createSession()/importPhotoFiles()/
+       deleteShot() sono API pubbliche (bypassano i dialog modali), così
+       restano testabili direttamente invece che solo tramite prompt UI. */
+
+    void createSessionMakesFolderAndSyncsBothCombos() {
+        QTemporaryDir tmp;
+        QVERIFY(tmp.isValid());
+        Vision3DWidget w;
+        w.setOutputDir(tmp.path());
+
+        const QString created = w.createSession("notturno");
+        QCOMPARE(created, QStringLiteral("notturno"));
+        QVERIFY(QDir(tmp.path() + "/notturno").exists());
+
+        // il combo "Assembla" (v3dSessionCombo) e quello "Preparazione"
+        // (senza objectName dedicato: il secondo QComboBox nell'ordine di
+        // costruzione) devono restare sincronizzati sulla stessa sessione
+        auto* mainCombo = w.findChild<QComboBox*>("v3dSessionCombo");
+        QVERIFY(mainCombo);
+        QCOMPARE(mainCombo->currentText(), created);
+    }
+
+    void createSessionSanitizesName() {
+        QTemporaryDir tmp;
+        Vision3DWidget w;
+        w.setOutputDir(tmp.path());
+        // spazi/punteggiatura rimossi, solo lettere/numeri/-/_ restano
+        QCOMPARE(w.createSession("Villa @ Mare!!"), QStringLiteral("VillaMare"));
+    }
+
+    void createSessionRejectsNameWithNothingValid() {
+        QTemporaryDir tmp;
+        Vision3DWidget w;
+        w.setOutputDir(tmp.path());
+        QVERIFY(w.createSession("!!! ???").isEmpty());
+        QCOMPARE(QDir(tmp.path()).entryList(QDir::Dirs | QDir::NoDotAndDotDot).size(), 0);
+    }
+
+    /* createSession() con descrizione la persiste subito in session.json;
+       setSessionDescription()/sessionDescription() la leggono/aggiornano
+       anche dopo, indipendentemente dai dialoghi modali dell'UI. */
+    void sessionDescriptionRoundTrip() {
+        QTemporaryDir tmp;
+        Vision3DWidget w;
+        w.setOutputDir(tmp.path());
+        const QString session = w.createSession("descTest", "cubo con croce rossa, test point cloud");
+        QVERIFY(!session.isEmpty());
+        QCOMPARE(w.sessionDescription(session),
+                 QStringLiteral("cubo con croce rossa, test point cloud"));
+
+        w.setSessionDescription(session, "aggiornata dopo la scansione");
+        QCOMPARE(w.sessionDescription(session), QStringLiteral("aggiornata dopo la scansione"));
+
+        QFile f(tmp.path() + "/" + session + "/session.json");
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const QJsonObject o = QJsonDocument::fromJson(f.readAll()).object();
+        QCOMPARE(o.value("description").toString(), QStringLiteral("aggiornata dopo la scansione"));
+    }
+
+    /* Una descrizione già presente nel sidecar .json di uno scatto (VLM o
+       inserita a mano) deve arrivare nella galleria (Qt::UserRole+1) quando
+       la sessione viene ricaricata — prima di questo fix il campo veniva
+       sempre azzerato con QString() ("descrizione VLM non persistita"). */
+    void shotDescriptionLoadedFromSidecarIntoGallery() {
+        QTemporaryDir tmp;
+        Vision3DWidget w;
+        w.setOutputDir(tmp.path());
+        const QString session = w.createSession("shotDescTest");
+        const QString folder = tmp.path() + "/" + session + "/import";
+        QDir().mkpath(folder);
+        const QString base = folder + "/shot_a000";
+
+        QImage img(32, 32, QImage::Format_RGB32);
+        img.fill(Qt::blue);
+        QVERIFY(img.save(base + ".jpg", "JPEG"));
+        QJsonObject meta;
+        meta["description"] = "cubo rosso su piano bianco, ombra netta";
+        meta["index"] = 1;
+        QFile mf(base + ".json");
+        QVERIFY(mf.open(QIODevice::WriteOnly));
+        mf.write(QJsonDocument(meta).toJson());
+        mf.close();
+
+        auto* sessionCombo = w.findChild<QComboBox*>("v3dSessionCombo");
+        QVERIFY(sessionCombo);
+        // segnale pubblico: forza il reload (loadSessionIntoUi è privata, ma
+        // il segnale che la scatena no) indipendentemente da cosa mostra già
+        sessionCombo->currentTextChanged(session);
+
+        auto* gallery = w.findChild<QListWidget*>("v3dGallery");
+        QVERIFY(gallery);
+        QCOMPARE(gallery->count(), 1);
+        QCOMPARE(gallery->item(0)->data(Qt::UserRole + 1).toString(),
+                 QStringLiteral("cubo rosso su piano bianco, ombra netta"));
+    }
+
+    void hasEditDescriptionButtons() {
+        Vision3DWidget w;
+        int editBtnCount = 0;
+        for (auto* b : w.findChildren<QPushButton*>())
+            if (b->text() == QString::fromUtf8("\xE2\x9C\x8F\xEF\xB8\x8F")) ++editBtnCount;
+        QCOMPARE(editBtnCount, 2);   // descrizione sessione + descrizione scatto
+    }
+
+    void importPhotoFilesCreatesReadableShotWithoutSensors() {
+        QTemporaryDir tmp;
+        QVERIFY(tmp.isValid());
+        Vision3DWidget w;
+        w.setOutputDir(tmp.path());
+        const QString session = w.createSession("importtest");
+        QVERIFY(!session.isEmpty());
+
+        QTemporaryDir srcDir;
+        QVERIFY(srcDir.isValid());
+        const QString srcPath = srcDir.path() + "/foto_esterna.jpg";
+        QImage img(64, 64, QImage::Format_RGB32);
+        img.fill(Qt::blue);
+        QVERIFY(img.save(srcPath, "JPEG"));
+
+        QCOMPARE(w.importPhotoFiles(session, {srcPath}), 1);
+
+        const QDir importDir(tmp.path() + "/" + session + "/import");
+        const QStringList jpgs = importDir.entryList({"*_a???.jpg"}, QDir::Files);
+        QCOMPARE(jpgs.size(), 1);
+        const QString jpgPath = importDir.absoluteFilePath(jpgs.first());
+        QFile mf(jpgPath.left(jpgPath.size() - 4) + ".json");
+        QVERIFY(mf.open(QIODevice::ReadOnly));
+        const QJsonObject meta = QJsonDocument::fromJson(mf.readAll()).object();
+        QVERIFY(meta.value("imported").toBool());
+        QVERIFY(!meta.value("has_sensors").toBool());   // niente bussola: da distribuire a mano
+    }
+
+    void importPhotoFilesSkipsUnreadableImages() {
+        QTemporaryDir tmp;
+        Vision3DWidget w;
+        w.setOutputDir(tmp.path());
+        const QString session = w.createSession("badimport");
+
+        QTemporaryDir srcDir;
+        const QString badPath = srcDir.path() + "/non_e_una_foto.jpg";
+        QFile f(badPath);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write("questo non e' un jpeg valido");
+        f.close();
+
+        QCOMPARE(w.importPhotoFiles(session, {badPath}), 0);
+    }
+
+    void deleteShotRemovesAllSidecarFiles() {
+        QTemporaryDir tmp;
+        Vision3DWidget w;
+        w.setOutputDir(tmp.path());
+        const QString session = w.createSession("delTest");
+        const QString folder = tmp.path() + "/" + session + "/import";
+        QDir().mkpath(folder);
+        const QString base = folder + "/shot_a000";
+
+        QImage img(32, 32, QImage::Format_RGB32);
+        img.fill(Qt::red);
+        QVERIFY(img.save(base + ".jpg", "JPEG"));
+        for (const QString& suffix : {"_boxes.jpg", "_depth.jpg", "_edges.jpg",
+                                       "_bump.jpg", "_normal.jpg", ".json"}) {
+            QFile f(base + suffix);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write("x");
+        }
+
+        w.deleteShot(base);
+
+        QVERIFY(!QFile::exists(base + ".jpg"));
+        QVERIFY(!QFile::exists(base + "_boxes.jpg"));
+        QVERIFY(!QFile::exists(base + "_depth.jpg"));
+        QVERIFY(!QFile::exists(base + "_edges.jpg"));
+        QVERIFY(!QFile::exists(base + "_bump.jpg"));
+        QVERIFY(!QFile::exists(base + "_normal.jpg"));
+        QVERIFY(!QFile::exists(base + ".json"));
+    }
+
+    /* Selezione multipla in galleria (Ctrl/Shift/click) + tasto Canc come
+       scorciatoia per eliminare gli scatti selezionati, non solo il pulsante. */
+    void galleryAllowsExtendedSelectionAndDeleteShortcut() {
+        Vision3DWidget w;
+        auto* gallery = w.findChild<QListWidget*>("v3dGallery");
+        QVERIFY(gallery);
+        QCOMPARE(gallery->selectionMode(), QAbstractItemView::ExtendedSelection);
+
+        bool hasDeleteShortcut = false;
+        for (auto* sc : gallery->findChildren<QShortcut*>())
+            if (sc->key() == QKeySequence(QKeySequence::Delete)) hasDeleteShortcut = true;
+        QVERIFY2(hasDeleteShortcut, "Nessuna scorciatoia Canc trovata sulla galleria");
+    }
+
+    void hasDeleteAllPhotosButton() {
+        Vision3DWidget w;
+        bool found = false;
+        for (auto* b : w.findChildren<QPushButton*>())
+            if (b->text().contains("Elimina tutte")) found = true;
+        QVERIFY2(found, "Pulsante 'Elimina tutte' non trovato");
+    }
+
+    /* "Ultimo scatto analizzato" deve avere le 6 miniature (originale, box,
+       depth, bordi, bump, normal) con menu contestuale abilitato, più il
+       pulsante che copia tutte le mappe salvate su disco. */
+    void hasSaveAllMapsButtonAndSixThumbs() {
+        Vision3DWidget w;
+        bool found = false;
+        for (auto* b : w.findChildren<QPushButton*>())
+            if (b->text().contains("Salva tutte le mappe")) found = true;
+        QVERIFY2(found, "Pulsante 'Salva tutte le mappe' non trovato");
+
+        int thumbsWithMenu = 0;
+        for (auto* l : w.findChildren<QLabel*>())
+            if (l->contextMenuPolicy() == Qt::CustomContextMenu) ++thumbsWithMenu;
+        QCOMPARE(thumbsWithMenu, 6);
+    }
+
+    /* Tasto destro su "Device attivi" deve poter eliminare un device
+       (e le sue foto) — verifica solo il collegamento (CustomContextMenu +
+       slot), non il dialogo modale che poi chiede conferma. */
+    void deviceTableHasContextMenuForDeletion() {
+        Vision3DWidget w;
+        auto* table = w.findChild<QTableWidget*>();
+        QVERIFY(table);
+        QCOMPARE(table->contextMenuPolicy(), Qt::CustomContextMenu);
+    }
+
+    /* Tasto destro in galleria deve poter salvare sul PC le foto selezionate
+       (una o più) — verifica solo il collegamento (CustomContextMenu), non
+       il QFileDialog modale che poi chiede la cartella di destinazione. */
+    void galleryHasContextMenuForSaving() {
+        Vision3DWidget w;
+        auto* gallery = w.findChild<QListWidget*>("v3dGallery");
+        QVERIFY(gallery);
+        QCOMPARE(gallery->contextMenuPolicy(), Qt::CustomContextMenu);
+    }
+
+    /* Doppio click su una miniatura "non calcolata" (es. Bordi) in "Ultimo
+       scatto analizzato" deve calcolarla SUBITO per lo scatto selezionato
+       e salvarla su disco — senza dover rifare la foto solo perché quella
+       chip era spenta sul telefono al momento dello scatto. QLabel non ha
+       un segnale doubleClicked nativo: il doppio click è intercettato da
+       un eventFilter installato in buildUi(), qui lo simuliamo inviando
+       l'evento direttamente al QLabel via QCoreApplication::sendEvent —
+       che passa comunque dagli event filter installati, come un vero click. */
+    void doubleClickOnMissingMapRecomputesIt() {
+        QTemporaryDir tmp;
+        Vision3DWidget w;
+        w.setOutputDir(tmp.path());
+        const QString session = w.createSession("dbltest");
+        const QString folder = tmp.path() + "/" + session + "/import";
+        QDir().mkpath(folder);
+        const QString base = folder + "/shot_a000";
+
+        // immagine ad alto contrasto: garantisce che edgeMap() produca
+        // davvero dei bordi quando OpenCV è disponibile (stesso trucco di
+        // uploadWithEdgesBumpNormalUsesOpenCV).
+        QImage img(200, 200, QImage::Format_RGB32);
+        img.fill(Qt::white);
+        QPainter p(&img);
+        p.fillRect(40, 40, 100, 100, Qt::black);
+        p.end();
+        QVERIFY(img.save(base + ".jpg", "JPEG"));
+        QVERIFY(!QFile::exists(base + "_edges.jpg"));   // non ancora calcolata
+
+        auto* gallery = w.findChild<QListWidget*>("v3dGallery");
+        QVERIFY(gallery);
+        auto* item = new QListWidgetItem("shot_a000");
+        item->setData(Qt::UserRole, base);
+        gallery->addItem(item);
+        gallery->itemClicked(item);   // segnale pubblico: seleziona lo scatto (m_selectedShotKey)
+
+        auto* edgesThumb = w.findChild<QLabel*>("v3dThumbEdges");
+        QVERIFY(edgesThumb);
+        QMouseEvent dbl(QEvent::MouseButtonDblClick, QPointF(5, 5), QPointF(5, 5),
+                         Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+        QVERIFY(QCoreApplication::sendEvent(edgesThumb, &dbl));
+
+#ifdef VISION3D_USE_OPENCV
+        QVERIFY2(QFile::exists(base + "_edges.jpg"),
+                 "doppio click su 'Bordi' doveva calcolarla e salvarla su disco");
+#endif
+    }
+
+    /* Il fetch dei modelli VLM parte già alla costruzione (prima serviva
+       avviare il server: il combo sembrava vuoto/non funzionante anche con
+       Ollama già acceso) — non deve bloccare né crashare, con o senza
+       Ollama realmente in ascolto in questo ambiente. */
+    void constructionTriggersVlmFetchWithoutCrash() {
+        Vision3DWidget w;
+        QTest::qWait(200);   // lascia processare l'eventuale risposta/errore di rete
+        QVERIFY(!w.isRunning());
     }
 };
 
@@ -259,6 +574,40 @@ private slots:
         QVERIFY(ok);
         QVERIFY(html.contains("PRISMALUX Vision3D"));
         QVERIFY(html.contains("SCATTA E ANALIZZA"));
+        // selettore Oggetto/Scena — deve esserci e "object" deve essere il default
+        QVERIFY(html.contains("modeChips"));
+        QVERIFY(html.contains("data-m=\"object\""));
+        QVERIFY(html.contains("data-m=\"scene\""));
+        QVERIFY(html.contains("scanMode='object'"));
+        // stop fotocamera (rilascia lo stream, non solo riavvio) + guida rotazione
+        QVERIFY(html.contains("function stopCamera()"));
+        QVERIFY(html.contains("rotateHint"));
+        QVERIFY(html.contains("function updateRotateHint()"));
+        // markCovered deve usare l'angolo catturato allo scatto (shotHeading),
+        // non curHeading "live" letto dopo l'attesa della risposta del PC
+        QVERIFY(html.contains("markCovered(shotHeading)"));
+        // istruzione "quando scattare" disegnata DENTRO l'overlay della
+        // fotocamera (non solo in un testo separato che si perde di vista
+        // mentre si guarda il mirino)
+        QVERIFY(html.contains("SCATTA ORA"));
+        QVERIFY(html.contains("readyToShoot"));
+        // accelerometro grezzo (DeviceMotion) + altitudine (Geolocation) allo scatto
+        QVERIFY(html.contains("function onMotion(e)"));
+        QVERIFY(html.contains("navigator.geolocation.watchPosition"));
+        QVERIFY(html.contains("accelGravity:shotAccelG"));
+        QVERIFY(html.contains("altitude:shotAltitude"));
+        // fermare la fotocamera deve spegnere davvero i sensori (non solo
+        // l'icona): niente giroscopio/accelerometro/GPS a girare a vuoto
+        // con la fotocamera chiusa
+        QVERIFY(html.contains("function disableSensors()"));
+        QVERIFY(html.contains("navigator.geolocation.clearWatch(geoWatchId)"));
+        QVERIFY(html.contains("removeEventListener('devicemotion'"));
+        QVERIFY(html.contains("disableSensors();"));
+        // Oggetto/Scena devono davvero cambiare la geometria della sfera-
+        // guida (1 solo anello a 360° in "scene"), non solo l'etichetta —
+        // e cambiare modalità deve ricostruire i bersagli sul momento.
+        QVERIFY(html.contains("scanMode==='scene' ? 1"));
+        QVERIFY(html.contains("scanMode=c.dataset.m; buildTargets();"));
     }
 
     void unknownPathGives404() {
@@ -301,7 +650,297 @@ private slots:
         // foto + sidecar .json su disco nella sottocartella device
         const QDir d(tmp->path() + "/testscan/" + dev);
         QCOMPARE(d.entryList({"*.jpg"},  QDir::Files).size(), 1);
-        QCOMPARE(d.entryList({"*.json"}, QDir::Files).size(), 1);
+        const QStringList jsonFiles = d.entryList({"*.json"}, QDir::Files);
+        QCOMPARE(jsonFiles.size(), 1);
+
+        // "mode" non inviato dal client → default "object" nel sidecar
+        QFile mf(d.absoluteFilePath(jsonFiles.first()));
+        QVERIFY(mf.open(QIODevice::ReadOnly));
+        const QJsonObject meta = QJsonDocument::fromJson(mf.readAll()).object();
+        QCOMPARE(meta.value("scan_mode").toString(), QStringLiteral("object"));
+    }
+
+    /* CAT-C: la modalità "scene" scelta sul telefono (chip Oggetto/Scena)
+       deve finire nel sidecar .json della foto, per uso futuro in
+       ricostruzione — non solo compilare, verifica il dato scritto su disco. */
+    void uploadWithSceneModeIsPersisted() {
+        QImage img(1, 1, QImage::Format_RGB32);
+        img.fill(Qt::blue);
+        QByteArray jpeg;
+        QBuffer buf(&jpeg);
+        buf.open(QIODevice::WriteOnly);
+        QVERIFY(img.save(&buf, "JPEG"));
+
+        QJsonObject o;
+        o["session"] = "testscene";
+        o["image"]   = QString::fromUtf8("data:image/jpeg;base64," + jpeg.toBase64());
+        o["wants"]   = QJsonArray{};
+        o["mode"]    = "scene";
+
+        bool ok = false;
+        const QByteArray resp = runCurl(
+            {"-X", "POST", "-H", "Content-Type: application/json",
+             "--data-binary", QString::fromUtf8(QJsonDocument(o).toJson(QJsonDocument::Compact)),
+             QString("https://127.0.0.1:%1/upload").arg(kTestPort)}, ok);
+        QVERIFY(ok);
+        const QJsonObject j = QJsonDocument::fromJson(resp).object();
+        QVERIFY(j.value("ok").toBool());
+        const QString dev = j.value("device").toString();
+
+        const QDir d(tmp->path() + "/testscene/" + dev);
+        const QStringList jsonFiles = d.entryList({"*.json"}, QDir::Files);
+        QCOMPARE(jsonFiles.size(), 1);
+        QFile mf(d.absoluteFilePath(jsonFiles.first()));
+        QVERIFY(mf.open(QIODevice::ReadOnly));
+        const QJsonObject meta = QJsonDocument::fromJson(mf.readAll()).object();
+        QCOMPARE(meta.value("scan_mode").toString(), QStringLiteral("scene"));
+    }
+
+    /* CAT-C: accelerometro grezzo (DeviceMotion) + altitudine (Geolocation)
+       inviati dal telefono devono finire, invariati, nel sidecar .json —
+       verifica reale sui campi scritti su disco, non solo che la richiesta
+       torni 200. */
+    void uploadWithAccelAndAltitudeIsPersisted() {
+        QImage img(1, 1, QImage::Format_RGB32);
+        img.fill(Qt::darkGreen);
+        QByteArray jpeg;
+        QBuffer buf(&jpeg);
+        buf.open(QIODevice::WriteOnly);
+        QVERIFY(img.save(&buf, "JPEG"));
+
+        QJsonObject accel;    accel["x"]=0.12;  accel["y"]=-0.34; accel["z"]=9.81;
+        QJsonObject accelG;   accelG["x"]=0.50; accelG["y"]=0.10; accelG["z"]=9.75;
+        QJsonObject rotRate;  rotRate["alpha"]=1.5; rotRate["beta"]=-0.2; rotRate["gamma"]=0.0;
+
+        QJsonObject o;
+        o["session"]          = "testsensors";
+        o["image"]            = QString::fromUtf8("data:image/jpeg;base64," + jpeg.toBase64());
+        o["wants"]             = QJsonArray{};
+        o["accel"]             = accel;
+        o["accelGravity"]      = accelG;
+        o["rotationRate"]      = rotRate;
+        o["altitude"]          = 123.4;
+        o["altitudeAccuracy"]  = 5.0;
+        o["latitude"]          = 37.5;
+        o["longitude"]         = 15.1;
+
+        bool ok = false;
+        const QByteArray resp = runCurl(
+            {"-X", "POST", "-H", "Content-Type: application/json",
+             "--data-binary", QString::fromUtf8(QJsonDocument(o).toJson(QJsonDocument::Compact)),
+             QString("https://127.0.0.1:%1/upload").arg(kTestPort)}, ok);
+        QVERIFY(ok);
+        const QJsonObject j = QJsonDocument::fromJson(resp).object();
+        QVERIFY(j.value("ok").toBool());
+        const QString dev = j.value("device").toString();
+
+        const QDir d(tmp->path() + "/testsensors/" + dev);
+        const QStringList jsonFiles = d.entryList({"*.json"}, QDir::Files);
+        QCOMPARE(jsonFiles.size(), 1);
+        QFile mf(d.absoluteFilePath(jsonFiles.first()));
+        QVERIFY(mf.open(QIODevice::ReadOnly));
+        const QJsonObject meta = QJsonDocument::fromJson(mf.readAll()).object();
+
+        QCOMPARE(meta.value("accel").toObject().value("z").toDouble(), 9.81);
+        QCOMPARE(meta.value("accel_gravity").toObject().value("y").toDouble(), 0.10);
+        QCOMPARE(meta.value("rotation_rate").toObject().value("alpha").toDouble(), 1.5);
+        QCOMPARE(meta.value("altitude_m").toDouble(), 123.4);
+        QCOMPARE(meta.value("altitude_accuracy_m").toDouble(), 5.0);
+        QCOMPARE(meta.value("latitude").toDouble(), 37.5);
+        QCOMPARE(meta.value("longitude").toDouble(), 15.1);
+
+        // gli stessi dati non devono restare "al buio" nei soli file .json:
+        // il pannello "Ultimo scatto analizzato" (tab Preparazione) li mostra
+        // subito dopo l'upload — verifica reale sul testo del QLabel, non
+        // solo che il file su disco sia corretto.
+        auto* info = w->findChild<QLabel*>("v3dLastSensorInfo");
+        QVERIFY2(info, "QLabel 'v3dLastSensorInfo' non trovato");
+        const QString infoText = info->text();
+        QVERIFY2(infoText.contains("Oggetto"), qPrintable("testo: " + infoText));
+        QVERIFY2(infoText.contains("123.4"),   qPrintable("testo: " + infoText));
+        QVERIFY2(infoText.contains("0.10") || infoText.contains("0,10"),
+                  qPrintable("testo: " + infoText));   // accel_gravity.y, locale-dependent
+    }
+
+    /* CAT-C: pipeline "boxes" reale via /upload — verifica che detectBoxes()
+       usi davvero OpenCV quando disponibile (VISION3D_USE_OPENCV), invece
+       di limitarsi a compilare senza mai eseguire quel ramo. Un quadrato
+       nero ben contrastato su sfondo bianco garantisce almeno un contorno
+       rilevabile da Canny+findContours (area > 1% del frame). */
+    void uploadWithBoxesUsesOpenCV() {
+        QImage img(200, 200, QImage::Format_RGB32);
+        img.fill(Qt::white);
+        QPainter p(&img);
+        p.fillRect(40, 40, 100, 100, Qt::black);
+        p.end();
+        QByteArray jpeg;
+        QBuffer buf(&jpeg);
+        buf.open(QIODevice::WriteOnly);
+        QVERIFY(img.save(&buf, "JPEG"));
+
+        QJsonObject o;
+        o["session"] = "testboxes";
+        o["image"]   = QString::fromUtf8("data:image/jpeg;base64," + jpeg.toBase64());
+        o["wants"]   = QJsonArray{"boxes"};
+        o["angle"]   = 0;
+
+        bool ok = false;
+        const QByteArray resp = runCurl(
+            {"-X", "POST", "-H", "Content-Type: application/json",
+             "--data-binary", QString::fromUtf8(QJsonDocument(o).toJson(QJsonDocument::Compact)),
+             QString("https://127.0.0.1:%1/upload").arg(kTestPort)}, ok);
+        QVERIFY(ok);
+
+        const QJsonObject j = QJsonDocument::fromJson(resp).object();
+        QVERIFY(j.value("ok").toBool());
+#ifdef VISION3D_USE_OPENCV
+        QVERIFY2(j.contains("boxes_image"),
+                 "con OpenCV disponibile 'boxes_image' deve comparire nella risposta");
+        QVERIFY(j.value("boxes_image").toString().startsWith("data:image/jpeg;base64,"));
+        QVERIFY2(j.value("boxes_count").toInt() >= 1,
+                 "un quadrato nero ben contrastato deve produrre almeno un box rilevato");
+#else
+        QVERIFY2(!j.contains("boxes_image"),
+                 "senza OpenCV non deve comparire 'boxes_image' — fallback pulito");
+#endif
+    }
+
+    /* CAT-C: pipeline "edges"/"bump"/"normal" reale via /upload — stesso
+       schema di uploadWithBoxesUsesOpenCV: un'immagine con bordi netti deve
+       produrre le tre mappe quando OpenCV è disponibile, o gli "_unavailable"
+       corrispondenti quando manca. */
+    void uploadWithEdgesBumpNormalUsesOpenCV() {
+        QImage img(200, 200, QImage::Format_RGB32);
+        img.fill(Qt::white);
+        QPainter p(&img);
+        p.fillRect(40, 40, 100, 100, Qt::black);
+        p.end();
+        QByteArray jpeg;
+        QBuffer buf(&jpeg);
+        buf.open(QIODevice::WriteOnly);
+        QVERIFY(img.save(&buf, "JPEG"));
+
+        QJsonObject o;
+        o["session"] = "testmaps";
+        o["image"]   = QString::fromUtf8("data:image/jpeg;base64," + jpeg.toBase64());
+        o["wants"]   = QJsonArray{"edges", "bump", "normal"};
+        o["angle"]   = 0;
+
+        bool ok = false;
+        const QByteArray resp = runCurl(
+            {"-X", "POST", "-H", "Content-Type: application/json",
+             "--data-binary", QString::fromUtf8(QJsonDocument(o).toJson(QJsonDocument::Compact)),
+             QString("https://127.0.0.1:%1/upload").arg(kTestPort)}, ok);
+        QVERIFY(ok);
+
+        const QJsonObject j = QJsonDocument::fromJson(resp).object();
+        QVERIFY(j.value("ok").toBool());
+#ifdef VISION3D_USE_OPENCV
+        QVERIFY2(j.contains("edges_image"),  "con OpenCV 'edges_image' deve comparire");
+        QVERIFY2(j.contains("bump_image"),   "con OpenCV 'bump_image' deve comparire");
+        QVERIFY2(j.contains("normal_image"), "con OpenCV 'normal_image' deve comparire");
+        QVERIFY(j.value("edges_image").toString().startsWith("data:image/jpeg;base64,"));
+        QVERIFY(j.value("bump_image").toString().startsWith("data:image/jpeg;base64,"));
+        QVERIFY(j.value("normal_image").toString().startsWith("data:image/jpeg;base64,"));
+#else
+        QVERIFY(j.value("edges_unavailable").toBool());
+        QVERIFY(j.value("bump_unavailable").toBool());
+        QVERIFY(j.value("normal_unavailable").toBool());
+#endif
+    }
+
+    /* CAT-C: copertura per "Bordi non funziona" segnalato su foto reali —
+       a differenza del quadrato nero-su-bianco (contrasto altissimo, ovvio
+       che qualunque soglia Canny lo trovi) qui il quadrato è appena più
+       scuro dello sfondo (contrasto moderato, più vicino a una foto vera).
+       Verificato empiricamente con OpenCV in Python prima di scrivere
+       questo test: le soglie fisse 50/150 di edgeMap() rilevano già bene
+       un bordo così — un tentativo di soglie "adattive" basate sulla
+       mediana dei pixel era stato scartato perché su un'immagine per lo
+       più piatta (sfondo >> oggetto, come qui) la mediana rispecchia lo
+       sfondo e alza troppo le soglie, PEGGIORANDO il risultato (0 bordi
+       invece di 396 nel test empirico). Resta comunque utile come test di
+       non-regressione: se le soglie fisse cambiassero in futuro, questo
+       lo scoprirebbe. */
+    void uploadWithEdgesDetectsModerateContrastEdge() {
+        QImage img(200, 200, QImage::Format_RGB32);
+        img.fill(QColor(200, 200, 200));
+        QPainter p(&img);
+        p.fillRect(40, 40, 100, 100, QColor(150, 150, 150));
+        p.end();
+        QByteArray jpeg;
+        QBuffer buf(&jpeg);
+        buf.open(QIODevice::WriteOnly);
+        QVERIFY(img.save(&buf, "JPEG", 95));
+
+        QJsonObject o;
+        o["session"] = "testedgesmoderate";
+        o["image"]   = QString::fromUtf8("data:image/jpeg;base64," + jpeg.toBase64());
+        o["wants"]   = QJsonArray{"edges"};
+        o["angle"]   = 0;
+
+        bool ok = false;
+        const QByteArray resp = runCurl(
+            {"-X", "POST", "-H", "Content-Type: application/json",
+             "--data-binary", QString::fromUtf8(QJsonDocument(o).toJson(QJsonDocument::Compact)),
+             QString("https://127.0.0.1:%1/upload").arg(kTestPort)}, ok);
+        QVERIFY(ok);
+        const QJsonObject j = QJsonDocument::fromJson(resp).object();
+        QVERIFY(j.value("ok").toBool());
+
+#ifdef VISION3D_USE_OPENCV
+        QVERIFY2(j.contains("edges_image"),
+                 "con OpenCV 'edges_image' deve comparire anche a contrasto moderato");
+        const QString dataUrl = j.value("edges_image").toString();
+        const QImage edgesImg = QImage::fromData(
+            QByteArray::fromBase64(dataUrl.mid(dataUrl.indexOf(',') + 1).toUtf8()), "JPEG");
+        QVERIFY(!edgesImg.isNull());
+        bool foundEdgePixel = false;
+        for (int y = 0; y < edgesImg.height() && !foundEdgePixel; ++y)
+            for (int x = 0; x < edgesImg.width(); ++x)
+                if (qGray(edgesImg.pixel(x, y)) > 128) { foundEdgePixel = true; break; }
+        QVERIFY2(foundEdgePixel,
+                 "nessun bordo rilevato su un'immagine a contrasto moderato — soglie Canny troppo alte");
+#endif
+    }
+
+    /* CAT-C: il campo "flash" (test riflessione col flash) deve essere
+       passato senza reinterpretarlo, sia nel sidecar .json su disco (come
+       "flash_on") sia riecheggiato nella risposta come "flash_used". */
+    void uploadWithFlashIsPersistedAndEchoed() {
+        QImage img(64, 64, QImage::Format_RGB32);
+        img.fill(Qt::gray);
+        QByteArray jpeg;
+        QBuffer buf(&jpeg);
+        buf.open(QIODevice::WriteOnly);
+        QVERIFY(img.save(&buf, "JPEG"));
+
+        QJsonObject o;
+        o["session"] = "testflash";
+        o["image"]   = QString::fromUtf8("data:image/jpeg;base64," + jpeg.toBase64());
+        o["wants"]   = QJsonArray{"desc"};
+        o["angle"]   = 0;
+        o["flash"]   = true;
+
+        bool ok = false;
+        const QByteArray resp = runCurl(
+            {"-X", "POST", "-H", "Content-Type: application/json",
+             "--data-binary", QString::fromUtf8(QJsonDocument(o).toJson(QJsonDocument::Compact)),
+             QString("https://127.0.0.1:%1/upload").arg(kTestPort)}, ok);
+        QVERIFY(ok);
+
+        const QJsonObject j = QJsonDocument::fromJson(resp).object();
+        QVERIFY(j.value("ok").toBool());
+        QVERIFY2(j.value("flash_used").toBool(), "flash_used non riecheggiato nella risposta");
+        const QString dev = j.value("device").toString();
+
+        const QDir d(tmp->path() + "/testflash/" + dev);
+        const QStringList jsonFiles = d.entryList({"*.json"}, QDir::Files);
+        QCOMPARE(jsonFiles.size(), 1);
+        QFile mf(d.absoluteFilePath(jsonFiles.first()));
+        QVERIFY(mf.open(QIODevice::ReadOnly));
+        const QJsonObject saved = QJsonDocument::fromJson(mf.readAll()).object();
+        QVERIFY2(saved.value("flash_on").toBool(), "flash_on non salvato nel sidecar");
     }
 
     void downloadModelWorks() {

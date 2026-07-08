@@ -40,7 +40,7 @@ logger = logging.getLogger(__name__)
 
 ROOT    = Path(os.environ.get("PRISMALUX_ROOT", "/home/wildlux/Desktop/Prismalux"))
 EXPORT  = ROOT / "EXPORT"
-VERSION = os.environ.get("PRISMALUX_VERSION", "2.9")
+VERSION = os.environ.get("PRISMALUX_VERSION", "3.0")
 
 # ─── Cosa escludere ───────────────────────────────────────────────────────────
 
@@ -176,8 +176,8 @@ TOOL_DEFS: list[dict[str, Any]] = [
                 "version": {
                     "type": "string",
                     "description": (
-                        "Versione da includere nel nome file, es. '2.9'. "
-                        "Default: valore di PRISMALUX_VERSION o '2.9'."
+                        "Versione da includere nel nome file, es. '3.0'. "
+                        "Default: valore di PRISMALUX_VERSION o '3.0'."
                     ),
                 },
             },

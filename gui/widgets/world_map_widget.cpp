@@ -1,5 +1,8 @@
 #include "world_map_widget.h"
 #include "../dpi_utils.h"
+#include "../prismalux_paths.h"
+namespace P = PrismaluxPaths;
+#include <QSettings>
 #include <QPainter>
 #include <QMouseEvent>
 #include <QWheelEvent>
@@ -92,7 +95,7 @@ void WorldMapWidget::requestTile(int z, int x, int y)
     m_pending.insert(key);
     const QUrl url(QString("https://tile.openstreetmap.org/%1/%2/%3.png").arg(z).arg(x).arg(y));
     QNetworkRequest req(url);
-    req.setHeader(QNetworkRequest::UserAgentHeader, "Prismalux/2.9 (educational desktop app)");
+    req.setHeader(QNetworkRequest::UserAgentHeader, "Prismalux/3.0 (educational desktop app)");
     req.setAttribute(QNetworkRequest::CacheLoadControlAttribute,
                      QNetworkRequest::PreferCache);
     m_net->get(req);
@@ -183,7 +186,8 @@ WorldMapWidget::WorldMapWidget(QWidget* parent) : QWidget(parent)
     m_dlTimer->setInterval(100);
     connect(m_dlTimer, &QTimer::timeout, this, &WorldMapWidget::onDlTimerTick);
 
-    /* centra su Roma */
+    /* centra su Roma (la persistenza dell'ultima posizione è opt-in,
+       vedi enableViewPersistence()) */
     const QPointF wp = latLonToWorld(41.9, 12.5);
     m_centerX = wp.x();
     m_centerY = wp.y();
@@ -279,6 +283,43 @@ WorldMapWidget::WorldMapWidget(QWidget* parent) : QWidget(parent)
     updateZoomLabel();
 }
 
+WorldMapWidget::~WorldMapWidget()
+{
+    saveLastView();
+}
+
+/* Opt-in (vedi header): ripristina subito l'ultima vista salvata e attiva
+   il salvataggio automatico per le modifiche successive. */
+void WorldMapWidget::enableViewPersistence()
+{
+    m_persistView = true;
+
+    QSettings settings("Prismalux", "GUI");
+    const double lat0 = settings.value(P::SK::kOsmMapLastLat, 41.9).toDouble();
+    const double lon0 = settings.value(P::SK::kOsmMapLastLon, 12.5).toDouble();
+    m_zoom = qBound(kMinZoom, settings.value(P::SK::kOsmMapLastZoom, m_zoom).toInt(), kMaxZoom);
+    m_numericLabels = settings.value(P::SK::kOsmMapNumericLabels, false).toBool();
+    const QPointF wp = latLonToWorld(lat0, lon0);
+    m_centerX = wp.x();
+    m_centerY = wp.y();
+    updateZoomLabel();
+    update();
+}
+
+/* Persiste centro (lat/lon) e zoom correnti: alla prossima apertura la
+   mappa riparte da dove l'utente si era spostato invece che da Roma.
+   No-op se enableViewPersistence() non è mai stata chiamata (vedi header). */
+void WorldMapWidget::saveLastView() const
+{
+    if (!m_persistView) return;
+    double lat, lon;
+    worldToLatLon(m_centerX, m_centerY, lat, lon);
+    QSettings settings("Prismalux", "GUI");
+    settings.setValue(P::SK::kOsmMapLastLat,  lat);
+    settings.setValue(P::SK::kOsmMapLastLon,  lon);
+    settings.setValue(P::SK::kOsmMapLastZoom, m_zoom);
+}
+
 void WorldMapWidget::setCoords(double lat, double lon)
 {
     m_markerLat = qBound(-85.05, lat, 85.05);
@@ -329,6 +370,7 @@ void WorldMapWidget::onZoomInClicked()
     m_zoom = newZ;
     updateZoomLabel();
     update();
+    saveLastView();
 }
 
 void WorldMapWidget::onZoomOutClicked()
@@ -341,6 +383,7 @@ void WorldMapWidget::onZoomOutClicked()
     m_zoom = newZ;
     updateZoomLabel();
     update();
+    saveLastView();
 }
 
 void WorldMapWidget::onResetViewClicked()
@@ -353,6 +396,7 @@ void WorldMapWidget::onResetViewClicked()
     m_centerY = wp.y();
     updateZoomLabel();
     update();
+    saveLastView();
 }
 
 void WorldMapWidget::resizeEvent(QResizeEvent* e)
@@ -421,6 +465,7 @@ void WorldMapWidget::onResultActivated(QListWidgetItem* item)
     emit cityNameChanged(nm);
     m_resultList->hide();
     m_searchEdit->clear();
+    saveLastView();   // città cercata esplicitamente: riparti da qui la prossima volta
 
     /* In modalità percorso: propone menu "Aggiungi alla rotta" */
     if (m_routeMode) {
@@ -576,6 +621,7 @@ void WorldMapWidget::mouseReleaseEvent(QMouseEvent* e)
     if (e->button() != Qt::LeftButton) return;
     setCursor(Qt::CrossCursor);
     m_dragging = false;
+    saveLastView();   // fine di un eventuale trascinamento: persiste la nuova vista
 
     if ((QPointF(e->pos()) - m_pressPos).manhattanLength() <= 4) {
         const QPointF w = screenToWorld(e->pos().x(), e->pos().y());
@@ -612,20 +658,51 @@ void WorldMapWidget::setRouteMode(bool on)
         : "Clicca: seleziona luogo  |  Rotella: zoom  |  Trascina: pan  |  Doppio clic: reset");
 }
 
+/* Etichetta automatica per indice 0-based: stile "excel" A, B, ... Z, poi
+   A1, B1, ... Z1, A2, ... (non torna mai ad A da sola oltre la 26esima
+   tappa) oppure numerica progressiva 1, 2, 3, ..., a scelta dell'utente
+   (setLabelStyle). */
+QString WorldMapWidget::autoLabel(int idx) const
+{
+    if (m_numericLabels) return QString::number(idx + 1);
+    const int letter = idx % 26;
+    const int cycle  = idx / 26;
+    QString s(QChar('A' + letter));
+    if (cycle > 0) s += QString::number(cycle);
+    return s;
+}
+
+void WorldMapWidget::setLabelStyle(bool numeric)
+{
+    m_numericLabels = numeric;
+    QSettings("Prismalux", "GUI").setValue(P::SK::kOsmMapNumericLabels, numeric);
+}
+
 void WorldMapWidget::addWaypoint(double lat, double lon, const QString& label)
 {
     const int idx = m_waypointCoords.size();
     m_waypointCoords.append({lat, lon});
-    m_waypointLabels.append(label.isEmpty()
-        ? QString::fromLatin1("%1").arg(QChar('A' + idx % 26))
-        : label);
+    m_waypointLabels.append(label.isEmpty() ? autoLabel(idx) : label);
+    m_waypointCustomLabel.append(!label.isEmpty());
     update();
+}
+
+bool WorldMapWidget::renameWaypoint(int idx, const QString& label)
+{
+    const QString trimmed = label.trimmed();
+    if (idx < 0 || idx >= m_waypointLabels.size() || trimmed.isEmpty())
+        return false;
+    m_waypointLabels[idx] = trimmed;
+    m_waypointCustomLabel[idx] = true;
+    update();
+    return true;
 }
 
 void WorldMapWidget::clearRoute()
 {
     m_waypointCoords.clear();
     m_waypointLabels.clear();
+    m_waypointCustomLabel.clear();
     m_routeLine.clear();
     update();
 }
@@ -712,10 +789,13 @@ void WorldMapWidget::contextMenuEvent(QContextMenuEvent* e)
 void WorldMapWidget::insertStartWaypoint(double lat, double lon, const QString& label)
 {
     m_waypointCoords.prepend({lat, lon});
-    m_waypointLabels.prepend(label.isEmpty() ? "A" : label);
-    /* Ri-assegna etichette A, B, C... dall'inizio */
+    m_waypointLabels.prepend(label.isEmpty() ? autoLabel(0) : label);
+    m_waypointCustomLabel.prepend(!label.isEmpty());
+    /* Ri-assegna le etichette automatiche dall'inizio, ma senza toccare
+       quelle rinominate a mano dall'utente (renameWaypoint). */
     for (int i = 0; i < m_waypointLabels.size(); ++i)
-        m_waypointLabels[i] = QString::fromLatin1("%1").arg(QChar('A' + i % 26));
+        if (!m_waypointCustomLabel[i])
+            m_waypointLabels[i] = autoLabel(i);
     update();
     emit waypointsReset();
 }

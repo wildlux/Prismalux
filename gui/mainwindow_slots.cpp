@@ -925,6 +925,7 @@ void MainWindow::onClearLogClicked()
 {
     if (m_logViewSis) m_logViewSis->clear();
     if (m_logViewAI)  m_logViewAI->clear();
+    if (m_logView3D)  m_logView3D->clear();
 }
 
 // ─── VRAM bench ───────────────────────────────────────────────────────────

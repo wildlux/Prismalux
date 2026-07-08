@@ -34,10 +34,10 @@
 #include <QVector>
 #include <QPoint>
 #include <QProcess>
+#include <QJsonObject>
 
 class QLabel;
 class QLineEdit;
-class QPlainTextEdit;
 class QPushButton;
 class QTableWidget;
 class QComboBox;
@@ -45,6 +45,18 @@ class QListWidget;
 class QListWidgetItem;
 class QNetworkReply;
 class QSpinBox;
+class QrCodeWidget;
+
+// Quali analisi calcolare per uno scatto — bundle dei flag "wants" del
+// telefono, per non far crescere all'infinito i parametri di analyze().
+struct Vision3DWants {
+    bool desc   = false;   // descrizione VLM (Ollama)
+    bool boxes  = false;   // box oggetti (OpenCV, Canny+contorni)
+    bool depth  = false;   // depth map (script Python MiDaS)
+    bool edges  = false;   // bordi (OpenCV, Canny)
+    bool bump   = false;   // bump map (luminanza equalizzata = altezza)
+    bool normal = false;   // normal map (gradienti Sobel → normali tangent-space)
+};
 
 // Risultato di una singola foto analizzata.
 struct Vision3DResult {
@@ -62,6 +74,9 @@ struct Vision3DResult {
     int     boxesCount = 0;
     QByteArray boxesJpeg;                // JPEG annotato (vuoto se disabilitato)
     QByteArray depthJpeg;                // JPEG depth colormap (vuoto se n/d)
+    QByteArray edgesJpeg;                // JPEG bordi (Canny, vuoto se disabilitato/no OpenCV)
+    QByteArray bumpJpeg;                 // JPEG bump map (vuoto se disabilitato/no OpenCV)
+    QByteArray normalJpeg;               // JPEG normal map (vuoto se disabilitato/no OpenCV)
     QString savedPath;                   // cartella su disco
     QString error;
 };
@@ -87,6 +102,10 @@ struct V3dShotInfo {
 // Mini-scena 3D: oggetto al centro, un "cono" (frustum) per ogni scatto
 // disposto sul cerchio all'angolo di bussola. Trascina = orbita, rotella = zoom.
 // Senza sensori la disposizione è indicativa (spaziatura uniforme, tratteggio).
+// Oltre agli scatti reali, mostra dei tasselli-bersaglio semi-trasparenti
+// distribuiti sulla sfera (setTargetQuality): pieni/evidenziati dove uno
+// scatto già copre quella zona, tratteggiati dove serve ancora — una guida
+// visiva a "quanti e dove" servono scatti per la qualità scelta.
 class Vision3DSceneCanvas : public QWidget {
     Q_OBJECT
 public:
@@ -97,6 +116,9 @@ public:
     int  shotCount() const { return int(m_shots.size()); }
     /** Aggiorna la posa di uno scatto (modifica manuale). Ritorna false se key ignota. */
     bool setShotPose(const QString& key, int heading, int pitch);
+    /** Ricalcola i tasselli-bersaglio per "low"/"medium"/"high"; stringa
+        vuota o sconosciuta = nessun bersaglio mostrato. */
+    void setTargetQuality(const QString& quality);
 
 protected:
     void paintEvent(QPaintEvent*) override;
@@ -107,9 +129,13 @@ protected:
 private:
     QPointF project(double x, double y, double z) const;
     void drawFrustum(QPainter& p, const V3dShotInfo& s, bool selected) const;
+    void drawTargets(QPainter& p) const;
+    double shotHeight(const V3dShotInfo& s) const;   // quota sulla sfera (stessa formula di drawFrustum)
 
     QVector<V3dShotInfo> m_shots;
     QString m_selectedKey;
+    QString m_targetQuality;                    // "low" | "medium" | "high" | vuoto
+    QVector<QPair<double,int>> m_targets;        // (bussola gradi, indice anello 0..2)
     double  m_yawDeg  = 30.0;   // orbita orizzontale (drag)
     double  m_tiltDeg = 28.0;   // inclinazione vista (drag verticale)
     double  m_zoom    = 1.0;
@@ -136,6 +162,23 @@ public:
     void setArucoMarkerMm(double mm);               // lato reale marker (default 40)
     void setBindIp(const QString& ip);              // default: primo IP LAN 192.168.x
 
+    /* ── Gestione sessioni/foto — programmabile anche senza passare dai
+       dialog UI (utile per embedder esterni o automazioni). ── */
+    // Sanifica il nome e crea la cartella vuota; "" se il nome non è valido.
+    // description (opzionale) → scan_output/<session>/session.json.
+    QString createSession(const QString& rawName, const QString& description = QString());
+    // Copia i file immagine in scan_output/<session>/import/ con la stessa
+    // numerazione *_a???.jpg degli scatti da telefono (has_sensors=false).
+    // Ritorna quante immagini sono state importate con successo.
+    int importPhotoFiles(const QString& session, const QStringList& files);
+    // Elimina foto + box + depth + sidecar di uno scatto (base = percorso
+    // senza estensione, come Qt::UserRole in galleria).
+    void deleteShot(const QString& base);
+    // Nota libera sulla sessione (es. "cubo con croce rossa, test point
+    // cloud"), persistita in scan_output/<session>/session.json.
+    QString sessionDescription(const QString& session) const;
+    void    setSessionDescription(const QString& session, const QString& description);
+
 signals:
     void serverStarted(const QString& url);
     void photoReceived(int index, const QString& session, const QString& deviceId);
@@ -153,6 +196,17 @@ private slots:
     void onVlmModelChanged(const QString& model);
     void onVlmTagsReady();
     void onSessionComboChanged(const QString& session);
+    void onPrepSessionComboChanged(const QString& session);   // combo Preparazione → sincronizza e ricarica
+    void onNewSessionClicked();     // crea una sessione vuota col nome scelto (notturno, villa, ...)
+    void onEditSessionDescriptionClicked();  // inserisce/modifica la descrizione della sessione corrente
+    void onEditShotDescriptionClicked();     // inserisce/modifica la descrizione dello scatto selezionato
+    void onImportPhotosClicked();   // importa foto esistenti da disco nella sessione corrente
+    void onDeletePhotoClicked();    // elimina gli scatti selezionati in galleria (anche più di uno)
+    void onDeleteAllPhotosClicked(); // elimina TUTTI gli scatti della sessione corrente
+    void onThumbContextMenu(const QPoint& pos);  // tasto destro su una miniatura → salva quella immagine
+    void onSaveAllMapsClicked();    // salva tutte le mappe dello scatto selezionato in una cartella
+    void onDeviceTableContextMenu(const QPoint& pos);  // tasto destro su un device → elimina device+foto
+    void onGalleryContextMenu(const QPoint& pos);  // tasto destro in galleria → "Salva sul PC" (anche multi-selezione)
     void onPoseSpinChanged();
     void onDistributeClicked();
     void onHelpClicked();
@@ -163,6 +217,14 @@ private slots:
     void onReconProcFinished(int code, QProcess::ExitStatus status);
 
 private:
+    // doppio click su una miniatura di analisi (box/depth/bordi/bump/normal)
+    // in "Ultimo scatto analizzato" → intercettato qui (QLabel non ha un
+    // segnale doubleClicked nativo), vedi recomputeThumb().
+    bool eventFilter(QObject* watched, QEvent* event) override;
+    // ricalcola sul momento UNA sola mappa (suffix es. "_edges.jpg") per lo
+    // scatto selezionato, la salva su disco e aggiorna solo quella miniatura
+    void recomputeThumb(QLabel* thumb, const QString& suffix, const QString& label);
+
     struct ParsedRequest {
         QByteArray method, path, body;
         QByteArray cookieDeviceId;       // da header Cookie
@@ -182,13 +244,20 @@ private:
     void    refreshDeviceTable();
 
     // pipeline
+    // extraSensors: campi opzionali dal telefono copiati così come sono nel
+    // sidecar .json (accelerometro grezzo, giroscopio, altitudine GPS,
+    // test flash) — vedi analyze() per le chiavi accettate.
     Vision3DResult analyze(const QString& session, const QString& deviceId, int angle,
                            int pitch, int roll, bool hasSensors,
-                           const QByteArray& jpeg,
-                           bool doDesc, bool doBoxes, bool doDepth);
+                           const QByteArray& jpeg, const Vision3DWants& wants,
+                           const QString& scanMode = QStringLiteral("object"),
+                           const QJsonObject& extraSensors = QJsonObject());
     QString    vlmDescribe(const QByteArray& jpeg);
     QByteArray detectBoxes(const QByteArray& jpeg, int& nBoxes);
     QByteArray depthMap(const QByteArray& jpeg);
+    QByteArray edgeMap(const QByteArray& jpeg);    // bordi (OpenCV Canny)
+    QByteArray bumpMap(const QByteArray& jpeg);    // bump map (luminanza equalizzata)
+    QByteArray normalMap(const QByteArray& jpeg);  // normal map (gradienti Sobel)
     // rileva marker ArUco: ritorna mm/unità (0 se nessuno) e n. marker in 'found'
     double     detectAruco(const QByteArray& jpeg, int& found);
     // IPv4 locali ordinati per preferenza LAN (192.168.x prima; escluse
@@ -208,6 +277,7 @@ private:
     static int requiredPhotosFor(const QString& quality);  // foto minime per qualità
     int  countSessionPhotos(const QString& session) const;
     void updatePhotoRequirement();   // contatore "X/Y foto" accanto alla qualità
+    void refreshSessionDescriptionTooltip(const QString& session);  // combo → tooltip descrizione
 
 #if QT_CONFIG(ssl)
     QSslServer*       m_server = nullptr;
@@ -234,17 +304,21 @@ private:
     QLabel*         m_urlLabel   = nullptr;
     QLabel*         m_statusDot  = nullptr;
     QPushButton*    m_toggleBtn  = nullptr;
-    QPlainTextEdit* m_log        = nullptr;
     QLabel*         m_lastDesc   = nullptr;
+    QLabel*         m_lastSensorInfo = nullptr;  // modalità/quota GPS/accelerometro dello scatto in galleria
     QLabel*         m_lastThumb  = nullptr;
     QLabel*         m_lastDepth  = nullptr;
     QLabel*         m_lastBoxes  = nullptr;
+    QLabel*         m_lastEdges  = nullptr;   // bordi (Canny)
+    QLabel*         m_lastBump   = nullptr;   // bump map
+    QLabel*         m_lastNormal = nullptr;   // normal map
     QLineEdit*      m_portEdit   = nullptr;
     QComboBox*      m_ifaceCombo = nullptr;
     QComboBox*      m_vlmCombo   = nullptr;
     QListWidget*    m_gallery    = nullptr;   // tutti gli scatti, clic = rivedi
     QTableWidget*   m_deviceTable = nullptr;
     QNetworkReply*  m_tagsReply  = nullptr;   // fetch /api/tags in corso
+    QrCodeWidget*   m_prepQr     = nullptr;   // tab Preparazione: QR di collegamento, aggiornato da start()/stop()
 
     // scena 3D + ricostruzione
     Vision3DSceneCanvas* m_scene = nullptr;
@@ -253,6 +327,7 @@ private:
     QPushButton*    m_distribBtn    = nullptr;  // distribuisci scatti sul cerchio
     QString         m_selectedShotKey;          // basePath dello scatto selezionato
     QComboBox*      m_sessionCombo = nullptr;
+    QComboBox*      m_prepSessionCombo = nullptr;   // stesso elenco sessioni, selettore in tab Preparazione
     QComboBox*      m_qualityCombo = nullptr;
     QPushButton*    m_reconBtn   = nullptr;
     QLabel*         m_reconHint  = nullptr;   // stato COLMAP, aggiornabile a caldo

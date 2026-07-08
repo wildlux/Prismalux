@@ -1110,6 +1110,12 @@ constexpr const char* kSttDiarizeNSpeakers   = "stt/diarize_n_speakers";   ///< 
 /* ── Vision3D (scansione 3D da telefono) ─────────── */
 constexpr const char* kVision3dVlmModel = "vision3d/vlmModel"; ///< modello vision Ollama (default: "moondream")
 
+/* ── Mappa OSM ────────────────────────────────────── */
+constexpr const char* kOsmMapLastLat        = "osmMap/lastLat";        ///< ultima posizione (centro mappa) — persiste tra sessioni
+constexpr const char* kOsmMapLastLon        = "osmMap/lastLon";
+constexpr const char* kOsmMapLastZoom       = "osmMap/lastZoom";
+constexpr const char* kOsmMapNumericLabels  = "osmMap/numericLabels";  ///< true = tappe numerate 1,2,3.. invece di A,B,C..Z,A1,B1..
+
 /* ── AI — modello/backend preferiti dall'utente ──── */
 constexpr const char* kActiveModel     = "ai/activeModel";    ///< ultimo modello selezionato manualmente
 constexpr const char* kActiveBackend   = "ai/activeBackend";  ///< 0=Ollama, 1=LlamaServer, 2=LlamaLocal

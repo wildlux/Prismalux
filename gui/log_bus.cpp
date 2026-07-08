@@ -8,7 +8,7 @@ LogBus* LogBus::instance()
     return &inst;
 }
 
-void LogBus::post(const QString& msg)
+void LogBus::post(const QString& msg, const QString& category)
 {
-    emit instance()->event(msg);
+    emit instance()->event(msg, category);
 }

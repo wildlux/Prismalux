@@ -1450,7 +1450,7 @@ void LanServer::handleWikiApi(const Session& s)
     proc.setProcessChannelMode(QProcess::SeparateChannels);
     proc.start("curl", QStringList{
         "-s", "--max-time", "8",
-        "-H", "User-Agent: Prismalux/2.9 (Qt6; Linux)",
+        "-H", "User-Agent: Prismalux/3.0 (Qt6; Linux)",
         url
     });
     if (!proc.waitForStarted(3000)) {

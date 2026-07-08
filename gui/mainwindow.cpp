@@ -129,9 +129,12 @@ void MainWindow::setupServices()
     });
     m_modelRefreshTimer->start();
 
-    /* LogBus globale — qualsiasi scheda può usare LogBus::post() per inviare qui */
+    /* LogBus globale — qualsiasi scheda può usare LogBus::post() per inviare qui.
+       category vuota o sconosciuta → tab "Sistema" (comportamento invariato). */
     connect(LogBus::instance(), &LogBus::event, this,
-            [this](const QString& msg){ appendLog(msg, LogSistema); });
+            [this](const QString& msg, const QString& category){
+                appendLog(msg, category.compare("3d", Qt::CaseInsensitive) == 0 ? Log3D : LogSistema);
+            });
 
     /* ONNX embedder locale — caricato in background se i file modello esistono */
     m_onnxEmbedder = new OnnxEmbedder(this);

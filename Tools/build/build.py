@@ -137,13 +137,13 @@ def run(cmd: list, env: dict | None = None, cwd: Path | None = None) -> int:
 def read_version() -> str:
     cmake_lists = GUI_DIR / "CMakeLists.txt"
     if not cmake_lists.exists():
-        return "2.9"
+        return "3.0"
     for line in cmake_lists.read_text(encoding="utf-8").splitlines():
         if "project(Prismalux_GUI VERSION" in line:
             parts = line.split("VERSION")
             if len(parts) > 1:
                 return parts[1].strip().split()[0].rstrip(")")
-    return "2.9"
+    return "3.0"
 
 
 def _build_common(cmake: str, ninja: str | None, qt_prefix: Path | None,

@@ -83,30 +83,11 @@ QWidget* LavoroPage::buildAssistenteTab(QWidget* parent, QWidget* candidatureCon
     auto* goBtn = new QPushButton(tr("Vai"), toolbar);
     goBtn->setObjectName("actionBtn");
 
-    /* Toggle apri/nascondi colonne — nella riga del browser, quindi sempre
-       visibili anche quando le colonne sono compresse o il contenuto
-       scrolla. */
-    m_asstCandCollapseBtn = new QPushButton(tr("\xf0\x9f\x93\x8b"), toolbar);
-    m_asstCandCollapseBtn->setObjectName("actionBtn");
-    m_asstCandCollapseBtn->setCheckable(true);
-    m_asstCandCollapseBtn->setChecked(true);
-    m_asstCandCollapseBtn->setFixedSize(dpiScale(28), dpiScale(28));
-    m_asstCandCollapseBtn->setToolTip(tr("Mostra/nascondi la colonna Candidature"));
-
-    m_asstCtrlCollapseBtn = new QPushButton(tr("\xf0\x9f\x9b\xa0"), toolbar);
-    m_asstCtrlCollapseBtn->setObjectName("actionBtn");
-    m_asstCtrlCollapseBtn->setCheckable(true);
-    m_asstCtrlCollapseBtn->setChecked(true);
-    m_asstCtrlCollapseBtn->setFixedSize(dpiScale(28), dpiScale(28));
-    m_asstCtrlCollapseBtn->setToolTip(tr("Mostra/nascondi la colonna Assistente"));
-
     toolL->addWidget(backBtn);
     toolL->addWidget(fwdBtn);
     toolL->addWidget(reloadBtn);
     toolL->addWidget(m_asstUrlEdit, 1);
     toolL->addWidget(goBtn);
-    toolL->addWidget(m_asstCandCollapseBtn);
-    toolL->addWidget(m_asstCtrlCollapseBtn);
     rootLay->addWidget(toolbar);
 
     auto* splitter = new QSplitter(Qt::Horizontal, root);
@@ -138,34 +119,73 @@ QWidget* LavoroPage::buildAssistenteTab(QWidget* parent, QWidget* candidatureCon
 
     splitter->addWidget(browserPane);
 
-    /* ──── Colonna centrale: contenuto storico Candidature ──── */
-    auto* candidaturePane = new QWidget(splitter);
+    /* ──── Destra: un unico pannello (50% della larghezza) con un piccolo
+       menù centrato in alto — "Candidature" e "Assistente" — che mostra
+       una sola sezione alla volta in m_asstSideStack. Prima erano 2
+       colonne strette sempre visibili fianco a fianco, ognuna con decine
+       di widget impilati: ingestibile. Ora si entra in una scheda e si
+       vede solo quello che serve. ──── */
+    auto* sidePane = new QWidget(splitter);
+    auto* sidePaneLay = new QVBoxLayout(sidePane);
+    sidePaneLay->setContentsMargins(8, 0, 0, 0);
+    sidePaneLay->setSpacing(6);
+
+    auto* navRow = new QWidget(sidePane);
+    auto* navL = new QHBoxLayout(navRow);
+    navL->setContentsMargins(0, 0, 0, 0);
+    navL->setSpacing(6);
+
+    m_asstCandCollapseBtn = new QPushButton(tr("\xf0\x9f\x93\x8b Candidature"), navRow);
+    m_asstCandCollapseBtn->setObjectName("actionBtn");
+    m_asstCandCollapseBtn->setCheckable(true);
+    m_asstCandCollapseBtn->setToolTip(tr("CV, filtri offerte, tracker, calcolatore, lettere"));
+
+    m_asstCtrlCollapseBtn = new QPushButton(tr("\xf0\x9f\x9b\xa0 Assistente"), navRow);
+    m_asstCtrlCollapseBtn->setObjectName("actionBtn");
+    m_asstCtrlCollapseBtn->setCheckable(true);
+    m_asstCtrlCollapseBtn->setToolTip(tr("Profilo candidato, macro sito, registrazione passi"));
+
+    navL->addStretch(1);
+    navL->addWidget(m_asstCandCollapseBtn);
+    navL->addWidget(m_asstCtrlCollapseBtn);
+    navL->addStretch(1);
+    sidePaneLay->addWidget(navRow);
+
+    m_asstSideStack = new QStackedWidget(sidePane);
+    sidePaneLay->addWidget(m_asstSideStack, 1);
+
+    /* ── Scheda "Candidature": contenuto storico (CV/Offerte/Tracker/
+       Calcolatore/Lettere), costruito in candidatureTab da LavoroPage ── */
+    auto* candidaturePane = new QWidget(m_asstSideStack);
     m_asstCandPane = candidaturePane;
     auto* candidaturePaneLay = new QVBoxLayout(candidaturePane);
-    candidaturePaneLay->setContentsMargins(8, 0, 0, 0);
-    candidaturePaneLay->setSpacing(4);
+    candidaturePaneLay->setContentsMargins(0, 0, 0, 0);
 
     m_asstCandScroll = new QScrollArea(candidaturePane);
     m_asstCandScroll->setWidgetResizable(true);
     m_asstCandScroll->setFrameShape(QFrame::NoFrame);
     m_asstCandScroll->setWidget(candidatureContent);
     candidaturePaneLay->addWidget(m_asstCandScroll, 1);
-
-    splitter->addWidget(candidaturePane);
+    m_asstSideStack->addWidget(candidaturePane);
     connect(m_asstCandCollapseBtn, &QPushButton::toggled, this, &LavoroPage::onAsstToggleCandColumn);
 
-    /* ──── Destra: pannello controlli assistente ──── */
-    auto* ctrlPane = new QWidget(splitter);
+    /* ── Scheda "Assistente": profilo candidato, macro sito, registrazione ── */
+    auto* ctrlPane = new QWidget(m_asstSideStack);
     m_asstCtrlPane = ctrlPane;
     auto* ctrlPaneLay = new QVBoxLayout(ctrlPane);
-    ctrlPaneLay->setContentsMargins(8, 0, 0, 0);
-    ctrlPaneLay->setSpacing(4);
+    ctrlPaneLay->setContentsMargins(0, 0, 0, 0);
 
-    m_asstCtrlContent = new QWidget(ctrlPane);
+    auto* ctrlScroll = new QScrollArea(ctrlPane);
+    ctrlScroll->setWidgetResizable(true);
+    ctrlScroll->setFrameShape(QFrame::NoFrame);
+    ctrlPaneLay->addWidget(ctrlScroll, 1);
+    m_asstSideStack->addWidget(ctrlPane);
+
+    m_asstCtrlContent = new QWidget(ctrlScroll);
     auto* ctrlLay = new QVBoxLayout(m_asstCtrlContent);
     ctrlLay->setContentsMargins(0, 0, 0, 0);
     ctrlLay->setSpacing(8);
-    ctrlPaneLay->addWidget(m_asstCtrlContent, 1);
+    ctrlScroll->setWidget(m_asstCtrlContent);
 
     auto* profiloBox = new QGroupBox(tr("\xf0\x9f\x91\xa4 Profilo candidato"), m_asstCtrlContent);
     auto* profiloBoxLay = new QVBoxLayout(profiloBox);
@@ -262,17 +282,26 @@ QWidget* LavoroPage::buildAssistenteTab(QWidget* parent, QWidget* candidatureCon
     m_asstLog->setMaximumHeight(dpiScale(110));
     ctrlLay->addWidget(m_asstLog);
 
-    splitter->addWidget(ctrlPane);
     connect(m_asstCtrlCollapseBtn, &QPushButton::toggled, this, &LavoroPage::onAsstToggleCtrlColumn);
-    splitter->setStretchFactor(0, 5);
-    splitter->setStretchFactor(1, 3);
-    splitter->setStretchFactor(2, 3);
+
+    splitter->addWidget(sidePane);
+    /* 50/50: la pagina web (browser) a sinistra, il pannello a schede
+       (Candidature/Assistente) a destra — stessa quota, invece del
+       vecchio 5:3:3 che schiacciava le due colonne strette. */
+    splitter->setStretchFactor(0, 1);
+    splitter->setStretchFactor(1, 1);
+    splitter->setSizes({1, 1});
     /* stretch 1 obbligatorio: QSplitter orizzontale ha politica verticale
        Preferred, senza stretch lo spazio extra andava spartito con la
        toolbar che si gonfiava a ~200px di vuoto sopra il browser. */
     rootLay->addWidget(splitter, 1);
 
     caricaProfiliCandidato();
+
+    /* Stato iniziale: scheda "Candidature" attiva (m_asstSideStack la
+       mostra già di default come primo widget aggiunto — il click qui
+       serve solo ad accendere il pulsante corrispondente nel menù). */
+    m_asstCandCollapseBtn->setChecked(true);
 
     return root;
 }
@@ -747,19 +776,43 @@ void LavoroPage::applicaProfiloAiCampi(const QString& nomeProfilo)
 }
 
 /* ══════════════════════════════════════════════════════════════
-   Colonne comprimibili — i due pulsanti restano nella riga del
-   browser (sempre visibili, mai dentro la colonna che nascondono),
-   la colonna si nasconde per intero; il QSplitter ridistribuisce
-   da solo lo spazio libero al browser.
+   Menù laterale centrato — i due pulsanti sono esclusivi: attivarne
+   uno mostra la scheda corrispondente in m_asstSideStack e spegne
+   l'altro; non è ammesso restare senza nessuna scheda selezionata
+   (lo stato "spento" ripristina se stesso).
    ══════════════════════════════════════════════════════════════ */
 void LavoroPage::onAsstToggleCandColumn(bool on)
 {
-    if (m_asstCandPane) m_asstCandPane->setVisible(on);
+    if (!on) {
+        if (m_asstCtrlCollapseBtn && !m_asstCtrlCollapseBtn->isChecked()) {
+            const QSignalBlocker blocker(m_asstCandCollapseBtn);
+            m_asstCandCollapseBtn->setChecked(true);
+        }
+        return;
+    }
+    if (m_asstCtrlCollapseBtn && m_asstCtrlCollapseBtn->isChecked()) {
+        const QSignalBlocker blocker(m_asstCtrlCollapseBtn);
+        m_asstCtrlCollapseBtn->setChecked(false);
+    }
+    if (m_asstSideStack && m_asstCandPane)
+        m_asstSideStack->setCurrentWidget(m_asstCandPane);
 }
 
 void LavoroPage::onAsstToggleCtrlColumn(bool on)
 {
-    if (m_asstCtrlPane) m_asstCtrlPane->setVisible(on);
+    if (!on) {
+        if (m_asstCandCollapseBtn && !m_asstCandCollapseBtn->isChecked()) {
+            const QSignalBlocker blocker(m_asstCtrlCollapseBtn);
+            m_asstCtrlCollapseBtn->setChecked(true);
+        }
+        return;
+    }
+    if (m_asstCandCollapseBtn && m_asstCandCollapseBtn->isChecked()) {
+        const QSignalBlocker blocker(m_asstCandCollapseBtn);
+        m_asstCandCollapseBtn->setChecked(false);
+    }
+    if (m_asstSideStack && m_asstCtrlPane)
+        m_asstSideStack->setCurrentWidget(m_asstCtrlPane);
 }
 
 #endif // HAVE_JOB_ASSISTANT

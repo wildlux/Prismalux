@@ -147,10 +147,18 @@ private:
     QLabel*               m_osmWeatherLbl  = nullptr;
     QLabel*               m_osmDlLbl       = nullptr;
     QPushButton*          m_osmWeatherBtn  = nullptr;
+    QComboBox*            m_osmSavedCombo  = nullptr;   ///< percorsi salvati su disco
+    /* Ricarica l'elenco dei percorsi salvati (percorsi_mappa/*.json) nel
+       combo; selectName, se non vuoto, prova a riselezionarlo dopo. */
+    void refreshOsmSavedRoutes(const QString& selectName = QString());
     void runGraphvizAi();
     void _renderDotCode(const QString& dot);
     void _doTranscribe(const QString& wav);
     void startOcrDaemon();
     void stopOcrDaemon();
     void requestOcrCapture();
+    /* Quota di un singolo punto — chiamata subito dopo l'aggiunta di una
+       tappa, senza aspettare "Calcola percorso": permette di vedere
+       l'altitudine di un possibile arrivo prima di sceglierlo. */
+    void fetchOsmWaypointElevation(double lat, double lon);
 };

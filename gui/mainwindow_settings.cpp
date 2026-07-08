@@ -182,9 +182,11 @@ void MainWindow::ensureLogDialog()
 
     m_logViewSis = makeView("Nessun evento di sistema. Backend, server, Qt, ONNX.");
     m_logViewAI  = makeView("Nessun evento AI. Pipeline, inferenza, RAG, embedding.");
+    m_logView3D  = makeView("Nessun evento Vision3D. Server, scatti ricevuti, ricostruzione.");
 
     m_logTabs->addTab(m_logViewSis, "\xf0\x9f\x96\xa5  Sistema");   /* 🖥 */
     m_logTabs->addTab(m_logViewAI,  "\xf0\x9f\xa4\x96  AI");         /* 🤖 */
+    m_logTabs->addTab(m_logView3D,  "\xf0\x9f\xa7\xa9  3D");         /* 🧩 */
     lay->addWidget(m_logTabs, 1);
 
     /* Pulsanti */
@@ -221,7 +223,7 @@ void MainWindow::appendLog(const QString& msg, LogCategory cat)
     const QString line = QString("<span style='color:#888;'>%1</span> &nbsp;%2")
                          .arg(ts, msg);
 
-    QTextEdit* view = (cat == LogAI) ? m_logViewAI : m_logViewSis;
+    QTextEdit* view = (cat == LogAI) ? m_logViewAI : (cat == Log3D) ? m_logView3D : m_logViewSis;
     view->moveCursor(QTextCursor::End);
     view->insertHtml(line + "<br>");
 

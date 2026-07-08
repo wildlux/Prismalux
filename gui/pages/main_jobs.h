@@ -15,6 +15,7 @@
 #include <QWebChannel>
 #include <QCheckBox>
 #include <QScrollArea>
+#include <QStackedWidget>
 #include <QMap>
 #include "../widgets/job_recorder_bridge.h"
 #endif
@@ -201,12 +202,15 @@ private:
     QMap<QString, CandidatoProfilo> m_asstProfili;
     QString      m_asstProfiloAttivo;
 
-    /* ── Colonne comprimibili (header sempre visibile + contenuto toggle) ── */
-    QWidget*     m_asstCandPane        = nullptr;
-    QScrollArea* m_asstCandScroll      = nullptr;
-    QPushButton* m_asstCandCollapseBtn = nullptr;
-    QWidget*     m_asstCtrlPane        = nullptr;
-    QWidget*     m_asstCtrlContent     = nullptr;
-    QPushButton* m_asstCtrlCollapseBtn = nullptr;
+    /* ── Menù laterale centrato (Candidature | Assistente) — una sola
+       sezione visibile alla volta dentro m_asstSideStack, invece delle
+       2 colonne fianco a fianco sempre visibili di prima ── */
+    QWidget*        m_asstCandPane        = nullptr;
+    QScrollArea*    m_asstCandScroll      = nullptr;
+    QPushButton*    m_asstCandCollapseBtn = nullptr;
+    QWidget*        m_asstCtrlPane        = nullptr;
+    QWidget*        m_asstCtrlContent     = nullptr;
+    QPushButton*    m_asstCtrlCollapseBtn = nullptr;
+    QStackedWidget* m_asstSideStack       = nullptr;
 #endif
 };

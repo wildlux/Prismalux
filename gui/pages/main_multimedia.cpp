@@ -44,6 +44,7 @@
 #include <QUrlQuery>
 #include <QListWidget>
 #include <QCheckBox>
+#include <QInputDialog>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QLabel>
@@ -1811,6 +1812,73 @@ static QString wmoText(int code)
     return "—";
 }
 
+/* Testo mostrato nella lista Tappe: etichetta + coordinate + quota, se
+   già nota. Fattorizzato per restare identico tra aggiunta, ricostruzione
+   della lista e rinomina manuale. */
+static QString osmWpItemText(const QString& label, double lat, double lon,
+                              bool hasElev, int elevM)
+{
+    QString s = QString("%1  %2, %3").arg(label).arg(lat, 0, 'f', 5).arg(lon, 0, 'f', 5);
+    if (hasElev) s += QString("   \xe2\x9b\xb0 %1 m").arg(elevM);
+    return s;
+}
+
+/* ── Quota di un singolo waypoint ──────────────────────────────────
+   Interrogata subito dopo l'aggiunta di una tappa (non solo dopo
+   "Calcola percorso"): così si vede l'altitudine di un possibile
+   arrivo prima ancora di deciderlo — utile per pianificare lo sforzo
+   in bicicletta senza motore. Il match sulla lista alla risposta
+   avviene per coordinate (non per puntatore all'item, che nel
+   frattempo potrebbe essere stato rimosso o ricostruito). */
+void MultimediaPage::fetchOsmWaypointElevation(double lat, double lon)
+{
+    if (!m_osmNam) return;
+
+    QNetworkRequest req(QUrl(
+        QString("https://api.open-meteo.com/v1/elevation"
+                "?latitude=%1&longitude=%2")
+            .arg(lat, 0, 'f', 5).arg(lon, 0, 'f', 5)));
+    req.setHeader(QNetworkRequest::UserAgentHeader, "Prismalux/3.0");
+
+    QNetworkReply* reply = m_osmNam->get(req);
+    connect(reply, &QNetworkReply::finished, reply, [this, reply, lat, lon] {
+        reply->deleteLater();
+        if (reply->error() != QNetworkReply::NoError || !m_osmWpList) return;
+
+        const QJsonArray arr = QJsonDocument::fromJson(reply->readAll())
+                                    .object()["elevation"].toArray();
+        if (arr.isEmpty()) return;
+        const int elev = qRound(arr.first().toDouble());
+
+        for (int i = 0; i < m_osmWpList->count(); ++i) {
+            auto* it = m_osmWpList->item(i);
+            const double ilat = it->data(Qt::UserRole).toDouble();
+            const double ilon = it->data(Qt::UserRole + 1).toDouble();
+            if (qAbs(ilat - lat) < 1e-4 && qAbs(ilon - lon) < 1e-4) {
+                const QString lbl = it->data(Qt::UserRole + 2).toString();
+                it->setData(Qt::UserRole + 3, elev);
+                it->setText(osmWpItemText(lbl, lat, lon, true, elev));
+                break;
+            }
+        }
+    });
+}
+
+/* Elenca i percorsi salvati (percorsi_mappa/*.json) nel combo dedicato. */
+void MultimediaPage::refreshOsmSavedRoutes(const QString& selectName)
+{
+    if (!m_osmSavedCombo) return;
+    m_osmSavedCombo->clear();
+    const QDir dir(P::root() + "/percorsi_mappa");
+    const QFileInfoList files = dir.entryInfoList({"*.json"}, QDir::Files, QDir::Name);
+    for (const QFileInfo& fi : files)
+        m_osmSavedCombo->addItem(fi.completeBaseName());
+    if (!selectName.isEmpty()) {
+        const int idx = m_osmSavedCombo->findText(selectName);
+        if (idx >= 0) m_osmSavedCombo->setCurrentIndex(idx);
+    }
+}
+
 QWidget* MultimediaPage::buildOsmMapTab()
 {
     auto* w   = new QWidget;
@@ -1821,6 +1889,7 @@ QWidget* MultimediaPage::buildOsmMapTab()
     /* ── Mappa principale ── */
     m_osmMap = new WorldMapWidget(w);
     m_osmMap->setRouteMode(true);
+    m_osmMap->enableViewPersistence();   // riparte dall'ultima città visitata
     lay->addWidget(m_osmMap, 1);
 
     /* ── Pannello laterale destro (scrollabile) ── */
@@ -1845,7 +1914,10 @@ QWidget* MultimediaPage::buildOsmMapTab()
         "<small>"
         "<b>Click sinistro</b> = aggiungi tappa.<br>"
         "<b>Click destro</b> = menu (Partenza / Tappa).<br>"
-        "Cerca citt\xc3\xa0 → scegli Partenza o Tappa."
+        "Cerca citt\xc3\xa0 → scegli Partenza o Tappa.<br>"
+        "<b>Doppio clic</b> su una tappa = rinominala.<br>"
+        "Ogni tappa mostra subito la sua \xe2\x9b\xb0 quota, "
+        "prima ancora di calcolare il percorso."
         "</small>", panel);
     hintLbl->setObjectName("hintLabel");
     hintLbl->setTextFormat(Qt::RichText);
@@ -1873,6 +1945,18 @@ QWidget* MultimediaPage::buildOsmMapTab()
     wpBtnRow->addWidget(btnRemWp, 1);
     wpBtnRow->addWidget(btnClrWp, 1);
     wpLay->addLayout(wpBtnRow);
+
+    auto* numLabelChk = new QCheckBox(
+        tr("\xf0\x9f\x94\xa2 Numeri (1,2,3..) invece di A,B,C.."), wpGroup);
+    numLabelChk->setChecked(m_osmMap->numericLabelStyle());
+    numLabelChk->setToolTip(tr(
+        "Stile etichette per le tappe non rinominate a mano.\n"
+        "Con A,B,C.. dopo la Z si continua con A1,B1,..Z1,A2.. invece di\n"
+        "ripartire da A."));
+    connect(numLabelChk, &QCheckBox::toggled, w, [this](bool on) {
+        if (m_osmMap) m_osmMap->setLabelStyle(on);
+    });
+    wpLay->addWidget(numLabelChk);
     panelLay->addWidget(wpGroup);
 
     /* ── Routing ── */
@@ -1909,6 +1993,30 @@ QWidget* MultimediaPage::buildOsmMapTab()
     rtLay->addWidget(btnClrRoute);
 
     panelLay->addWidget(rtGroup);
+
+    /* ── Percorsi salvati ── */
+    auto* savedGroup = new QGroupBox("\xf0\x9f\x92\xbe  Percorsi salvati", panel);
+    auto* savedLay = new QVBoxLayout(savedGroup);
+    savedLay->setSpacing(dpiScale(4));
+
+    m_osmSavedCombo = new QComboBox(savedGroup);
+    m_osmSavedCombo->setObjectName("settingCombo");
+    savedLay->addWidget(m_osmSavedCombo);
+
+    auto* savedBtnRow = new QHBoxLayout;
+    auto* btnSaveRoute = new QPushButton("\xf0\x9f\x92\xbe  Salva", savedGroup);
+    btnSaveRoute->setObjectName("actionBtn");
+    btnSaveRoute->setToolTip(tr("Salva tappe e percorso disegnato con un nome"));
+    auto* btnLoadRoute = new QPushButton("\xf0\x9f\x93\x82  Carica", savedGroup);
+    btnLoadRoute->setObjectName("actionBtn");
+    auto* btnDelRoute = new QPushButton("\xf0\x9f\x97\x91", savedGroup);
+    btnDelRoute->setObjectName("actionBtn");
+    btnDelRoute->setToolTip(tr("Elimina il percorso selezionato"));
+    savedBtnRow->addWidget(btnSaveRoute, 1);
+    savedBtnRow->addWidget(btnLoadRoute, 1);
+    savedBtnRow->addWidget(btnDelRoute);
+    savedLay->addLayout(savedBtnRow);
+    panelLay->addWidget(savedGroup);
 
     /* ── Altimetria (ciclisti / alpini) ── */
     auto* elevGroup = new QGroupBox(
@@ -1991,19 +2099,21 @@ QWidget* MultimediaPage::buildOsmMapTab()
 
     /* ── Connessioni ── */
 
-    /* Waypoint aggiunto dalla mappa → aggiorna lista */
+    /* Waypoint aggiunto dalla mappa → aggiorna lista (l'etichetta è quella
+       già assegnata da WorldMapWidget — rispetta stile numerico/rinomine) */
     connect(m_osmMap, &WorldMapWidget::waypointAdded,
             w, [this](int idx, double lat, double lon) {
-        const QString lbl = QString::fromLatin1("%1").arg(QChar('A' + idx % 26));
-        auto* item = new QListWidgetItem(
-            QString("%1  %2, %3").arg(lbl)
-                .arg(lat, 0, 'f', 5).arg(lon, 0, 'f', 5));
+        const QString lbl = m_osmMap->waypointLabels().value(idx, QString::number(idx + 1));
+        auto* item = new QListWidgetItem(osmWpItemText(lbl, lat, lon, false, 0));
         item->setData(Qt::UserRole,     lat);
         item->setData(Qt::UserRole + 1, lon);
+        item->setData(Qt::UserRole + 2, lbl);
         if (m_osmWpList) m_osmWpList->addItem(item);
+        fetchOsmWaypointElevation(lat, lon);
     });
 
-    /* insertStartWaypoint → ricostruisce lista completa */
+    /* insertStartWaypoint / cambio stile etichette / caricamento percorso
+       → ricostruisce lista completa */
     connect(m_osmMap, &WorldMapWidget::waypointsReset,
             w, [this] {
         if (!m_osmWpList || !m_osmMap) return;
@@ -2011,20 +2121,39 @@ QWidget* MultimediaPage::buildOsmMapTab()
         const auto& coords = m_osmMap->waypoints();
         const auto& labels = m_osmMap->waypointLabels();
         for (int i = 0; i < coords.size(); ++i) {
+            const QString lbl = labels.value(i, "?");
             auto* item = new QListWidgetItem(
-                QString("%1  %2, %3")
-                    .arg(labels.value(i, "?"))
-                    .arg(coords[i].first,  0, 'f', 5)
-                    .arg(coords[i].second, 0, 'f', 5));
+                osmWpItemText(lbl, coords[i].first, coords[i].second, false, 0));
             item->setData(Qt::UserRole,     coords[i].first);
             item->setData(Qt::UserRole + 1, coords[i].second);
+            item->setData(Qt::UserRole + 2, lbl);
             m_osmWpList->addItem(item);
+            fetchOsmWaypointElevation(coords[i].first, coords[i].second);
         }
         if (m_osmRouteInfo)
             m_osmRouteInfo->setText(tr("Distanza: \xe2\x80\x94  |  Tempo: \xe2\x80\x94"));
     });
 
-    /* Rimuovi waypoint selezionato */
+    /* Rinomina una tappa (doppio clic): il nome scelto resta fisso anche
+       se in seguito si imposta una nuova partenza. */
+    connect(m_osmWpList, &QListWidget::itemDoubleClicked, w, [this](QListWidgetItem* item) {
+        if (!item || !m_osmMap) return;
+        const int row = m_osmWpList->row(item);
+        bool ok = false;
+        const QString newLabel = QInputDialog::getText(
+            m_osmWpList, tr("Rinomina tappa"), tr("Nome:"),
+            QLineEdit::Normal, item->data(Qt::UserRole + 2).toString(), &ok).trimmed();
+        if (!ok || newLabel.isEmpty() || !m_osmMap->renameWaypoint(row, newLabel)) return;
+
+        const double lat = item->data(Qt::UserRole).toDouble();
+        const double lon = item->data(Qt::UserRole + 1).toDouble();
+        const QVariant elevData = item->data(Qt::UserRole + 3);
+        item->setData(Qt::UserRole + 2, newLabel);
+        item->setText(osmWpItemText(newLabel, lat, lon, elevData.isValid(), elevData.toInt()));
+    });
+
+    /* Rimuovi waypoint selezionato — le etichette dei restanti (incluse
+       eventuali rinomine) sono preservate passandole esplicitamente. */
     connect(btnRemWp, &QPushButton::clicked, w, [this] {
         if (!m_osmWpList) return;
         const int row = m_osmWpList->currentRow();
@@ -2034,7 +2163,8 @@ QWidget* MultimediaPage::buildOsmMapTab()
         for (int i = 0; i < m_osmWpList->count(); ++i) {
             auto* it = m_osmWpList->item(i);
             m_osmMap->addWaypoint(it->data(Qt::UserRole).toDouble(),
-                                  it->data(Qt::UserRole + 1).toDouble());
+                                  it->data(Qt::UserRole + 1).toDouble(),
+                                  it->data(Qt::UserRole + 2).toString());
         }
         if (m_osmRouteInfo)
             m_osmRouteInfo->setText(tr("Distanza: \xe2\x80\x94  |  Tempo: \xe2\x80\x94"));
@@ -2089,7 +2219,7 @@ QWidget* MultimediaPage::buildOsmMapTab()
 
         QNetworkRequest req(url);
         req.setHeader(QNetworkRequest::UserAgentHeader,
-                      "Prismalux/2.9 (educational desktop app)");
+                      "Prismalux/3.0 (educational desktop app)");
 
         btnCalc->setEnabled(false);
         if (m_osmRouteInfo)
@@ -2150,7 +2280,7 @@ QWidget* MultimediaPage::buildOsmMapTab()
                             "?latitude=%1&longitude=%2")
                         .arg(lats.join(","), lons.join(","))));
                 elReq.setHeader(QNetworkRequest::UserAgentHeader,
-                                "Prismalux/2.9");
+                                "Prismalux/3.0");
 
                 QNetworkReply* elRep = m_osmNam->get(elReq);
                 connect(elRep, &QNetworkReply::finished, elRep,
@@ -2214,7 +2344,7 @@ QWidget* MultimediaPage::buildOsmMapTab()
                     "&timezone=auto")
                 .arg(startLat, 0, 'f', 4)
                 .arg(startLon, 0, 'f', 4)));
-        req.setHeader(QNetworkRequest::UserAgentHeader, "Prismalux/2.9");
+        req.setHeader(QNetworkRequest::UserAgentHeader, "Prismalux/3.0");
 
         QNetworkReply* rep = m_osmNam->get(req);
         connect(rep, &QNetworkReply::finished, rep,
@@ -2276,6 +2406,84 @@ QWidget* MultimediaPage::buildOsmMapTab()
                     .arg(done).arg(total));
         }
     });
+
+    /* Salva tappe + percorso disegnato con un nome, per riprenderlo in
+       futuro senza dover ricliccare tutte le tappe. */
+    connect(btnSaveRoute, &QPushButton::clicked, w, [this] {
+        if (!m_osmMap || !m_osmWpList || m_osmWpList->count() == 0) return;
+        bool ok = false;
+        QString name = QInputDialog::getText(
+            m_osmWpList, tr("Salva percorso"), tr("Nome:"),
+            QLineEdit::Normal, QString(), &ok).trimmed();
+        if (!ok || name.isEmpty()) return;
+        name.replace(QRegularExpression("[/\\\\:*?\"<>|]"), "_");
+
+        const QDir dir(P::root() + "/percorsi_mappa");
+        QDir().mkpath(dir.absolutePath());
+
+        QJsonArray wpArr;
+        for (int i = 0; i < m_osmWpList->count(); ++i) {
+            auto* it = m_osmWpList->item(i);
+            QJsonObject o;
+            o["lat"]   = it->data(Qt::UserRole).toDouble();
+            o["lon"]   = it->data(Qt::UserRole + 1).toDouble();
+            o["label"] = it->data(Qt::UserRole + 2).toString();
+            wpArr.append(o);
+        }
+
+        QJsonObject root;
+        root["profile"]   = m_osmProfileCmb ? m_osmProfileCmb->currentData().toString() : "driving";
+        root["waypoints"] = wpArr;
+
+        QFile f(dir.absoluteFilePath(name + ".json"));
+        if (f.open(QIODevice::WriteOnly)) {
+            f.write(QJsonDocument(root).toJson(QJsonDocument::Compact));
+            f.close();
+            refreshOsmSavedRoutes(name);
+            LogBus::post("\xf0\x9f\x92\xbe Mappa OSM: percorso '" + name + "' salvato.");
+        }
+    });
+
+    /* Carica un percorso salvato: ricrea le tappe (che a loro volta
+       ridisegnano marker e rilanciano la quota per ognuna). */
+    connect(btnLoadRoute, &QPushButton::clicked, w, [this] {
+        if (!m_osmMap || !m_osmSavedCombo || m_osmSavedCombo->currentText().isEmpty()) return;
+        const QString name = m_osmSavedCombo->currentText();
+        QFile f(P::root() + "/percorsi_mappa/" + name + ".json");
+        if (!f.open(QIODevice::ReadOnly)) return;
+        const QJsonObject root = QJsonDocument::fromJson(f.readAll()).object();
+        f.close();
+
+        if (m_osmWpList) m_osmWpList->clear();
+        m_osmMap->clearRoute();
+        m_osmMap->setRouteLine({});
+        for (const QJsonValue& v : root["waypoints"].toArray()) {
+            const QJsonObject o = v.toObject();
+            const double lat = o["lat"].toDouble();
+            const double lon = o["lon"].toDouble();
+            m_osmMap->addWaypoint(lat, lon, o["label"].toString());
+            emit m_osmMap->waypointAdded(m_osmMap->waypoints().size() - 1, lat, lon);
+        }
+        if (m_osmProfileCmb) {
+            const int idx = m_osmProfileCmb->findData(root["profile"].toString());
+            if (idx >= 0) m_osmProfileCmb->setCurrentIndex(idx);
+        }
+        if (m_osmRouteInfo)
+            m_osmRouteInfo->setText(tr(
+                "Percorso caricato — premi \xf0\x9f\x94\x8d Calcola percorso "
+                "per distanza/tempo aggiornati."));
+        LogBus::post("\xf0\x9f\x93\x82 Mappa OSM: percorso '" + name + "' caricato.");
+    });
+
+    /* Elimina il percorso salvato selezionato. */
+    connect(btnDelRoute, &QPushButton::clicked, w, [this] {
+        if (!m_osmSavedCombo || m_osmSavedCombo->currentText().isEmpty()) return;
+        const QString name = m_osmSavedCombo->currentText();
+        QFile::remove(P::root() + "/percorsi_mappa/" + name + ".json");
+        refreshOsmSavedRoutes();
+    });
+
+    refreshOsmSavedRoutes();
 
     return w;
 }

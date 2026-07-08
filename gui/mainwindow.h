@@ -75,12 +75,13 @@ public:
     AiClient*        aiClient()  { return m_ai; }
     HardwareMonitor* hwMonitor() { return m_hw; }
 
-    enum LogCategory { LogSistema, LogAI };
+    enum LogCategory { LogSistema, LogAI, Log3D };
 
     /**
      * appendLog — Aggiunge una riga al log messaggi con timestamp.
      * cat = LogSistema → tab "Sistema" (backend, server, Qt, errori)
      * cat = LogAI      → tab "AI"      (pipeline, inferenza, RAG, embedding)
+     * cat = Log3D      → tab "3D"      (Vision3D: server, scatti, ricostruzione)
      * Incrementa il badge non-letto se il dialog è chiuso.
      */
     void appendLog(const QString& msg, LogCategory cat = LogSistema);
@@ -174,6 +175,7 @@ private:
     QTabWidget*     m_logTabs       = nullptr;  ///< Tab Sistema / AI
     QTextEdit*      m_logViewSis    = nullptr;  ///< Log sistema (backend, server, Qt)
     QTextEdit*      m_logViewAI     = nullptr;  ///< Log AI (pipeline, inferenza, RAG)
+    QTextEdit*      m_logView3D     = nullptr;  ///< Log Vision3D (server, scatti, ricostruzione)
     int             m_logUnread     = 0;        ///< Contatore messaggi non letti
     QWidget*        m_sidebarWidget = nullptr;  ///< Sidebar (mostra/nascondi con ☰)
     QPushButton*    m_btnBackend  = nullptr;  ///< Backend AI: Ollama / avvia-ferma llama-server

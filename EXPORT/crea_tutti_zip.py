@@ -28,7 +28,7 @@ def _version():
             m = re.search(r"project\(Prismalux_GUI VERSION\s+([0-9.]+)", line)
             if m:
                 return m.group(1)
-    return "2.9"
+    return "3.0"
 
 VERSION = _version()
 print(f"Prismalux v{VERSION} — generazione pacchetti distribuzione\n")
