@@ -730,6 +730,38 @@ if(BUILD_TESTS)
         target_link_libraries(test_team_collab PRIVATE pthread m)
     endif()
 
+    # ── test_agente_autonomo_live: Agente Autonomo (Agentico 👔) ↔ Ollama reale ──
+    # CAT-A: ReAct con TOOL_CALL calcolatrice (37*43 → 1591 dal tool locale)
+    # CAT-B: domanda diretta → FINAL_ANSWER. Suite LENTA, esclusa da ctest standard.
+    # Override modello: PRISMALUX_TEST_MODEL=qwen3:4b ./build_tests/test_agente_autonomo_live
+    add_executable(test_agente_autonomo_live
+        tests/test_agente_autonomo_live.cpp
+    )
+    target_include_directories(test_agente_autonomo_live PRIVATE
+        ${CMAKE_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/tests
+    )
+    target_link_libraries(test_agente_autonomo_live PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
+    if(NOT WIN32)
+        target_link_libraries(test_agente_autonomo_live PRIVATE pthread m)
+    endif()
+
+    # ── test_chat_live: Chat singola (💬) ↔ Ollama reale ─────────────────────
+    # CAT-A: guardie locali via UI (zero LLM) — CAT-B: risposta streamed reale
+    # CAT-C: memoria conversazione multi-turno. Suite LENTA, esclusa da ctest standard.
+    # Override modello: PRISMALUX_TEST_MODEL=llama3.2:3b ./build_tests/test_chat_live
+    add_executable(test_chat_live
+        tests/test_chat_live.cpp
+    )
+    target_include_directories(test_chat_live PRIVATE
+        ${CMAKE_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/tests
+    )
+    target_link_libraries(test_chat_live PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
+    if(NOT WIN32)
+        target_link_libraries(test_chat_live PRIVATE pthread m)
+    endif()
+
     # ── test_multi_agente_live: AgentiMultiPage + GraphMemory ↔ Ollama reale ──
     # CAT-A: costruzione (nessun Ollama) — CAT-B: decomposizione JSON — 30 s
     # CAT-C: esecuzione SubTask + nodo result in GraphMemory — 60 s
@@ -1504,6 +1536,10 @@ if(BUILD_TESTS)
     add_test(NAME AiStress             COMMAND test_ai_stress)
     add_test(NAME TeamCollab           COMMAND test_team_collab)
     add_test(NAME MultiAgenteLive      COMMAND test_multi_agente_live)
+    add_test(NAME AgenteAutonomoLive   COMMAND test_agente_autonomo_live)
+    set_tests_properties(AgenteAutonomoLive PROPERTIES TIMEOUT 2000)
+    add_test(NAME ChatLive             COMMAND test_chat_live)
+    set_tests_properties(ChatLive PROPERTIES TIMEOUT 2000)
     add_test(NAME LavoroData           COMMAND test_lavoro_data)
     add_test(NAME TutorData            COMMAND test_tutor_data)
     add_test(NAME RagEngineAvanzato    COMMAND test_rag_engine_avanzato)

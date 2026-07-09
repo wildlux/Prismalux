@@ -809,13 +809,18 @@ quint64 AiClient::chat(const QString& systemPrompt, const QString& userMsg,
         body["max_tokens"]     = (qt == QuerySimple) ? 512 : m_params.num_predict;
     }
 
-    /* keep_alive dinamico (solo Ollama) */
+    /* keep_alive dinamico (solo Ollama, valori in secondi).
+       Ricaricare il modello costa 2-5s a domanda: i vecchi valori
+       (0 sopra 70% RAM, 30s sopra 40%) lo scaricavano praticamente a
+       ogni pausa — con metà RAM usata (browser aperto) ogni domanda
+       ripagava il load. Soglie ricalibrate: si scarica subito solo
+       con RAM davvero critica. */
     if (m_backend == Ollama) {
         const double usedPct = 100.0 - m_ramFreePct;
-        if (usedPct > 70.0)
-            body["keep_alive"] = 0;
-        else if (usedPct > 40.0)
-            body["keep_alive"] = 30;
+        if      (usedPct > 85.0) body["keep_alive"] = 0;
+        else if (usedPct > 70.0) body["keep_alive"] = 60;
+        else if (usedPct > 40.0) body["keep_alive"] = 600;
+        else                     body["keep_alive"] = 1800;
     }
 
     /* Smart Router: se attivo e la query va al cloud, sovrascriviamo URL/modello/auth */

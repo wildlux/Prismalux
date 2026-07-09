@@ -483,11 +483,17 @@ bool AgentiPage::_showQrEventoBubble(const QString& result)
     // dopo l'aggiunta della variante Android) 170px evita che la riga
     // trabocchi restando comunque leggibile.
     const int qrPx = pngs.size() >= 3 ? 170 : 210;
-    QString imgsHtml = "<table cellpadding='0' cellspacing='0'><tr>";
+    /* cellspacing (non padding sul singolo <td>) per lo spazio TRA i QR:
+       a schermo 18px sembrava un gap ragionevole, ma inquadrando con la
+       fotocamera del telefono da una certa distanza il mirino dello
+       scanner include comunque il QR affiancato e legge quello sbagliato
+       (segnalato da Paolo) — serve un margine molto più ampio di quanto
+       basterebbe solo esteticamente. */
+    QString imgsHtml = "<table cellpadding='0' cellspacing='60'><tr>";
     for (int i = 0; i < pngs.size(); ++i) {
         const QString path  = pngs[i].toString();
         const QString label = i < labels.size() ? labels[i].toString() : QString();
-        imgsHtml += "<td style='text-align:center;padding:6px 18px 0 0;'>"
+        imgsHtml += "<td style='text-align:center;padding:6px 0 0 0;'>"
             "<img src='" + QUrl::fromLocalFile(path).toString() + "' width='" + QString::number(qrPx)
             + "' height='" + QString::number(qrPx) + "'>"
             "<div style='font-size:11px;color:" + c.lHdr + ";margin-top:2px;'>" + label.toHtmlEscaped() + "</div>"
@@ -506,8 +512,11 @@ bool AgentiPage::_showQrEventoBubble(const QString& result)
             "<div>" + imgsHtml + "</div>"
             "<p style='font-size:13px;margin:8px 0 0 0;color:" + c.lRes + ";'>" + testo.toHtmlEscaped() + "</p>"
             + (icsFile.isEmpty() ? QString() :
-               "<p style='font-size:11px;margin:6px 0 0 0;color:" + QString(c.lHdr) + ";'>File salvato: "
-               + icsFile.toHtmlEscaped() + "</p>")
+               "<p style='font-size:11px;margin:6px 0 0 0;color:" + QString(c.lHdr) + ";'>"
+               "\xf0\x9f\x92\xbe&nbsp;File di riserva salvato qui: " + icsFile.toHtmlEscaped()
+               + " — se nessun QR funziona sul tuo telefono, invialo a te stesso "
+                 "(Telegram, email, chiavetta) e aprilo: il telefono lo riconoscerà "
+                 "come evento calendario.</p>")
         + "</td></tr></table><p style='margin:4px 0;'></p>");
     m_input->clear();
     emit chatCompleted(m_taskOriginal.left(40), m_log->toHtml());

@@ -1445,7 +1445,7 @@ void AgentiPage::runToolCall(const QJsonObject& call,
             QUrl url("https://calendar.google.com/calendar/render");
             url.setQuery(q);
 
-            const QImage img = QrCodeWidget::renderImage(url.toString());
+            const QImage img = QrCodeWidget::renderImage(url.toString(QUrl::FullyEncoded));
             if (!img.isNull()) {
                 const QString path = base + "_google.png";
                 if (img.save(path, "PNG")) {

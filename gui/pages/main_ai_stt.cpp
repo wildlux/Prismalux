@@ -29,7 +29,21 @@ void AgentiPage::_sttStartRecording()
     m_btnVoice->setProperty("danger","true");
     P::repolish(m_btnVoice);
 
+    /* In Conversa l'hub diventa uno Stop rosso: un clic (o Esc) ferma
+       microfono e loop — prima non esisteva alcuno stop in questa modalità */
+    if (m_modeBtn && m_modeBtn->currentMode() == TriModeButton::Conversa) {
+        m_modeBtn->setActionText(tr("\xe2\x8f\xb9 Stop"));
+        m_modeBtn->setActionDanger(true);
+        m_btnRun->setText(tr("\xe2\x8f\xb9 Stop"));
+    }
+
     m_recProc = new QProcess(this);
+
+    /* Warm-up del demone STT: parte ORA così i 6-12s di registrazione
+       coprono il caricamento del modello — a fine parlato la trascrizione
+       costa solo ~2s (GPU) invece di ~11s. No-op se già attivo. */
+    if (SttWhisper::isFastWhisperEnabled() && SttWhisper::isFastWhisperAvailable())
+        SttDaemon::instance().ensureStarted(SttWhisper::fastWhisperModelName());
 
     /* recSecs dichiarato qui — usato dopo il #endif (righe countdown/timeout) */
     const int recSecs = m_voiceLoopActive ? 12 : 6;
@@ -168,34 +182,76 @@ void AgentiPage::onSttTimeout()
         return;
     }
 
-    /* ── VAD: salta Whisper se il WAV non contiene parlato ── */
-    {
+    /* ── VAD esterna: SOLO nel percorso senza demone (lì il silenzio
+       costerebbe un caricamento modello da ~10s). Col demone attivo il
+       vad_filter interno di faster-whisper gestisce il silenzio in ~1s.
+       Asincrona: la versione precedente usava waitForFinished(3000) e
+       congelava l'interfaccia fino a 3s dopo ogni registrazione. ── */
+    if (!SttDaemon::instance().isUsable()) {
         const QString vadScript = P::root() + "/Tools/scripts/vad_filter.py";
-        if (QFileInfo::exists(vadScript)) {
-            QProcess vad;
-            vad.start(P::findPython(), {vadScript, wavPath});
-            if (vad.waitForFinished(3000)) {
-                const QString out =
-                    QString::fromUtf8(vad.readAllStandardOutput()).trimmed();
-                if (out == "SILENCE") {
-                    m_sttState = SttState::Idle;
-                    m_btnVoice->setText(tr("\xf0\x9f\x8e\xa4 Trascrivi parlato"));
-                    m_btnVoice->setProperty("danger", "false");
-                    P::repolish(m_btnVoice);
-                    m_btnVoice->setEnabled(true);
-                    QFile::remove(wavPath);
-                    if (m_voiceLoopActive)
-                        QTimer::singleShot(500, this, &AgentiPage::onSttVoiceLoopRetry);
-                    else
-                        m_log->append(
-                            "\xf0\x9f\x94\x87 Silenzio rilevato &mdash; "
-                            "nessun parlato nell'audio.");
-                    return;
-                }
-            }
+        if (QFileInfo::exists(vadScript) && !P::findPython().isEmpty()) {
+            m_vadProc = new QProcess(this);
+            connect(m_vadProc,
+                    QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                    this, &AgentiPage::onSttVadFinished);
+            connect(m_vadProc, &QProcess::errorOccurred,
+                    this, [this](QProcess::ProcessError err) {
+                if (err == QProcess::FailedToStart) onSttVadTimeout();
+            });
+            m_vadProc->start(P::findPython(), {vadScript, wavPath});
+            QTimer::singleShot(3500, this, &AgentiPage::onSttVadTimeout);
+            return;
         }
     }
 
+    _sttRunTranscription();
+}
+
+/* ── slot: vad_filter.py terminato — SILENCE ferma tutto, altrimenti trascrive ── */
+void AgentiPage::onSttVadFinished()
+{
+    if (!m_vadProc) return;   /* già gestito dal watchdog */
+    const QString out =
+        QString::fromUtf8(m_vadProc->readAllStandardOutput()).trimmed();
+    m_vadProc->deleteLater();
+    m_vadProc = nullptr;
+    if (out == "SILENCE") { _sttHandleSilence(); return; }
+    _sttRunTranscription();
+}
+
+/* ── slot: watchdog VAD — processo bloccato/non partito → trascrivi comunque ── */
+void AgentiPage::onSttVadTimeout()
+{
+    if (!m_vadProc) return;   /* già concluso regolarmente */
+    m_vadProc->disconnect();
+    m_vadProc->blockSignals(true);
+    m_vadProc->kill();
+    m_vadProc->deleteLater();
+    m_vadProc = nullptr;
+    _sttRunTranscription();
+}
+
+/* ── silenzio rilevato: reset UI + retry silenzioso se in loop voce ── */
+void AgentiPage::_sttHandleSilence()
+{
+    m_sttState = SttState::Idle;
+    m_btnVoice->setText(tr("\xf0\x9f\x8e\xa4 Trascrivi parlato"));
+    m_btnVoice->setProperty("danger", "false");
+    P::repolish(m_btnVoice);
+    m_btnVoice->setEnabled(true);
+    QFile::remove(m_sttWavPath);
+    if (m_voiceLoopActive)
+        QTimer::singleShot(500, this, &AgentiPage::onSttVoiceLoopRetry);
+    else
+        m_log->append(
+            "\xf0\x9f\x94\x87 Silenzio rilevato &mdash; "
+            "nessun parlato nell'audio.");
+}
+
+/* ── avvia la trascrizione vera e propria su m_sttWavPath ── */
+void AgentiPage::_sttRunTranscription()
+{
+    const QString wavPath = m_sttWavPath;
     m_sttState = SttState::Transcribing;
     m_btnVoice->setText(tr("\xe2\x8c\x9b Trascrivendo..."));
     m_btnVoice->setProperty("danger","false");
@@ -209,9 +265,18 @@ void AgentiPage::onSttTimeout()
                 m_btnVoice->setText(tr("\xf0\x9f\x8e\xa4 Trascrivi parlato"));
                 m_btnVoice->setEnabled(true);
 
-                if (!ok || text.isEmpty()) {
+                if (ok && text.isEmpty()) {
+                    /* Demone: vad_filter interno non ha trovato parlato */
                     m_log->append(
-                        "\xe2\x9a\xa0  Trascrizione fallita o audio vuoto.<br>"
+                        "\xf0\x9f\x94\x87 Silenzio rilevato &mdash; "
+                        "nessun parlato nell'audio.");
+                    if (m_voiceLoopActive)
+                        QTimer::singleShot(500, this, &AgentiPage::onSttVoiceLoopRetry);
+                    return;
+                }
+                if (!ok) {
+                    m_log->append(
+                        "\xe2\x9a\xa0  Trascrizione fallita.<br>"
                         + QString(text).replace("\n","<br>"));
                     if (m_voiceLoopActive)
                         QTimer::singleShot(1500, this, &AgentiPage::onSttVoiceLoopRetry);
@@ -255,8 +320,11 @@ void AgentiPage::onSttTimeout()
 
                 m_input->setPlainText(text);
                 m_input->setFocus();
-                /* Auto-invio se: auto-loop attivo OPPURE Conversa mode */
-                if ((m_voiceLoopActive || inConversa) && !m_ai->busy())
+                /* Auto-invio SOLO a loop attivo: in Conversa il loop è
+                   sempre attivo mentre gira; se l'utente ha premuto
+                   Stop/Esc durante la trascrizione, il testo resta
+                   nell'input senza partire da solo. */
+                if (m_voiceLoopActive && !m_ai->busy())
                     QTimer::singleShot(150, this, &AgentiPage::onSttVoiceLoopAutoSend);
             });
 }
@@ -376,11 +444,50 @@ void AgentiPage::onRecProcFinished(int, QProcess::ExitStatus)
 /* ── slot: riprova ascolto dopo STT fallito (voice loop) ───────────────────── */
 void AgentiPage::onSttVoiceLoopRetry()
 {
+    /* Il retry è schedulato con singleShot: se nel frattempo l'utente ha
+       fermato il loop (Stop/Esc), NON riaprire il microfono. */
+    if (!m_voiceLoopActive) return;
     _sttStartRecording();
 }
 
 /* ── slot: invio automatico dopo STT ok (voice loop) ───────────────────────── */
 void AgentiPage::onSttVoiceLoopAutoSend()
 {
-    m_btnRun->click();
+    if (!m_voiceLoopActive) return;   /* loop fermato mentre trascriveva */
+    /* Flag: distingue questo click programmatico dallo Stop dell'utente
+       (in Conversa il click sull'hub a loop attivo ferma tutto). */
+    m_sttAutoSending = true;
+    m_btnRun->click();                /* connessione diretta: sincrono */
+    m_sttAutoSending = false;
+}
+
+/* ── STOP totale del flusso voce: registrazione, trascrizione, AI, loop ────── */
+void AgentiPage::_voiceConversaStop()
+{
+    if (m_ai->busy()) m_ai->abort();
+    /* onVoiceLoopToggled(false) uccide registrazione + TTS, ferma il tick
+       e azzera m_voiceLoopActive: da qui in poi retry/auto-send schedulati
+       non ripartono (guardie sui rispettivi slot). */
+    onVoiceLoopToggled(false);
+    if (m_sttState == SttState::Transcribing) {
+        /* la risposta del demone in arrivo verrà mostrata nell'input ma
+           senza auto-invio (m_voiceLoopActive ormai false) */
+        m_sttState = SttState::Idle;
+        m_btnVoice->setText(tr("\xf0\x9f\x8e\xa4 Trascrivi parlato"));
+        m_btnVoice->setEnabled(true);
+    }
+    /* Ripristina l'hub della modalità Conversa */
+    if (m_modeBtn && m_modeBtn->currentMode() == TriModeButton::Conversa) {
+        m_modeBtn->setActionText(tr("\xf0\x9f\x8e\x99  Dialoga"));
+        m_modeBtn->setActionDanger(false);
+        m_btnRun->setText(tr("\xf0\x9f\x8e\x99  Dialoga"));
+    }
+    m_log->append("\xe2\x9c\x8b  Conversazione fermata.");
+}
+
+/* ── slot: Esc — ferma il flusso voce se attivo, altrimenti non fa nulla ───── */
+void AgentiPage::onEscShortcut()
+{
+    if (m_voiceLoopActive || m_sttState != SttState::Idle)
+        _voiceConversaStop();
 }

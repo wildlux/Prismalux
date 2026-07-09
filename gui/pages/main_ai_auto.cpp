@@ -125,7 +125,13 @@ QString AgentiPage::buildAutoStepHtml(int step, const QString& thought,
 void AgentiPage::runAutonomousAgent()
 {
     if (m_ai->busy()) return;
-    if (m_opMode != OpMode::AutonomousAgent) return;  /* abort ha già resettato opMode */
+    /* NON usare m_opMode come guardia: alla prima chiamata è ancora Idle e
+       _autoAdvance lo mette temporaneamente Idle durante il parsing — il
+       vecchio check `m_opMode != AutonomousAgent` uccideva sia il primo
+       step sia ogni continuazione post-OBSERVATION (bug trovato dal test
+       live AgenteAutonomoLive: nessuna richiesta arrivava mai a Ollama). */
+    if (!m_autoEnabled)  return;   /* modalità cambiata nel frattempo */
+    if (m_autoAborted)   return;   /* Stop dell'utente durante il ciclo */
 
     m_autoBuf.clear();
     m_waitLbl->setVisible(true);

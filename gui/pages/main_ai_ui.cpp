@@ -850,6 +850,11 @@ void AgentiPage::buildInputConnections(QPushButton* btnSymbols)
     auto* scMode = new QShortcut(Qt::Key_Backtab, this);
     scMode->setContext(Qt::WidgetWithChildrenShortcut);
     connect(scMode, &QShortcut::activated, this, &AgentiPage::onCycleModeShortcut);
+
+    /* Esc ferma il flusso voce (registrazione / loop Conversa) */
+    auto* scEsc = new QShortcut(Qt::Key_Escape, this);
+    scEsc->setContext(Qt::WidgetWithChildrenShortcut);
+    connect(scEsc, &QShortcut::activated, this, &AgentiPage::onEscShortcut);
 }
 
 /* ──────────────────────────────────────────────────────────────
@@ -1450,6 +1455,8 @@ void AgentiPage::_setRunBusy(bool busy)
     } else {
         if (m_autoEnabled)
             m_btnRun->setText(tr("\xf0\x9f\xa4\x96  Avvia Agente"));
+        else if (m_modeBtn && m_modeBtn->currentMode() == TriModeButton::Conversa)
+            m_btnRun->setText(tr("\xf0\x9f\x8e\x99  Dialoga"));
         else if (m_modePipeline)
             m_btnRun->setText(tr("\xe2\x96\xb6  Avvia"));
         else

@@ -115,6 +115,7 @@ void AgentiPage::prepareClose()
     };
     killProc(m_recProc);
     killProc(m_sttProc);
+    killProc(m_vadProc);
     killProc(m_piperProc);
     killProc(m_ttsProc);
     killProc(m_execProc);

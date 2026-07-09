@@ -27,6 +27,7 @@
 #include <functional>
 #include "../prismalux_paths.h"
 #include "../app_config.h"
+#include "stt_daemon.h"
 
 namespace SttWhisper {
 
@@ -78,7 +79,16 @@ inline void savePreferredModel(const QString& path)
 inline QString fastWhisperModelName()
 {
     const QString pref = AppConfig::s().value(P::SK::kSttFastWhisperModel).toString();
-    return pref.isEmpty() ? QStringLiteral("large-v3-turbo") : pref;
+    if (!pref.isEmpty()) return pref;
+    /* Default adattivo: se lo script ha marcato la GPU come inutilizzabile
+       (~/.prismalux/stt_force_cpu, creato da fast_whisper_transcribe.py al
+       primo fallimento CUDA), large-v3-turbo costerebbe ~20s a frase su CPU
+       — troppo per la modalità Conversa. "small" trascrive l'italiano bene
+       in ~8s. Con GPU funzionante resta il turbo. La preferenza esplicita
+       in Impostazioni → Voce & Audio vince sempre. */
+    if (QFileInfo::exists(QDir::homePath() + "/.prismalux/stt_force_cpu"))
+        return QStringLiteral("small");
+    return QStringLiteral("large-v3-turbo");
 }
 
 /* ── true se faster-whisper (CLI o script Python) è disponibile ── */
@@ -150,6 +160,17 @@ inline QProcess* transcribe(
     QObject*       parent,
     std::function<void(const QString& text, bool ok)> onDone)
 {
+    /* ── Percorso 0: demone persistente (stt_daemon.py) ─────────
+       Modello già in memoria → costa solo la trascrizione (~2s su
+       GPU) invece di avvio interprete + load (~9s) a ogni frase.
+       Il demone viene avviato in anticipo da _sttStartRecording()
+       (il tempo di registrazione copre il caricamento). */
+    if (isFastWhisperEnabled() && SttDaemon::instance().isUsable()) {
+        SttDaemon::instance().transcribe(wavPath, lang, parent,
+                                         std::move(onDone));
+        return nullptr;
+    }
+
     /* ── Percorso 1: faster-whisper ─────────────────────────── */
     if (isFastWhisperEnabled() && isFastWhisperAvailable()) {
         const QString fwBin    = P::fastWhisperBin();
@@ -212,6 +233,18 @@ inline QProcess* transcribe(
                 proc2->start(bin, { "-m", model, "-f", wavPath, "-l", lang,
                                     "-nt", "-np", "--beam-size", "1",
                                     "-t",  QString::number(nT) });
+            });
+
+        /* FailedToStart: finished() non verrà mai emesso — senza questo la
+           callback non arriva e il chiamante resta in "Trascrivendo..." */
+        QObject::connect(proc, &QProcess::errorOccurred, parent,
+            [proc, onDone](QProcess::ProcessError err) {
+                if (err == QProcess::FailedToStart) {
+                    proc->deleteLater();
+                    if (onDone) onDone(
+                        QStringLiteral("Impossibile avviare la trascrizione "
+                                       "(interprete non trovato)."), false);
+                }
             });
 
         if (usingCli) {

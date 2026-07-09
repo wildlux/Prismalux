@@ -28,6 +28,7 @@
 #include <QFileInfo>
 #include <QDir>
 #include <QTemporaryFile>
+#include <QTemporaryDir>
 #include <QTimer>
 #include <QEventLoop>
 #include <QProcess>
@@ -576,6 +577,89 @@ private slots:
     }
 };
 
+/* ══════════════════════════════════════════════════════════════
+   CAT-I — SttDaemon: protocollo client con demone STUB (nessun
+   modello: uno script Python fittizio che rispetta il protocollo
+   JSON newline). Testa avvio, ready, transcribe, stop, errori.
+   ══════════════════════════════════════════════════════════════ */
+class TestSttDaemon : public QObject {
+    Q_OBJECT
+
+    QTemporaryDir m_dir;
+    QString m_stub;
+
+private slots:
+    void initTestCase() {
+        if (PrismaluxPaths::findPython().isEmpty())
+            QSKIP("python3 non disponibile");
+        QVERIFY(m_dir.isValid());
+        m_stub = m_dir.filePath("stub_daemon.py");
+        QFile f(m_stub);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write("import sys, json\n"
+                "print(json.dumps({'ready': True, 'model': sys.argv[1],"
+                " 'device': 'stub'}), flush=True)\n"
+                "for line in sys.stdin:\n"
+                "    req = json.loads(line)\n"
+                "    if req['wav'] == 'FAIL':\n"
+                "        print(json.dumps({'ok': False, 'error': 'boom'}),"
+                " flush=True)\n"
+                "    else:\n"
+                "        print(json.dumps({'ok': True,"
+                " 'text': 'STUB:' + req['wav']}), flush=True)\n");
+        f.close();
+    }
+
+    /* I-1: senza demone attivo la callback arriva subito con ok=false */
+    void transcribeSenzaDemone() {
+        SttDaemon::instance().stop();
+        bool called = false; bool ok = true;
+        SttDaemon::instance().transcribe("/tmp/x.wav", "it", this,
+            [&](const QString&, bool o){ called = true; ok = o; });
+        QVERIFY(called);
+        QVERIFY(!ok);
+    }
+
+    /* I-2: ensureStarted + ready entro 5s, poi transcribe round-trip */
+    void avvioETrascrizione() {
+        SttDaemon::instance().ensureStarted("modello-test", m_stub);
+        QTRY_VERIFY_WITH_TIMEOUT(SttDaemon::instance().isReady(), 5000);
+
+        QString text; bool ok = false; bool called = false;
+        SttDaemon::instance().transcribe("/percorso/audio.wav", "it", this,
+            [&](const QString& t, bool o){ text = t; ok = o; called = true; });
+        QTRY_VERIFY_WITH_TIMEOUT(called, 5000);
+        QVERIFY(ok);
+        QCOMPARE(text, QString("STUB:/percorso/audio.wav"));
+    }
+
+    /* I-3: errore del demone → callback con ok=false e messaggio */
+    void erroreDemone() {
+        QVERIFY(SttDaemon::instance().isReady());
+        QString text; bool ok = true; bool called = false;
+        SttDaemon::instance().transcribe("FAIL", "it", this,
+            [&](const QString& t, bool o){ text = t; ok = o; called = true; });
+        QTRY_VERIFY_WITH_TIMEOUT(called, 5000);
+        QVERIFY(!ok);
+        QCOMPARE(text, QString("boom"));
+    }
+
+    /* I-4: ensureStarted con stesso modello = no-op (processo invariato) */
+    void ensureStartedIdempotente() {
+        QVERIFY(SttDaemon::instance().isReady());
+        SttDaemon::instance().ensureStarted("modello-test", m_stub);
+        QVERIFY2(SttDaemon::instance().isReady(),
+                 "riavvio inatteso: ready perso dopo ensureStarted no-op");
+    }
+
+    /* I-5: stop pulito, riutilizzabile */
+    void stopPulito() {
+        SttDaemon::instance().stop();
+        QVERIFY(!SttDaemon::instance().isUsable());
+        QVERIFY(!SttDaemon::instance().isReady());
+    }
+};
+
 int main(int argc, char* argv[])
 {
     QApplication app(argc, argv);
@@ -589,6 +673,7 @@ int main(int argc, char* argv[])
     run(new TestSttMicAlsa);
     run(new TestSttMicQt);
     run(new TestSttIntegration);
+    run(new TestSttDaemon);
     return status;
 }
 

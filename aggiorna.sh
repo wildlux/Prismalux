@@ -32,7 +32,7 @@ if [[ "$*" == *--test* ]]; then
     cmake -B "$ROOT/build_tests" "$ROOT/gui/" -DBUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Release -Wno-dev
     cmake --build "$ROOT/build_tests" -j$(( $(nproc) > 4 ? 4 : $(nproc) ))
     ctest --test-dir "$ROOT/build_tests" \
-          --exclude-regex "AiIntegration|AiStress|TeamCollab|MultiAgenteLive" \
+          --exclude-regex "AiIntegration|AiStress|TeamCollab|MultiAgenteLive|AgenteAutonomoLive|ChatLive" \
           -j4 --output-on-failure
     echo "==> Test completati."
 fi

@@ -351,6 +351,9 @@ private:
     QPushButton* m_btnVoice   = nullptr;  ///< pulsante Trascrivi voce (testo cambia in-place)
     QProcess*    m_recProc    = nullptr;  ///< arecord
     QProcess*    m_sttProc     = nullptr;  ///< whisper-cli / faster-whisper
+    QProcess*    m_vadProc     = nullptr;  ///< vad_filter.py asincrono (solo percorso senza demone)
+    bool         m_sttAutoSending = false; ///< true durante il click programmatico del loop voce (distingue dallo Stop utente)
+    bool         m_autoAborted    = false; ///< Stop utente durante il ciclo ReAct: le continuazioni schedulate non ripartono
     QProcess*    m_diarizeProc = nullptr;  ///< speaker_diarize.py post-proc
     QTimer*      m_sttTick     = nullptr;  ///< countdown 1s visibile nel pulsante
     QString      m_sttWavPath;             ///< path file .wav registrato
@@ -547,6 +550,10 @@ private slots:
     void processToolBatch();   ///< esegue tutti i tool_calls accumulati in m_incomingToolBatch
     void onSttTick();     ///< scatta ogni 1s durante registrazione: aggiorna testo pulsante
     void onSttTimeout();  ///< scatta a 6.5s: ferma registrazione e avvia trascrizione
+    void onSttVadFinished();       ///< vad_filter.py terminato: SILENCE → stop, altrimenti trascrivi
+    void onSttVadTimeout();        ///< watchdog 3.5s: VAD bloccata → kill e trascrivi comunque
+    void _sttHandleSilence();      ///< bolla "silenzio rilevato" + eventuale retry loop voce
+    void _sttRunTranscription();   ///< stato Transcribing + SttWhisper::transcribe(m_sttWavPath)
 
     /* ── TTS ── */
     void onTtsProcFinished(int code, QProcess::ExitStatus status);
@@ -621,6 +628,8 @@ private slots:
     void onRecProcFinished(int exitCode, QProcess::ExitStatus status);
     void onSttVoiceLoopAutoSend();   ///< singleShot(150) → m_btnRun->click() dopo STT ok
     void onSttVoiceLoopRetry();      ///< singleShot(1500) → _sttStartRecording() dopo STT fail
+    void onEscShortcut();            ///< Esc: ferma registrazione/loop Conversa
+    void _voiceConversaStop();       ///< STOP totale voce: rec, trascrizione, AI, loop
     void onWhisperDlProcReadyRead();
     void onWhisperDlProcFinished(int code, QProcess::ExitStatus status);
 

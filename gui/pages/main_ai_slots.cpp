@@ -938,9 +938,16 @@ void AgentiPage::onBtnRunClicked()
        - Se input ha testo → invia come chat normale (fall-through)
        ────────────────────────────────────────────────────────────────────── */
     if (m_modeBtn && m_modeBtn->currentMode() == TriModeButton::Conversa) {
+        /* STOP utente: se il loop voce è in QUALUNQUE fase (registrazione,
+           trascrizione, risposta AI) il clic sull'hub ferma tutto. Il clic
+           PROGRAMMATICO dell'auto-invio (m_sttAutoSending) invece prosegue
+           al normale invio del testo trascritto. */
+        if (!m_sttAutoSending &&
+            (m_voiceLoopActive || m_sttState != SttState::Idle)) {
+            _voiceConversaStop();
+            return;
+        }
         if (m_ai->busy()) { m_ai->abort(); return; }
-        if (m_sttState == SttState::Recording)    { onSttTimeout(); return; }
-        if (m_sttState == SttState::Transcribing) { return; }
         if (m_input->toPlainText().trimmed().isEmpty()) {
             /* Avvia registrazione; auto-loop basato sullo stato del pulsante Voce */
             m_voiceLoopActive = true; /* in Conversa il loop è sempre attivo */
@@ -981,6 +988,7 @@ void AgentiPage::onBtnRunClicked()
         m_ctxAuto->clear();
         m_autoStep       = 0;
         m_autoBuf.clear();
+        m_autoAborted    = false;
         m_autoLastUserMsg = task;
         m_input->clear();
         /* Banner info — solo alla prima chat in modalità autonoma */
@@ -1379,6 +1387,7 @@ void AgentiPage::onCmbModeMathChanged(int idx)
 void AgentiPage::onAiAborted()
 {
     m_autoRetryActive = false;
+    m_autoAborted     = true;   /* ferma le continuazioni ReAct schedulate */
     m_waitLbl->setVisible(false);
 
     /* Rimuove il contenuto parziale dello streaming (testo grezzo non ancora
