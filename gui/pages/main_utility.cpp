@@ -3,6 +3,7 @@
 #include "widget_solar_calc.h"
 #include "widget_idro.h"
 #include "widget_bike.h"
+#include "widget_mod_giochi.h"
 #include "main_jobs.h"
 #include "main_finance.h"
 #include <QVBoxLayout>
@@ -19,7 +20,7 @@ UtilityPage::UtilityPage(AiClient* ai, QWidget* parent)
     auto* hdr = new QLabel(
         "  \xf0\x9f\x94\xa7  <b>Utility</b>"
         "  <span style='color:gray;font-size:11px;'>"
-        "Fotovoltaico \xc2\xb7 Idroponica \xc2\xb7 Lavoro \xc2\xb7 Finanza \xc2\xb7 Bici \xc2\xb7 LAN & WAN"
+        "Fotovoltaico \xc2\xb7 Idroponica \xc2\xb7 Lavoro \xc2\xb7 Finanza \xc2\xb7 Bici \xc2\xb7 Mod Giochi \xc2\xb7 LAN & WAN"
         "</span>", this);
     hdr->setTextFormat(Qt::RichText);
     hdr->setObjectName("pageHeader");
@@ -44,6 +45,9 @@ UtilityPage::UtilityPage(AiClient* ai, QWidget* parent)
 
     m_tabs->addTab(new BikeWidget(m_tabs),
                    "\xf0\x9f\x9a\xb4  Bici");
+
+    m_tabs->addTab(new ModGiochiWidget(ai, m_tabs),
+                   "\xf0\x9f\x8e\xae  Mod Giochi");
 }
 
 void UtilityPage::addTab(QWidget* w, const QString& label)

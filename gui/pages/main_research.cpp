@@ -28,6 +28,7 @@ namespace P = PrismaluxPaths;
 #include <QTextDocument>
 #include <QPageSize>
 #include <QDesktopServices>
+#include <QSettings>
 #include <QUrl>
 #include <QProcess>
 #include <QTimer>
@@ -137,8 +138,16 @@ RicercaPage::RicercaPage(AiClient* ai, QWidget* parent)
                  "\xf0\x9f\x95\xb8  Grafo RAG");   /* 🕸️ */
     tabs->addTab(buildRagTesterTab(),
                  "\xf0\x9f\xa7\xaa  Test RAG");    /* 🧪 */
-    tabs->addTab(buildAstraleTab(),
-                 "\xe2\xad\x90  Carta Astrale");
+    /* Nascosta di default — easter egg stile "developer mode" Android:
+       doppio click sulla parola "conoscenza" in Impostazioni →
+       Ringraziamenti la sblocca in modo persistente (vedi
+       unlockAstraleEasterEgg() in settings_other.cpp). */
+    const bool astraleUnlocked = QSettings("Prismalux", "GUI")
+        .value(P::SK::kAstraleUnlocked, false).toBool();
+    if (astraleUnlocked) {
+        tabs->addTab(buildAstraleTab(),
+                     "\xe2\xad\x90  Carta Astrale");
+    }
 
     /* Tooltip sui tab per scopribilità */
     tabs->setTabToolTip(0, "Genera paper accademico con AI");
@@ -150,9 +159,11 @@ RicercaPage::RicercaPage(AiClient* ai, QWidget* parent)
         " sia realmente accaduto, sulla base delle fonti fornite");
     tabs->setTabToolTip(5, "Grafo Conoscenza estratto dai documenti RAG");
     tabs->setTabToolTip(6, "Test comprensione documenti RAG \xe2\x80\x94 domande + valutazione AI");
-    tabs->setTabToolTip(7,
-        "Carta Astrale / Tema Natale: inserisci data, ora e luogo di nascita"
-        " per una lettura astrologica con AI");
+    if (astraleUnlocked) {
+        tabs->setTabToolTip(7,
+            "Carta Astrale / Tema Natale: inserisci data, ora e luogo di nascita"
+            " per una lettura astrologica con AI");
+    }
     vlay->addWidget(tabs, 1);
 
     m_sciProgress = new QProgressBar(this);

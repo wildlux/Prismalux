@@ -1215,6 +1215,100 @@ void ImpostazioniPage::onSandboxPullProcFinished(int code, QProcess::ExitStatus)
     }
 }
 
+/** Aggiorna icona/testo/pulsante della card di stato Docker in base allo
+ *  stato attuale — chiamata alla costruzione e dopo ogni tentativo di
+ *  sblocco (onDockerUnlockProcFinished). Distingue tre casi: pronto,
+ *  installato ma daemon non raggiungibile (recuperabile con unmask/start),
+ *  binario del tutto assente (serve installarlo). */
+void ImpostazioniPage::refreshDockerStatusCard()
+{
+    if (!m_dockerStatusIcon || !m_dockerStatusDesc || !m_dockerUnlockBtn) return;
+
+    const QString docker = P::findDocker();
+    if (!docker.isEmpty()) {
+        m_dockerStatusIcon->setText(tr("\xf0\x9f\x9f\xa2  Docker disponibile"));
+        m_dockerStatusIcon->setStyleSheet("color:#4ade80;font-weight:bold;");
+        m_dockerStatusDesc->setText(
+            QString("Daemon raggiungibile: <code>%1</code><br>"
+                    "Il codice AI verr\xc3\xa0 eseguito in un container effimero "
+                    "(rete disabilitata, nessun volume, max RAM configurabile).")
+            .arg(docker));
+        m_dockerUnlockBtn->hide();
+    } else if (P::dockerBinaryExists()) {
+        m_dockerStatusIcon->setText(tr("\xf0\x9f\x94\xb4  Docker installato ma non avviato"));
+        m_dockerStatusIcon->setStyleSheet("color:#f87171;font-weight:bold;");
+        m_dockerStatusDesc->setText(
+            "Il binario c'\xc3\xa8 ma il servizio/socket non risponde (spesso "
+            "\xe2\x80\x9cmascherato\xe2\x80\x9d dopo un'installazione manuale).<br>"
+            "Il codice sar\xc3\xa0 eseguito con Python locale (permessi utente) finch\xc3\xa9 non lo sblocchi.");
+        m_dockerUnlockBtn->setText("\xf0\x9f\x94\x93  Sblocca e avvia Docker");
+        m_dockerUnlockBtn->setEnabled(true);
+        m_dockerUnlockBtn->show();
+    } else {
+        m_dockerStatusIcon->setText(tr("\xf0\x9f\x94\xb4  Docker non installato"));
+        m_dockerStatusIcon->setStyleSheet("color:#f87171;font-weight:bold;");
+        m_dockerStatusDesc->setText(
+            "Docker non trovato sul sistema.<br>"
+            "Il codice sar\xc3\xa0 eseguito con Python locale (permessi utente).<br>"
+            "<b>Per installare Docker:</b> "
+            "<code>sudo apt install docker.io &amp;&amp; sudo systemctl start docker</code>");
+        m_dockerUnlockBtn->hide();
+    }
+}
+
+/** Esegue via pkexec (un solo dialog di autenticazione) la sequenza che
+ *  sblocca un servizio Docker mascherato/fermo:
+ *  systemctl unmask docker.service docker.socket && systemctl start docker.service
+ *  Non tenta con sudo diretto: senza pty non potrebbe chiedere la password
+ *  in modo utilizzabile da un processo GUI — pkexec (PolicyKit) è il
+ *  meccanismo standard desktop, già usato altrove nel progetto. */
+void ImpostazioniPage::onDockerUnlockClicked()
+{
+    if (!m_dockerUnlockBtn || m_dockerUnlockProc) return;
+
+    const QString pkexec = QStandardPaths::findExecutable("pkexec");
+    if (pkexec.isEmpty()) {
+        if (m_dockerStatusDesc)
+            m_dockerStatusDesc->setText(m_dockerStatusDesc->text() +
+                "<br><span style='color:#fbbf24;'>\xe2\x9a\xa0 pkexec non trovato: esegui "
+                "manualmente <code>sudo systemctl unmask docker.service docker.socket "
+                "&amp;&amp; sudo systemctl start docker.service</code></span>");
+        return;
+    }
+
+    m_dockerUnlockBtn->setEnabled(false);
+    m_dockerUnlockBtn->setText(tr("\xe2\x8f\xb3  Richiesta autorizzazione amministratore..."));
+
+    m_dockerUnlockProc = new QProcess(this);
+    m_dockerUnlockProc->setProcessChannelMode(QProcess::MergedChannels);
+    connect(m_dockerUnlockProc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+            this, &ImpostazioniPage::onDockerUnlockProcFinished);
+    m_dockerUnlockProc->start(pkexec, {"bash", "-c",
+        "systemctl unmask docker.service docker.socket && systemctl start docker.service"});
+}
+
+void ImpostazioniPage::onDockerUnlockProcFinished(int code, QProcess::ExitStatus)
+{
+    const QString out = m_dockerUnlockProc
+        ? QString::fromUtf8(m_dockerUnlockProc->readAll()).trimmed() : QString();
+    if (m_dockerUnlockProc) {
+        m_dockerUnlockProc->deleteLater();
+        m_dockerUnlockProc = nullptr;
+    }
+
+    P::invalidateDockerCache();
+    /* Piccolo margine (systemctl start torna prima che il socket sia
+       pronto): un retry immediato di "docker info" potrebbe fallire per
+       pochi istanti, non per uno sblocco davvero fallito. */
+    QTimer::singleShot(800, this, &ImpostazioniPage::refreshDockerStatusCard);
+
+    if (code != 0 && m_dockerStatusDesc)
+        m_dockerStatusDesc->setText(m_dockerStatusDesc->text() +
+            "<br><span style='color:#ef4444;'>\xe2\x9c\x96 Sblocco fallito"
+            + (out.isEmpty() ? QString() : (": " + out.left(200).toHtmlEscaped())) +
+            "</span>");
+}
+
 /* ══════════════════════════════════════════════════════════════
    buildTestTab — slot
    (m_testProc, m_testRunOut, m_testBtnBuild, m_testBtnRun,

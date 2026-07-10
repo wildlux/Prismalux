@@ -60,7 +60,7 @@ Note:
 - Cron (`m_cronPanel`) in StrumentiPage via `installCronPanel()` con `QTimer::singleShot(0)`
 - AppController tab indici: 0=Blender 1=FreeCAD 2=Office 3=CloudCompare 4=Anki 5=KiCAD 6=TinyMCP 7=OBS 8=Godot 9=GameModding 10=OpenCode 11=Telegram 12=WhatsApp
 - Game Modding tabIdx logico: 9 in AppController (giochi: GTA V, Skyrim SE, Terraria, WoW, Noita, Minecraft, Stardew, RimWorld)
-- Multimedia tab indici: 0=Audio AI 1=Genera Immagini 2=Mappe concettuali 3=Mappa OSM 4=Sintetizzatore 5=Clona Voce 6=OCR webcam 7=Analizza Video 8=Scan 3D (`Vision3DWidget`)
+- Multimedia tab indici: 0=Audio AI 1=Genera Immagini 2=Mappe concettuali 3=Mappa OSM 4=Sintetizzatore 5=Clona Voce 6=OCR webcam 7=Analizza Video 8=Scan 3D (`Vision3DWidget`) 9=IPA (`IpaGuideWidget`, guida statica tabella fonemica + 8 fasi apprendimento lingue, immagine `Tools/ipa/phonemic_chart.jpg`)
 - Strumenti sub-tab indici: 0-5=categorie assistente 6=Cron 7=Impara 8=Sfida 9=File AI 10=RAM LLM (`RamCalculatorWidget`)
 - Web app (lan_server.cpp) tab 🎙️ Voce: TTS (SpeechSynthesis) + STT (MediaRecorder→/api/whisper)
 - ProgrammazionePage sub-tab extra: Dev Agent (costruito da AppController.buildDevAgentTab()), Sicurezza (SecurityAnalyzerPage)

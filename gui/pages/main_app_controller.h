@@ -164,30 +164,7 @@ private:
     QString      m_obsCode;
     QProcess*    m_obsExecProc  = nullptr;
 
-    /* ── Godot MCP (index 9) ── */
-    QLabel*      m_godotStatusLbl = nullptr;
-    QPushButton* m_godotExecBtn   = nullptr;
-    QComboBox*   m_godotAction    = nullptr;
-    QComboBox*   m_godotModel     = nullptr;
-    QTextEdit*   m_godotInput     = nullptr;
-    QTextEdit*   m_godotOutput    = nullptr;
-    QPushButton* m_godotRunBtn    = nullptr;
-    QPushButton* m_godotStopBtn   = nullptr;
-    QString      m_godotCode;
-    QProcess*    m_godotExecProc  = nullptr;
-
-    /* ── Game Modding (tabIdx logico 15) ── */
-    QComboBox*   m_moddingGameCombo  = nullptr;
-    QComboBox*   m_moddingTypeCombo  = nullptr;
-    QComboBox*   m_moddingModel      = nullptr;
-    QTextEdit*   m_moddingInput      = nullptr;
-    QTextEdit*   m_moddingOutput     = nullptr;
-    QPushButton* m_moddingRunBtn     = nullptr;
-    QPushButton* m_moddingStopBtn    = nullptr;
-    QPushButton* m_moddingSaveBtn    = nullptr;
-    QLineEdit*   m_moddingFolderEdit = nullptr;
-    QLabel*      m_moddingStatusLbl  = nullptr;
-    QString      m_moddingCode;
+    /* ── Godot MCP e Game Modding: spostati in ModGiochiWidget (UtilityPage) ── */
 
     /* ── runAi session state (saved for named slots) ── */
     QTextEdit*   m_runAiOutput   = nullptr;
@@ -210,8 +187,6 @@ private:
     QWidget* buildKiCADTab();
     QWidget* buildTinyMCPTab();
     QWidget* buildOBSTab();
-    QWidget* buildGodotTab();
-    QWidget* buildGameModdingTab();
     QWidget* buildTelegramTab();
     QWidget* buildWhatsAppTab();
 public:
@@ -308,19 +283,6 @@ private:
     void onObsHelpClicked();
     void onObsProcReadyRead();
     void onObsProcFinished(int code, QProcess::ExitStatus status);
-
-    /* ── Slot estratti da lambda — Godot ── */
-    void onGodotExecClicked();
-    void onGodotRunClicked();
-    void onGodotStopClicked();
-
-    /* ── Slot Game Modding ── */
-    void onModdingGameChanged(int idx);
-    void onModdingRunClicked();
-    void onModdingStopClicked();
-    void onModdingSaveClicked();
-    void onModdingBrowseClicked();
-    void onModdingOpenFolderClicked();
 
     /* ── Slot estratti da lambda — Telegram Bot ── */
     void onTelegramStartClicked();
@@ -438,6 +400,4 @@ private:
 public:
     /** Estrae il primo blocco ```...``` dall'output AI. Public per testabilità. */
     static QString extractCode(const QString& text);
-    /** Indovina l'estensione file del mod generato dal contenuto del codice. */
-    static QString detectModExtension(const QString& code);
 };

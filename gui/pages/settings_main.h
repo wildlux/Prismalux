@@ -155,6 +155,9 @@ private slots:
     void onSandboxMemSpinChanged(int v);
     void onSandboxPullBtnClicked();
     void onSandboxPullProcFinished(int code, QProcess::ExitStatus status);
+    void onDockerUnlockClicked();
+    void onDockerUnlockProcFinished(int code, QProcess::ExitStatus status);
+    void refreshDockerStatusCard();
     /* ── buildTestTab (llm) ── */
     void onTestProcReadyRead();
     void onTestProcFinished(int code, QProcess::ExitStatus status);
@@ -221,6 +224,8 @@ private:
        corrispondente (vedi LazyTabLoader in settings_main.cpp) */
     QWidget* buildGroupLlm();
     QWidget* buildGroupSistema();
+    QWidget* buildMcpGroupTab(QTabWidget* parentTabs);      ///< "MCP": Configurazione + Gestione, 2 sotto-tab
+    QWidget* buildProfiliGroupTab(QTabWidget* parentTabs);  ///< "Profili Modello": Profili + Le tue preferenze
 
     /* helper invocato da populateOllama (slot onOllamaRadioToggled / onAiLocalRefreshClicked) */
     void populateOllamaModels();
@@ -242,6 +247,8 @@ private:
     QTabWidget*        m_tabLlm        = nullptr;  ///< inner tab: LLM/Classifica/Test
     QTabWidget*        m_tabVisuale    = nullptr;  ///< inner tab: Aspetto + Grafico (dinamico)
     QTabWidget*        m_tabSistema    = nullptr;  ///< inner tab: Pulizia/BugTracker/Cron
+    QTabWidget*        m_tabMcp        = nullptr;  ///< inner tab: Configurazione/Gestione MCP
+    QTabWidget*        m_tabProfili    = nullptr;  ///< inner tab: Profili/Le tue preferenze
     AiClient*          m_ai            = nullptr;
 
     /* RAG indexing state (usato da buildRagTab) */
@@ -319,6 +326,10 @@ private:
     QSpinBox*       m_sandboxMemSpin    = nullptr;
     QPushButton*    m_sandboxPullBtn    = nullptr;
     QLabel*         m_sandboxPullStatus = nullptr;
+    QLabel*         m_dockerStatusIcon  = nullptr;
+    QLabel*         m_dockerStatusDesc  = nullptr;
+    QPushButton*    m_dockerUnlockBtn   = nullptr;
+    QProcess*       m_dockerUnlockProc  = nullptr;
 
     /* ── buildTestTab member state ── */
     QProcess*       m_testProc          = nullptr;

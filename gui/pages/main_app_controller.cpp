@@ -80,8 +80,7 @@ AppControllerPage::AppControllerPage(AiClient* ai, QWidget* parent)
     m_tabs->addTab(buildKiCADTab(),        "\xf0\x9f\x96\xa5  KiCAD MCP");
     m_tabs->addTab(buildTinyMCPTab(),      "\xf0\x9f\xa4\x96  TinyMCP");
     m_tabs->addTab(buildOBSTab(),          "\xf0\x9f\x94\xb4  OBS MCP");
-    m_tabs->addTab(buildGodotTab(),          "\xf0\x9f\x8e\xae  Godot");
-    m_tabs->addTab(buildGameModdingTab(),    "\xf0\x9f\x97\xa1  Game Modding");
+    /* Godot + Game Modding → spostati in Utility → Mod Giochi (ModGiochiWidget) */
     m_tabs->addTab(new OpenCodePage(m_tabs), "\xf0\x9f\x96\xa5  OpenCode");
     /* McpManagerPage → spostato in Impostazioni → Gestione MCP */
     {
@@ -278,16 +277,6 @@ void AppControllerPage::onRunAiFinished(const QString& full)
         m_obsExecBtn->setEnabled(true);
         m_obsStatusLbl->setText(
             "\xf0\x9f\x94\xb4  Codice pronto \xe2\x80\x94 premi Esegui in OBS");
-    } else if (m_activeTab == 9 && hasBlock && !code.isEmpty()) {
-        m_godotCode = code;
-        m_godotExecBtn->setEnabled(true);
-        m_godotStatusLbl->setText(
-            "\xf0\x9f\x8e\xae  Codice pronto \xe2\x80\x94 premi Esegui in Godot");
-    } else if (m_activeTab == 15 && hasBlock && !code.isEmpty()) {
-        m_moddingCode = code;
-        m_moddingSaveBtn->setEnabled(true);
-        m_moddingStatusLbl->setText(
-            "\xe2\x9c\x85  Codice pronto \xe2\x80\x94 premi Salva nel gioco");
     }
 }
 
@@ -316,7 +305,7 @@ void AppControllerPage::onModelsReady(const QStringList& models)
     QList<QComboBox*> combos = {
         m_blenderModel, m_freecadModel, m_officeModel,
         m_ankiModel, m_kicadModel, m_mcuModel,
-        m_obsModel, m_godotModel
+        m_obsModel
     };
     for (auto* cb : combos) {
         if (!cb) continue;

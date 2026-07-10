@@ -15,6 +15,7 @@
 #include "../widgets/ai_error_widget.h"
 #include "widget_synthesizer.h"
 #include "widget_voice_cloner.h"
+#include "widget_ipa_guide.h"
 
 class MultimediaPage : public QWidget {
     Q_OBJECT
@@ -136,6 +137,7 @@ private:
     QWidget* buildOsmMapTab();
     QWidget* buildVideoCaptionTab();
     QWidget* buildVision3DTab();
+    QWidget* buildIpaTab();
 
     /* ── Mappa OSM ── */
     class WorldMapWidget* m_osmMap         = nullptr;

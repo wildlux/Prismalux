@@ -201,8 +201,6 @@ set(CPP_SRCS
     pages/main_learn_data.cpp
     pages/main_customize.cpp
     pages/main_customize_lora.cpp
-    pages/main_app_controller_science.cpp
-    pages/main_app_controller_modding.cpp
     pages/main_maintenance.cpp
     pages/main_maintenance_bugs.cpp
     pages/main_maintenance_cron.cpp
@@ -275,6 +273,8 @@ set(CPP_SRCS
     pages/widget_solar_calc.cpp
     pages/widget_idro.cpp
     pages/widget_bike.cpp
+    pages/widget_ipa_guide.cpp
+    pages/widget_mod_giochi.cpp
     pages/widget_vision3d.cpp
     pages/widget_ram_calculator.cpp
     pages/widget_stable_diffusion.cpp

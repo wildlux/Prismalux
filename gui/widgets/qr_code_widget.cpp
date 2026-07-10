@@ -21,8 +21,9 @@ void QrCodeWidget::generate(const QString& text)
 {
     m_size   = 0;
     m_qrcode.clear();
+    m_wasEmpty = text.trimmed().isEmpty();
 
-    if (text.trimmed().isEmpty()) return;
+    if (m_wasEmpty) return;
 
     const QByteArray utf8 = text.toUtf8();
     const size_t bufLen   = qrcodegen_BUFFER_LEN_MAX;
@@ -50,8 +51,13 @@ void QrCodeWidget::paintEvent(QPaintEvent*)
     p.fillRect(rect(), Qt::white);
 
     if (m_size <= 0 || m_qrcode.empty()) {
-        p.setPen(Qt::red);
-        p.drawText(rect(), Qt::AlignCenter, "QR error");
+        if (m_wasEmpty && !m_emptyHint.isEmpty()) {
+            p.setPen(Qt::darkGray);
+            p.drawText(rect(), Qt::AlignCenter | Qt::TextWordWrap, m_emptyHint);
+        } else {
+            p.setPen(Qt::red);
+            p.drawText(rect(), Qt::AlignCenter, "QR error");
+        }
         return;
     }
 

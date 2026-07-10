@@ -68,6 +68,7 @@ MultimediaPage::MultimediaPage(AiClient* ai, QWidget* parent)
     tabs->addTab(buildOcrTab(),            "\xf0\x9f\x94\x8d  OCR webcam");     /* 🔍 */
     tabs->addTab(buildVideoCaptionTab(), "\xf0\x9f\x8e\xac  Analizza Video");  /* 🎬 */
     tabs->addTab(buildVision3DTab(),     "\xf0\x9f\x93\xb7  Scan 3D");         /* 📷 */
+    tabs->addTab(buildIpaTab(),          "\xf0\x9f\x97\xa3\xef\xb8\x8f  IPA"); /* 🗣️ */
 
     lay->addWidget(tabs);
 }
@@ -75,6 +76,11 @@ MultimediaPage::MultimediaPage(AiClient* ai, QWidget* parent)
 QWidget* MultimediaPage::buildSDTab()
 {
     return new StableDiffusionWidget(this);
+}
+
+QWidget* MultimediaPage::buildIpaTab()
+{
+    return new IpaGuideWidget(this);
 }
 
 /* Vision3D — scansione 3D da telefono/tablet: server HTTPS + VLM + box + depth.

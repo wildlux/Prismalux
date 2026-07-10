@@ -1,4 +1,7 @@
 #include "settings_main.h"
+#include "settings_model_profiles.h"
+#include "main_mcp_manager.h"
+#include "../widgets/lazy_tab_loader.h"
 #include "../dpi_utils.h"
 #include "../ai_memory.h"
 #include "../log_bus.h"
@@ -434,7 +437,26 @@ static void showAstroEaster(QWidget* parent)
     dlg->exec();
 }
 
-/* Filtro eventi: intercetta doppio click su "saggezza" nel QTextBrowser */
+/* Sblocca la sotto-tab "Carta Astrale" (nascosta di default, vedi
+   RicercaPage/main_research.cpp) — persistente, effetto reale al
+   prossimo avvio/riapertura della tab Ricerca: ImpostazioniPage e
+   RicercaPage sono pagine sorelle senza riferimento diretto, cablare
+   un segnale cross-page attraverso MainWindow per un easter egg
+   sarebbe sproporzionato. Il messaggio lo dice esplicitamente. */
+static void unlockAstraleEasterEgg(QWidget* parent)
+{
+    QSettings s("Prismalux", "GUI");
+    if (!s.value(P::SK::kAstraleUnlocked, false).toBool()) {
+        s.setValue(P::SK::kAstraleUnlocked, true);
+        QMessageBox::information(parent, "\xf0\x9f\x94\x93  Sbloccato",
+            "Carta Astrale sbloccata \xe2\x80\x94 riavvia Prismalux (o riapri la "
+            "scheda Ricerca) per vederla.");
+    }
+}
+
+/* Filtro eventi: intercetta doppio click su "saggezza" (easter egg
+   decorativo esistente, ruota zodiacale) o "conoscenza" (sblocco reale
+   Carta Astrale, indipendente dal primo) nel QTextBrowser */
 class AstroEggFilter : public QObject {
 public:
     explicit AstroEggFilter(QObject* parent) : QObject(parent) {}
@@ -445,8 +467,13 @@ protected:
                 QTextCursor cur = b->cursorForPosition(
                     static_cast<QMouseEvent*>(ev)->pos());
                 cur.select(QTextCursor::WordUnderCursor);
-                if (cur.selectedText().contains("saggezza", Qt::CaseInsensitive)) {
+                const QString word = cur.selectedText();
+                if (word.contains("saggezza", Qt::CaseInsensitive)) {
                     showAstroEaster(b);
+                    return true;
+                }
+                if (word.contains("conoscenza", Qt::CaseInsensitive)) {
+                    unlockAstraleEasterEgg(b);
                     return true;
                 }
             }
@@ -698,6 +725,28 @@ QWidget* ImpostazioniPage::buildRingraziamentiTab()
             browser, [updateHtml](const QString&) { updateHtml(); });
 
     return browser;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   buildMcpGroupTab — tab esterna "MCP": Configurazione + Gestione
+   in 2 sotto-tab (prima erano 2 tab esterne separate). buildMcpTab()
+   legge solo ~/.claude/settings.json (leggero, eager); McpManagerPage
+   scansiona MCPs/ su disco (~50 plugin, resta lazy).
+   ══════════════════════════════════════════════════════════════ */
+QWidget* ImpostazioniPage::buildMcpGroupTab(QTabWidget* parentTabs)
+{
+    auto* t = new QTabWidget;
+    t->setObjectName("settingsInnerTabs");
+    t->setDocumentMode(true);
+    t->setUsesScrollButtons(true);
+    m_tabMcp = t;
+
+    auto* inner = new LazyTabLoader(t, this);
+    inner->addEager("\xe2\x9a\x99\xef\xb8\x8f  Configurazione", buildMcpTab());
+    inner->addLazy("\xf0\x9f\x97\x82\xef\xb8\x8f  Gestione", [parentTabs]{
+        return new McpManagerPage(parentTabs);
+    });
+    return t;
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1327,6 +1376,26 @@ QWidget* ImpostazioniPage::buildAiMemoryTab()
 
     vbox->addLayout(btnRow);
     return w;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   buildProfiliGroupTab — tab esterna "Profili Modello": Profili
+   (con preset "📋 Predefiniti") + Le tue preferenze, in 2 sotto-tab
+   (prima erano 2 tab esterne separate). ModelProfilesTab è il
+   concetto primario (ha i preset) → eager; Feedback resta lazy.
+   ══════════════════════════════════════════════════════════════ */
+QWidget* ImpostazioniPage::buildProfiliGroupTab(QTabWidget* parentTabs)
+{
+    auto* t = new QTabWidget;
+    t->setObjectName("settingsInnerTabs");
+    t->setDocumentMode(true);
+    t->setUsesScrollButtons(true);
+    m_tabProfili = t;
+
+    auto* inner = new LazyTabLoader(t, this);
+    inner->addEager("\xf0\x9f\x93\x8b  Profili", new ModelProfilesTab(parentTabs));
+    inner->addLazy("\xf0\x9f\x93\x8a  Le tue preferenze", [this]{ return buildFeedbackTab(); });
+    return t;
 }
 
 /* ══════════════════════════════════════════════════════════════

@@ -14,6 +14,13 @@ public:
     bool isValid() const { return m_size > 0; }
     QSize sizeHint() const override;
 
+    /** Testo mostrato al posto del QR quando setText() riceve una stringa
+     *  vuota (situazione attesa, es. "server non avviato" — non un errore
+     *  di generazione). Default: nessuno (resta il generico "QR error").
+     *  Un vero fallimento di qrcodegen_encodeText (testo non vuoto ma non
+     *  codificabile) mostra sempre "QR error", a prescindere da questo. */
+    void setEmptyHint(const QString& text) { m_emptyHint = text; }
+
     /** Renderizza il QR direttamente in una QImage (nessun widget/finestra
      *  necessaria) — usata per salvare su file/embeddare in HTML (es. bolle
      *  chat). moduleSizePx = lato di un modulo QR in pixel. Ritorna
@@ -26,6 +33,8 @@ protected:
 private:
     void generate(const QString& text);
 
-    int                  m_size   = 0;   /* lato QR in moduli */
-    std::vector<uint8_t> m_qrcode;       /* bitmap qrcodegen */
+    int                  m_size    = 0;   /* lato QR in moduli */
+    std::vector<uint8_t> m_qrcode;        /* bitmap qrcodegen */
+    bool                 m_wasEmpty = true;  /* ultimo testo passato era vuoto? */
+    QString              m_emptyHint;        /* messaggio custom per il caso "vuoto" */
 };

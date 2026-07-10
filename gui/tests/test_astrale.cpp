@@ -24,6 +24,9 @@
 #include "../pages/main_research.h"
 #include "../widgets/natal_chart_widget.h"
 #include "../widgets/astro_calc.h"
+#include "../prismalux_paths.h"
+#include <QSettings>
+namespace P = PrismaluxPaths;
 
 /* ══════════════════════════════════════════════════════════════
    CAT-A — RicercaPage widget (costruzione + presenza figli)
@@ -36,6 +39,10 @@ private:
 
 private slots:
     void init() {
+        /* Carta Astrale è nascosta di default (easter egg "conoscenza" in
+           Ringraziamenti, vedi P::SK::kAstraleUnlocked) — sbloccata qui per
+           poter testare la sotto-tab senza passare dall'UI di Impostazioni. */
+        QSettings("Prismalux", "GUI").setValue(P::SK::kAstraleUnlocked, true);
         ai   = new MockAiClient();
         page = new RicercaPage(ai);
     }

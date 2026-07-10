@@ -1666,6 +1666,21 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
     fileLbl->setTextFormat(Qt::RichText);
     outer->addWidget(fileLbl);
 
+    /* Due colonne: sinistra = parametri di generazione (Campionamento,
+       Contesto e memoria), destra = comportamento e infrastruttura
+       (Comportamento AI, Ottimizzazione hardware, RPC Cluster). */
+    auto* colsRow = new QWidget(page);
+    auto* colsLay = new QHBoxLayout(colsRow);
+    colsLay->setContentsMargins(0, 0, 0, 0);
+    colsLay->setSpacing(16);
+    auto* leftLay  = new QVBoxLayout;
+    auto* rightLay = new QVBoxLayout;
+    leftLay->setSpacing(12);
+    rightLay->setSpacing(12);
+    colsLay->addLayout(leftLay);
+    colsLay->addLayout(rightLay);
+    outer->addWidget(colsRow);
+
     /* ═══════════════════════════════════════════════
        1. CAMPIONAMENTO
        ═══════════════════════════════════════════════ */
@@ -1705,7 +1720,7 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
 
         gl->addLayout(fl);
         gl->addWidget(hint);
-        outer->addWidget(grp);
+        leftLay->addWidget(grp);
 
         m_tempSpin = tempSpin; m_topPSpin = topPSpin;
         m_topKSpin = topKSpin; m_repSpin  = repSpin;
@@ -1775,7 +1790,7 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
 
         gl->addLayout(fl);
         gl->addWidget(memHint);
-        outer->addWidget(grp);
+        leftLay->addWidget(grp);
 
         m_predSpin = predSpin; m_ctxSpin = ctxSpin; m_ctxHint = ctxHint;
 
@@ -1869,7 +1884,7 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
         personaLay->addStretch();
         gl->addWidget(personaRow);
 
-        outer->addWidget(grp);
+        rightLay->addWidget(grp);
 
         m_honestyCb    = honestyCb;
         m_cavemanToggle = cavemanToggle;
@@ -1908,7 +1923,7 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
         hwHint->setObjectName("hintLabel"); hwHint->setWordWrap(true);
         gl->addWidget(hwHint);
 
-        outer->addWidget(grp);
+        rightLay->addWidget(grp);
 
         m_flashCb = flashCb;
 
@@ -1986,7 +2001,7 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
         rpcDesc->setTextFormat(Qt::RichText);
         gl->addWidget(rpcDesc);
 
-        outer->addWidget(grp);
+        rightLay->addWidget(grp);
 
         m_rpcCb = rpcCb; m_rpcNodesEdit = rpcNodesEdit; m_rpcStatusLbl = rpcStatusLbl;
         m_rpcSshUserEdit = rpcSshUserEdit; m_rpcPathEdit = rpcPathEdit;
@@ -2000,6 +2015,9 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
         connect(rpcStartBtn,    &QPushButton::clicked,        this, &ImpostazioniPage::onRpcStartNodesClicked);
         connect(rpcStopBtn,     &QPushButton::clicked,        this, &ImpostazioniPage::onRpcStopNodesClicked);
     }
+
+    leftLay->addStretch();
+    rightLay->addStretch();
 
     /* ── Preset + Salva/Reset ── */
     {
@@ -2079,34 +2097,32 @@ QWidget* ImpostazioniPage::buildSandboxTab()
     /* ── Stato Docker ── */
     auto* statusCard = new QFrame(page);
     statusCard->setObjectName("cardFrame");
-    auto* statusLay = new QHBoxLayout(statusCard);
+    auto* statusLay = new QVBoxLayout(statusCard);
     statusLay->setContentsMargins(12, 10, 12, 10);
 
-    auto* statusIcon = new QLabel(page);
-    auto* statusDesc = new QLabel(page);
-    statusDesc->setObjectName("cardDesc");
-    statusDesc->setWordWrap(true);
+    auto* statusRow = new QHBoxLayout;
+    m_dockerStatusIcon = new QLabel(page);
+    m_dockerStatusDesc = new QLabel(page);
+    m_dockerStatusDesc->setObjectName("cardDesc");
+    m_dockerStatusDesc->setWordWrap(true);
+    statusRow->addWidget(m_dockerStatusIcon);
+    statusRow->addWidget(m_dockerStatusDesc, 1);
+    statusLay->addLayout(statusRow);
 
+    m_dockerUnlockBtn = new QPushButton(
+        "\xf0\x9f\x94\x93  Sblocca e avvia Docker", page);
+    m_dockerUnlockBtn->setObjectName("actionBtn");
+    m_dockerUnlockBtn->setToolTip(
+        "Esegue (con autorizzazione amministratore):\n"
+        "systemctl unmask docker.service docker.socket\n"
+        "systemctl start docker.service");
+    m_dockerUnlockBtn->hide();
+    connect(m_dockerUnlockBtn, &QPushButton::clicked,
+            this, &ImpostazioniPage::onDockerUnlockClicked);
+    statusLay->addWidget(m_dockerUnlockBtn);
+
+    refreshDockerStatusCard();
     const QString docker = P::findDocker();
-    if (!docker.isEmpty()) {
-        statusIcon->setText(tr("\xf0\x9f\x9f\xa2  Docker disponibile"));
-        statusIcon->setStyleSheet("color:#4ade80;font-weight:bold;");
-        statusDesc->setText(
-            QString("Daemon raggiungibile: <code>%1</code><br>"
-                    "Il codice AI verr\xc3\xa0 eseguito in un container effimero "
-                    "(rete disabilitata, nessun volume, max RAM configurabile).")
-            .arg(docker));
-    } else {
-        statusIcon->setText(tr("\xf0\x9f\x94\xb4  Docker non disponibile"));
-        statusIcon->setStyleSheet("color:#f87171;font-weight:bold;");
-        statusDesc->setText(
-            "Docker non trovato o il daemon non \xc3\xa8 avviato.<br>"
-            "Il codice sar\xc3\xa0 eseguito con Python locale (permessi utente).<br>"
-            "<b>Per installare Docker:</b> "
-            "<code>sudo apt install docker.io &amp;&amp; sudo systemctl start docker</code>");
-    }
-    statusLay->addWidget(statusIcon);
-    statusLay->addWidget(statusDesc, 1);
     lay->addWidget(statusCard);
 
     /* ── Toggle sandbox abilitato ── */

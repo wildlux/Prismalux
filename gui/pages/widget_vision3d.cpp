@@ -1706,12 +1706,12 @@ void Vision3DWidget::handleRequest(QSslSocket* sock, const ParsedRequest& req)
         static const char* kExtraKeys[] = {
             "accel", "accelGravity", "rotationRate",
             "altitude", "altitudeAccuracy", "latitude", "longitude",
-            "flash"
+            "flash", "motionStable", "motionMagnitude"
         };
         static const char* kExtraJsonKeys[] = {
             "accel", "accel_gravity", "rotation_rate",
             "altitude_m", "altitude_accuracy_m", "latitude", "longitude",
-            "flash_on"
+            "flash_on", "motion_stable", "motion_magnitude"
         };
         for (size_t i = 0; i < sizeof(kExtraKeys) / sizeof(kExtraKeys[0]); ++i)
             if (o.contains(kExtraKeys[i]))
@@ -1873,8 +1873,11 @@ Vision3DResult Vision3DWidget::analyze(const QString& session, const QString& de
            giroscopio grezzi) + altitude_m/altitude_accuracy_m/latitude/
            longitude (Geolocation GPS — "quanti metri sei rispetto al livello
            del mare", non al suolo locale: il browser non ha un sensore di
-           altezza-da-terra). Chiave assente = quel sensore non ha ancora
-           dato un valore per questo scatto. */
+           altezza-da-terra) + motion_stable/motion_magnitude (calcolati in
+           JS da onMotion(): false = movimento sopra soglia al momento dello
+           scatto, foto potenzialmente sfocata — solo un avviso, non blocca
+           mai lo scatto). Chiave assente = quel sensore non ha ancora dato
+           un valore per questo scatto. */
         for (auto it = extraSensors.constBegin(); it != extraSensors.constEnd(); ++it)
             meta[it.key()] = it.value();
         meta["aruco_markers"] = r.arucoMarkersFound;
@@ -2664,6 +2667,7 @@ void Vision3DWidget::buildUi()
     m_prepQr = new QrCodeWidget(QString());
     m_prepQr->setFixedSize(dpiScale(110), dpiScale(110));
     m_prepQr->setToolTip("Inquadra con la fotocamera del telefono per aprire l'URL del server.");
+    m_prepQr->setEmptyHint("Non è possibile mostrare il QR code perché il server non è avviato");
     connLay->addWidget(m_prepQr);
     // Testo con tag HTML (<b>/<i>) → Qt lo rende in rich text, dove "\n"
     // letterale NON va a capo (viene collassato come uno spazio, a
@@ -2983,7 +2987,8 @@ video{width:100%;border-radius:12px;background:#000;aspect-ratio:3/4;object-fit:
 canvas{display:none;}
 button{border:none;border-radius:10px;padding:13px 16px;font-size:.95rem;font-weight:600;cursor:pointer;color:#fff;}
 button:active{transform:scale(.97);}
-.b-shoot{background:linear-gradient(135deg,var(--acc),var(--acc2));width:100%;font-size:1.05rem;padding:15px;margin-top:10px;}
+.b-shoot{background:linear-gradient(135deg,var(--acc),var(--acc2));position:fixed;left:14px;right:14px;bottom:14px;z-index:80;font-size:1.05rem;padding:15px;box-shadow:0 4px 20px rgba(0,0,0,.5);}
+.wrap.cam-active{padding-bottom:90px;}
 .b-alt{background:#21262d;}
 .b-alt.on{background:var(--acc);color:#04121d;}
 .chips{display:flex;gap:8px;flex-wrap:wrap;}
@@ -3039,6 +3044,7 @@ button:active{transform:scale(.97);}
 <button class="b-alt" id="autoShoot" style="display:none;">&#129302; Auto OFF</button></div>
 <div id="sensorReadout" class="hint" style="display:none;">Orientamento: <b id="soAngle">--</b>&#176; &nbsp;|&nbsp; inclinazione <b id="soPitch">--</b>&#176;</div>
 <div id="sensorWarn" class="hint" style="display:none;color:#f85149;"></div>
+<div id="motionWarn" class="hint" style="display:none;color:#f85149;font-weight:700;">&#128241; Movimento rilevato &mdash; tieni fermo il telefono per uno scatto nitido</div>
 <div id="targetChips" class="chips" style="display:none;margin-top:8px;">
 <div class="tchip" data-q="low">&#127919; Pochi (10)</div>
 <div class="tchip on" data-q="medium">&#127919; Medio (20)</div>
@@ -3082,6 +3088,18 @@ let curAccel=null, curAccelG=null, curRotRate=null;
 let curAltitude=null, curAltAccuracy=null, curLat=null, curLon=null;
 let geoWatchId=null;
 function round2(n){ return n==null?null:Math.round(n*100)/100; }
+// --- rilevamento movimento (avviso, non blocco — vedi doShoot/checkAutoShoot) ---
+// Soglie empiriche, da calibrare sul campo: accelerazione lineare in m/s²
+// (già senza gravità se il device la fornisce, altrimenti stimata dallo
+// scarto di accelerationIncludingGravity da 9.81), velocità di rotazione
+// in gradi/secondo (unità nativa di DeviceMotionEvent.rotationRate).
+const MOTION_ACCEL_THRESH = 1.5;
+const MOTION_ROT_THRESH = 25;
+let motionStable=true, motionMagnitude=0;
+function updateMotionUi(){
+  const w=$('motionWarn');
+  if(w) w.style.display = (sensorOn && !motionStable) ? 'block' : 'none';
+}
 function onMotion(e){
   if(e.acceleration && e.acceleration.x!=null)
     curAccel = {x:round2(e.acceleration.x), y:round2(e.acceleration.y), z:round2(e.acceleration.z)};
@@ -3089,6 +3107,17 @@ function onMotion(e){
     curAccelG = {x:round2(e.accelerationIncludingGravity.x), y:round2(e.accelerationIncludingGravity.y), z:round2(e.accelerationIncludingGravity.z)};
   if(e.rotationRate && e.rotationRate.alpha!=null)
     curRotRate = {alpha:round2(e.rotationRate.alpha), beta:round2(e.rotationRate.beta), gamma:round2(e.rotationRate.gamma)};
+  // Magnitudo accelerazione lineare: preferisci "acceleration" (già senza
+  // gravità); se il device non la fornisce, stima dallo scarto rispetto a
+  // 9.81 m/s² del vettore con gravità inclusa (fermo e in piano = ~9.81).
+  let accelMag = 0;
+  if(curAccel) accelMag = Math.sqrt(curAccel.x**2 + curAccel.y**2 + curAccel.z**2);
+  else if(curAccelG) accelMag = Math.abs(Math.sqrt(curAccelG.x**2 + curAccelG.y**2 + curAccelG.z**2) - 9.81);
+  const rotMag = curRotRate ? Math.sqrt(curRotRate.alpha**2 + curRotRate.beta**2 + curRotRate.gamma**2) : 0;
+  motionMagnitude = round2(Math.max(accelMag, 0));
+  const wasStable = motionStable;
+  motionStable = accelMag <= MOTION_ACCEL_THRESH && rotMag <= MOTION_ROT_THRESH;
+  if(wasStable !== motionStable) updateMotionUi();
 }
 function onGeoSuccess(pos){
   curAltitude=pos.coords.altitude; curAltAccuracy=pos.coords.altitudeAccuracy;
@@ -3385,6 +3414,7 @@ function disableSensors(){
   curHeading=null; curPitch=null; curRoll=null;
   curAccel=null; curAccelG=null; curRotRate=null;
   curAltitude=null; curAltAccuracy=null; curLat=null; curLon=null;
+  motionStable=true; motionMagnitude=0; updateMotionUi();
   autoShoot=false; autoArmed=true;
   $('enableSensor').textContent='\u{1F9ED} Sensori';
   $('sensorReadout').style.display='none';
@@ -3418,6 +3448,7 @@ async function startCamera(){if(stream)stream.getTracks().forEach(t=>t.stop());
 const sensorsPromise = enableSensors();
 try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:facing,width:{ideal:2560},height:{ideal:1440}},audio:false});
 video.srcObject=stream;video.style.display='block';$('flipCam').style.display='block';$('shoot').style.display='block';$('enableSensor').style.display='block';$('startCam').textContent='\u{23F9} Ferma fotocamera';
+document.querySelector('.wrap').classList.add('cam-active');
 $('targetRing').style.display='block';$('targetChips').style.display='flex';$('targetHint').style.display='block';drawTargetSphere();}
 catch(e){showToast('Camera: '+e.message,'#f85149');}
 await sensorsPromise;}
@@ -3427,6 +3458,7 @@ await sensorsPromise;}
 function stopCamera(){
   if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
   video.style.display='none'; video.srcObject=null;
+  document.querySelector('.wrap').classList.remove('cam-active');
   $('flipCam').style.display='none';
   $('shoot').style.display='none';
   $('targetRing').style.display='none';
@@ -3477,12 +3509,17 @@ if(!list.length){showToast('Seleziona almeno una analisi','#f85149');return;}
 const shotHeading=curHeading, shotPitch=curPitch, shotRoll=curRoll, shotHasSensors=sensorOn;
 const shotAccel=curAccel, shotAccelG=curAccelG, shotRotRate=curRotRate;
 const shotAltitude=curAltitude, shotAltAcc=curAltAccuracy, shotLat=curLat, shotLon=curLon;
+// Congelato come gli altri sensori sopra: il movimento durante l'attesa
+// della risposta PC (VLM/depth, anche secondi) non deve retroattivamente
+// far sembrare instabile uno scatto che era fermo al momento giusto.
+const shotMotionStable=(!sensorOn || motionStable), shotMotionMagnitude=motionMagnitude;
+if(sensorOn && !motionStable) showToast('\u{1F4F3} Scatto con movimento rilevato — verifica se è sfocato','#d29922');
 $('resultCard').style.display='block';
 $('status').innerHTML='<span class="spinner"></span> Il PC sta elaborando ('+list.join(', ')+')…';
 $('descBox').style.display='none';$('imgBox').innerHTML='';
 $('shoot').textContent='Analisi in corso…';$('shoot').disabled=true;
 try{const res=await fetch('/upload',{method:'POST',headers:{'Content-Type':'application/json'},
-body:JSON.stringify({session:$('session').value.trim()||'scan1',wants:list,mode:scanMode,angle:(shotHeading!=null?shotHeading:0),pitch:(shotPitch!=null?shotPitch:0),roll:(shotRoll!=null?shotRoll:0),heading:shotHeading,hasSensors:shotHasSensors,accel:shotAccel,accelGravity:shotAccelG,rotationRate:shotRotRate,altitude:shotAltitude,altitudeAccuracy:shotAltAcc,latitude:shotLat,longitude:shotLon,flash:shotFlash,image:dataURL})});
+body:JSON.stringify({session:$('session').value.trim()||'scan1',wants:list,mode:scanMode,angle:(shotHeading!=null?shotHeading:0),pitch:(shotPitch!=null?shotPitch:0),roll:(shotRoll!=null?shotRoll:0),heading:shotHeading,hasSensors:shotHasSensors,accel:shotAccel,accelGravity:shotAccelG,rotationRate:shotRotRate,altitude:shotAltitude,altitudeAccuracy:shotAltAcc,latitude:shotLat,longitude:shotLon,flash:shotFlash,motionStable:shotMotionStable,motionMagnitude:shotMotionMagnitude,image:dataURL})});
 const j=await res.json();
 $('devId').textContent=readDevId();
 if(!j.ok){$('status').textContent='Errore: '+j.error;}
@@ -3510,7 +3547,10 @@ $('shoot').onclick=doShoot;
 // allontanati dal bersaglio appena coperto. ---
 let autoShoot=false, autoArmed=true;
 function checkAutoShoot(){
-  if(!autoShoot || !stream || $('shoot').disabled || curHeading==null || !targetRings.length) return;
+  // Instabile: salta questo giro senza scattare. Niente riarmo qui — quando
+  // il telefono torna fermo, il prossimo tick di questo stesso loop riprova
+  // regolarmente (nessun timer separato da gestire).
+  if(!autoShoot || !stream || $('shoot').disabled || curHeading==null || !targetRings.length || !motionStable) return;
   const ring = targetRings[activeRingIndex()];
   let best=null, bestDiff=999;
   ring.headings.forEach(t=>{

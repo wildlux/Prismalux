@@ -1012,42 +1012,66 @@ inline QString findPython()
  * Il risultato è memorizzato staticamente: la prima chiamata è bloccante
  * (~100–300 ms), le successive sono istantanee.
  */
-inline QString findDocker()
+/** Cerca solo il binario `docker` (candidati fissi + PATH), senza verificare
+ *  se il daemon risponde — usata per distinguere "Docker non installato" da
+ *  "installato ma il servizio/socket non è avviato" (quest'ultimo caso è
+ *  recuperabile con systemctl unmask/start, vedi invalidateDockerCache()). */
+inline QString dockerBinaryPath()
 {
-    static QString cached;
-    static bool    checked = false;
-    if (checked) return cached;
-    checked = true;
-
     const QStringList candidates = {
         "/usr/bin/docker",
         "/usr/local/bin/docker",
         "docker",
     };
-    QString bin;
     for (const QString& c : candidates) {
         if (c == "docker") {
-            /* bare name: verifica via PATH */
-            bin = QStandardPaths::findExecutable("docker");
-            if (!bin.isEmpty()) break;
+            const QString bin = QStandardPaths::findExecutable("docker");
+            if (!bin.isEmpty()) return bin;
         } else if (QFile::exists(c)) {
-            bin = c;
-            break;
+            return c;
         }
     }
-    if (bin.isEmpty()) return cached; /* docker non installato */
+    return QString();
+}
+inline bool dockerBinaryExists() { return !dockerBinaryPath().isEmpty(); }
+
+inline QString& dockerCacheRef()   { static QString cached;        return cached; }
+inline bool&    dockerCheckedRef() { static bool    checked=false; return checked; }
+
+/** Forza un nuovo controllo alla prossima findDocker() — da chiamare dopo
+ *  un'azione che può aver cambiato lo stato del daemon (es. systemctl
+ *  unmask/start via pkexec), altrimenti il risultato cached (anche
+ *  negativo) resterebbe quello di sessione, prima dell'azione. */
+inline void invalidateDockerCache() { dockerCheckedRef() = false; dockerCacheRef().clear(); }
+
+/**
+ * findDocker() — Restituisce il percorso del binario docker, o QString() se assente.
+ *
+ * Tenta: /usr/bin/docker · /usr/local/bin/docker · docker (PATH).
+ * Verifica con "docker info --format '{{.ServerVersion}}'" che il daemon sia
+ * raggiungibile (non solo che il binario esista).
+ * Il risultato è memorizzato staticamente: la prima chiamata è bloccante
+ * (~100–300 ms), le successive sono istantanee — vedi invalidateDockerCache().
+ */
+inline QString findDocker()
+{
+    if (dockerCheckedRef()) return dockerCacheRef();
+    dockerCheckedRef() = true;
+
+    const QString bin = dockerBinaryPath();
+    if (bin.isEmpty()) return dockerCacheRef(); /* docker non installato */
 
     /* Daemon check: "docker info" restituisce 0 solo se il daemon risponde */
     QProcess probe;
     probe.setProcessChannelMode(QProcess::MergedChannels);
     probe.start(bin, {"info", "--format", "{{.ServerVersion}}"});
     if (!probe.waitForStarted(1000) || !probe.waitForFinished(3000))
-        return cached; /* daemon non raggiungibile */
+        return dockerCacheRef(); /* daemon non raggiungibile */
 
-    if (probe.exitCode() != 0) return cached;
+    if (probe.exitCode() != 0) return dockerCacheRef();
 
-    cached = bin;
-    return cached;
+    dockerCacheRef() = bin;
+    return dockerCacheRef();
 }
 
 /**
@@ -1168,6 +1192,9 @@ constexpr const char* kChatMaxTurns   = "chat/maxRecentTurns";     ///< turni co
 /* ── Icone TriModeButton ─────────────────────────────── */
 constexpr const char* kTriModeEmojiStyle = "ui/triModeEmojiStyle"; ///< "system" | "openmoji"
 constexpr const char* kTriModeShape      = "ui/triModeShape";      ///< "oval" | "rect"
+
+/* ── Easter egg ──────────────────────────────────────── */
+constexpr const char* kAstraleUnlocked = "research/astraleUnlocked"; ///< sblocco nascosto sotto-tab "Carta Astrale" (doppio click sulla parola "conoscenza" in Impostazioni → Ringraziamenti, come il developer mode di Android). Default: false — nascosta finché non sbloccata.
 
 }  // namespace SK
 

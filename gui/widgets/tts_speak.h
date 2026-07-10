@@ -170,4 +170,56 @@ inline void speak(const QString& text) {
 #endif
 }
 
+/* ── Pronuncia una parola inglese isolata (tabella IPA) ─────────
+   NOTA: espeak-ng 1.52 accetta il tag SSML <phoneme alphabet="ipa"
+   ph="..."> senza errori ma lo IGNORA silenziosamente — pronuncia solo
+   il testo racchiuso ("x") come lettera, cioè sempre "eks/ex" qualunque
+   fosse il fonema richiesto (bug osservato empiricamente, non teorico).
+   Non esiste un modo affidabile per sintetizzare un fonema IPA isolato
+   con questa versione di espeak-ng; si pronuncia invece la parola
+   d'esempio reale (già mostrata sotto al simbolo in tabella), sintesi
+   testuale normale — robusta perché è la funzione più collaudata del
+   motore, non una feature SSML di nicchia.
+   Voce inglese fissa: la tabella IPA è quella dell'inglese britannico.
+   ──────────────────────────────────────────────────────────── */
+inline void speakEnglishWord(const QString& word) {
+    if (word.trimmed().isEmpty()) return;
+#ifdef Q_OS_WIN
+    Q_UNUSED(word);
+#else
+    QProcess::startDetached("espeak-ng", {"-v", "en-gb", word});
+#endif
+}
+
+/* ── Pronuncia il fonema isolato, poi la parola d'esempio (tabella IPA) ──
+   A differenza del tag SSML <phoneme> (ignorato, vedi sopra), la sintassi
+   di espeak-ng "[[mnemonic]]" (modalità fonemi nativa, non SSML) produce
+   davvero audio distinto per fonema diverso — verificato empiricamente:
+   generati i 44 WAV per tutti i mnemonic di questa tabella, dimensioni e
+   durate tutte diverse tra loro (non un output fisso ripetuto come nel
+   bug SSML). I mnemonic NON sono l'alfabeto IPA stesso ma il set ASCII
+   interno di espeak-ng, derivato confrontando `espeak-ng --ipa "parola"`
+   con `espeak-ng -x "parola"` su decine di parole inglesi reali per ogni
+   fonema (non da una tabella di conversione IPA→espeak trovata altrove,
+   MAI verificata prima empiricamente — vedi tentativo fallito sopra).
+   Sequenza sincrona: aspetta la fine del fonema isolato prima di avviare
+   la parola, altrimenti i due audio si sovrappongono. ── */
+inline void speakIpaSequence(const QString& mnemonic, const QString& word) {
+#ifdef Q_OS_WIN
+    Q_UNUSED(mnemonic);
+    speakEnglishWord(word);
+#else
+    if (mnemonic.trimmed().isEmpty()) { speakEnglishWord(word); return; }
+
+    auto* proc = new QProcess();
+    QObject::connect(proc,
+        QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+        proc, [proc, word](int, QProcess::ExitStatus) {
+            proc->deleteLater();
+            speakEnglishWord(word);
+        });
+    proc->start("espeak-ng", {"-v", "en-gb", QString("[[%1]]").arg(mnemonic)});
+#endif
+}
+
 } // namespace TtsSpeak

@@ -1156,6 +1156,7 @@ void MainWindow::buildSearchIndex()
         {2,"Sintetizzatore",  "Media \xe2\x86\x92 Sintetizzatore",    "synth oscillatore tono"},
         {2,"Clona Voce",      "Media \xe2\x86\x92 Clona Voce",       "xtts voice cloner"},
         {2,"OCR webcam",      "Media \xe2\x86\x92 OCR webcam",       "ocr testo immagine webcam"},
+        {2,"IPA",             "Media \xe2\x86\x92 IPA",              "ipa fonetica lingue inglese pronuncia alfabeto fonetico"},
         // Tab 3 — Programmazione
         {3,"","Programmazione","codice sviluppo editor git repl web dev python"},
         {3,"Codifica",      "Programmazione \xe2\x86\x92 Codifica",    "editor codice ide"},
