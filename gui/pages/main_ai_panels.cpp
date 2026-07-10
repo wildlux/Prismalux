@@ -119,8 +119,19 @@ void AgentiPage::buildToolsPanel(QVBoxLayout* lay)
         gl->setColumnStretch(0, 1);
         gl->setColumnStretch(1, 1);
 
+        /* "carta_astrale" nascosto finché non sbloccato — stesso flag
+           dell'easter egg del sotto-tab Ricerca → Carta Astrale (doppio
+           click su "conoscenza" in Impostazioni → Ringraziamenti), per
+           coerenza: se la tab non è visibile, il tool non deve esserlo
+           né essere invocabile dall'AI. */
+        const bool astraleUnlocked = QSettings("Prismalux", "GUI")
+            .value(P::SK::kAstraleUnlocked, false).toBool();
+
+        int pos = 0;
         for (int i = 0; i < kNTools; ++i) {
-            const QString name  = QString::fromLatin1(kTools[i].name);
+            const QString name = QString::fromLatin1(kTools[i].name);
+            if (name == "carta_astrale" && !astraleUnlocked) continue;
+
             const QString icon  = QString::fromUtf8(kTools[i].icon);
             const QString label = QString::fromUtf8(kTools[i].label);
             const QString desc  = QString::fromUtf8(kTools[i].desc);
@@ -130,7 +141,8 @@ void AgentiPage::buildToolsPanel(QVBoxLayout* lay)
             chk->setChecked(true);
             chk->setMinimumHeight(dpiScale(22));
             m_enabledTools.insert(name);
-            gl->addWidget(chk, i / 2, i % 2);
+            gl->addWidget(chk, pos / 2, pos % 2);
+            ++pos;
 
             connect(chk, &QCheckBox::toggled, this, [this, name](bool on){
                 if (on) m_enabledTools.insert(name);

@@ -177,6 +177,7 @@ private:
     QTextEdit*      m_logViewAI     = nullptr;  ///< Log AI (pipeline, inferenza, RAG)
     QTextEdit*      m_logView3D     = nullptr;  ///< Log Vision3D (server, scatti, ricostruzione)
     int             m_logUnread     = 0;        ///< Contatore messaggi non letti
+    LogCategory     m_logLastCat    = LogSistema; ///< Categoria dell'ultimo appendLog() — apre il dialog sulla tab giusta
     QWidget*        m_sidebarWidget = nullptr;  ///< Sidebar (mostra/nascondi con ☰)
     QPushButton*    m_btnBackend  = nullptr;  ///< Backend AI: Ollama / avvia-ferma llama-server
     SpinnerWidget*  m_spinServer  = nullptr;  ///< Spinner animato durante polling /health

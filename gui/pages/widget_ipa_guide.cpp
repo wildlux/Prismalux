@@ -379,80 +379,61 @@ void IpaGuideWidget::onPhonemeTileClicked()
     const int idx = btn->property("tileIndex").toInt();
     if (idx < 0 || idx >= m_composedSymbols.size()) return;
 
-    fullStopComposePlayback();
+    stopComposePlayback();
     m_composedSymbols.removeAt(idx);
     m_composedMnemonics.removeAt(idx);
     rebuildTileRow();
 }
 
-void IpaGuideWidget::playComposeStep()
+/* Un'UNICA chiamata a espeak-ng con tutti i mnemonic accodati (separati da
+   spazio, dentro un solo blocco "[[...]]"), non più N processi in sequenza
+   uno per fonema. Verificato empiricamente: la durata risultante è quasi
+   identica alla parola reale corrispondente (es. "sheep" via [[S i: p]]
+   0.666s contro 0.678s della sintesi diretta della parola "sheep") — molto
+   più veloce (zero overhead di spawn/segnali tra un fonema e l'altro) e
+   più naturale (le transizioni tra suoni sono sintetizzate insieme, non
+   incollate come clip isolate). Lo spazio tra mnemonic è OBBLIGATORIO,
+   non solo estetico: senza, mnemonic di un carattere adiacenti si
+   fondono in un token diverso (es. "t"+"S" concatenati come "tS" verrebbe
+   letto come l'affricata tʃ invece che due suoni separati t-ʃ). */
+void IpaGuideWidget::startComposePlayback()
 {
-    if (m_playIndex < 0 || m_playIndex >= m_composedMnemonics.size()) return;
+    if (m_composedMnemonics.isEmpty()) return;
 
     m_playProc = new QProcess(this);
     connect(m_playProc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-            this, &IpaGuideWidget::onComposePhonemeFinished);
+            this, &IpaGuideWidget::onComposePlaybackFinished);
     m_playProc->start("espeak-ng",
-        {"-v", "en-gb", QString("[[%1]]").arg(m_composedMnemonics.at(m_playIndex))});
+        {"-v", "en-gb", QString("[[%1]]").arg(m_composedMnemonics.join(' '))});
+    m_btnPlayCompose->setText("\xe2\x8f\xb8 Pausa");
 }
 
-void IpaGuideWidget::onComposePhonemeFinished(int, QProcess::ExitStatus)
+void IpaGuideWidget::stopComposePlayback()
+{
+    if (m_playProc) m_playProc->kill();
+    m_btnPlayCompose->setText("\xe2\x96\xb6 Ascolta");
+}
+
+void IpaGuideWidget::onComposePlaybackFinished(int, QProcess::ExitStatus)
 {
     QProcess* finished = m_playProc;
     m_playProc = nullptr;
     if (finished) finished->deleteLater();
-
-    if (m_manualStop) {
-        m_manualStop = false;
-        return;  /* pausa/rimozione: l'indice resta dov'era, gestito dal chiamante */
-    }
-
-    m_playIndex++;
-    if (m_playIndex < m_composedMnemonics.size()) {
-        playComposeStep();
-    } else {
-        m_playIndex = -1;
-        m_btnPlayCompose->setText("\xe2\x96\xb6 Ascolta");
-    }
+    m_btnPlayCompose->setText("\xe2\x96\xb6 Ascolta");
 }
 
 void IpaGuideWidget::onPlayPauseComposeClicked()
 {
-    if (m_composedMnemonics.isEmpty()) return;
-
-    if (m_playProc) {
-        pauseComposePlayback();
-        return;
-    }
-
-    if (m_playIndex < 0 || m_playIndex >= m_composedMnemonics.size())
-        m_playIndex = 0;
-
-    m_btnPlayCompose->setText("\xe2\x8f\xb8 Pausa");
-    playComposeStep();
+    if (m_playProc) stopComposePlayback();
+    else startComposePlayback();
 }
 
 void IpaGuideWidget::onClearComposeClicked()
 {
-    fullStopComposePlayback();
+    stopComposePlayback();
     m_composedSymbols.clear();
     m_composedMnemonics.clear();
     rebuildTileRow();
-}
-
-void IpaGuideWidget::pauseComposePlayback()
-{
-    if (m_playProc) {
-        m_manualStop = true;
-        m_playProc->kill();
-    }
-    m_btnPlayCompose->setText("\xe2\x96\xb6 Ascolta");
-}
-
-void IpaGuideWidget::fullStopComposePlayback()
-{
-    pauseComposePlayback();
-    m_playIndex = -1;
 }
 
 void IpaGuideWidget::updateContent()

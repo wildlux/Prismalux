@@ -227,8 +227,14 @@ void MainWindow::appendLog(const QString& msg, LogCategory cat)
     view->moveCursor(QTextCursor::End);
     view->insertHtml(line + "<br>");
 
-    /* Badge non-letti — visibile solo se il dialog è chiuso */
+    /* Badge non-letti — visibile solo se il dialog è chiuso. m_logLastCat
+       tiene traccia di quale tab ha ricevuto l'ultimo evento: onLogBtnClicked()
+       la userà per aprire il dialog sulla tab giusta invece di lasciare
+       sempre "Sistema" selezionata (bug reale: il badge è un contatore unico
+       per tutte e 3 le tab, ma se l'evento era su AI/3D e non su Sistema,
+       la tab visibile all'apertura restava vuota nonostante il numero). */
     if (!m_logDlg->isVisible()) {
+        m_logLastCat = cat;
         m_logUnread++;
         const int cap = qMin(m_logUnread, 99);
         m_logBadge->setText(cap < 99 ? QString::number(cap) : "99+");

@@ -211,6 +211,19 @@ void MainWindow::onHamburgerClicked()
 void MainWindow::onLogBtnClicked()
 {
     ensureLogDialog();
+
+    /* Salta sulla tab della categoria che ha generato l'ultimo non-letto —
+       il badge è un contatore unico per Sistema/AI/3D insieme, senza
+       questo la tab visibile all'apertura restava sempre "Sistema" anche
+       quando gli eventi erano su AI o 3D (bug: numero visibile, tab
+       aperta vuota). Solo se c'era davvero qualcosa di non letto: ad
+       apertura "normale" (badge già a zero) si lascia l'ultima tab scelta
+       dall'utente, non si forza un salto. */
+    if (m_logUnread > 0) {
+        const int idx = (m_logLastCat == LogAI) ? 1 : (m_logLastCat == Log3D) ? 2 : 0;
+        m_logTabs->setCurrentIndex(idx);
+    }
+
     m_logUnread = 0;
     m_logBadge->setVisible(false);
     m_logDlg->show();
