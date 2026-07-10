@@ -46,6 +46,7 @@ class SintetizzatoreWidget : public QWidget {
     Q_OBJECT
 public:
     explicit SintetizzatoreWidget(QWidget* parent = nullptr);
+    ~SintetizzatoreWidget() override;
 
 private slots:
     void onAggiungi();

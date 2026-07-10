@@ -17,6 +17,7 @@ class SshManagerWidget : public QWidget {
     Q_OBJECT
 public:
     explicit SshManagerWidget(QWidget* parent = nullptr);
+    ~SshManagerWidget() override;
 
 private:
     /* -- Discovery -- */

@@ -219,6 +219,25 @@ SshManagerWidget::SshManagerWidget(QWidget* parent)
     updatePreview();
 }
 
+/* Stesso pattern già documentato in gui/CLAUDE.md dopo un coredump reale
+   (~VoiceClonerWidget, fix D-20): m_scanProc è un QProcess figlio con
+   segnali collegati a lambda che toccano m_hostTable/m_scanLbl — se ancora
+   attivo alla chiusura, il suo ~QProcess emette finished() sincrono durante
+   deleteChildren() su widget già semi-distrutti. findChildren() invece di
+   solo m_scanProc copre anche eventuali QProcess anonimi. */
+SshManagerWidget::~SshManagerWidget()
+{
+    const auto procs = findChildren<QProcess*>();
+    for (QProcess* p : procs) {
+        p->disconnect(this);
+        p->blockSignals(true);
+        if (p->state() != QProcess::NotRunning) {
+            p->kill();
+            p->waitForFinished(1000);
+        }
+    }
+}
+
 /* ── addOrUpdateHost ──────────────────────────────────────────────────── */
 void SshManagerWidget::addOrUpdateHost(const QString& ip, const QString& host,
                                         const QString& mac, const QString& iface)

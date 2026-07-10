@@ -570,7 +570,7 @@ private slots:
     void getServesHtmlPage() {
         bool ok = false;
         const QByteArray html = runCurl(
-            {QString("https://127.0.0.1:%1/").arg(kTestPort)}, ok);
+            {QString("https://127.0.0.1:%1/?token=%2").arg(kTestPort).arg(w->token())}, ok);
         QVERIFY(ok);
         QVERIFY(html.contains("PRISMALUX Vision3D"));
         QVERIFY(html.contains("SCATTA E ANALIZZA"));
@@ -608,6 +608,8 @@ private slots:
         // e cambiare modalità deve ricostruire i bersagli sul momento.
         QVERIFY(html.contains("scanMode==='scene' ? 1"));
         QVERIFY(html.contains("scanMode=c.dataset.m; buildTargets();"));
+        // placeholder token sostituito col vero, mai lasciato letterale nella pagina
+        QVERIFY(!html.contains("__VISION3D_TOKEN__"));
     }
 
     void unknownPathGives404() {
@@ -617,6 +619,43 @@ private slots:
              QString("https://127.0.0.1:%1/altrove").arg(kTestPort)}, ok);
         QVERIFY(ok);
         QCOMPARE(out, QByteArray("404"));
+    }
+
+    /* CAT-C: senza token corretto, / e /upload e /download devono negare
+       l'accesso — prima di questo fix qualunque dispositivo sulla stessa
+       LAN poteva usare il server senza alcuna autenticazione. */
+    void requestsWithoutValidTokenGet401() {
+        bool ok = false;
+
+        const QByteArray noToken = runCurl(
+            {"-o", "/dev/null", "-w", "%{http_code}",
+             QString("https://127.0.0.1:%1/").arg(kTestPort)}, ok);
+        QVERIFY(ok);
+        QCOMPARE(noToken, QByteArray("401"));
+
+        const QByteArray wrongToken = runCurl(
+            {"-o", "/dev/null", "-w", "%{http_code}",
+             QString("https://127.0.0.1:%1/?token=non-e-quello-giusto").arg(kTestPort)}, ok);
+        QVERIFY(ok);
+        QCOMPARE(wrongToken, QByteArray("401"));
+
+        QJsonObject o;
+        o["session"] = "testauth";
+        o["image"]   = QString();
+        o["wants"]   = QJsonArray{};
+        const QByteArray uploadNoToken = runCurl(
+            {"-o", "/dev/null", "-w", "%{http_code}",
+             "-X", "POST", "-H", "Content-Type: application/json",
+             "--data-binary", QString::fromUtf8(QJsonDocument(o).toJson(QJsonDocument::Compact)),
+             QString("https://127.0.0.1:%1/upload").arg(kTestPort)}, ok);
+        QVERIFY(ok);
+        QCOMPARE(uploadNoToken, QByteArray("401"));
+
+        const QByteArray downloadNoToken = runCurl(
+            {"-o", "/dev/null", "-w", "%{http_code}",
+             QString("https://127.0.0.1:%1/download?session=testscan&file=obj").arg(kTestPort)}, ok);
+        QVERIFY(ok);
+        QCOMPARE(downloadNoToken, QByteArray("401"));
     }
 
     void uploadSavesPhotoAndJson() {
@@ -630,6 +669,7 @@ private slots:
 
         QJsonObject o;
         o["session"] = "testscan";
+        o["token"]   = w->token();
         o["image"]   = QString::fromUtf8("data:image/jpeg;base64," + jpeg.toBase64());
         o["wants"]   = QJsonArray{};     // nessuna analisi: solo salvataggio
         o["angle"]   = 42;
@@ -673,6 +713,7 @@ private slots:
 
         QJsonObject o;
         o["session"] = "testscene";
+        o["token"]   = w->token();
         o["image"]   = QString::fromUtf8("data:image/jpeg;base64," + jpeg.toBase64());
         o["wants"]   = QJsonArray{};
         o["mode"]    = "scene";
@@ -714,6 +755,7 @@ private slots:
 
         QJsonObject o;
         o["session"]          = "testsensors";
+        o["token"]   = w->token();
         o["image"]            = QString::fromUtf8("data:image/jpeg;base64," + jpeg.toBase64());
         o["wants"]             = QJsonArray{};
         o["accel"]             = accel;
@@ -780,6 +822,7 @@ private slots:
 
         QJsonObject o;
         o["session"] = "testboxes";
+        o["token"]   = w->token();
         o["image"]   = QString::fromUtf8("data:image/jpeg;base64," + jpeg.toBase64());
         o["wants"]   = QJsonArray{"boxes"};
         o["angle"]   = 0;
@@ -822,6 +865,7 @@ private slots:
 
         QJsonObject o;
         o["session"] = "testmaps";
+        o["token"]   = w->token();
         o["image"]   = QString::fromUtf8("data:image/jpeg;base64," + jpeg.toBase64());
         o["wants"]   = QJsonArray{"edges", "bump", "normal"};
         o["angle"]   = 0;
@@ -875,6 +919,7 @@ private slots:
 
         QJsonObject o;
         o["session"] = "testedgesmoderate";
+        o["token"]   = w->token();
         o["image"]   = QString::fromUtf8("data:image/jpeg;base64," + jpeg.toBase64());
         o["wants"]   = QJsonArray{"edges"};
         o["angle"]   = 0;
@@ -917,6 +962,7 @@ private slots:
 
         QJsonObject o;
         o["session"] = "testflash";
+        o["token"]   = w->token();
         o["image"]   = QString::fromUtf8("data:image/jpeg;base64," + jpeg.toBase64());
         o["wants"]   = QJsonArray{"desc"};
         o["angle"]   = 0;
@@ -947,8 +993,8 @@ private slots:
         // modello mancante → pagina "non ancora pronto"; presente → contenuto file
         bool ok = false;
         const QByteArray miss = runCurl(
-            {QString("https://127.0.0.1:%1/download?session=testscan&file=obj")
-                 .arg(kTestPort)}, ok);
+            {QString("https://127.0.0.1:%1/download?session=testscan&file=obj&token=%2")
+                 .arg(kTestPort).arg(w->token())}, ok);
         QVERIFY(ok);
         QVERIFY(miss.contains("non ancora pronto"));
 
@@ -957,8 +1003,8 @@ private slots:
         f.write("v 0 0 0 1 0 0\n");
         f.close();
         const QByteArray got = runCurl(
-            {QString("https://127.0.0.1:%1/download?session=testscan&file=obj")
-                 .arg(kTestPort)}, ok);
+            {QString("https://127.0.0.1:%1/download?session=testscan&file=obj&token=%2")
+                 .arg(kTestPort).arg(w->token())}, ok);
         QVERIFY(ok);
         QCOMPARE(got, QByteArray("v 0 0 0 1 0 0\n"));
     }

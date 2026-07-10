@@ -8,6 +8,8 @@
 #include "widgets/formula_parser.h"
 #include "ai_client.h"
 #include "dpi_utils.h"
+#include "prismalux_paths.h"
+namespace P = PrismaluxPaths;
 
 #include <QScrollArea>
 #include <QSplitter>
@@ -2103,15 +2105,15 @@ void GraficoPage::onModelsReady(const QStringList&) { populateVisionCombo(); }
 
 void GraficoPage::populateVisionCombo()
 {
+    /* Lista canonica P::isVisionModel() (prismalux_paths.h) invece di un
+       elenco di sottostringhe duplicato qui — prima divergeva da quella
+       canonica (mancava "-vl", aveva "gemma3" che la canonica non aveva):
+       stesso modello risultava "vision" in una pagina e non in un'altra. */
     const QStringList all = m_ai ? m_ai->models() : QStringList{};
     QStringList vision;
-    for (const QString& m : all) {
-        const QString ml = m.toLower();
-        if (ml.contains("vision") || ml.contains("llava")  ||
-            ml.contains("minicpm") || ml.contains("moondream") ||
-            ml.contains("bakllava") || ml.contains("gemma3"))
+    for (const QString& m : all)
+        if (P::isVisionModel(m))
             vision << m;
-    }
     m_visionCombo->clear();
     if (vision.isEmpty()) {
         m_visionCombo->setVisible(false);

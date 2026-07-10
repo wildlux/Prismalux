@@ -20,6 +20,7 @@ class CodingLabWidget : public QWidget {
     Q_OBJECT
 public:
     explicit CodingLabWidget(AiClient* ai, QWidget* parent = nullptr);
+    ~CodingLabWidget() override;
 
 private slots:
     void onRunClicked();

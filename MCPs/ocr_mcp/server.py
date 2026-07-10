@@ -17,8 +17,20 @@ import sys, json, os, re, asyncio, subprocess
 from pathlib import Path
 from typing import Any
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from _shared.path_safety import resolve_input_path as _resolve_input_path_base
+
 ROOT    = Path(os.environ.get("PRISMALUX_ROOT", "/home/wildlux/Desktop/Prismalux"))
 RAG_DIR = ROOT / "RAG"
+
+# _resolve_input_path ora in _shared/path_safety.py (OS-18) — stesso
+# allowlist già usato da rag_manager_mcp, un solo punto da mantenere.
+# 'path' arriva da un parametro JSON-RPC e prima accettava qualunque path
+# assoluto senza restrizioni: un agente autonomo indotto poteva fare OCR di
+# uno screenshot con credenziali o di un file in ~/.ssh/ e ottenerne il
+# testo nel risultato.
+def _resolve_input_path(path_str: str) -> tuple[Path | None, str]:
+    return _resolve_input_path_base(path_str, ROOT)
 
 def _run(cmd: list[str], timeout: int = 120) -> tuple[int, str]:
     try:
@@ -134,7 +146,8 @@ def handle_ocr_image(args: dict) -> str:
     if not path_str: return "Specifica 'path'."
     if not _tesseract_ok():
         return "Tesseract non installato. sudo apt install tesseract-ocr tesseract-ocr-ita"
-    path = Path(path_str) if Path(path_str).is_absolute() else ROOT / path_str
+    path, err = _resolve_input_path(path_str)
+    if err: return err
     if not path.exists(): return f"File non trovato: {path}"
     text = _ocr_image_path(path, lang)
     chars = len(text.strip())
@@ -147,7 +160,8 @@ def handle_ocr_pdf(args: dict) -> str:
     if not path_str: return "Specifica 'path'."
     if not _tesseract_ok():
         return "Tesseract non installato. sudo apt install tesseract-ocr tesseract-ocr-ita"
-    path = Path(path_str) if Path(path_str).is_absolute() else ROOT / path_str
+    path, err = _resolve_input_path(path_str)
+    if err: return err
     if not path.exists(): return f"File non trovato: {path}"
     text  = _ocr_pdf_path(path, lang, dpi)
     chars = len(text.strip())
@@ -158,7 +172,8 @@ def handle_ocr_to_rag(args: dict) -> str:
     lang     = args.get("lang","ita+eng")
     dpi      = int(args.get("dpi", 300))
     if not path_str: return "Specifica 'path'."
-    path = Path(path_str) if Path(path_str).is_absolute() else ROOT / path_str
+    path, err = _resolve_input_path(path_str)
+    if err: return err
     if not path.exists(): return f"File non trovato: {path}"
     RAG_DIR.mkdir(parents=True, exist_ok=True)
     if path.suffix.lower() == ".pdf":

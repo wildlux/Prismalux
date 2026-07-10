@@ -5,6 +5,7 @@
 #include "main_ai.h"
 #include "../ai_client.h"
 #include "../theme_manager.h"
+#include <QUrlQuery>
 
 /* ══════════════════════════════════════════════════════════════
    BubClr — palette bubble che segue il tema attivo
@@ -201,3 +202,30 @@ QString _inject_textstats(const QString& task);
  *  profitto azioni, inversioni, posizione in array, edit distance/LCS,
  *  ricerca pattern — zero LLM. Definita in main_ai_tools.cpp. */
 QString _inject_algo(const QString& task);
+/** Dispatcher del tool "algoritmo" (D-33) — nome+parametri strutturati
+ *  invece della frase libera di _inject_algo(). Prima `static` (solo
+ *  main_ai_tools.cpp), reso condiviso (D-35) perché usata anche da
+ *  onToolAlgoritmo() in main_ai_tools_calls.cpp. Definita in
+ *  main_ai_tools.cpp. */
+QString _execAlgoritmo(const QString& nome, const QJsonObject& p);
+/** Validazione IBAN (mod-97) / Codice Fiscale (D.M.1976) — condivise tra
+ *  la guardia regex _inject_finance() e il tool valida_documento
+ *  (onToolValidaDocumento() in main_ai_tools_calls.cpp, D-35). Prima
+ *  `static` (solo main_ai_tools.cpp). Definite in main_ai_tools.cpp. */
+bool    _ibanValid(const QString& ibanRaw);
+bool    _cfChecksumValid(const QString& cfUpper);
+QString _cfDecode(const QString& cfUpper);
+/** Tronca un risultato di tool a maxLen caratteri con "..." — condivisa tra
+ *  più tool (D-35: prima `static`, solo main_ai_tools.cpp, ora usata anche
+ *  da main_ai_tools_calls.cpp). Definita in main_ai_tools.cpp. */
+QString _truncateResult(const QString& s, int maxLen = 2000);
+/** Escaping testo per campi iCalendar (RFC 5545 §3.3.11) — usata da
+ *  crea_evento_calendario e da onToolEventoCalendario() (D-35,
+ *  main_ai_tools_calls.cpp). Già a linkage esterna prima di D-35 (serviva
+ *  ai test diretti in test_agenti_pipeline.cpp), qui solo dichiarata
+ *  centralmente. Definita in main_ai_tools.cpp. */
+QString _icsEscapeText(QString s);
+/** URL Android intent:// per aprire l'app Google Calendar direttamente
+ *  (fallback al link https se l'app non c'è) — stesso motivo/uso di
+ *  _icsEscapeText sopra. Definita in main_ai_tools.cpp. */
+QString _buildGoogleCalendarIntentUrl(const QUrlQuery& query, const QUrl& httpsUrl);

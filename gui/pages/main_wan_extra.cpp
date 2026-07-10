@@ -3,6 +3,7 @@
    Estratto da main_lan_wan.cpp per ridurne le dimensioni.
    ====================================================================== */
 #include "main_lan_wan.h"
+#include "main_sci_compute.h"
 #include "widget_ssh_manager.h"
 #include "../dpi_utils.h"
 #include "../lan_server.h"
@@ -655,16 +656,50 @@ void LanWanPage::wanCliHandleTask(const QString& id, const QString& kind, const 
         }
 
     } else if (kind == "math_expr") {
-        /* Valuta via Python: espressione passata come sys.argv[1] — nessuna interpolazione */
+        /* NON usa eval() Python: "g['__builtins__']={}" è un sandbox noto per
+           essere aggirabile con tecniche solo-attributi (es.
+           "().__class__.__base__.__subclasses__()"), che risalgono a classi
+           come subprocess.Popen senza name-lookup nei builtins — RCE per
+           chiunque gestisca (o abbia compromesso/spoofato) il coordinatore
+           WAN a cui questo nodo si connette, senza bisogno di alcun opt-in
+           (a differenza di shell_cmd/python_repl). Fix: interprete AST
+           scritto a mano che cammina l'albero sintattico e ammette SOLO
+           Constant/BinOp/UnaryOp/Call-a-funzione-in-whitelist/Name-in-whitelist
+           — mai un vero eval()/exec(), quindi Attribute/Subscript/Call verso
+           nomi non in whitelist sono respinti dalla whitelist stessa, non da
+           un builtins svuotato aggirabile. */
         static const QString kMathExprScript =
-            "import math,cmath,statistics,sys\n"
-            "expr=sys.argv[1]\n"
-            "g=dict(vars(math))\n"
-            "g.update(vars(cmath))\n"
-            "g.update(vars(statistics))\n"
-            "g['__builtins__']={}\n"
+            "import ast,math,cmath,statistics,operator,sys\n"
+            "_names={}\n"
+            "for _m in (math,cmath,statistics):\n"
+            "    _names.update({k:v for k,v in vars(_m).items() if not k.startswith('_')})\n"
+            "_binops={ast.Add:operator.add,ast.Sub:operator.sub,ast.Mult:operator.mul,"
+            "ast.Div:operator.truediv,ast.FloorDiv:operator.floordiv,"
+            "ast.Mod:operator.mod,ast.Pow:operator.pow}\n"
+            "_unops={ast.UAdd:operator.pos,ast.USub:operator.neg}\n"
+            "def _ev(n):\n"
+            "    if isinstance(n,ast.Expression): return _ev(n.body)\n"
+            "    if isinstance(n,ast.Constant):\n"
+            "        if isinstance(n.value,(int,float,complex)): return n.value\n"
+            "        raise ValueError('costante non numerica')\n"
+            "    if isinstance(n,ast.BinOp) and type(n.op) in _binops:\n"
+            "        return _binops[type(n.op)](_ev(n.left),_ev(n.right))\n"
+            "    if isinstance(n,ast.UnaryOp) and type(n.op) in _unops:\n"
+            "        return _unops[type(n.op)](_ev(n.operand))\n"
+            "    if isinstance(n,ast.Call):\n"
+            "        if not isinstance(n.func,ast.Name) or n.func.id not in _names:\n"
+            "            raise ValueError('funzione non ammessa')\n"
+            "        fn=_names[n.func.id]\n"
+            "        if not callable(fn): raise ValueError('non e una funzione')\n"
+            "        return fn(*[_ev(a) for a in n.args])\n"
+            "    if isinstance(n,ast.Name):\n"
+            "        if n.id in _names and not callable(_names[n.id]): return _names[n.id]\n"
+            "        raise ValueError('nome non ammesso: '+n.id)\n"
+            "    if isinstance(n,ast.List): return [_ev(e) for e in n.elts]\n"
+            "    if isinstance(n,ast.Tuple): return tuple(_ev(e) for e in n.elts)\n"
+            "    raise ValueError('espressione non ammessa: '+type(n).__name__)\n"
             "try:\n"
-            "    print(eval(expr,g,{}))\n"
+            "    print(_ev(ast.parse(sys.argv[1],mode='eval')))\n"
             "except Exception as e:\n"
             "    print('Errore:', e)\n";
         result = ProcHelper::readOutput(
@@ -688,6 +723,13 @@ void LanWanPage::wanCliHandleTask(const QString& id, const QString& kind, const 
         if (!shellAllowed) {
             result = "file_read richiede 'Permetti shell' abilitato su questo nodo.";
             status = "error";
+        } else if (!SciComputePage::isSafePath(payload.trimmed())) {
+            /* Stesso allowlist già usato da SciComputePage (porta 11601) —
+               prima mancava qui: il coordinatore WAN remoto poteva leggere
+               ~/.ssh/id_rsa o il token LAN col solo checkbox "Permetti
+               shell" già attivo per altri motivi. */
+            result = "[SICUREZZA] Percorso non autorizzato: " + payload.trimmed();
+            status = "error";
         } else {
             QFile f(payload.trimmed());
             if (f.open(QIODevice::ReadOnly | QIODevice::Text)) {
@@ -710,13 +752,18 @@ void LanWanPage::wanCliHandleTask(const QString& id, const QString& kind, const 
             if (doc.isObject()) {
                 const QString path    = doc.object()["path"].toString();
                 const QString content = doc.object()["content"].toString();
-                QFile f(path);
-                if (f.open(QIODevice::WriteOnly | QIODevice::Text)) {
-                    QTextStream ts(&f); ts << content;
-                    result = "Scritto: " + path;
-                } else {
-                    result = "Impossibile scrivere: " + path;
+                if (!SciComputePage::isSafePath(path)) {
+                    result = "[SICUREZZA] Percorso non autorizzato: " + path;
                     status = "error";
+                } else {
+                    QFile f(path);
+                    if (f.open(QIODevice::WriteOnly | QIODevice::Text)) {
+                        QTextStream ts(&f); ts << content;
+                        result = "Scritto: " + path;
+                    } else {
+                        result = "Impossibile scrivere: " + path;
+                        status = "error";
+                    }
                 }
             } else {
                 result = "Payload non valido: atteso JSON {\"path\":\"...\",\"content\":\"...\"}";

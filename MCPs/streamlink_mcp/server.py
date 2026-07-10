@@ -26,6 +26,9 @@ import tempfile
 import logging
 from pathlib import Path
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from _shared.net_safety import validate_url as _validate_url
+
 logging.basicConfig(
     level=getattr(logging, os.environ.get("PRISMALUX_LOG_LEVEL", "WARNING")),
     format="%(asctime)s [streamlink_mcp] %(levelname)s %(message)s",
@@ -63,15 +66,14 @@ def _find_streamlink() -> str | None:
     return shutil.which("streamlink")
 
 # ─── Validazione URL ─────────────────────────────────────────────────────────
-
-def _validate_url(url: str) -> str | None:
-    """Restituisce errore se l'URL non è http/https, None se OK."""
-    url = url.strip()
-    if not (url.startswith("http://") or url.startswith("https://")):
-        return "URL non valido: deve iniziare con http:// o https://"
-    if any(block in url for block in ("127.0.0.1", "localhost", "192.168.", "10.", "172.")):
-        return "URL non consentito: host interno/privato"
-    return None
+# validate_url() ora in _shared/net_safety.py (OS-18) — stessa logica di
+# web_scraper_mcp/server.py, un solo punto da mantenere invece di due copie
+# che rischiano di divergere (era già successo: questo file aveva la
+# versione più debole, un controllo per sottostringa bypassabile). Limite
+# noto: yt-dlp/streamlink fanno le richieste HTTP (ed eventuali redirect)
+# come processi esterni, quindi il controllo copre l'URL iniziale ma non
+# un redirect interno a yt-dlp verso un IP privato — non intercettabile
+# da qui.
 
 # ─── Tool: stream_info ───────────────────────────────────────────────────────
 

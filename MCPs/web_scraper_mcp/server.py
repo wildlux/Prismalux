@@ -21,10 +21,24 @@ from pathlib import Path
 from datetime import date
 from typing import Any
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from _shared.net_safety import validate_url as _validate_url, build_safe_opener
+
 ROOT    = Path(os.environ.get("PRISMALUX_ROOT", "/home/wildlux/Desktop/Prismalux"))
 RAG_DIR = ROOT / "RAG"
 
 UA = "Mozilla/5.0 (compatible; PrismaluxBot/1.0; +https://github.com/wildlux/Prismalux)"
+
+# ─── protezione SSRF ─────────────────────────────────────────────────────────
+# Questo MCP può essere chiamato da un agente autonomo istruito da un task
+# testuale che include contenuto letto da file/web non fidato (prompt
+# injection): senza questi controlli, "fetch_page(url='file:///etc/passwd')"
+# o un URL che risolve a 169.254.169.254/127.0.0.1/192.168.x.x veniva scaricato
+# senza restrizioni ed esfiltrato nel risultato del tool. Validazione e
+# redirect handler ora in _shared/net_safety.py (OS-18) — prima duplicati
+# qui e in streamlink_mcp/api_tester_mcp, con rischio di drift (successo
+# già una volta: la vecchia _validate_url di streamlink_mcp era più debole).
+_SAFE_OPENER = build_safe_opener()
 
 # ─── HTML text extractor ─────────────────────────────────────────────────────
 
@@ -70,13 +84,16 @@ class _TextExtractor(HTMLParser):
 
 def _fetch(url: str, timeout: float = 15.0) -> tuple[int, str, str]:
     """Ritorna (status, content_text, final_url)."""
+    err = _validate_url(url)
+    if err:
+        return 0, f"URL bloccato: {err}", url
     req = urllib.request.Request(url, headers={
         "User-Agent": UA,
         "Accept": "text/html,application/xhtml+xml,*/*",
         "Accept-Language": "it-IT,it;q=0.9,en;q=0.8",
     })
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        with _SAFE_OPENER.open(req, timeout=timeout) as resp:
             charset  = resp.headers.get_content_charset() or "utf-8"
             raw      = resp.read(1_000_000)  # max 1 MB
             html     = raw.decode(charset, errors="replace")
@@ -101,10 +118,12 @@ def handle_check_url(args: dict) -> str:
     url     = args.get("url","").strip()
     timeout = float(args.get("timeout_s", 8.0))
     if not url: return "Specifica 'url'."
+    err = _validate_url(url)
+    if err: return f"❌ {url}\n  Bloccato: {err}"
     req = urllib.request.Request(url, method="HEAD", headers={"User-Agent": UA})
     t0  = time.time()
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:
+        with _SAFE_OPENER.open(req, timeout=timeout) as r:
             ms = (time.time()-t0)*1000
             ct = r.headers.get("Content-Type","?")
             return (f"✅ {url}\n"
@@ -135,8 +154,16 @@ def handle_fetch_to_rag(args: dict) -> str:
         return f"❌ Impossibile scaricare o testo vuoto: {url}\n  {text[:200]}"
     RAG_DIR.mkdir(parents=True, exist_ok=True)
     fname = filename or f"{_slug(url)}_{date.today()}.txt"
+    # basename() scarta qualunque componente di percorso (../, path assoluti):
+    # "filename" arriva da un parametro JSON-RPC, un valore tipo
+    # "../../../../.bashrc" scriveva fuori da RAG_DIR prima di questo fix.
+    fname = os.path.basename(fname.strip())
+    if not fname or fname in (".", ".."):
+        fname = f"{_slug(url)}_{date.today()}.txt"
     if not fname.endswith(".txt"): fname += ".txt"
-    out   = RAG_DIR / fname
+    out = (RAG_DIR / fname).resolve()
+    if not str(out).startswith(str(RAG_DIR.resolve()) + os.sep):
+        return f"❌ Nome file non valido: {filename!r}"
     header = f"Fonte: {final}\nData: {date.today()}\nCaratteri: {len(text)}\n{'─'*60}\n\n"
     out.write_text(header + text, encoding="utf-8")
     return (f"✅ Salvato in RAG/\n"
@@ -189,8 +216,10 @@ def handle_fetch_arxiv(args: dict) -> str:
     # Prova anche l'API XML
     xml_url = f"https://export.arxiv.org/api/query?id_list={aid}"
     try:
+        err = _validate_url(xml_url)
+        if err: raise urllib.error.URLError(err)
         req = urllib.request.Request(xml_url, headers={"User-Agent": UA})
-        with urllib.request.urlopen(req, timeout=10) as r:
+        with _SAFE_OPENER.open(req, timeout=10) as r:
             xml = r.read().decode("utf-8", errors="replace")
         title   = re.search(r'<title>([^<]+)</title>', xml, re.DOTALL)
         summary = re.search(r'<summary>([^<]+)</summary>', xml, re.DOTALL)

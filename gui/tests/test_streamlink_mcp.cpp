@@ -202,7 +202,10 @@ private slots:
     void bloccaLoopback() {
         const QString r = callValidateUrl("http://127.0.0.1/admin");
         QVERIFY2(r != "<<NONE>>", "127.0.0.1 deve essere bloccato");
-        QVERIFY(r.contains("interno") || r.contains("privato"));
+        /* Messaggio aggiornato con la validazione DNS+ipaddress condivisa
+           (_shared/net_safety.py, OS-18): "host risolve a un indirizzo
+           non pubblico (...)" invece del vecchio "interno/privato" */
+        QVERIFY(r.contains("non pubblico") || r.contains("bloccato"));
     }
 
     /* B-2: localhost bloccato */
@@ -253,7 +256,8 @@ private slots:
         const QJsonObject resp = QJsonDocument::fromJson(lines[0].toUtf8()).object();
         const QString text = resp["result"].toObject()["content"].toArray()[0]
                                   .toObject()["text"].toString();
-        QVERIFY2(text.contains("non consentito"),
+        /* Messaggio aggiornato con la validazione condivisa (OS-18) */
+        QVERIFY2(text.contains("non pubblico") || text.contains("bloccato"),
                  qPrintable("testo inatteso: " + text));
     }
 };

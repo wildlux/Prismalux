@@ -13,6 +13,8 @@
 #include <QGridLayout>
 #include <QLabel>
 #include <QLineEdit>
+#include <QUuid>
+#include <QUrl>
 #include <QComboBox>
 #include <QPushButton>
 #include <QGroupBox>
@@ -519,8 +521,21 @@ bool Vision3DWidget::start(quint16 port, const QString& certPath, const QString&
         return false;
     }
 
+    /* Token di accesso — prima il server non ne aveva nessuno: qualunque
+       dispositivo sulla stessa LAN/WiFi (non solo il telefono abbinato)
+       poteva POST /upload (DoS spazio disco/CPU via VLM+OpenCV) o
+       GET /download indovinando un nome sessione banale (default "scan1").
+       Stesso pattern di LanServer::loadLanToken()/saveLanToken(): persistito
+       con QKeychain o file 0600 fallback, generato una sola volta con
+       QUuid (stesso schema usato in main.cpp per il token LAN headless). */
+    m_token = LanServer::loadSecret(QStringLiteral("vision3d_token"));
+    if (m_token.isEmpty()) {
+        m_token = QUuid::createUuid().toString(QUuid::WithoutBraces).left(24);
+        LanServer::saveSecret(QStringLiteral("vision3d_token"), m_token);
+    }
+
     m_running = true;
-    const QString url = "https://" + bindIp + ":" + QString::number(m_port);
+    const QString url = "https://" + bindIp + ":" + QString::number(m_port) + "/?token=" + m_token;
     m_urlLabel->setText(url);
     if (m_prepQr) m_prepQr->setText(url);
     m_statusDot->setStyleSheet("color:#3fb950;font-size:18px;");
@@ -1468,14 +1483,14 @@ void Vision3DWidget::fetchVlmModels()
 }
 
 /* Nomi che di solito indicano un modello Ollama capace di vedere immagini
-   (usato sia per proporre un default sia per ordinare/segnalare il combo). */
+   (usato sia per proporre un default sia per ordinare/segnalare il combo).
+   Delega alla lista canonica P::isVisionModel() (prismalux_paths.h) invece
+   di una copia locale più corta — prima questo file, main_graph.cpp e
+   prismalux_paths.h avevano 3 elenchi leggermente diversi, con lo stesso
+   modello classificato "vision" in un punto della UI e non in un altro. */
 static bool v3dLooksLikeVisionModel(const QString& name)
 {
-    static const char* kHints[] =
-        {"moondream", "-vl", "llava", "vision", "minicpm-v", "bakllava"};
-    for (const char* h : kHints)
-        if (name.contains(QLatin1String(h), Qt::CaseInsensitive)) return true;
-    return false;
+    return P::isVisionModel(name);
 }
 
 void Vision3DWidget::onVlmTagsReady()
@@ -1659,22 +1674,36 @@ void Vision3DWidget::refreshDeviceTable()
 #if QT_CONFIG(ssl)
 void Vision3DWidget::handleRequest(QSslSocket* sock, const ParsedRequest& req)
 {
-    if (req.method == "GET" && (req.path == "/" || req.path.startsWith("/index"))) {
+    if (req.method == "GET" && (req.path == "/" || req.path.startsWith("/?")
+                                 || req.path.startsWith("/index"))) {
+        /* Token nel QR (vedi start()): senza, chiunque sulla stessa LAN
+           poteva caricare la pagina e usare il server come un dispositivo
+           abbinato. m_token vuoto = server non avviato correttamente →
+           nega comunque (fail-closed), mai fail-open. */
+        if (m_token.isEmpty() || !LanServer::timingSafeEqual(queryParam(req.path, "token"), m_token)) {
+            send401(sock); return;
+        }
         // assegna/riusa deviceId e lo imposta come cookie persistente
         const QString id = assignDeviceId(req.cookieDeviceId, req.userAgent);
         emit deviceSeen(id);
         refreshDeviceTable();
         const QByteArray setCookie =
             "Set-Cookie: deviceId=" + id.toUtf8() + "; Max-Age=31536000; Path=/; SameSite=Lax\r\n";
-        sendHtml(sock, htmlPage(), setCookie);
+        sendHtml(sock, htmlPage(m_token), setCookie);
         return;
     }
 
     if (req.method == "POST" && req.path == "/upload") {
-        const QString deviceId = assignDeviceId(req.cookieDeviceId, req.userAgent);
-
         const QJsonDocument doc = QJsonDocument::fromJson(req.body);
         const QJsonObject o = doc.object();
+        /* Token nel body JSON (la pagina lo include in ogni fetch, vedi
+           htmlPage()) — un GET valido sulla pagina non implica che ogni
+           upload successivo sia autorizzato se il token non viaggia con
+           esso, quindi ricontrolliamo qui indipendentemente. */
+        if (m_token.isEmpty() || !LanServer::timingSafeEqual(o.value("token").toString(), m_token)) {
+            send401(sock); return;
+        }
+        const QString deviceId = assignDeviceId(req.cookieDeviceId, req.userAgent);
         const QString session = o.value("session").toString("scan1");
         const int angle = o.value("angle").toInt(0);
         const int pitch = o.value("pitch").toInt(0);
@@ -1764,7 +1793,13 @@ void Vision3DWidget::handleRequest(QSslSocket* sock, const ParsedRequest& req)
     }
 
     if (req.method == "GET" && req.path.startsWith("/download")) {
-        // /download?session=<nome>&file=obj|mtl|ply — scarica il modello sul client
+        /* Prima chiunque sulla LAN poteva scaricare la ricostruzione 3D di
+           un'altra sessione indovinando un nome banale (default "scan1"):
+           nessuna autenticazione su questo endpoint. */
+        if (m_token.isEmpty() || !LanServer::timingSafeEqual(queryParam(req.path, "token"), m_token)) {
+            send401(sock); return;
+        }
+        // /download?session=<nome>&file=obj|mtl|ply&token=... — scarica il modello sul client
         const QString q = QString::fromUtf8(req.path);
         QString session, fileKey;
         const int qm = q.indexOf('?');
@@ -2563,7 +2598,25 @@ void Vision3DWidget::send404(QSslSocket* sock)
     QByteArray resp = "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
     sock->write(resp); sock->flush(); sock->disconnectFromHost();
 }
+
+void Vision3DWidget::send401(QSslSocket* sock)
+{
+    QByteArray resp = "HTTP/1.1 401 Unauthorized\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+    sock->write(resp); sock->flush(); sock->disconnectFromHost();
+}
 #endif // QT_CONFIG(ssl)
+
+QString Vision3DWidget::queryParam(const QByteArray& pathWithQuery, const QByteArray& key)
+{
+    const int qm = pathWithQuery.indexOf('?');
+    if (qm < 0) return QString();
+    const QList<QByteArray> parts = pathWithQuery.mid(qm + 1).split('&');
+    const QByteArray prefix = key + "=";
+    for (const QByteArray& kv : parts)
+        if (kv.startsWith(prefix))
+            return QUrl::fromPercentEncoding(kv.mid(prefix.size()));
+    return QString();
+}
 
 // ---------------------------------------------------------------------------
 static QLabel* makeVision3dThumb()
@@ -2966,7 +3019,7 @@ void Vision3DWidget::buildUi()
 }
 
 // ---------------------------------------------------------------------------
-QByteArray Vision3DWidget::htmlPage()
+QByteArray Vision3DWidget::htmlPage(const QString& token)
 {
     static const char* html = R"HTML(<!DOCTYPE html>
 <html lang="it"><head>
@@ -3066,6 +3119,7 @@ button:active{transform:scale(.97);}
 </div>
 <div class="toast" id="toast"></div>
 <script>
+const TOKEN="__VISION3D_TOKEN__";
 const $=id=>document.getElementById(id);
 const video=$('video'),canvas=$('canvas'),toast=$('toast');
 let stream=null,facing='environment',wants={desc:true,boxes:true,depth:true,edges:true,bump:false,normal:false};
@@ -3468,7 +3522,7 @@ function stopCamera(){
   $('startCam').textContent='\u{1F4F7} Attiva fotocamera';
   disableSensors();
 }
-function dl(k){window.location='/download?session='+encodeURIComponent($('session').value.trim()||'scan1')+'&file='+k;}
+function dl(k){window.location='/download?session='+encodeURIComponent($('session').value.trim()||'scan1')+'&file='+k+'&token='+encodeURIComponent(TOKEN);}
 $('dlObj').onclick=()=>dl('obj');$('dlMtl').onclick=()=>dl('mtl');$('dlPly').onclick=()=>dl('ply');
 $('startCam').onclick=()=>{ stream ? stopCamera() : startCamera(); };
 $('enableSensor').onclick=enableSensors;
@@ -3519,7 +3573,7 @@ $('status').innerHTML='<span class="spinner"></span> Il PC sta elaborando ('+lis
 $('descBox').style.display='none';$('imgBox').innerHTML='';
 $('shoot').textContent='Analisi in corso…';$('shoot').disabled=true;
 try{const res=await fetch('/upload',{method:'POST',headers:{'Content-Type':'application/json'},
-body:JSON.stringify({session:$('session').value.trim()||'scan1',wants:list,mode:scanMode,angle:(shotHeading!=null?shotHeading:0),pitch:(shotPitch!=null?shotPitch:0),roll:(shotRoll!=null?shotRoll:0),heading:shotHeading,hasSensors:shotHasSensors,accel:shotAccel,accelGravity:shotAccelG,rotationRate:shotRotRate,altitude:shotAltitude,altitudeAccuracy:shotAltAcc,latitude:shotLat,longitude:shotLon,flash:shotFlash,motionStable:shotMotionStable,motionMagnitude:shotMotionMagnitude,image:dataURL})});
+body:JSON.stringify({token:TOKEN,session:$('session').value.trim()||'scan1',wants:list,mode:scanMode,angle:(shotHeading!=null?shotHeading:0),pitch:(shotPitch!=null?shotPitch:0),roll:(shotRoll!=null?shotRoll:0),heading:shotHeading,hasSensors:shotHasSensors,accel:shotAccel,accelGravity:shotAccelG,rotationRate:shotRotRate,altitude:shotAltitude,altitudeAccuracy:shotAltAcc,latitude:shotLat,longitude:shotLon,flash:shotFlash,motionStable:shotMotionStable,motionMagnitude:shotMotionMagnitude,image:dataURL})});
 const j=await res.json();
 $('devId').textContent=readDevId();
 if(!j.ok){$('status').textContent='Errore: '+j.error;}
@@ -3574,5 +3628,10 @@ $('autoShoot').onclick=()=>{
   showToast(autoShoot ? 'Scatto automatico attivo — ruota intorno all’oggetto' : 'Scatto automatico disattivato');
 };
 </script></body></html>)HTML";
-    return QByteArray(html);
+    QByteArray out(html);
+    /* Token generato da QUuid (solo cifre/lettere/trattini, mai virgolette
+       o backslash): sicuro da iniettare letteralmente in una stringa JS
+       senza escaping aggiuntivo. */
+    out.replace("__VISION3D_TOKEN__", token.toUtf8());
+    return out;
 }

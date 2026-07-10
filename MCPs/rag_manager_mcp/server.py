@@ -21,6 +21,9 @@ from pathlib import Path
 from datetime import datetime
 from typing import Any
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from _shared.path_safety import is_sensitive_path as _is_sensitive_path
+
 logging.basicConfig(level=getattr(logging, os.environ.get("PRISMALUX_LOG_LEVEL","WARNING")))
 logger = logging.getLogger(__name__)
 
@@ -28,6 +31,15 @@ ROOT     = Path(os.environ.get("PRISMALUX_ROOT", "/home/wildlux/Desktop/Prismalu
 RAG_DIR  = Path(os.environ.get("PRISMALUX_RAG_DIR",  str(ROOT / "RAG")))
 KNW_DIR  = Path(os.environ.get("PRISMALUX_KNW_DIR",  str(ROOT / "KNOWLEDGE_USER")))
 HOME_RAG = Path.home() / "prismalux_rag_docs"
+
+# is_sensitive_path ora in _shared/path_safety.py (OS-18) — stesso
+# allowlist già usato da ocr_mcp e da SciComputePage::isSafePath
+# (gui/pages/main_sci_compute.cpp). add_doc accetta un source_path assoluto
+# a scopo legittimo (aggiungere PDF/doc da qualunque cartella), ma un agente
+# autonomo indotto a chiamare questo tool con source_path="~/.ssh/id_rsa"
+# lo copierebbe nel RAG e lo renderebbe rileggibile via chat: non blocchiamo
+# tutto fuori da ROOT (romperebbe l'uso normale), solo le directory note per
+# contenere credenziali/segreti.
 
 SUPPORTED_EXTS = {".txt", ".md", ".pdf", ".csv", ".json", ".py", ".cpp", ".h",
                   ".html", ".xml", ".yaml", ".yml", ".rst", ".tex"}
@@ -262,16 +274,25 @@ def handle_add_doc(args: dict) -> str:
     if not src_str:
         return "Specifica 'source_path'."
 
-    src = Path(src_str)
+    src = Path(src_str).expanduser()
     if not src.is_absolute():
         src = ROOT / src
+    src = src.resolve()  # risolve anche eventuali symlink prima del controllo, non dopo
+    if _is_sensitive_path(src):
+        return f"[SICUREZZA] Percorso non consentito: {src}"
     if not src.exists():
         return f"File non trovato: {src}"
     if src.suffix.lower() not in SUPPORTED_EXTS:
         return f"Tipo non supportato: {src.suffix}. Supportati: {', '.join(sorted(SUPPORTED_EXTS))}"
 
     RAG_DIR.mkdir(parents=True, exist_ok=True)
-    dest_dir = RAG_DIR / subfolder if subfolder else RAG_DIR
+    rag_root = RAG_DIR.resolve()
+    # subfolder è pensato come nome di sottocartella dentro RAG_DIR, non un
+    # percorso libero — senza questo controllo un subfolder tipo
+    # "../../../../tmp" scriveva fuori da RAG_DIR.
+    dest_dir = (RAG_DIR / subfolder).resolve() if subfolder else rag_root
+    if dest_dir != rag_root and not str(dest_dir).startswith(str(rag_root) + os.sep):
+        return f"[SICUREZZA] subfolder non valido: {subfolder!r}"
     dest_dir.mkdir(parents=True, exist_ok=True)
     dest = dest_dir / src.name
 

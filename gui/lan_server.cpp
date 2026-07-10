@@ -1053,6 +1053,7 @@ void LanServer::processSession(Session& s)
         cvj["cv"] = cvTxt;
         sendJson(s.socket, QJsonDocument(cvj).toJson(QJsonDocument::Compact));
     } else if (s.path == "/api/rag" && s.method == "POST") {
+        if (checkHeavyRateLimit(s)) return;
         handleRag(s);
     } else if (s.path == "/api/graphviz" && s.method == "POST") {
         if (checkHeavyRateLimit(s)) return;
@@ -1064,6 +1065,10 @@ void LanServer::processSession(Session& s)
         if (s.method == "POST" && checkHeavyRateLimit(s)) return; /* M-2 */
         handleSync(s);
     } else if (s.path == "/api/math" && s.method == "POST") {
+        /* Prima era l'unico endpoint che spawna un sottoprocesso python3
+           SENZA alcun rate limit (tutti gli altri: graphviz/whisper/repl/
+           git/wiki/mcp/launch sono dietro checkHeavyRateLimit, 6/min). */
+        if (checkHeavyRateLimit(s)) return;
         handleMath(s.socket, s);
     } else {
         sendJson(s.socket, R"({"status":"ok"})");
@@ -1406,7 +1411,7 @@ void LanServer::handleGitApi(const Session& s)
         sendError(s.socket, 500, "git non trovato sul server");
         return;
     }
-    proc.waitForFinished(10000);
+    if (!proc.waitForFinished(10000)) proc.kill();  /* niente processo orfano, vedi handleMath() */
 
     const QString output = QString::fromUtf8(proc.readAll()).trimmed();
     QJsonObject resp;
@@ -1457,7 +1462,7 @@ void LanServer::handleWikiApi(const Session& s)
         sendError(s.socket, 500, "curl non disponibile");
         return;
     }
-    proc.waitForFinished(10000);
+    if (!proc.waitForFinished(10000)) proc.kill();  /* niente processo orfano, vedi handleMath() */
 
     const QByteArray raw = proc.readAllStandardOutput();
     const QJsonObject wiki = QJsonDocument::fromJson(raw).object();

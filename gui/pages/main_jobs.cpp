@@ -149,6 +149,14 @@ void LavoroPage::applicaFiltri() {
    popolaModelli — aggiorna il combo con i modelli disponibili
    ══════════════════════════════════════════════════════════════ */
 void LavoroPage::popolaModelli(const QStringList& models) {
+    /* AiClient::fetchModels() non emette mai error() su fallimento di rete
+       (operazione in background, vedi ai_client.cpp) — emette sempre
+       modelsReady({}), quindi il contratto reale è gestire qui la lista
+       vuota. Prima veniva passata direttamente a populate(), che con una
+       lista vuota lascia il combo silenziosamente vuoto, senza dire
+       all'utente "Ollama non raggiungibile" (stesso fix già presente in
+       ManutenzioneePage::onBackendModelsReady). */
+    if (models.isEmpty()) { ModelComboHelper::setError(m_cmbModello); return; }
     ModelComboHelper::populate(m_cmbModello, m_ai, models, m_modelloLbl);
 }
 

@@ -379,6 +379,12 @@ def apply_diff(diff_text: str, project_root: str) -> tuple:
         return [], "Nessun file trovato nel diff"
 
     modified: List[str] = []
+    # project_root normalizzato una volta sola — stesso pattern di
+    # restore_snapshot() per lo stesso motivo: il diff arriva da un LLM
+    # (eventualmente guidato da contenuto letto da file/web non fidato),
+    # un path "+++ b/../../../../.ssh/authorized_keys" o assoluto non deve
+    # poter scrivere fuori dal progetto.
+    project_root_norm = os.path.normpath(project_root)
 
     for file_info in parsed:
         rel_path = file_info["path"]
@@ -390,6 +396,10 @@ def apply_diff(diff_text: str, project_root: str) -> tuple:
             abs_path = rel_path
         else:
             abs_path = os.path.join(project_root, rel_path)
+
+        abs_path = os.path.normpath(abs_path)
+        if not abs_path.startswith(project_root_norm + os.sep):
+            return modified, f"Path fuori da project_root, bloccato: {rel_path!r}"
 
         try:
             # Leggi contenuto originale (o vuoto se nuovo file)

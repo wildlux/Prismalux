@@ -475,7 +475,8 @@ inline ModelCaps modelCapabilities(const QString& name)
         || m.contains("moondream") || m.contains("idefics")
         || m.contains("phi-3-v") || m.contains("phi3-v")
         || m.contains("internvl") || m.contains("qwen-vl")
-        || m.contains("qwen2-vl") || m.contains("omnivision"))
+        || m.contains("qwen2-vl") || m.contains("omnivision")
+        || m.contains("gemma3"))   /* Gemma 3 (non-1B) supporta input immagine */
         caps |= CapVision;
 
     /* ── 3. Thinking ── */

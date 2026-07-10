@@ -176,6 +176,26 @@ SintetizzatoreWidget::SintetizzatoreWidget(QWidget* parent) : QWidget(parent)
     m_canvas->setTono(440.0, "sine", 0.7);
 }
 
+/* Stesso pattern già documentato in gui/CLAUDE.md dopo un coredump reale
+   (~VoiceClonerWidget, fix D-20): m_aplay è un QProcess figlio con segnali
+   collegati a lambda che toccano widget membro — se ancora attivo alla
+   chiusura, il suo ~QProcess emette finished() sincrono durante
+   deleteChildren() su widget già semi-distrutti. I punti che già chiamano
+   terminate()/waitForFinished() altrove (onStop, ecc.) non coprono ogni
+   percorso di distruzione — qui sì, sempre. */
+SintetizzatoreWidget::~SintetizzatoreWidget()
+{
+    const auto procs = findChildren<QProcess*>();
+    for (QProcess* p : procs) {
+        p->disconnect(this);
+        p->blockSignals(true);
+        if (p->state() != QProcess::NotRunning) {
+            p->kill();
+            p->waitForFinished(1000);
+        }
+    }
+}
+
 /* ── Livello 1: struttura principale ─────────────────────────── */
 void SintetizzatoreWidget::buildLayout()
 {

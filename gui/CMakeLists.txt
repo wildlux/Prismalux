@@ -177,6 +177,7 @@ set(CPP_SRCS
     pages/main_ai_models.cpp
     pages/main_ai_math.cpp
     pages/main_ai_tools.cpp
+    pages/main_ai_tools_calls.cpp
     pages/main_ai_pipeline.cpp
     pages/main_ai_byzantine.cpp
     pages/main_ai_bubbles.cpp

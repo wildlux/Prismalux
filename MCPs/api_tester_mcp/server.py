@@ -14,9 +14,12 @@ Tools:
   load_test           — N richieste sequenziali con timing
 """
 import sys, json, os, re, asyncio, time
-import urllib.request, urllib.error, socket
+import urllib.request, urllib.error, urllib.parse, socket
 from pathlib import Path
 from typing import Any
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from _shared.net_safety import validate_url as _validate_url_base, build_safe_opener
 
 ROOT = Path(os.environ.get("PRISMALUX_ROOT", "/home/wildlux/Desktop/Prismalux"))
 
@@ -25,6 +28,21 @@ LAN_PORT   = 11500
 WAN_PORT   = 11600
 OLLAMA_PORT = 11434
 LLAMA_PORT  = 8081
+
+# ─── Validazione URL (OS-18: _shared/net_safety.py) ──────────────────────────
+# Questo MCP esiste apposta per testare i servizi LOCALI di Prismalux
+# (127.0.0.1:11500/11600/11434/8081), quindi — a differenza degli altri MCP
+# che bloccano OGNI indirizzo privato — qui il loopback resta permesso di
+# proposito (romperebbe lo scopo del tool bloccarlo: allow_loopback=True).
+# Restano bloccati la scansione di altri host della LAN (192.168.x/10.x/
+# 172.16-31.x) e l'IP metadata cloud/link-local (169.254.x, incluso
+# 169.254.169.254), che un agente autonomo indotto potrebbe altrimenti
+# raggiungere con http_get o usare per un mini-DoS con load_test (fino a
+# 100 richieste).
+def _validate_url(url: str) -> str | None:
+    return _validate_url_base(url, allow_loopback=True)
+
+_SAFE_OPENER = build_safe_opener(allow_loopback=True)
 
 LAN_ENDPOINTS = [
     ("GET",  "/",              "Home page"),
@@ -43,7 +61,7 @@ def _http(method: str, url: str, body: dict | None = None,
         headers={"Content-Type": "application/json", "User-Agent": "prismalux-api-tester/1.0"}
     )
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        with _SAFE_OPENER.open(req, timeout=timeout) as resp:
             content = resp.read(4096).decode(errors="replace")
             return resp.status, time.time() - t0, content
     except urllib.error.HTTPError as e:
@@ -146,6 +164,8 @@ def handle_http_get(args: dict) -> str:
     url     = args.get("url","").strip()
     timeout = float(args.get("timeout_s", 10.0))
     if not url: return "Specifica 'url'."
+    err = _validate_url(url)
+    if err: return f"❌ {err}"
     status, elapsed, content = _http("GET", url, timeout=timeout)
     icon = "✅" if 200 <= status < 300 else "❌"
     lines = [f"{icon} GET {url}  →  {status}  ({elapsed*1000:.0f}ms)\n"]
@@ -162,6 +182,8 @@ def handle_http_post(args: dict) -> str:
     body    = args.get("body", {})
     timeout = float(args.get("timeout_s", 10.0))
     if not url: return "Specifica 'url'."
+    err = _validate_url(url)
+    if err: return f"❌ {err}"
     if isinstance(body, str):
         try: body = json.loads(body)
         except: return "Il campo 'body' deve essere un oggetto JSON."
@@ -182,6 +204,8 @@ def handle_load_test(args: dict) -> str:
     body    = args.get("body", None)
     timeout = float(args.get("timeout_s", 5.0))
     if not url: return "Specifica 'url'."
+    err = _validate_url(url)
+    if err: return f"❌ {err}"
     times, errors = [], 0
     for i in range(n):
         status, elapsed, _ = _http(method, url, body=body, timeout=timeout)

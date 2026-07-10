@@ -347,6 +347,15 @@ void LanWanPage::onQrConnectBtnClicked()
                "<small>IP + porta + token inclusi nel QR \xe2\x80\x94 "
                "\xf0\x9f\x94\x92 TLS attivo</small>";
     }
+    if (!token.isEmpty()) {
+        /* Il token nel QR resta valido finché non lo rigeneri manualmente
+           (🔄 sopra): uno screenshot salvato/condiviso di questo QR è un
+           segreto permanente, non un codice usa-e-getta — prima l'avviso
+           copriva solo TLS/assenza token, non questo. */
+        note += "<br><small style='color:#f59e0b;'>"
+                "\xe2\x9a\xa0\xef\xb8\x8f" "  Il token resta valido finch\xc3\xa9 non lo rigeneri: "
+                "non condividere screenshot di questo QR.</small>";
+    }
 
     openQrDialog(btn, url,
                  "QR \xe2\x80\x94 Connetti Prismalux Mobile",

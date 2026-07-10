@@ -85,6 +85,18 @@ QString LanServer::buildMathPythonCode(const QString& action, const QJsonObject&
         bool ok = false;
         const long long N  = req["n"].toVariant().toLongLong(&ok);
         if (!ok || N < 1) return {};
+        /* Prima N non aveva alcun limite superiore: una richiesta con N enorme
+           (es. factorial di un miliardo) faceva esplodere CPU/RAM del processo
+           python3 spawnato in handleMath() PRIMA di arrivare al timeout di
+           30s (handleMath() ora uccide comunque il processo se scade, vedi
+           D-36, ma restare 30s a piena CPU per una singola richiesta è comunque
+           indesiderabile). "fact"/"prime" crescono molto più in fretta di
+           fib/pow2/cifre-di-pi a parità di N, quindi limite più stretto per
+           quei due. */
+        const long long kMaxHeavy = 100000;    // fact, prime
+        const long long kMaxLight = 1000000;   // fib, pow2, pi_digit, e_digit, pi_block, phi_block
+        const bool isHeavy = (type == "fact" || type == "prime");
+        if (N > (isHeavy ? kMaxHeavy : kMaxLight)) return {};
 
         if (type == "pi_digit") {
             return QString(
@@ -335,7 +347,11 @@ void LanServer::handleMath(QTcpSocket* sock, const Session& s)
         proc.write(expr.toUtf8());
     }
     proc.closeWriteChannel();
-    proc.waitForFinished(30000);
+    /* Se non termina in tempo, waitForFinished() da sola NON uccide il
+       processo — resta orfano a consumare CPU in background anche dopo che
+       questa risposta HTTP è già tornata. kill() esplicito, stesso pattern
+       già usato da ProcHelper::run/runWithInput altrove nel progetto. */
+    if (!proc.waitForFinished(30000)) proc.kill();
     const QString out  = QString::fromUtf8(proc.readAllStandardOutput()).trimmed();
     const int     code = proc.exitCode();
 
@@ -379,7 +395,7 @@ void LanServer::handleGraphviz(const Session& s)
     }
     proc.write(dot.toUtf8());
     proc.closeWriteChannel();
-    proc.waitForFinished(15000);
+    if (!proc.waitForFinished(15000)) proc.kill();  /* niente processo orfano, vedi handleMath() */
 
     if (proc.exitCode() != 0) {
         const QString errMsg = QString::fromUtf8(proc.readAllStandardError()).trimmed();
@@ -496,6 +512,11 @@ void LanServer::handleWhisper(const Session& s)
                              QJsonDocument(resp).toJson(QJsonDocument::Compact));
                     return;
                 }
+            } else {
+                /* Senza kill(), ~QProcess() alla fine di questo blocco
+                   bloccherebbe in attesa indefinita di un processo ancora
+                   vivo — stesso rischio già documentato per handleMath(). */
+                vad.kill();
             }
         }
     }
@@ -534,7 +555,7 @@ void LanServer::handleWhisper(const Session& s)
         sendError(s.socket, 500, "impossibile avviare whisper");
         return;
     }
-    proc.waitForFinished(120000); /* max 2 minuti */
+    if (!proc.waitForFinished(120000)) proc.kill();  /* max 2 minuti, niente processo orfano */
     QFile::remove(tmpPath);
 
     QString text = QString::fromUtf8(proc.readAllStandardOutput()).trimmed();

@@ -53,6 +53,7 @@ class AgentiPage : public QWidget {
     Q_OBJECT
 public:
     explicit AgentiPage(AiClient* ai, QWidget* parent = nullptr);
+    ~AgentiPage() override;
 
     /* ── Metodi statici pubblici: usati anche da mainwindow (migrazione chat storiche) ── */
     static QString buildUserBubble(const QString& text, int bubbleIdx = -1,
@@ -301,6 +302,35 @@ private:
 
     /** Esegue uno strumento (calc/ricerca/python/leggi_file/lista_file/scrivi_file). Async. */
     void runToolCall(const QJsonObject& call, std::function<void(QString)> onDone);
+    /* Un metodo onTool<Nome>() per ogni ramo di runToolCall() (D-35, 2026-07-10
+       — era un unico if/else-if di 1455 righe). Implementati in
+       main_ai_tools_calls.cpp, eccetto onToolMcpCall() che resta in
+       main_ai_tools.cpp (dipende da un helper template locale). */
+    void onToolCalc(const QString& input, const std::function<void(QString)>& onDone);
+    void onToolAlgoritmo(const QString& input, const std::function<void(QString)>& onDone);
+    void onToolCodiceFiscale(const QString& input, const std::function<void(QString)>& onDone);
+    void onToolFinanzaCalcola(const QString& input, const std::function<void(QString)>& onDone);
+    void onToolValidaDocumento(const QString& input, const std::function<void(QString)>& onDone);
+    void onToolCartaAstrale(const QString& input, const std::function<void(QString)>& onDone);
+    void onToolConverti(const QString& input, const std::function<void(QString)>& onDone);
+    void onToolDisegnaGrafico(const QString& input, const std::function<void(QString)>& onDone);
+    void onToolRicerca(const QString& input, const std::function<void(QString)>& onDone);
+    void onToolCambioValuta(const QString& input, const std::function<void(QString)>& onDone);
+    void onToolFetchUrl(const QString& input, const std::function<void(QString)>& onDone);
+    void onToolPython(const QString& input, const std::function<void(QString)>& onDone);
+    void onToolLeggiFile(const QString& input, const std::function<void(QString)>& onDone);
+    void onToolListaFile(const QString& input, const std::function<void(QString)>& onDone);
+    void onToolScriviFile(const QString& input, const std::function<void(QString)>& onDone);
+    void onToolSearchRag(const QString& input, const std::function<void(QString)>& onDone);
+    void onToolGraphMemory(const QString& input, const std::function<void(QString)>& onDone);
+    void onToolGetDatetime(const QString& input, const std::function<void(QString)>& onDone);
+    void onToolDateCalc(const QString& input, const std::function<void(QString)>& onDone);
+    void onToolEventoCalendario(const QString& input, const std::function<void(QString)>& onDone);
+    void onToolGetKnowledge(const QString& input, const std::function<void(QString)>& onDone);
+    void onToolLeggiRiassunto(const QString& input, const std::function<void(QString)>& onDone);
+    void onToolScriviRiassunto(const QString& input, const std::function<void(QString)>& onDone);
+    void onToolSpawnAgent(const QString& input, const std::function<void(QString)>& onDone);
+    void onToolMcpCall(const QString& input, const std::function<void(QString)>& onDone);
     /** Testo da aggiungere al system prompt quando tool use è attivo */
     static QString toolSystemSuffix();
     /** Esegue tools/list su ogni MCP in background per arricchire il system prompt */

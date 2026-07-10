@@ -153,6 +153,7 @@ public:
                const QString& keyPath  = QString()); //         ~/.prismalux/
     void stop();
     bool isRunning() const { return m_running; }
+    QString token() const { return m_token; }  // token corrente — richiesto da /, /upload, /download
 
     void setOutputDir(const QString& dir);          // default: P::root()/scan_output
     void setOllamaUrl(const QString& url);          // default: localhost:P::kOllamaPort
@@ -237,7 +238,10 @@ private:
     void sendJson(QSslSocket* sock, const QByteArray& json, const QByteArray& setCookie = QByteArray());
     void sendFile(QSslSocket* sock, const QString& path, const QString& downloadName);
     void send404(QSslSocket* sock);
+    void send401(QSslSocket* sock);
 #endif
+    // estrae "key=valore" dalla query string di path (es. "/download?session=x&token=y")
+    static QString queryParam(const QByteArray& pathWithQuery, const QByteArray& key);
 
     // multi-device
     QString assignDeviceId(const QByteArray& existingCookie, const QByteArray& ua);
@@ -264,7 +268,7 @@ private:
     // interfacce virtuali docker/virbr/vnet e loopback in coda)
     static QStringList listLocalIps();
     QString    currentBindIp() const;
-    static QByteArray htmlPage();
+    static QByteArray htmlPage(const QString& token);
 
     void buildUi();
     void appendLog(const QString& s);
@@ -293,6 +297,7 @@ private:
     double  m_arucoMarkerMm = 40.0;           // lato reale dei marker stampati
     quint16 m_port = 0;
     QString m_bindIp;                         // set esplicito (test/API); vuoto = combo
+    QString m_token;                          // token di accesso — generato/persistito in start(), vedi queryParam()
 
     // stato multi-device (protetto da m_lock perché più connessioni concorrenti)
     QMutex                        m_lock;

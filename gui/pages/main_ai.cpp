@@ -95,6 +95,31 @@ AgentiPage::AgentiPage(AiClient* ai, QWidget* parent)
 }
 
 /* ══════════════════════════════════════════════════════════════
+   Distruttore — rete di sicurezza oltre a prepareClose()
+   ══════════════════════════════════════════════════════════════
+   prepareClose() (sotto) è chiamato solo dal closeEvent di MainWindow e
+   copre solo i QProcess con un membro nominato noto in anticipo. Questo
+   distruttore copre TUTTI i QProcess figli (inclusi quelli anonimi creati
+   ad-hoc in runToolCall(), main_ai_tools.cpp) e qualunque percorso di
+   distruzione che non passi da prepareClose() — stesso pattern già
+   documentato in gui/CLAUDE.md dopo un coredump reale (~VoiceClonerWidget,
+   fix D-20): senza disconnect() prima del kill(), un ~QProcess ancora
+   attivo durante deleteChildren() emette finished() sincrono su un
+   widget già semi-distrutto. */
+AgentiPage::~AgentiPage()
+{
+    const auto procs = findChildren<QProcess*>();
+    for (QProcess* p : procs) {
+        p->disconnect(this);
+        p->blockSignals(true);
+        if (p->state() != QProcess::NotRunning) {
+            p->kill();
+            p->waitForFinished(1000);
+        }
+    }
+}
+
+/* ══════════════════════════════════════════════════════════════
    prepareClose — termina processi figli prima della chiusura
    ══════════════════════════════════════════════════════════════ */
 void AgentiPage::prepareClose()
