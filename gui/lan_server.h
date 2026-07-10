@@ -135,6 +135,12 @@ private:
     void handleRag(Session& s);
     void handleGraphviz(const Session& s);
     void handleWhisper(const Session& s);
+    /* Passo 2 (asincrono) di handleWhisper(), dopo il controllo VAD:
+       rileva il binario whisper disponibile e avvia la trascrizione senza
+       bloccare il thread GUI (D-36 parte 2). sock passato per valore
+       (QPointer) perché il client può disconnettersi durante i fino a 2
+       minuti di trascrizione. */
+    void startWhisperTranscription(QTcpSocket* sock, const QString& tmpPath);
     void handleSync(const Session& s);
     void handleMath(QTcpSocket* sock, const Session& s);
     [[nodiscard]] static QString buildMathPythonCode(const QString& action, const QJsonObject& req);

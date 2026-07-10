@@ -15,6 +15,10 @@
 #include <QFileInfo>
 #include <QProcess>
 #include <QUrl>
+#include <QPointer>
+#include <QSharedPointer>
+#include <QTimer>
+#include <QStandardPaths>
 #include <cmath>
 #include "prismalux_paths.h"
 namespace P = PrismaluxPaths;
@@ -333,34 +337,57 @@ void LanServer::handleMath(QTcpSocket* sock, const Session& s)
         return;
     }
 
-    QProcess proc;
-    proc.setProcessChannelMode(QProcess::MergedChannels);
-    proc.start(P::findPython(), QStringList{"-c", pyCode});
-    if (!proc.waitForStarted(3000)) {
-        sendJson(sock, R"({"error":"python3 non trovato o non avviato"})");
-        return;
-    }
+    /* Asincrono (D-36 parte 2, 2026-07-10): prima waitForFinished(30000)
+       bloccava l'INTERO thread GUI per tutta la durata del calcolo — con
+       6 richieste/min consentite (checkHeavyRateLimit), fino a 3 minuti
+       di UI congelata all'ora per singolo IP. proc è figlio di 'this'
+       (~LanServer() lo termina se il server viene fermato mentre gira) e
+       il client va riletto via QPointer perché può disconnettersi mentre
+       il calcolo è ancora in corso — sendJson(nullptr, ...) è un no-op
+       innocuo, stesso pattern (QPointer clientSock + QSharedPointer<bool>
+       responded) già usato per la connessione MCP asincrona in
+       lan_server.cpp. */
+    auto* proc      = new QProcess(this);
+    auto clientSock = QPointer<QTcpSocket>(sock);
+    auto responded  = QSharedPointer<bool>::create(false);
+    proc->setProcessChannelMode(QProcess::MergedChannels);
+
+    connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            this, [this, proc, clientSock, responded](int, QProcess::ExitStatus) {
+        if (!*responded) {
+            *responded = true;
+            const QString out  = QString::fromUtf8(proc->readAllStandardOutput()).trimmed();
+            const int     code = proc->exitCode();
+            QJsonObject resp;
+            if (code != 0)
+                resp["error"] = out.isEmpty() ? "Errore Python (exit code non zero)" : out;
+            else
+                resp["result"] = out;
+            if (clientSock) sendJson(clientSock, QJsonDocument(resp).toJson(QJsonDocument::Compact));
+        }
+        proc->deleteLater();
+    });
+    connect(proc, &QProcess::errorOccurred, this, [this, proc, clientSock, responded](QProcess::ProcessError err) {
+        if (err == QProcess::FailedToStart && !*responded) {
+            *responded = true;
+            if (clientSock) sendJson(clientSock, R"({"error":"python3 non trovato o non avviato"})");
+            proc->deleteLater();
+        }
+    });
+    QTimer::singleShot(30000, proc, [proc, responded]{
+        if (!*responded && proc->state() != QProcess::NotRunning) proc->kill();
+    });
+
+    proc->start(P::findPython(), QStringList{"-c", pyCode});
     /* Per le action "expr"/"simplify" l'espressione viene passata via stdin
-       (il codice Python usa sys.stdin.read()) invece di essere interpolata nel codice. */
+       (il codice Python usa sys.stdin.read()) invece di essere interpolata nel codice.
+       write() prima che il processo abbia finito di avviarsi è sicuro: QProcess
+       mette in coda i byte finché lo stdin del figlio non è pronto. */
     if (action == "expr" || action == "simplify") {
         const QString expr = req["expr"].toString().trimmed();
-        proc.write(expr.toUtf8());
+        proc->write(expr.toUtf8());
     }
-    proc.closeWriteChannel();
-    /* Se non termina in tempo, waitForFinished() da sola NON uccide il
-       processo — resta orfano a consumare CPU in background anche dopo che
-       questa risposta HTTP è già tornata. kill() esplicito, stesso pattern
-       già usato da ProcHelper::run/runWithInput altrove nel progetto. */
-    if (!proc.waitForFinished(30000)) proc.kill();
-    const QString out  = QString::fromUtf8(proc.readAllStandardOutput()).trimmed();
-    const int     code = proc.exitCode();
-
-    QJsonObject resp;
-    if (code != 0)
-        resp["error"] = out.isEmpty() ? "Errore Python (exit code non zero)" : out;
-    else
-        resp["result"] = out;
-    sendJson(sock, QJsonDocument(resp).toJson(QJsonDocument::Compact));
+    proc->closeWriteChannel();
 }
 
 /* ── /api/graphviz — renderizza DOT con graphviz dot -Tpng ──────────────── */
@@ -383,32 +410,47 @@ void LanServer::handleGraphviz(const Session& s)
         return;
     }
 
-    QProcess proc;
-    proc.setProcessChannelMode(QProcess::SeparateChannels);
+    /* Asincrono — stesso motivo/pattern di handleMath() sopra (D-36 parte 2). */
+    auto* proc      = new QProcess(this);
+    auto clientSock = QPointer<QTcpSocket>(s.socket);
+    auto responded  = QSharedPointer<bool>::create(false);
+    proc->setProcessChannelMode(QProcess::SeparateChannels);
+
+    connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            this, [this, proc, clientSock, responded](int, QProcess::ExitStatus) {
+        if (!*responded) {
+            *responded = true;
+            if (proc->exitCode() != 0) {
+                const QString errMsg = QString::fromUtf8(proc->readAllStandardError()).trimmed();
+                QJsonObject err;
+                err["error"] = errMsg.isEmpty() ? "Errore rendering Graphviz" : errMsg;
+                if (clientSock) sendJson(clientSock, QJsonDocument(err).toJson(QJsonDocument::Compact));
+            } else {
+                const QByteArray png = proc->readAllStandardOutput();
+                QJsonObject resp;
+                resp["png"] = QString::fromLatin1(png.toBase64());
+                if (clientSock) sendJson(clientSock, QJsonDocument(resp).toJson(QJsonDocument::Compact));
+            }
+        }
+        proc->deleteLater();
+    });
+    connect(proc, &QProcess::errorOccurred, this, [this, proc, clientSock, responded](QProcess::ProcessError err) {
+        if (err == QProcess::FailedToStart && !*responded) {
+            *responded = true;
+            QJsonObject errj;
+            errj["error"] = "graphviz (dot) non trovato. Installa graphviz sul server desktop.";
+            if (clientSock) sendJson(clientSock, QJsonDocument(errj).toJson(QJsonDocument::Compact));
+            proc->deleteLater();
+        }
+    });
+    QTimer::singleShot(15000, proc, [proc, responded]{
+        if (!*responded && proc->state() != QProcess::NotRunning) proc->kill();
+    });
+
     /* -Gimagepath= vuoto impedisce il caricamento di immagini da disco */
-    proc.start("dot", QStringList{"-Tpng", "-Gimagepath="});
-    if (!proc.waitForStarted(3000)) {
-        QJsonObject err;
-        err["error"] = "graphviz (dot) non trovato. Installa graphviz sul server desktop.";
-        sendJson(s.socket, QJsonDocument(err).toJson(QJsonDocument::Compact));
-        return;
-    }
-    proc.write(dot.toUtf8());
-    proc.closeWriteChannel();
-    if (!proc.waitForFinished(15000)) proc.kill();  /* niente processo orfano, vedi handleMath() */
-
-    if (proc.exitCode() != 0) {
-        const QString errMsg = QString::fromUtf8(proc.readAllStandardError()).trimmed();
-        QJsonObject err;
-        err["error"] = errMsg.isEmpty() ? "Errore rendering Graphviz" : errMsg;
-        sendJson(s.socket, QJsonDocument(err).toJson(QJsonDocument::Compact));
-        return;
-    }
-
-    const QByteArray png = proc.readAllStandardOutput();
-    QJsonObject resp;
-    resp["png"] = QString::fromLatin1(png.toBase64());
-    sendJson(s.socket, QJsonDocument(resp).toJson(QJsonDocument::Compact));
+    proc->start("dot", QStringList{"-Tpng", "-Gimagepath="});
+    proc->write(dot.toUtf8());
+    proc->closeWriteChannel();
 }
 
 /* ── /api/whisper — trascrizione audio via whisper.cpp o whisper CLI ────── */
@@ -492,92 +534,127 @@ void LanServer::handleWhisper(const Session& s)
     tmpFile.write(audioData);
     tmpFile.close();
 
-    /* ── VAD: salta Whisper se il WAV non contiene parlato ── */
-    {
-        const QString vadScript = P::root() + "/Tools/scripts/vad_filter.py";
-        if (QFileInfo::exists(vadScript)) {
-            QProcess vad;
-            QString py = P::findPython();
-            vad.start(py, {vadScript, tmpPath});
-            if (vad.waitForFinished(3000)) {
-                const QString out =
-                    QString::fromUtf8(vad.readAllStandardOutput()).trimmed();
-                if (out == "SILENCE") {
-                    QFile::remove(tmpPath);
-                    QJsonObject resp;
-                    resp["text"]    = "";
-                    resp["silence"] = true;
-                    resp["info"]    = "Silenzio: nessun parlato rilevato nel file audio.";
-                    sendJson(s.socket,
-                             QJsonDocument(resp).toJson(QJsonDocument::Compact));
-                    return;
-                }
-            } else {
-                /* Senza kill(), ~QProcess() alla fine di questo blocco
-                   bloccherebbe in attesa indefinita di un processo ancora
-                   vivo — stesso rischio già documentato per handleMath(). */
-                vad.kill();
-            }
-        }
+    /* ── VAD asincrono: salta Whisper se il WAV non contiene parlato ──
+       D-36 parte 2 (2026-07-10): prima waitForFinished(3000) bloccava il
+       thread GUI fino a 3s PRIMA ANCORA di arrivare alla trascrizione vera
+       (fino a 120s) — ora l'intera catena VAD→trascrizione è a segnali. */
+    const QString vadScript = P::root() + "/Tools/scripts/vad_filter.py";
+    if (!QFileInfo::exists(vadScript)) {
+        startWhisperTranscription(s.socket, tmpPath);
+        return;
     }
 
-    /* Prova prima whisper-cpp (whisper), poi whisper CLI Python */
-    QStringList candidates = {"whisper-cpp", "whisper"};
+    auto* vad       = new QProcess(this);
+    auto clientSock = QPointer<QTcpSocket>(s.socket);
+
+    connect(vad, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            this, [this, vad, clientSock, tmpPath](int, QProcess::ExitStatus) {
+        const QString out = QString::fromUtf8(vad->readAllStandardOutput()).trimmed();
+        vad->deleteLater();
+        if (out == "SILENCE") {
+            QFile::remove(tmpPath);
+            QJsonObject resp;
+            resp["text"]    = "";
+            resp["silence"] = true;
+            resp["info"]    = "Silenzio: nessun parlato rilevato nel file audio.";
+            if (clientSock) sendJson(clientSock, QJsonDocument(resp).toJson(QJsonDocument::Compact));
+            return;
+        }
+        /* out vuoto (compreso il caso "killato per timeout" sotto) → non è
+           silenzio accertato, si procede comunque alla trascrizione — stesso
+           comportamento del ramo "else { vad.kill(); }" della versione
+           sincrona precedente. */
+        startWhisperTranscription(clientSock, tmpPath);
+    });
+    connect(vad, &QProcess::errorOccurred, this, [this, vad, clientSock, tmpPath](QProcess::ProcessError err) {
+        /* finished() non verrà mai emesso se il processo non è nemmeno
+           partito — senza questo ramo la trascrizione non partirebbe mai. */
+        if (err == QProcess::FailedToStart) {
+            vad->deleteLater();
+            startWhisperTranscription(clientSock, tmpPath);
+        }
+    });
+    QTimer::singleShot(3000, vad, [vad]{
+        if (vad->state() != QProcess::NotRunning) vad->kill();
+        /* kill() fa comunque scattare finished() poco dopo (out vuoto,
+           quindi "non è silenzio" → procede) — nessun bisogno di chiamare
+           startWhisperTranscription() anche qui. */
+    });
+
+    vad->start(P::findPython(), {vadScript, tmpPath});
+}
+
+void LanServer::startWhisperTranscription(QTcpSocket* sock, const QString& tmpPath)
+{
+    /* QStandardPaths::findExecutable() invece di spawnare+aspettare un
+       processo di prova per candidato (fino a 1s ciascuno, sincrono) —
+       stesso risultato (il binario è nel PATH ed eseguibile) senza
+       bloccare né sprecare un fork solo per verificarne l'esistenza. */
     QString whisperBin;
-    for (const QString& c : candidates) {
-        QProcess test;
-        test.start(c, {"--help"});
-        if (test.waitForStarted(1000)) { whisperBin = c; test.kill(); break; }
-    }
+    if      (!QStandardPaths::findExecutable("whisper-cpp").isEmpty()) whisperBin = "whisper-cpp";
+    else if (!QStandardPaths::findExecutable("whisper").isEmpty())     whisperBin = "whisper";
 
     if (whisperBin.isEmpty()) {
         QFile::remove(tmpPath);
         QJsonObject err;
         err["error"] = "whisper non trovato. Installa whisper.cpp o openai-whisper sul server desktop.";
-        sendJson(s.socket, QJsonDocument(err).toJson(QJsonDocument::Compact));
+        if (sock) sendJson(sock, QJsonDocument(err).toJson(QJsonDocument::Compact));
         return;
     }
 
-    QProcess proc;
-    proc.setProcessChannelMode(QProcess::MergedChannels);
+    /* Asincrono — stesso motivo/pattern di handleMath()/handleGraphviz(). */
+    auto* proc      = new QProcess(this);
+    auto clientSock = QPointer<QTcpSocket>(sock);
+    auto responded  = QSharedPointer<bool>::create(false);
+    proc->setProcessChannelMode(QProcess::MergedChannels);
+
+    connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            this, [this, proc, clientSock, responded, tmpPath, whisperBin](int, QProcess::ExitStatus) {
+        if (!*responded) {
+            *responded = true;
+            QFile::remove(tmpPath);
+            QString text = QString::fromUtf8(proc->readAllStandardOutput()).trimmed();
+
+            /* Se openai-whisper ha scritto un file .txt separato, leggiamolo */
+            if (text.isEmpty() || whisperBin == "whisper") {
+                const QString txtPath = QDir::tempPath() + "/" +
+                    QFileInfo(tmpPath).completeBaseName() + ".txt";
+                QFile txtFile(txtPath);
+                if (txtFile.open(QIODevice::ReadOnly)) {
+                    text = QString::fromUtf8(txtFile.readAll()).trimmed();
+                    txtFile.close();
+                    QFile::remove(txtPath);
+                }
+            }
+
+            QJsonObject resp;
+            if (text.isEmpty()) resp["error"] = "Trascrizione vuota o fallita";
+            else                 resp["text"]  = text;
+            if (clientSock) sendJson(clientSock, QJsonDocument(resp).toJson(QJsonDocument::Compact));
+        }
+        proc->deleteLater();
+    });
+    connect(proc, &QProcess::errorOccurred, this, [this, proc, clientSock, responded, tmpPath](QProcess::ProcessError err) {
+        if (err == QProcess::FailedToStart && !*responded) {
+            *responded = true;
+            QFile::remove(tmpPath);
+            if (clientSock) sendError(clientSock, 500, "impossibile avviare whisper");
+            proc->deleteLater();
+        }
+    });
+    QTimer::singleShot(120000, proc, [proc, responded]{
+        if (!*responded && proc->state() != QProcess::NotRunning) proc->kill();
+    });
+
     if (whisperBin == "whisper") {
         /* openai-whisper: whisper file.wav --model tiny --output_format txt --output_dir /tmp */
-        proc.start(whisperBin, QStringList{tmpPath, "--model", "tiny",
-                                           "--output_format", "txt",
-                                           "--output_dir", QDir::tempPath()});
+        proc->start(whisperBin, QStringList{tmpPath, "--model", "tiny",
+                                            "--output_format", "txt",
+                                            "--output_dir", QDir::tempPath()});
     } else {
         /* whisper.cpp: whisper-cpp -m model.bin -f file.wav */
-        proc.start(whisperBin, QStringList{"-f", tmpPath});
+        proc->start(whisperBin, QStringList{"-f", tmpPath});
     }
-
-    if (!proc.waitForStarted(5000)) {
-        QFile::remove(tmpPath);
-        sendError(s.socket, 500, "impossibile avviare whisper");
-        return;
-    }
-    if (!proc.waitForFinished(120000)) proc.kill();  /* max 2 minuti, niente processo orfano */
-    QFile::remove(tmpPath);
-
-    QString text = QString::fromUtf8(proc.readAllStandardOutput()).trimmed();
-
-    /* Se openai-whisper ha scritto un file .txt separato, leggiamolo */
-    if (text.isEmpty() || whisperBin == "whisper") {
-        const QString txtPath = QDir::tempPath() + "/" +
-            QFileInfo(tmpPath).completeBaseName() + ".txt";
-        QFile txtFile(txtPath);
-        if (txtFile.open(QIODevice::ReadOnly)) {
-            text = QString::fromUtf8(txtFile.readAll()).trimmed();
-            txtFile.close();
-            QFile::remove(txtPath);
-        }
-    }
-
-    QJsonObject resp;
-    if (text.isEmpty())
-        resp["error"] = "Trascrizione vuota o fallita";
-    else
-        resp["text"] = text;
-    sendJson(s.socket, QJsonDocument(resp).toJson(QJsonDocument::Compact));
 }
 
 /* ── /katex/ — serve KaTeX da disco locale ───────────────────────────────── */

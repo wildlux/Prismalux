@@ -210,6 +210,24 @@ LanServer::~LanServer()
 {
     blockSignals(true);   /* evita statusChanged(false) su widget già in distruzione */
     stop();
+
+    /* D-36 parte 2 (2026-07-10): handleMath/handleGraphviz/handleWhisper/
+       handleGitApi/handleWikiApi ora spawnano QProcess figli asincroni
+       (new QProcess(this)) invece di aspettarli in modo sincrono — se
+       LanServer viene distrutto mentre uno di questi è ancora in corso,
+       senza questo blocco il ~QProcess durante deleteChildren() emette
+       finished() sincrono su lambda che catturano 'this' già semi-distrutto
+       → SEGV. Stesso pattern già documentato in gui/CLAUDE.md dopo un
+       coredump reale (~VoiceClonerWidget, fix D-20). */
+    const auto procs = findChildren<QProcess*>();
+    for (QProcess* p : procs) {
+        p->disconnect(this);
+        p->blockSignals(true);
+        if (p->state() != QProcess::NotRunning) {
+            p->kill();
+            p->waitForFinished(1000);
+        }
+    }
 }
 
 /* ── start / stop ────────────────────────────────────────────────────────── */
@@ -1403,22 +1421,40 @@ void LanServer::handleGitApi(const Session& s)
     }
 
     const QStringList args = kAllowed[cmd];
-    QProcess proc;
-    proc.setWorkingDirectory(P::root());
-    proc.setProcessChannelMode(QProcess::MergedChannels);
-    proc.start("git", args);
-    if (!proc.waitForStarted(3000)) {
-        sendError(s.socket, 500, "git non trovato sul server");
-        return;
-    }
-    if (!proc.waitForFinished(10000)) proc.kill();  /* niente processo orfano, vedi handleMath() */
 
-    const QString output = QString::fromUtf8(proc.readAll()).trimmed();
-    QJsonObject resp;
-    resp["cmd"]    = "git " + args.join(" ");
-    resp["output"] = output.isEmpty() ? "(nessun output)" : output;
-    resp["exit"]   = proc.exitCode();
-    sendJson(s.socket, QJsonDocument(resp).toJson(QJsonDocument::Compact));
+    /* Asincrono (D-36 parte 2) — stesso pattern di handleMath(), vedi
+       lan_server_compute.cpp per il commento esteso sul motivo. */
+    auto* proc      = new QProcess(this);
+    auto clientSock = QPointer<QTcpSocket>(s.socket);
+    auto responded  = QSharedPointer<bool>::create(false);
+    proc->setWorkingDirectory(P::root());
+    proc->setProcessChannelMode(QProcess::MergedChannels);
+
+    connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            this, [this, proc, clientSock, responded, args](int, QProcess::ExitStatus) {
+        if (!*responded) {
+            *responded = true;
+            const QString output = QString::fromUtf8(proc->readAll()).trimmed();
+            QJsonObject resp;
+            resp["cmd"]    = "git " + args.join(" ");
+            resp["output"] = output.isEmpty() ? "(nessun output)" : output;
+            resp["exit"]   = proc->exitCode();
+            if (clientSock) sendJson(clientSock, QJsonDocument(resp).toJson(QJsonDocument::Compact));
+        }
+        proc->deleteLater();
+    });
+    connect(proc, &QProcess::errorOccurred, this, [this, proc, clientSock, responded](QProcess::ProcessError err) {
+        if (err == QProcess::FailedToStart && !*responded) {
+            *responded = true;
+            if (clientSock) sendError(clientSock, 500, "git non trovato sul server");
+            proc->deleteLater();
+        }
+    });
+    QTimer::singleShot(10000, proc, [proc, responded]{
+        if (!*responded && proc->state() != QProcess::NotRunning) proc->kill();
+    });
+
+    proc->start("git", args);
 }
 
 /* ── /api/wiki — riepilogo Wikipedia via REST API ───────────────────────────
@@ -1450,37 +1486,53 @@ void LanServer::handleWikiApi(const Session& s)
     const QString url   = QString("https://%1.wikipedia.org/api/rest_v1/page/summary/%2")
                           .arg(lang, QString(QUrl::toPercentEncoding(title)));
 
-    /* Chiama curl con timeout 8s */
-    QProcess proc;
-    proc.setProcessChannelMode(QProcess::SeparateChannels);
-    proc.start("curl", QStringList{
+    /* Asincrono (D-36 parte 2), timeout 8s del comando curl invariato —
+       stesso pattern di handleMath(), vedi lan_server_compute.cpp. */
+    auto* proc      = new QProcess(this);
+    auto clientSock = QPointer<QTcpSocket>(s.socket);
+    auto responded  = QSharedPointer<bool>::create(false);
+    proc->setProcessChannelMode(QProcess::SeparateChannels);
+
+    connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            this, [this, clientSock, proc, responded, lang, q](int, QProcess::ExitStatus) {
+        if (!*responded) {
+            *responded = true;
+            const QByteArray raw = proc->readAllStandardOutput();
+            const QJsonObject wiki = QJsonDocument::fromJson(raw).object();
+
+            if (wiki.contains("type") && wiki["type"].toString()
+                    == "https://mediawiki.org/wiki/HyperSwitch/errors/not_found") {
+                QJsonObject err;
+                err["error"] = "Voce non trovata su Wikipedia (" + lang + "): " + q;
+                if (clientSock) sendJson(clientSock, QJsonDocument(err).toJson(QJsonDocument::Compact));
+            } else {
+                QJsonObject resp;
+                resp["title"]       = wiki["title"].toString();
+                resp["extract"]     = wiki["extract"].toString();
+                resp["description"] = wiki["description"].toString();
+                resp["url"]         = wiki.value("content_urls").toObject()
+                                          .value("desktop").toObject()
+                                          .value("page").toString();
+                resp["lang"]        = lang;
+                if (clientSock) sendJson(clientSock, QJsonDocument(resp).toJson(QJsonDocument::Compact));
+            }
+        }
+        proc->deleteLater();
+    });
+    connect(proc, &QProcess::errorOccurred, this, [this, proc, clientSock, responded](QProcess::ProcessError err) {
+        if (err == QProcess::FailedToStart && !*responded) {
+            *responded = true;
+            if (clientSock) sendError(clientSock, 500, "curl non disponibile");
+            proc->deleteLater();
+        }
+    });
+    QTimer::singleShot(10000, proc, [proc, responded]{
+        if (!*responded && proc->state() != QProcess::NotRunning) proc->kill();
+    });
+
+    proc->start("curl", QStringList{
         "-s", "--max-time", "8",
         "-H", "User-Agent: Prismalux/3.0 (Qt6; Linux)",
         url
     });
-    if (!proc.waitForStarted(3000)) {
-        sendError(s.socket, 500, "curl non disponibile");
-        return;
-    }
-    if (!proc.waitForFinished(10000)) proc.kill();  /* niente processo orfano, vedi handleMath() */
-
-    const QByteArray raw = proc.readAllStandardOutput();
-    const QJsonObject wiki = QJsonDocument::fromJson(raw).object();
-
-    if (wiki.contains("type") && wiki["type"].toString() == "https://mediawiki.org/wiki/HyperSwitch/errors/not_found") {
-        QJsonObject err;
-        err["error"] = "Voce non trovata su Wikipedia (" + lang + "): " + q;
-        sendJson(s.socket, QJsonDocument(err).toJson(QJsonDocument::Compact));
-        return;
-    }
-
-    QJsonObject resp;
-    resp["title"]       = wiki["title"].toString();
-    resp["extract"]     = wiki["extract"].toString();
-    resp["description"] = wiki["description"].toString();
-    resp["url"]         = wiki.value("content_urls").toObject()
-                              .value("desktop").toObject()
-                              .value("page").toString();
-    resp["lang"]        = lang;
-    sendJson(s.socket, QJsonDocument(resp).toJson(QJsonDocument::Compact));
 }
