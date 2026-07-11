@@ -124,6 +124,37 @@ bool LanServer::timingSafeEqual(const QString& a, const QString& b)
     return diff == 0;
 }
 
+/* ── Sessioni browser /web ────────────────────────────────────────────────
+   Emesse dallo scambio token→cookie in processSession(). L'id è casuale
+   (128 bit hex) con scadenza kWebSessionTtlSecs; setAccessToken() le
+   azzera tutte al cambio token. Vivono solo in memoria: un riavvio del
+   server le invalida, il browser rifà il giro dal QR code. */
+QString LanServer::createWebSession()
+{
+    const QString sid = QUuid::createUuid()
+                            .toString(QUuid::WithoutBraces).remove(QLatin1Char('-'));
+    m_webSessions.insert(sid,
+        QDateTime::currentDateTimeUtc().addSecs(kWebSessionTtlSecs));
+    return sid;
+}
+
+bool LanServer::isValidWebSession(const QString& sid)
+{
+    if (sid.isEmpty() || m_webSessions.isEmpty()) return false;
+    const QDateTime now = QDateTime::currentDateTimeUtc();
+    for (auto it = m_webSessions.begin(); it != m_webSessions.end(); ) {
+        if (it.value() < now) it = m_webSessions.erase(it);
+        else ++it;
+    }
+    /* Scansione con confronto constant-time invece del lookup QHash:
+       il costo è trascurabile (pochi browser) e non lascia trapelare
+       prefissi validi via timing. */
+    bool ok = false;
+    for (auto it = m_webSessions.cbegin(); it != m_webSessions.cend(); ++it)
+        if (timingSafeEqual(sid, it.key())) ok = true;
+    return ok;
+}
+
 /* Appende una riga JSON al log di accesso ~/.prismalux/access.log.
  * Formato: {"t":"…","ip":"…","m":"…","p":"…"}
  * Ruota il file se supera 10 MB (mantiene access.log.1 come backup). */
@@ -672,16 +703,20 @@ void LanServer::processSession(Session& s)
         const QString expected  = "Bearer " + m_accessToken;
         const QString presented = "Bearer " + s.authHeaderFallback;
         if (timingSafeEqual(presented, expected)) {
-            /* Token valido: emetti cookie HttpOnly + redirect a /web (no query) */
-            QString safe = m_accessToken;
-            /* RFC 6265 §4.1: cookie-value = VCHAR esclusi CTL, ';', '"', '\', spazio, virgola */
-            static const QRegularExpression kCookieUnsafe(QStringLiteral("[^\\x21-\\x7E]|[;,\"\\\\]"));
-            safe.remove(kCookieUnsafe);
+            /* Token valido: il cookie porta un id di sessione casuale, NON il
+               token — un cookie rubato non dà l'Authorization delle API, e
+               cambiare token revoca tutte le sessioni browser in un colpo.
+               L'id è hex generato internamente: safe per RFC 6265 senza scrub. */
+            const QString sid = createWebSession();
             QByteArray resp = "HTTP/1.1 302 Found\r\n"
                               "Location: /web\r\n";
-            resp += "Set-Cookie: p_session=" + safe.toUtf8()
-                    + "; HttpOnly; SameSite=Strict; Path=/; Max-Age=86400\r\n";
-            resp += "Cache-Control: no-store\r\n"
+            resp += "Set-Cookie: p_session=" + sid.toUtf8()
+                    + "; HttpOnly; SameSite=Strict; Path=/; Max-Age="
+                    + QByteArray::number(kWebSessionTtlSecs);
+            if (m_useTls)
+                resp += "; Secure";   /* mai su HTTP: il browser lo scarterebbe */
+            resp += "\r\n"
+                    "Cache-Control: no-store\r\n"
                     "Content-Length: 0\r\n\r\n";
             s.socket->write(resp);
             s.socket->flush();
@@ -695,13 +730,12 @@ void LanServer::processSession(Session& s)
        Il cookie p_session è accettato SOLO per /web (match esatto) — i sub-path
        futuri e tutte le API devono usare header Authorization. */
     if (!isPublic && !m_accessToken.isEmpty()) {
-        const QString expected  = "Bearer " + m_accessToken;
-        const QString effective = !s.authHeader.isEmpty()
-                                  ? s.authHeader
-                                  : (s.path == "/web" && !s.cookieSession.isEmpty()
-                                     ? "Bearer " + s.cookieSession
-                                     : QString());
-        if (!timingSafeEqual(effective, expected)) {
+        const QString expected = "Bearer " + m_accessToken;
+        bool authorized = !s.authHeader.isEmpty()
+                          && timingSafeEqual(s.authHeader, expected);
+        if (!authorized && s.path == "/web")
+            authorized = isValidWebSession(s.cookieSession);
+        if (!authorized) {
             QByteArray resp = "HTTP/1.1 401 Unauthorized\r\n"
                               "Content-Type: application/json\r\n"
                               "WWW-Authenticate: Bearer realm=\"Prismalux\"\r\n"

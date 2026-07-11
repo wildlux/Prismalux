@@ -638,7 +638,10 @@ private slots:
         /* /web è protetta:
            14a: senza credenziali → 401
            14b: ?token=TOKEN valido → 302 redirect + Set-Cookie (non 401)
-           14c: Cookie p_session=TOKEN → autenticato (non 401) */
+           14c: Cookie p_session=<sid emesso in 14b> → autenticato (non 401)
+           14d: Cookie p_session=TOKEN → 401 (il cookie è un id di sessione
+                emesso dal server, NON il token — un token incollato nel
+                cookie non deve autenticare) */
         MockAiClient ai;
         LanServer srv(&ai);
         srv.setAccessToken("testtokenXYZ");
@@ -654,11 +657,26 @@ private slots:
         const int code14b = parseStatusCode(resp14b);
         const bool hasCookie = resp14b.contains("Set-Cookie: p_session=");
 
-        /* 14c: Cookie p_session=TOKEN → non 401 (200 OK webchat) */
+        /* Estrae il session id emesso in 14b: "Set-Cookie: p_session=<sid>;" */
+        QByteArray sid;
+        const int sidStart = resp14b.indexOf("Set-Cookie: p_session=");
+        if (sidStart >= 0) {
+            const int valStart = sidStart + int(qstrlen("Set-Cookie: p_session="));
+            const int valEnd   = resp14b.indexOf(';', valStart);
+            if (valEnd > valStart) sid = resp14b.mid(valStart, valEnd - valStart);
+        }
+
+        /* 14c: Cookie p_session=<sid del server> → non 401 (200 OK webchat) */
         const QByteArray resp14c = rawRequest(port,
             "GET /web HTTP/1.1\r\nHost: localhost\r\n"
-            "Cookie: p_session=testtokenXYZ\r\nContent-Length: 0\r\n\r\n");
+            "Cookie: p_session=" + sid + "\r\nContent-Length: 0\r\n\r\n");
         const int code14c = parseStatusCode(resp14c);
+
+        /* 14d: Cookie p_session=TOKEN (non un sid emesso) → 401 */
+        const QByteArray resp14d = rawRequest(port,
+            "GET /web HTTP/1.1\r\nHost: localhost\r\n"
+            "Cookie: p_session=testtokenXYZ\r\nContent-Length: 0\r\n\r\n");
+        const int code14d = parseStatusCode(resp14d);
 
         srv.blockSignals(true);
         srv.stop();
@@ -669,8 +687,13 @@ private slots:
             qPrintable(QString("/web?token=TOKEN → atteso 302, ottenuto %1").arg(code14b)));
         QVERIFY2(hasCookie,
             "302 response deve includere Set-Cookie: p_session=");
+        QVERIFY2(!sid.isEmpty(), "Set-Cookie deve contenere un session id");
+        QVERIFY2(sid != "testtokenXYZ",
+            "il cookie NON deve contenere il token Bearer");
         QVERIFY2(code14c != 401,
-            qPrintable(QString("/web con Cookie p_session → non deve dare 401, ottenuto %1").arg(code14c)));
+            qPrintable(QString("/web con Cookie p_session emesso dal server → non deve dare 401, ottenuto %1").arg(code14c)));
+        QVERIFY2(code14d == 401,
+            qPrintable(QString("/web con il TOKEN nel cookie → atteso 401, ottenuto %1").arg(code14d)));
     }
 
 private:

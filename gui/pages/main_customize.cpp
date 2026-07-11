@@ -68,35 +68,10 @@ void PersonalizzaPage::runProcArgs(QProcess* proc,
     }
 }
 
-/* ──────────────────────────────────────────────────────────────
-   runProc — DEPRECATO: usa sh -c con stringa concatenata.
-   Mantenuto per compatibilità ma non usare per nuovi chiamanti.
-   ────────────────────────────────────────────────────────────── */
-void PersonalizzaPage::runProc(QProcess* proc, const QString& cmd,
-                                QTextEdit* log, QPushButton* btn) {
-    log->append(QString("\xe2\x9a\x99\xef\xb8\x8f  %1\n").arg(cmd));
-    proc->setProcessChannelMode(QProcess::MergedChannels);
-    proc->setProperty("_log", QVariant::fromValue(static_cast<QObject*>(log)));
-    proc->setProperty("_btn", QVariant::fromValue(static_cast<QObject*>(btn)));
+/* runProc (sh -c con stringa concatenata) rimosso: era deprecato e senza
+   chiamanti. Per nuovi processi usare runProcArgs (argv separati). */
 
-    connect(proc, &QProcess::readyRead,
-            this, &PersonalizzaPage::onHelperProcReadyRead);
-    connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-            this, &PersonalizzaPage::onHelperProcFinished);
-#ifdef _WIN32
-    proc->start("cmd", {"/c", cmd});
-#else
-    proc->start("sh", {"-c", cmd});
-#endif
-    if (!proc->waitForStarted(P::kProcessHeavyStartMs)) {
-        log->append("\xe2\x9d\x8c  Impossibile avviare il processo. Controlla il PATH.");
-        LogBus::post("\xe2\x9d\x8c Personalizza: Impossibile avviare il processo. Controlla il PATH.");
-        if (btn) btn->setEnabled(true);
-        proc->deleteLater();
-    }
-}
-
-/* ── slot helper per proc transitori (runProcArgs/runProc) ── */
+/* ── slot helper per proc transitori (runProcArgs) ── */
 void PersonalizzaPage::onHelperProcReadyRead() {
     auto* proc = qobject_cast<QProcess*>(sender());
     if (!proc) return;

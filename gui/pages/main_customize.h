@@ -74,7 +74,7 @@ private slots:
     void onLoraInstallReadyRead();
     void onLoraInstallFinished(int code, QProcess::ExitStatus);
 
-    /* ── runProcArgs / runProc helpers ── */
+    /* ── runProcArgs helpers ── */
     void onHelperProcReadyRead();
     void onHelperProcFinished(int code, QProcess::ExitStatus);
 
@@ -85,10 +85,6 @@ private:
     void        runProcArgs(QProcess* proc, const QString& program,
                             const QStringList& args,
                             QTextEdit* log, QPushButton* btn);
-    /** runProc — DEPRECATO: usa sh -c. Solo per path interni, non per input utente. */
-    void        runProc(QProcess* proc, const QString& cmd,
-                        QTextEdit* log, QPushButton* btn);
-
     /** refreshModelList — ricostruisce la lista di modelli .gguf installati */
     void        refreshModelList();
 

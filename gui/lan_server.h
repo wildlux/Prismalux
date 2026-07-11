@@ -3,6 +3,8 @@
 #include <QTcpServer>
 #include <QTcpSocket>
 #include <QMap>
+#include <QHash>
+#include <QDateTime>
 #include <QQueue>
 #include <QSet>
 #include <QTimer>
@@ -33,8 +35,12 @@ public:
     /** Chiude forzatamente il socket del client con quell'indirizzo IP. */
     void kickClient(const QString& addr);
 
-    /** Imposta il token Bearer (generato dalla UI se vuoto). Auth sempre richiesta se non vuoto. */
-    void setAccessToken(const QString& token) { m_accessToken = token; }
+    /** Imposta il token Bearer (generato dalla UI se vuoto). Auth sempre richiesta se non vuoto.
+     *  Cambiare token revoca anche tutte le sessioni browser /web. */
+    void setAccessToken(const QString& token) {
+        if (token != m_accessToken) m_webSessions.clear();
+        m_accessToken = token;
+    }
 
     /** Abilita/disabilita TLS self-signed (effetto al prossimo start()). */
     void setTlsEnabled(bool on) { m_tlsRequested = on; }
@@ -234,5 +240,13 @@ private:
     /* Token di accesso Bearer opzionale (vuoto = nessuna auth richiesta) */
     QString m_accessToken;
 
+    /* Sessioni browser /web: id casuale → scadenza. Il cookie p_session
+       NON contiene il token Bearer (revocabile via setAccessToken senza
+       toccare i client API; un cookie rubato non dà l'header Authorization). */
+    QHash<QString, QDateTime> m_webSessions;
+    QString createWebSession();
+    bool    isValidWebSession(const QString& sid);
+
     static constexpr int kMaxSessions = 32;  ///< max sessioni TCP simultanee (DoS guard)
+    static constexpr int kWebSessionTtlSecs = 86400;  ///< durata cookie /web (24h)
 };
