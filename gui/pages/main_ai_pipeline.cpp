@@ -1280,7 +1280,9 @@ void AgentiPage::runAgent(int idx) {
     if (isSingleChat && m_ctxSingle->messageCount() > 0)
         histArray = m_ctxSingle->buildContext();
 
-    const QString sys = _buildSys(m_taskOriginal, sysFull, sysSmall, m_ai->model(), m_ai->backend());
+    const QString sys = _buildSys(m_taskOriginal, sysFull, sysSmall,
+                                  m_ai->model(), m_ai->backend(),
+                                  m_ai->modelSizeBytes(m_ai->model()));
 
     /* Pre-processing per-modello (lingua, prefissi, system prompt override) */
     auto [sysFinal, userFinal] = ModelProcessor::instance().preProcess(sys, userPrompt, m_ai->model());

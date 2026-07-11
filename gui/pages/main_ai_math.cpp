@@ -521,14 +521,24 @@ QString _math_sys(const QString& task, const QString& base) {
  * ──────────────────────────────────────────────────────────────────────────── */
 QString _buildSys(const QString& task,
                           const QString& full, const QString& small,
-                          const QString& modelName, AiClient::Backend backend)
+                          const QString& modelName, AiClient::Backend backend,
+                          qint64 sizeBytes)
 {
     const QString ml = modelName.toLower();
 
     /* Rileva modelli piccoli (≤4.5B) dal nome */
     static QRegularExpression sizeRe(R"((\d+(?:\.\d+)?)\s*b\b)");
     auto sm = sizeRe.match(ml);
-    const bool isSmall = sm.hasMatch() && sm.captured(1).toDouble() <= 4.5;
+    bool isSmall = sm.hasMatch() && sm.captured(1).toDouble() <= 4.5;
+
+    /* Fallback sul peso reale quando il nome NON dichiara la taglia
+       (es. "antconsales/antonio-gemma3-evo-q4": nessun "4b" nel nome →
+       la regex fallisce e il modello riceverebbe il prompt lungo). Un file
+       quantizzato < 4 GB è tipicamente ≤7B; usiamo il prompt corto per non
+       saturare il contesto di modelli piccoli. Non tocca i modelli già
+       riconosciuti dal nome. */
+    if (!sm.hasMatch() && sizeBytes > 0)
+        isSmall = sizeBytes < (qint64(4) * 1024 * 1024 * 1024);
 
     /* Seleziona il prompt base: small se disponibile e il modello lo richiede */
     const bool useSmall = (backend == AiClient::LlamaLocal || isSmall) && !small.isEmpty();

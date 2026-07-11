@@ -2,6 +2,7 @@
 #include "main_ai_p.h"
 #include "../dpi_utils.h"
 #include "../widgets/latex_view.h"
+#include "../widgets/chat_log_browser.h"
 #include <QPainter>
 #include <QDrag>
 #include <QMimeData>
@@ -328,7 +329,7 @@ void AgentiPage::buildToolbarLLMSelector(QHBoxLayout* toolLay, QWidget* toolbar)
    ────────────────────────────────────────────────────────────── */
 void AgentiPage::buildChatLog(QVBoxLayout* lay)
 {
-    m_log = new QTextBrowser(this);
+    m_log = new ChatLogBrowser(this);   /* QTextBrowser + angoli bolle arrotondati */
     m_log->setObjectName("chatLog");
     m_log->setReadOnly(true);
     m_log->setOpenLinks(false);

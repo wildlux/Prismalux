@@ -670,9 +670,17 @@ inline QString prependKnowledge(const QString& systemPrompt)
     const QString knowledge = readUserKnowledge();
     if (knowledge.trimmed().isEmpty())
         return systemPrompt;
-    return "# Contesto utente (memoria persistente)\n"
+    /* Cornice esplicita: senza, i modelli piccoli (≤4B) trattano la memoria
+       come argomento della conversazione e la recitano ("raccontami una
+       storia" → descrizione di Prismalux). Il contesto è consultazione,
+       non contenuto da esporre. */
+    return "# Contesto di riferimento (memoria persistente dell'utente)\n"
+           "Le informazioni seguenti servono SOLO come consultazione quando la "
+           "domanda dell'utente le riguarda direttamente. NON descriverle, NON "
+           "riassumerle, NON citarle in risposte a domande che non c'entrano. "
+           "Rispondi sempre e soltanto alla domanda effettiva dell'utente.\n\n"
            + knowledge
-           + "\n\n---\n\n"
+           + "\n\n--- FINE contesto di riferimento ---\n\n"
            + systemPrompt;
 }
 

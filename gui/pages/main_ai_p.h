@@ -135,7 +135,7 @@ bool    _isEmbeddingModel(const QString& name);
 QString _math_sys(const QString& task, const QString& base);
 QString _buildSys(const QString& task, const QString& full,
                   const QString& small, const QString& modelName,
-                  AiClient::Backend backend);
+                  AiClient::Backend backend, qint64 sizeBytes = 0);
 QString _buildSys(const QString& task, const QString& full,
                   const QString& modelName, AiClient::Backend backend);
 QString _inject_math(const QString& task);
