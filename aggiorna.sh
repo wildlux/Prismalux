@@ -56,6 +56,11 @@ echo "    ✓ $DESKTOP_SRC"
 
 echo "==> Sincronizza in ~/.local/share/applications/..."
 cp "$DESKTOP_SRC" "$DESKTOP_SYS"
+# Rimuove varianti stantie con nome file diverso (es. "Prismalux.desktop" con la
+# P maiuscola, mai sovrascritta perché $DESKTOP_SYS è sempre minuscolo) — su
+# Linux i nomi file sono case-sensitive, il menu applicazioni le mostra come
+# due voci distinte per lo stesso programma (causa nota: 2026-07-03, 2026-07-11).
+rm -f "$HOME/.local/share/applications/Prismalux.desktop"
 update-desktop-database "$HOME/.local/share/applications/" 2>/dev/null || true
 echo "    ✓ $DESKTOP_SYS"
 
