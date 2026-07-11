@@ -27,6 +27,9 @@
 
 #include <QTextBrowser>
 #include <QTextTable>
+#include <QTextTableCell>
+#include <QTextTableFormat>
+#include <QTextLength>
 #include <QTextFrame>
 #include <QTextBlock>
 #include <QAbstractTextDocumentLayout>
@@ -81,6 +84,9 @@ protected:
             auto* t = qobject_cast<QTextTable*>(f);
             if (!t) continue;
 
+            const QRectF tableRect = lay->frameBoundingRect(t);
+            const QList<QTextLength> cons = t->format().columnWidthConstraints();
+
             for (int r = 0; r < t->rows(); ++r)
             for (int col = 0; col < t->columns(); ++col) {
                 QTextTableCell cell = t->cellAt(r, col);
@@ -89,19 +95,31 @@ protected:
                 if (bg.style() == Qt::NoBrush || bg.color().alpha() == 0)
                     continue;
 
-                /* Rettangolo del contenuto della cella (senza padding). */
-                QRectF text;
-                for (auto it = cell.begin(); !it.atEnd(); ++it) {
-                    const QTextBlock b = it.currentBlock();
-                    if (b.isValid())
-                        text = text.united(lay->blockBoundingRect(b));
+                /* Larghezza reale della cella colorata = larghezza tabella
+                   meno le colonne-spacer (celle senza sfondo, larghezza
+                   fissa: 80px a sx per l'utente, 30px a dx per l'agente,
+                   ecc.). Il testo NON basta: la cella riempie tutta la riga
+                   tranne gli spacer, quindi con messaggi corti il riquadro
+                   colorato è molto più largo del testo. (bug: prima usavo il
+                   rettangolo del testo → tagliavo angoli in mezzo alla cella
+                   e sembrava cambiare la lunghezza del box.) */
+                qreal leftInset = 0, rightInset = 0;
+                for (int k = 0; k < t->columns(); ++k) {
+                    if (k == col) continue;
+                    const QBrush kb = t->cellAt(r, k).format().background();
+                    if (kb.style() != Qt::NoBrush) continue;   /* solo spacer */
+                    const qreal w = (k < cons.size() &&
+                                     cons[k].type() == QTextLength::FixedLength)
+                                    ? cons[k].rawValue() : 0.0;
+                    (k < col ? leftInset : rightInset) += w;
                 }
-                if (text.isEmpty()) continue;
 
-                /* Espandi al riquadro colorato: padding bolla 10px v / 14px h.
-                   (valori dei letterali HTML in main_ai_bubbles.cpp) */
-                QRectF box = text.adjusted(-14, -10, 14, 10).translated(off);
-                if (!box.intersects(vpRect)) continue;   /* fuori schermo */
+                QRectF box(tableRect.left() + leftInset, tableRect.top(),
+                           tableRect.width() - leftInset - rightInset,
+                           tableRect.height());
+                box.translate(off);
+                if (box.isEmpty() || !box.intersects(vpRect))
+                    continue;                                  /* fuori schermo */
 
                 cutRoundedCorners(p, box, radius, pageBg);
             }
