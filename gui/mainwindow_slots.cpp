@@ -969,17 +969,20 @@ void MainWindow::onOnboardingAccepted()
         s2.setValue(P::SK::kTheme, theme);
         m_pendingTheme = theme;
     }
-    /* Wizard "mostrato una sola volta" per design — il flag va salvato
-     * incondizionatamente al completamento, non solo su una checkbox
-     * opzionale (rimossa: causava la ricomparsa del wizard a ogni
-     * riavvio per chi cliccava "Inizia!" senza notarla/spuntarla). */
-    s2.setValue(P::SK::kSetupDone, true);
+    /* kSetupDone segue la checkbox "non mostrare più" (default spuntata):
+     * spuntata → wizard mostrato una sola volta (comportamento normale);
+     * despuntata di proposito → riappare al prossimo riavvio. Il default
+     * spuntato evita la vecchia trappola di chi cliccava "Inizia!" senza
+     * notare la checkbox. */
+    const bool dontShow = !m_onbDontShow || m_onbDontShow->isChecked();
+    s2.setValue(P::SK::kSetupDone, dontShow);
     QMetaObject::invokeMethod(this, &MainWindow::onApplyPendingTheme, Qt::QueuedConnection);
     auto* dlg = m_onbDlg;
-    m_onbDlg     = nullptr;
-    m_onbBackend = nullptr;
-    m_onbModel   = nullptr;
-    m_onbTheme   = nullptr;
+    m_onbDlg      = nullptr;
+    m_onbBackend  = nullptr;
+    m_onbModel    = nullptr;
+    m_onbTheme    = nullptr;
+    m_onbDontShow = nullptr;
     if (dlg) dlg->accept();
 }
 

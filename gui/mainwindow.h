@@ -483,8 +483,9 @@ private:
     QProcess*            m_emergencyStopProc  = nullptr;
     QProcess*            m_emergencyCacheProc = nullptr;
     /* Onboarding wizard — puntatori ai combo per onOnboardingAccepted() */
-    QComboBox* m_onbBackend = nullptr;
-    QComboBox* m_onbModel   = nullptr;
-    QComboBox* m_onbTheme   = nullptr;
-    QDialog*   m_onbDlg     = nullptr;
+    QComboBox* m_onbBackend  = nullptr;
+    QComboBox* m_onbModel    = nullptr;
+    QComboBox* m_onbTheme    = nullptr;
+    QCheckBox* m_onbDontShow = nullptr;  ///< "Non mostrare più al prossimo riavvio"
+    QDialog*   m_onbDlg      = nullptr;
 };

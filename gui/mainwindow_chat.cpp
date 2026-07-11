@@ -515,15 +515,24 @@ void MainWindow::showOnboardingWizard()
     tLay->addWidget(themeCombo);
     vlay->addWidget(themeGrp);
 
-    /* X senza confermare → ripristina tema originale. Il wizard è "mostrato
-     * una sola volta" per design (vedi commento in setupTimers()): il flag
-     * kSetupDone va salvato comunque, non solo se l'utente completa il
-     * wizard con OK — altrimenti chi preme X/Esc se lo ritrova a ogni
-     * riavvio (bug: prima dipendeva da una checkbox "non mostrare più"
-     * che l'utente doveva spuntare esplicitamente, facile da non notare). */
-    connect(dlg, &QDialog::rejected, dlg, [origTheme]() {
+    /* Checkbox "non mostrare più" — DEFAULT SPUNTATA (fonte unica di verità
+     * per la ricomparsa del wizard). Spuntata di default evita la vecchia
+     * trappola: chi preme "Inizia!" o X senza notarla ottiene comunque il
+     * comportamento sicuro (wizard mostrato una sola volta). Chi la toglie
+     * ESPLICITAMENTE vuole rivederlo al prossimo riavvio — è una scelta. */
+    auto* dontShow = new QCheckBox(
+        "Non mostrare pi\xc3\xb9 al prossimo riavvio", dlg);
+    dontShow->setChecked(true);
+    vlay->addWidget(dontShow);
+    m_onbDontShow = dontShow;
+
+    /* X/Esc senza confermare → ripristina tema originale. kSetupDone segue la
+     * checkbox (default spuntata): X = non mostrare più, salvo che l'utente
+     * l'abbia despuntata di proposito. */
+    connect(dlg, &QDialog::rejected, dlg, [origTheme, dontShow]() {
         ThemeManager::instance()->apply(origTheme);
-        QSettings("Prismalux", "GUI").setValue(P::SK::kSetupDone, true);
+        QSettings("Prismalux", "GUI")
+            .setValue(P::SK::kSetupDone, dontShow->isChecked());
     });
 
     /* Bottoni */
