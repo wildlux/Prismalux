@@ -1,5 +1,6 @@
 # devagent_mcp — dipendenze
 # Core (opzionale — il server funziona anche senza con loop semplice)
+-c ../constraints.txt
 langgraph>=0.2.0
 langchain-community>=0.2.0
 langchain-ollama>=0.1.0

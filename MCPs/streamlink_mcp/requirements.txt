@@ -1,5 +1,6 @@
 # streamlink_mcp — dipendenze
 # yt-dlp è il motore principale (supporta 1000+ siti)
+-c ../constraints.txt
 yt-dlp>=2024.1.0
 # streamlink è un'alternativa per siti non supportati da yt-dlp
 streamlink>=6.0.0

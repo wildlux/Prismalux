@@ -1,3 +1,4 @@
 # chat_memory_mcp — stdlib only (sqlite3)
 # DB: ~/.prismalux/chat_memory.db
 # Nessuna dipendenza pip richiesta.
+-c ../constraints.txt

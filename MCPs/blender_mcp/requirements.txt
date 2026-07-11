@@ -1,2 +1,3 @@
 # blender_mcp usa solo stdlib (sys, json, urllib) — nessuna dipendenza esterna.
 # Richiede: Blender aperto con l'addon prismalux_bridge abilitato (porta 6789).
+-c ../constraints.txt

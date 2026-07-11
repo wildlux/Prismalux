@@ -1010,6 +1010,34 @@ if(BUILD_TESTS)
         target_link_libraries(test_agenti_pipeline PRIVATE pthread m)
     endif()
 
+    # ── test_voice_cloner: VoiceClonerWidget — costruzione, distruzione immediata (T-D20/D-20) ──
+    add_executable(test_voice_cloner
+        tests/test_voice_cloner.cpp
+    )
+    target_include_directories(test_voice_cloner PRIVATE ${CMAKE_SOURCE_DIR})
+    target_link_libraries(test_voice_cloner PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
+    if(NOT WIN32)
+        target_link_libraries(test_voice_cloner PRIVATE pthread m)
+    endif()
+
+    # ── test_tool_dispatchers_d33: onToolAlgoritmo/CodiceFiscale/FinanzaCalcola/
+    #    ValidaDocumento/CartaAstrale/Converti — copertura T-D33 senza modello reale ──
+    add_executable(test_tool_dispatchers_d33
+        tests/test_tool_dispatchers_d33.cpp
+        tests/mock_ai_client.h
+    )
+    target_include_directories(test_tool_dispatchers_d33 PRIVATE
+        ${CMAKE_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/tests
+    )
+    target_link_libraries(test_tool_dispatchers_d33 PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
+    if(NOT WIN32)
+        target_link_libraries(test_tool_dispatchers_d33 PRIVATE pthread m)
+        # GCC 15: #define private public nel test altera visibilità in <sstream>
+        target_compile_options(test_tool_dispatchers_d33 PRIVATE
+            $<$<COMPILE_LANGUAGE:CXX>:-include sstream>)
+    endif()
+
     # ── test_agents_config_dialog: struttura widget, numAgents, modeCombo, RAG condiviso ──
     add_executable(test_agents_config_dialog
         tests/test_agents_config_dialog.cpp
@@ -1558,6 +1586,8 @@ if(BUILD_TESTS)
     add_test(NAME HwDetectAmd         COMMAND test_hw_detect_amd)
     add_test(NAME KnowledgeInjection      COMMAND test_knowledge_injection)
     add_test(NAME AgentiPipeline          COMMAND test_agenti_pipeline)
+    add_test(NAME VoiceCloner             COMMAND test_voice_cloner)
+    add_test(NAME ToolDispatchersD33      COMMAND test_tool_dispatchers_d33)
     add_test(NAME AgentsConfigDialog      COMMAND test_agents_config_dialog)
     add_test(NAME AiClient                COMMAND test_ai_client)
     add_test(NAME AiMath                  COMMAND test_ai_math)

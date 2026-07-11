@@ -1,2 +1,3 @@
 # email_notify_mcp — stdlib only (smtplib, ssl, email)
 # Nessuna dipendenza pip. Configura con configure()
+-c ../constraints.txt

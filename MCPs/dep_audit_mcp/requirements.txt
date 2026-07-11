@@ -17,3 +17,4 @@
 #   pip-audit non va installato nello stesso venv del progetto perché usa pip
 #   internamente e può causare conflitti di versione con le dipendenze esistenti.
 #   safety>=3.x richiede account (anche gratuito) per il database CVE completo.
+-c ../constraints.txt

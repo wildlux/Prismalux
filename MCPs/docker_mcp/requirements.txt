@@ -1,3 +1,4 @@
 # docker_mcp — stdlib only
 # Sistema: sudo apt install docker.io
 # sudo usermod -aG docker $USER
+-c ../constraints.txt

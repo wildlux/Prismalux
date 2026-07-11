@@ -717,10 +717,17 @@ QString _inject_date_calc(const QString& task)
         }
     }
 
-    /* ── Giorni lavorativi tra due date ── */
+    /* ── Giorni lavorativi tra due date ──
+     * Gap "[^\d]" (non cifra) invece di "." generico: con "." generico,
+     * essendo greedy e "\d{1,2}" capace di accettare anche 1 sola cifra,
+     * il gap può "rubare" la prima cifra della seconda data (es. "15" letto
+     * come "5") senza che il motore regex abbia motivo di fare backtracking
+     * — la corrispondenza risulta comunque valida, solo con un giorno
+     * sbagliato. Bug reale trovato verificando T-D17 (TODO.md) con l'esempio
+     * "giorni lavorativi tra 03/07/2026 e 15/08/2026" letto come 5 agosto. */
     {
         static const QRegularExpression re(
-            R"(giorni\s+lavorativi.{0,15}(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4}).{0,10}(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4}))",
+            R"(giorni\s+lavorativi[^\d]{0,15}(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})[^\d]{0,10}(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4}))",
             QRegularExpression::CaseInsensitiveOption);
         const auto m = re.match(ql);
         if (m.hasMatch()) {
@@ -737,6 +744,99 @@ QString _inject_date_calc(const QString& task)
                     .arg(QLocale(QLocale::Italian).toString(d1, "d MMMM yyyy"),
                          QLocale(QLocale::Italian).toString(d2, "d MMMM yyyy"))
                     .arg(lavorativi) + task;
+            }
+        }
+    }
+
+    /* ── Data di Pasqua (D-16): "quando è pasqua nel 2027" / "data di
+     * pasqua 2026" / "quando è pasqua" (anno corrente se omesso).
+     * Algoritmo anonimo gregoriano (Meeus/Jones/Butcher, equivalente
+     * matematicamente al metodo di Gauss ma senza le sue eccezioni
+     * storiche) — verificato con Python standalone contro 7 date note
+     * pubblicamente (2024=31/3, 2025=20/4, 2026=5/4, 2027=28/3, 2028=16/4,
+     * 2000=23/4, 1994=3/4), tutte corrette prima di scrivere il C++. */
+    if (ql.contains("pasqua")) {
+        static const QRegularExpression reYear(R"(\b(\d{4})\b)");
+        const auto my = reYear.match(ql);
+        const int year = my.hasMatch() ? my.captured(1).toInt() : today.year();
+        if (year >= 1583 && year <= 4099) {
+            const int a = year % 19;
+            const int b = year / 100;
+            const int c = year % 100;
+            const int d = b / 4;
+            const int e = b % 4;
+            const int f = (b + 8) / 25;
+            const int g = (b - f + 1) / 3;
+            const int h = (19 * a + b - d - g + 15) % 30;
+            const int i2 = c / 4;
+            const int k = c % 4;
+            const int l = (32 + 2 * e + 2 * i2 - h - k) % 7;
+            const int m2 = (a + 11 * h + 22 * l) / 451;
+            const int month = (h + l - 7 * m2 + 114) / 31;
+            const int day = (h + l - 7 * m2 + 114) % 31 + 1;
+            const QDate pasqua(year, month, day);
+            if (pasqua.isValid()) {
+                return QString("[Calcolo locale: la Pasqua del %1 cade %2 (algoritmo di Gauss)]\n\n")
+                    .arg(year).arg(QLocale(QLocale::Italian).toString(pasqua, "dddd d MMMM yyyy")) + task;
+            }
+        }
+    }
+
+    /* ── Fase lunare di una data (D-16): "fase lunare del 15/03/2026" /
+     * "che fase lunare c'è oggi". Approssimazione sinodica (periodo medio
+     * 29.53058867 giorni da un novilunio di riferimento noto, 6/1/2000
+     * 18:14 UTC) — precisione ±1 giorno, dichiarata esplicitamente nella
+     * risposta perché non è un calcolo esatto come le altre guardie. */
+    if (ql.contains("fase lunare") || (ql.contains("luna") && (ql.contains("fase") || ql.contains("che luna")))) {
+        QDate d = today;
+        static const QRegularExpression reD(R"((\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4}))");
+        const auto md = reD.match(ql);
+        if (md.hasMatch()) {
+            int yy = md.captured(3).toInt();
+            if (yy < 100) yy += (yy > (today.year() % 100) ? 1900 : 2000);
+            const QDate parsed(yy, md.captured(2).toInt(), md.captured(1).toInt());
+            if (parsed.isValid()) d = parsed;
+        }
+        const QDateTime epoch(QDate(2000, 1, 6), QTime(18, 14), QTimeZone::utc());
+        const QDateTime target(d, QTime(12, 0), QTimeZone::utc());
+        const double giorni = epoch.msecsTo(target) / 86400000.0;
+        const double sinodico = 29.53058867;
+        double fase = std::fmod(giorni, sinodico);
+        if (fase < 0) fase += sinodico;
+        const double frazione = fase / sinodico;
+        static const QStringList kNomi = {
+            "Luna nuova", "Falce crescente", "Primo quarto", "Gibbosa crescente",
+            "Luna piena", "Gibbosa calante", "Ultimo quarto", "Falce calante"
+        };
+        const int idx = int(std::round(frazione * 8.0)) % 8;
+        const double illuminazione = (1.0 - std::cos(2.0 * M_PI * frazione)) / 2.0 * 100.0;
+        return QString("[Calcolo locale: il %1 la fase lunare (approssimata) \xc3\xa8 %2, "
+                        "illuminazione ~%3%]\n\n")
+            .arg(QLocale(QLocale::Italian).toString(d, "d MMMM yyyy"), kNomi.at(idx))
+            .arg(QString::number(illuminazione, 'f', 0)) + task;
+    }
+
+    /* ── Scadenza "tra X anni/mesi/giorni/settimane da oggi" (D-16) —
+     * direzione opposta di "quanti X mancano a DATA" sopra: qui si dà una
+     * durata e si vuole la data risultante, non il contrario. */
+    {
+        static const QRegularExpression re(
+            R"(tra\s+(\d+)\s+(ann[oi]|mes[ei]|settiman[ae]|giorn[oi])\s+da\s+oggi)",
+            QRegularExpression::CaseInsensitiveOption);
+        const auto m = re.match(ql);
+        if (m.hasMatch()) {
+            const int n = m.captured(1).toInt();
+            const QString unit = m.captured(2);
+            QDate target;
+            QString unitLabel;
+            if (unit.startsWith("ann"))      { target = today.addYears(n);  unitLabel = "anni"; }
+            else if (unit.startsWith("mes")) { target = today.addMonths(n); unitLabel = "mesi"; }
+            else if (unit.startsWith("settiman")) { target = today.addDays(n * 7); unitLabel = "settimane"; }
+            else                              { target = today.addDays(n);  unitLabel = "giorni"; }
+            if (target.isValid()) {
+                return QString("[Calcolo locale: tra %1 %2 da oggi (%3) sar\xc3\xa0 %4]\n\n")
+                    .arg(n).arg(unitLabel, QLocale(QLocale::Italian).toString(today, "d MMMM yyyy"),
+                         QLocale(QLocale::Italian).toString(target, "dddd d MMMM yyyy")) + task;
             }
         }
     }
@@ -980,6 +1080,14 @@ QString _inject_help(const QString& task)
         "\"torre di hanoi con 8 dischi\", \"profitto massimo con prezzi 7,1,5,3,6,4\", \"quante soluzioni ha il problema delle 8 regine\" "
         "| {{PROVA:mcd tra 48 e 18}} | MCD/MCM, fattori primi, Pascal, Fibonacci, "
         "Catalan, Collatz, Hanoi, profitto azioni, inversioni, posizione in array, edit distance/LCS, ricerca pattern, N Regine |\n"
+        "| \xf0\x9f\x93\x8a Statistica su lista | \"media di 3,5,7,9,2\" | {{PROVA:media di 3,5,7,9,2}} | Media, mediana, moda, deviazione standard |\n"
+        "| \xe2\x9c\x9d\xef\xb8\x8f Data di Pasqua | \"quando \xc3\xa8 pasqua nel 2026\" | {{PROVA:quando \xc3\xa8 pasqua nel 2026}} | Algoritmo di Gauss, qualsiasi anno |\n"
+        "| \xf0\x9f\x8c\x99 Fase lunare | \"fase lunare del 15/03/2026\" | {{PROVA:fase lunare del 15/03/2026}} | Approssimata (\xc2\xb11 giorno), con % illuminazione |\n"
+        "| \xf0\x9f\x94\xa2 Base numerica | \"converti 255 in base 7\" | {{PROVA:converti 255 in base 7}} | Qualsiasi base da 2 a 36 |\n"
+        "| \xf0\x9f\x93\x90 Progressioni | \"progressione aritmetica primo 2 ragione 3 termini 10\", \"progressione geometrica primo 2 ragione 3 termini 5\" "
+        "| {{PROVA:progressione aritmetica primo 2 ragione 3 termini 10}} | Somma di progressione aritmetica/geometrica |\n"
+        "| \xf0\x9f\x87\xae\xf0\x9f\x87\xb9 Lira \xe2\x86\x94 Euro | \"quanto sono 1000000 lire in euro\" | {{PROVA:quanto sono 1000000 lire in euro}} | Tasso fisso ufficiale 1936.27 |\n"
+        "| \xf0\x9f\x93\x84 Scadenza tra X | \"tra 3 anni da oggi\" | {{PROVA:tra 3 anni da oggi}} | Data risultante (contratti/garanzie) |\n"
         "| \xf0\x9f\x93\x88 Grafico | \"") + chartExample + QString::fromUtf8(
         "\" | {{PROVA:") + chartExample + QString::fromUtf8(
         "}} | Plot Cartesiano istantaneo (prova questo!) |\n\n"
@@ -1293,6 +1401,31 @@ QString _inject_finance(const QString& task)
                          QString::number(totalePagato - capitale, 'f', 2))
                     + task;
             }
+        }
+    }
+
+    /* ── Lira \xe2\x86\x94 Euro (D-16), tasso fisso ufficiale di conversione
+     * 1936.27 lire = 1 euro (Regolamento CE 2866/98, in vigore dal 1999) ── */
+    {
+        static const QRegularExpression reLireEuro(
+            R"((\d+(?:[.,]\d+)?)\s*(?:lire|£)\b.{0,15}?\bin\s+euro)",
+            QRegularExpression::CaseInsensitiveOption);
+        auto m = reLireEuro.match(lo);
+        if (m.hasMatch()) {
+            const double lire = m.captured(1).replace(',', '.').toDouble();
+            const double euro = lire / 1936.27;
+            return QString("[Calcolo locale: %1 lire \xc3\xb7 1936.27 (tasso fisso ufficiale) = %2 \xe2\x82\xac]\n\n")
+                .arg(QString::number(lire, 'f', 0), QString::number(euro, 'f', 2)) + task;
+        }
+        static const QRegularExpression reEuroLire(
+            R"((\d+(?:[.,]\d+)?)\s*euro\b.{0,15}?\bin\s+lire\b)",
+            QRegularExpression::CaseInsensitiveOption);
+        auto m2 = reEuroLire.match(lo);
+        if (m2.hasMatch()) {
+            const double euro = m2.captured(1).replace(',', '.').toDouble();
+            const double lire = euro * 1936.27;
+            return QString("[Calcolo locale: %1 \xe2\x82\xac \xc3\x97 1936.27 (tasso fisso ufficiale) = %2 lire]\n\n")
+                .arg(QString::number(euro, 'f', 2), QString::number(lire, 'f', 0)) + task;
         }
     }
 
@@ -1827,22 +1960,43 @@ QString _inject_algo(const QString& task)
         }
     }
 
-    /* ── N-esimo numero di Fibonacci ── */
+    /* ── N-esimo numero di Fibonacci ──
+     * Bug reale trovato verificando T-D17 (TODO.md): la frase-esempio del
+     * TODO stesso, "decimo numero di fibonacci", non veniva MAI riconosciuta
+     * — la regex accettava solo la cifra ("10 numero di fibonacci"), non
+     * l'ordinale scritto a parole. Aggiunto un controllo separato PRIMA
+     * della regex numerica: se il token subito prima di "numero di
+     * fibonacci" è un ordinale noto (primo..ventesimo), usa quello; altrimenti
+     * prova la regex esistente invariata. */
     {
-        static const QRegularExpression re(
-            R"((\d+)\s*\xc2\xb0?\s*numero\s+di\s+fibonacci|fibonacci\s+(?:di|numero)\s+(\d+))",
-            QRegularExpression::CaseInsensitiveOption);
-        const auto m = re.match(lo);
-        if (m.hasMatch()) {
-            const int n = (!m.captured(1).isEmpty() ? m.captured(1) : m.captured(2)).toInt();
-            if (n >= 1 && n <= 80) {
-                if (n <= 2) {
-                    return QString("[Calcolo locale: F(%1) = 1 (sequenza 1,1,2,3,5,8,13,21,...)]\n\n").arg(n) + task;
-                }
-                const auto steps = SimulatorePage::genFibonacciDP(n);
-                if (!steps.isEmpty())
-                    return QString("[Calcolo locale: %1]\n\n").arg(steps.last().msg) + task;
+        static const QMap<QString,int> kOrdinali = {
+            {"primo",1},{"secondo",2},{"terzo",3},{"quarto",4},{"quinto",5},
+            {"sesto",6},{"settimo",7},{"ottavo",8},{"nono",9},{"decimo",10},
+            {"undicesimo",11},{"dodicesimo",12},{"tredicesimo",13},{"quattordicesimo",14},
+            {"quindicesimo",15},{"sedicesimo",16},{"diciassettesimo",17},{"diciottesimo",18},
+            {"diciannovesimo",19},{"ventesimo",20},
+        };
+        int n = -1;
+        static const QRegularExpression reOrd(
+            R"((\w+)\s+numero\s+di\s+fibonacci)", QRegularExpression::CaseInsensitiveOption);
+        const auto mOrd = reOrd.match(lo);
+        if (mOrd.hasMatch() && kOrdinali.contains(mOrd.captured(1)))
+            n = kOrdinali.value(mOrd.captured(1));
+        if (n < 0) {
+            static const QRegularExpression re(
+                R"((\d+)\s*\xc2\xb0?\s*numero\s+di\s+fibonacci|fibonacci\s+(?:di|numero)\s+(\d+))",
+                QRegularExpression::CaseInsensitiveOption);
+            const auto m = re.match(lo);
+            if (m.hasMatch())
+                n = (!m.captured(1).isEmpty() ? m.captured(1) : m.captured(2)).toInt();
+        }
+        if (n >= 1 && n <= 80) {
+            if (n <= 2) {
+                return QString("[Calcolo locale: F(%1) = 1 (sequenza 1,1,2,3,5,8,13,21,...)]\n\n").arg(n) + task;
             }
+            const auto steps = SimulatorePage::genFibonacciDP(n);
+            if (!steps.isEmpty())
+                return QString("[Calcolo locale: %1]\n\n").arg(steps.last().msg) + task;
         }
     }
 
@@ -1934,10 +2088,21 @@ QString _inject_algo(const QString& task)
         }
     }
 
-    /* ── Posizione di un elemento in un array ── */
+    /* ── Posizione di un elemento in un array ──
+     * Bug reale trovato verificando T-D17 (TODO.md): "in che posizione è 7
+     * in 3,7,9,2" non veniva MAI riconosciuta. Causa: `\xc3\xa8`/`\xe2\x80\x99`
+     * scritti dentro un raw string R"(...)" — il compilatore C++ NON
+     * processa gli escape dentro i raw string, quindi la stringa risultante
+     * contiene i caratteri letterali '\','x','c','3',... Il motore PCRE
+     * (QRegularExpression) li reinterpreta poi come DUE caratteri Latin-1
+     * separati (\xc3='Ã', \xa8='¨') invece del singolo carattere UTF-8 'è'
+     * inteso — l'alternativa non può mai combaciare con una vera 'è'
+     * digitata dall'utente. Fix: caratteri Unicode letterali diretti nel
+     * raw string (stesso pattern già usato correttamente altrove in questo
+     * file, es. `[èe]` nella regex del fuso orario). */
     {
         static const QRegularExpression re(
-            R"((?:in\s+che\s+posizione\s+(?:si\s+trova|\xc3\xa8|e)|trova|indice\s+di)\s+(\-?\d+)\s+(?:in|nell['\xe2\x80\x99a]?\s*array|nella\s+lista)\s*[:\[]?\s*((?:\-?\d+[\s,]+)+\-?\d+)\]?)",
+            R"((?:in\s+che\s+posizione\s+(?:si\s+trova|è|e)|trova|indice\s+di)\s+(\-?\d+)\s+(?:in|nell['’a]?\s*array|nella\s+lista)\s*[:\[]?\s*((?:\-?\d+[\s,]+)+\-?\d+)\]?)",
             QRegularExpression::CaseInsensitiveOption);
         const auto m = re.match(lo);
         if (m.hasMatch()) {

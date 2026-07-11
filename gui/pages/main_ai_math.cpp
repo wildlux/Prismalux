@@ -1873,6 +1873,108 @@ QString _inject_science(const QString& task)
         }
     }
 
+    /* ══ STATISTICA (D-16) ══ */
+
+    /* Media/mediana/moda/deviazione standard su una lista: "media di
+     * 3,5,7,9,2". La virgola qui è SEMPRE separatore di lista (non
+     * decimale) — coerente con l'euristica di normalizeItFormats() (D-24)
+     * che lascia intatte le liste tipo "3,5,7,9,2". Per non confondere un
+     * singolo numero decimale ("3,5") con una lista di 2 elementi, richiede
+     * ALMENO 3 numeri; un eventuale decimale nella lista usa il punto
+     * ("3.5,7,9"). */
+    if (!res.ok && (lo.contains("media") || lo.contains("mediana") || lo.contains("moda")
+                    || lo.contains("deviazione standard") || lo.contains("varianza"))) {
+        static const QRegularExpression reList(
+            R"((-?\d+(?:\.\d+)?(?:\s*,\s*-?\d+(?:\.\d+)?){2,50}))");
+        auto m = reList.match(lo);
+        if (m.hasMatch()) {
+            QVector<double> v;
+            for (const QString& tok : m.captured(1).split(',', Qt::SkipEmptyParts))
+                v << tok.trimmed().toDouble();
+            const int n = v.size();
+            double somma = 0; for (double x : v) somma += x;
+            const double media = somma / n;
+            QVector<double> ord = v; std::sort(ord.begin(), ord.end());
+            const double mediana = (n % 2 == 1) ? ord[n / 2] : (ord[n / 2 - 1] + ord[n / 2]) / 2.0;
+            double varSum = 0; for (double x : v) varSum += (x - media) * (x - media);
+            const double devStd = std::sqrt(varSum / n);
+            /* Moda: valore più frequente; se tutti unici, nessuna moda */
+            QMap<double,int> freq; for (double x : v) freq[x]++;
+            int maxFreq = 0; for (auto it = freq.cbegin(); it != freq.cend(); ++it) maxFreq = std::max(maxFreq, it.value());
+            QStringList mode;
+            if (maxFreq > 1) for (auto it = freq.cbegin(); it != freq.cend(); ++it) if (it.value() == maxFreq) mode << _sci(it.key());
+            const QString listStr = [&]{ QStringList s; for (double x : v) s << _sci(x); return s.join(", "); }();
+            res = {true, QString("Statistica su [%1]").arg(listStr),
+                   QString("media=%1, mediana=%2, moda=%3, deviazione standard (popolazione)=%4")
+                       .arg(_sci(media), _sci(mediana),
+                            mode.isEmpty() ? "nessuna (valori tutti distinti)" : mode.join(", "),
+                            _sci(devStd))};
+        }
+    }
+
+    /* ══ PROGRESSIONI (D-16) ══ */
+
+    /* Somma progressione aritmetica: "progressione aritmetica primo 2
+     * ragione 3 termini 10" → S = n/2 × (2a₁ + (n-1)d) */
+    if (!res.ok && lo.contains("progressione") && lo.contains("aritmetica")) {
+        static const QRegularExpression re(
+            R"(primo(?:\s+termine)?\s+(-?\d+(?:[.,]\d+)?).{0,30}?ragione\s+(-?\d+(?:[.,]\d+)?).{0,30}?termini\s+(\d+))",
+            QRegularExpression::CaseInsensitiveOption);
+        auto m = re.match(lo);
+        if (m.hasMatch()) {
+            const double a1 = _num(m.captured(1)), d = _num(m.captured(2));
+            const int n = m.captured(3).toInt();
+            if (n > 0 && n <= 1000000) {
+                const double s = n / 2.0 * (2.0 * a1 + (n - 1) * d);
+                res = {true, QString("Somma progr. aritmetica (a\xe2\x82\x81=%1, d=%2, n=%3)").arg(_sci(a1), _sci(d)).arg(n),
+                       "S\xe2\x82\x99 = n/2 \xc3\x97 (2a\xe2\x82\x81+(n-1)d) = " + _sci(s)};
+            }
+        }
+    }
+    /* Somma progressione geometrica: "progressione geometrica primo 2
+     * ragione 3 termini 5" → S = a₁×(rⁿ-1)/(r-1), oppure a₁×n se r=1 */
+    if (!res.ok && lo.contains("progressione") && lo.contains("geometrica")) {
+        static const QRegularExpression re(
+            R"(primo(?:\s+termine)?\s+(-?\d+(?:[.,]\d+)?).{0,30}?ragione\s+(-?\d+(?:[.,]\d+)?).{0,30}?termini\s+(\d+))",
+            QRegularExpression::CaseInsensitiveOption);
+        auto m = re.match(lo);
+        if (m.hasMatch()) {
+            const double a1 = _num(m.captured(1)), r = _num(m.captured(2));
+            const int n = m.captured(3).toInt();
+            if (n > 0 && n <= 1000) {
+                const double s = (r == 1.0) ? a1 * n : a1 * (std::pow(r, n) - 1.0) / (r - 1.0);
+                res = {true, QString("Somma progr. geometrica (a\xe2\x82\x81=%1, r=%2, n=%3)").arg(_sci(a1), _sci(r)).arg(n),
+                       "S\xe2\x82\x99 = a\xe2\x82\x81(r\xe2\x81\xbf-1)/(r-1) = " + _sci(s)};
+            }
+        }
+    }
+
+    /* ══ BASE NUMERICA ARBITRARIA (D-16) — generalizza le conversioni
+     * bin/hex/ottale già esistenti sopra (che restano prioritarie, dato che
+     * questo controllo arriva dopo): "converti 255 in base 7" ══ */
+    if (!res.ok) {
+        static const QRegularExpression reBaseArb(
+            R"((?:converti\s+)?(\d+)\s+in\s+base\s+(\d{1,2})\b)",
+            QRegularExpression::CaseInsensitiveOption);
+        auto m = reBaseArb.match(lo);
+        if (m.hasMatch()) {
+            bool okN = false;
+            const long long v = m.captured(1).toLongLong(&okN);
+            const int base = m.captured(2).toInt();
+            if (okN && v >= 0 && base >= 2 && base <= 36) {
+                QString out;
+                if (v == 0) { out = "0"; }
+                else {
+                    static const QString kDigits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+                    long long nrest = v;
+                    while (nrest > 0) { out.prepend(kDigits.at(int(nrest % base))); nrest /= base; }
+                }
+                res = {true, QString("dec \xe2\x86\x92 base %1").arg(base),
+                       QString::number(v) + "\xe2\x82\x81\xe2\x82\x80 = " + out + " (base " + QString::number(base) + ")"};
+            }
+        }
+    }
+
     if (!res.ok) return task;
 
     /* Prepende il risultato come contesto per l'AI */

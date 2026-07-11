@@ -1,3 +1,4 @@
 # license_checker_mcp — stdlib only (urllib per chiamate PyPI)
 # Accesso internet richiesto per fetch metadati PyPI.
 # Nessun pacchetto pip da installare.
+-c ../constraints.txt

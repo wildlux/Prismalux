@@ -17,6 +17,7 @@
 #include <QApplication>
 #include <QUrl>
 #include <QUrlQuery>
+#include <QSet>
 #include "../pages/main_ai.h"
 #include "../widgets/formula_parser.h"
 
@@ -608,6 +609,311 @@ private slots:
     }
 };
 
+/* ══════════════════════════════════════════════════════════════
+   CAT-K (D-16) — 7 nuove "domande classiche" zero-LLM: statistica su
+   lista, data di Pasqua (Gauss), fase lunare, base numerica arbitraria,
+   progressione aritmetica/geometrica, lira↔euro, scadenza "tra X anni".
+   Valori attesi calcolati/verificati indipendentemente (Python standalone
+   per Pasqua e lira/euro) PRIMA di scrivere questi assert, non dedotti
+   dal codice C++ stesso.
+   ══════════════════════════════════════════════════════════════ */
+class TestNuoveDomandeD16 : public QObject {
+    Q_OBJECT
+private slots:
+
+    /* K-1: media/mediana/moda/deviazione standard su [3,5,7,9,2] */
+    void statisticaSuLista() {
+        const QString r = _inject_science("media di 3,5,7,9,2");
+        QVERIFY2(r.startsWith("[Calcolo locale:"), qPrintable(r));
+        QVERIFY2(r.contains("media=5.2"), qPrintable(r));
+        QVERIFY2(r.contains("mediana=5"), qPrintable(r));
+        QVERIFY2(r.contains("nessuna (valori tutti distinti)"), qPrintable(r));
+        QVERIFY2(r.contains("deviazione standard (popolazione)=2.5612"), qPrintable(r));
+    }
+
+    /* K-1b: lista con moda reale (valore ripetuto) */
+    void statisticaConModa() {
+        const QString r = _inject_science("moda di 1,2,2,3,4");
+        QVERIFY2(r.startsWith("[Calcolo locale:"), qPrintable(r));
+        QVERIFY2(r.contains("moda=2"), qPrintable(r));
+    }
+
+    /* K-1c: due soli numeri — NON deve scattare (ambiguo con un decimale
+       tipo "3,5"), coerente con l'euristica già validata da D-24 */
+    void statisticaDueNumeriNonScatta() {
+        const QString r = _inject_science("media di 3,5");
+        QVERIFY2(!r.startsWith("[Calcolo locale:"), qPrintable(r));
+    }
+
+    /* K-2: Pasqua — 7 anni noti pubblicamente, verificati con Python
+       standalone (algoritmo Meeus/Jones/Butcher) prima di scrivere il C++ */
+    void dataDiPasqua() {
+        struct Caso { int anno; QString giorno; };
+        static const QVector<Caso> kCasi = {
+            {2024, "31 marzo 2024"}, {2025, "20 aprile 2025"}, {2026, "5 aprile 2026"},
+            {2027, "28 marzo 2027"}, {2028, "16 aprile 2028"}, {2000, "23 aprile 2000"},
+            {1994, "3 aprile 1994"},
+        };
+        for (const auto& c : kCasi) {
+            const QString r = _inject_date_calc(QString("quando \xc3\xa8 pasqua nel %1").arg(c.anno));
+            QVERIFY2(r.startsWith("[Calcolo locale:"), qPrintable(QString("anno %1: %2").arg(c.anno).arg(r)));
+            QVERIFY2(r.contains(c.giorno), qPrintable(QString("anno %1 atteso '%2' in: %3").arg(c.anno).arg(c.giorno, r)));
+        }
+    }
+
+    /* K-3: fase lunare — verifica solo che scatti e produca una delle 8
+       fasi note + percentuale di illuminazione (approssimazione dichiarata
+       esplicitamente in output, non un valore esatto da validare al giorno) */
+    void faseLunare() {
+        const QString r = _inject_date_calc("fase lunare del 15/03/2026");
+        QVERIFY2(r.startsWith("[Calcolo locale:"), qPrintable(r));
+        QVERIFY2(r.contains("approssimata"), qPrintable(r));
+        static const QStringList kNomi = {
+            "Luna nuova", "Falce crescente", "Primo quarto", "Gibbosa crescente",
+            "Luna piena", "Gibbosa calante", "Ultimo quarto", "Falce calante"
+        };
+        bool trovata = false;
+        for (const QString& n : kNomi) if (r.contains(n)) { trovata = true; break; }
+        QVERIFY2(trovata, qPrintable(r));
+        QVERIFY2(r.contains("illuminazione"), qPrintable(r));
+    }
+
+    /* K-4: conversione in base arbitraria — 255 in base 7 = 513
+       (5×49+1×7+3 = 255, verificato a mano) */
+    void baseNumericaArbitraria() {
+        const QString r = _inject_science("converti 255 in base 7");
+        QVERIFY2(r.startsWith("[Calcolo locale:"), qPrintable(r));
+        QVERIFY2(r.contains("513"), qPrintable(r));
+        QVERIFY2(r.contains("base 7"), qPrintable(r));
+    }
+
+    /* K-5: progressione aritmetica — a1=2, d=3, n=10 → S=155
+       (n/2×(2a1+(n-1)d) = 5×(4+27) = 155) */
+    void progressioneAritmetica() {
+        const QString r = _inject_science("progressione aritmetica primo 2 ragione 3 termini 10");
+        QVERIFY2(r.startsWith("[Calcolo locale:"), qPrintable(r));
+        QVERIFY2(r.contains("= 155"), qPrintable(r));
+    }
+
+    /* K-6: progressione geometrica — a1=2, r=3, n=5 → S=242
+       (2×(3^5-1)/(3-1) = 2×242/2 = 242) */
+    void progressioneGeometrica() {
+        const QString r = _inject_science("progressione geometrica primo 2 ragione 3 termini 5");
+        QVERIFY2(r.startsWith("[Calcolo locale:"), qPrintable(r));
+        QVERIFY2(r.contains("= 242"), qPrintable(r));
+    }
+
+    /* K-7: lira→euro, tasso fisso 1936.27 — 1 000 000 lire = 516.46 € */
+    void liraEuro() {
+        const QString r1 = _inject_finance("quanto sono 1000000 lire in euro");
+        QVERIFY2(r1.startsWith("[Calcolo locale:"), qPrintable(r1));
+        QVERIFY2(r1.contains("516.46"), qPrintable(r1));
+
+        /* 516.46 non è l'inverso esatto di 1000000/1936.27 (troncato a 2
+           decimali) — il valore atteso è quello ricalcolato indipendentemente
+           con Python (516.46 × 1936.27 = 1000006.00), non un round-trip perfetto */
+        const QString r2 = _inject_finance("quanto sono 516.46 euro in lire");
+        QVERIFY2(r2.startsWith("[Calcolo locale:"), qPrintable(r2));
+        QVERIFY2(r2.contains("1000006"), qPrintable(r2));
+    }
+
+    /* K-8: scadenza "tra X anni da oggi" — calcolato dinamicamente da
+       QDate::currentDate(), mai una data fissa (il test deve restare
+       valido indipendentemente da quando viene eseguito) */
+    void scadenzaTraXAnni() {
+        const QDate atteso = QDate::currentDate().addYears(3);
+        const QString r = _inject_date_calc("tra 3 anni da oggi che data sar\xc3\xa0");
+        QVERIFY2(r.startsWith("[Calcolo locale:"), qPrintable(r));
+        QVERIFY2(r.contains(QLocale(QLocale::Italian).toString(atteso, "d MMMM yyyy")), qPrintable(r));
+    }
+};
+
+/* ══════════════════════════════════════════════════════════════
+   CAT-L — verifica TODO.md "DA TESTARE MANUALMENTE" T-D14a÷T-D14d e
+   T-D17: tutte le frasi elencate sono gestite da guardie zero-LLM pure
+   (nessuna GUI, nessuna richiesta reale a un modello AI) — verificabili
+   chiamando le funzioni direttamente, stesso approccio di CAT-K. Valori
+   attesi calcolati/verificati indipendentemente con Python PRIMA di
+   scrivere questi assert (edit distance, LCS, giorno della settimana,
+   giorni lavorativi, checksum P.IVA) o letti dal codice sorgente delle
+   funzioni del Simulatore (Fibonacci/Catalan/fattorizzazione/profitto
+   azioni/inversioni/ricerca lineare), non dedotti dal solo output atteso.
+   ══════════════════════════════════════════════════════════════ */
+class TestManualCoverageD14D17 : public QObject {
+    Q_OBJECT
+private slots:
+
+    /* T-D14a: età (dinamica, calcolata da QDate::currentDate() come fa la
+       guardia stessa — mai una data fissa), giorno della settimana
+       (25/12/2020 = venerdì, verificato con Python datetime),
+       fuso orario (dinamico, verifica solo struttura), giorni lavorativi
+       (03/07/2026→15/08/2026 = 31, verificato con Python) */
+    void td14a_etaGiornoFusoLavorativi() {
+        {
+            const QString r = _inject_date_calc("quanti anni ho se sono nato il 15/03/1990");
+            QVERIFY2(r.startsWith("[Calcolo locale:"), qPrintable(r));
+            QVERIFY2(r.contains("1990"), qPrintable(r));
+            QVERIFY2(r.contains("anni"), qPrintable(r));
+        }
+        {
+            const QString r = _inject_date_calc("che giorno era il 25/12/2020");
+            QVERIFY2(r.startsWith("[Calcolo locale:"), qPrintable(r));
+            QVERIFY2(r.contains("venerd\xc3\xac"), qPrintable(r));
+        }
+        {
+            const QString r = _inject_date_calc("che ora \xc3\xa8 a New York");
+            QVERIFY2(r.startsWith("[Calcolo locale:"), qPrintable(r));
+            QVERIFY2(r.contains("New York"), qPrintable(r));
+            QVERIFY2(QRegularExpression(R"(\d{2}:\d{2})").match(r).hasMatch(), qPrintable(r));
+        }
+        {
+            const QString r = _inject_date_calc("giorni lavorativi tra 03/07/2026 e 15/08/2026");
+            QVERIFY2(r.startsWith("[Calcolo locale:"), qPrintable(r));
+            QVERIFY2(r.contains("31 giorni lavorativi"), qPrintable(r));
+        }
+    }
+
+    /* T-D14b: numeri romani (round-trip 1994<->MCMXCIV), IMC (70kg/1.75m
+       = 22.857..., fascia normopeso), geometria (rettangolo 5x3=15,
+       cilindro r=3 h=5 -> pi*9*5=141.37) */
+    void td14b_romaniImcGeometria() {
+        {
+            const QString r = _inject_science("quanto \xc3\xa8 MCMXCIV");
+            QVERIFY2(r.startsWith("[Calcolo locale:"), qPrintable(r));
+            QVERIFY2(r.contains("1994"), qPrintable(r));
+        }
+        {
+            const QString r = _inject_science("1994 in romano");
+            QVERIFY2(r.startsWith("[Calcolo locale:"), qPrintable(r));
+            QVERIFY2(r.contains("MCMXCIV"), qPrintable(r));
+        }
+        {
+            const QString r = _inject_science("imc per 70kg e 1.75m");
+            QVERIFY2(r.startsWith("[Calcolo locale:"), qPrintable(r));
+            QVERIFY2(r.contains("22.8571"), qPrintable(r));   /* _sci() non arrotonda a 2 decimali, ne tiene fino a 4 */
+            QVERIFY2(r.contains("normopeso"), qPrintable(r));
+        }
+        {
+            const QString r = _inject_science("area di un rettangolo con base 5 e altezza 3");
+            QVERIFY2(r.startsWith("[Calcolo locale:"), qPrintable(r));
+            QVERIFY2(r.contains("15"), qPrintable(r));
+        }
+        {
+            const QString r = _inject_science("volume di un cilindro con raggio 3 e altezza 5");
+            QVERIFY2(r.startsWith("[Calcolo locale:"), qPrintable(r));
+            QVERIFY2(r.contains("141.37"), qPrintable(r));
+        }
+    }
+
+    /* T-D14c: P.IVA 12345678903 valida (checksum verificato con Python),
+       interesse composto 1000€/5%/10anni=1628.89€ (stesso valore già
+       usato come esempio in D-33), mutuo 100000€/3%/20anni=554.60€/mese
+       (idem) */
+    void td14c_pivaInteresseMutuo() {
+        {
+            const QString r = _inject_finance("12345678903 \xc3\xa8 una p.iva valida?");
+            QVERIFY2(r.startsWith("[Calcolo locale:"), qPrintable(r));
+            QVERIFY2(r.contains("VALIDA"), qPrintable(r));
+        }
+        {
+            const QString r = _inject_finance("quanto diventano 1000 euro al 5% in 10 anni");
+            QVERIFY2(r.startsWith("[Calcolo locale:"), qPrintable(r));
+            QVERIFY2(r.contains("1628.89"), qPrintable(r));
+        }
+        {
+            const QString r = _inject_finance("rata di un mutuo da 100000 euro al 3% in 20 anni");
+            QVERIFY2(r.startsWith("[Calcolo locale:"), qPrintable(r));
+            QVERIFY2(r.contains("554.60"), qPrintable(r));
+        }
+    }
+
+    /* T-D14d: conteggio parole — "Nel mezzo del cammin di nostra vita"
+       = 7 parole (contate a mano: Nel/mezzo/del/cammin/di/nostra/vita) */
+    void td14d_statisticheTesto() {
+        const QString r = _inject_textstats("quante parole ha: Nel mezzo del cammin di nostra vita");
+        QVERIFY2(r.startsWith("[Calcolo locale:"), qPrintable(r));
+        QVERIFY2(r.contains("7 parole"), qPrintable(r));
+    }
+
+    /* T-D17: le 10 frasi elencate nel TODO, tutte con esito atteso letto
+       dal codice sorgente delle funzioni SimulatorePage::gen* invocate da
+       _inject_algo (non indovinato) o verificato con Python standalone
+       (edit distance, LCS) prima di scrivere l'assert. Verifica anche che
+       il regex riconosca DAVVERO la frase (il TODO segnalava "alta
+       probabilit\xc3\xa0 che qualche formulazione non matchi al primo colpo"). */
+    void td17_algoritmiSimulatore() {
+        struct Caso { QString frase; QString atteso; };
+        static const QVector<Caso> kCasi = {
+            {"mcd tra 48 e 18", "MCD(48,18) = 6"},
+            {"fattorizzazione di 360", QString::fromUtf8("360 = 2\xc3\x97" "2\xc3\x97" "2\xc3\x97" "3\xc3\x97" "3\xc3\x97" "5")},
+            {"decimo numero di fibonacci", "= 55"},
+            {"numero di catalan 5", "Catalan(5) = 42"},
+            {"torre di hanoi con 8 dischi", "255 mosse"},
+            {"profitto massimo con prezzi 7,1,5,3,6,4", "+5"},
+            {"quante inversioni in 3,1,2", "2 inversioni"},
+            {"in che posizione \xc3\xa8 7 in 3,7,9,2", "posizione [1]"},
+            {"distanza di edit tra 'gatto' e 'catto'", "= 1"},
+            {"sottosequenza comune pi\xc3\xb9 lunga tra 'ABCBDAB' e 'BDCABA'", "lunghezza 4"},
+        };
+        for (const auto& c : kCasi) {
+            const QString r = _inject_algo(c.frase);
+            QVERIFY2(r.startsWith("[Calcolo locale:"),
+                     qPrintable(QString("frase NON riconosciuta da _inject_algo: '%1' — output: %2").arg(c.frase, r)));
+            QVERIFY2(r.contains(c.atteso),
+                     qPrintable(QString("frase '%1': atteso '%2' in: %3").arg(c.frase, c.atteso, r)));
+        }
+    }
+};
+
+/* ══════════════════════════════════════════════════════════════
+   CAT-M — verifica TODO.md T-help: la tabella markdown di _inject_help()
+   deve renderizzare come vera <table> HTML (non testo grezzo con pipe)
+   e l'esempio di grafico deve cambiare ad ogni richiesta. Replica ESATTAMENTE
+   il flusso di produzione (main_ai_pipeline.cpp: markdownToHtml(helpMd.mid(
+   kHelpTag.length()))) — nessuna GUI necessaria, markdownToHtml() è statica.
+   ══════════════════════════════════════════════════════════════ */
+class TestHelpTableRendering : public QObject {
+    Q_OBJECT
+private slots:
+
+    /* M-1: la tabella markdown diventa una vera <table> HTML, non pipe grezze */
+    void tabellaRenderizzataComeHtml() {
+        const QString helpMd = _inject_help("cosa sai fare");
+        static const QString kHelpTag = "HELP_MARKDOWN:";
+        QVERIFY2(helpMd.startsWith(kHelpTag), qPrintable(helpMd.left(50)));
+        const QString html = AgentiPage::markdownToHtml(helpMd.mid(kHelpTag.length()));
+
+        QVERIFY2(html.contains("<table"), "manca <table> — la tabella non è stata convertita");
+        QVERIFY2(html.contains("<thead>") && html.contains("<tr>"),
+                 "manca <thead>/<tr> — intestazione tabella non generata");
+        /* Il markdown originale ha "|---|---|---|---|" per separare header e
+           corpo — se questo sopravvive letteralmente nell'HTML, il rendering
+           ha fallito e l'utente vedrebbe testo grezzo con pipe/trattini */
+        QVERIFY2(!html.contains("|---|"), "riga separatore markdown '|---|' non convertita — testo grezzo");
+        QVERIFY2(!html.contains("| \xf0\x9f\x94\xa2 Matematica"),
+                 "riga pipe grezza sopravvissuta nell'HTML — tabella non renderizzata");
+    }
+
+    /* M-2: l'esempio di grafico cambia tra richieste diverse (QRandomGenerator,
+       8 formule possibili) — su 30 chiamate ci si aspetta quasi certamente
+       più di un esempio distinto (statisticamente: P(sempre lo stesso) = (1/8)^29) */
+    void esempioGraficoCambia() {
+        static const QString kHelpTag = "HELP_MARKDOWN:";
+        static const QRegularExpression reGrafico(
+            R"(\{\{PROVA:(grafico di [^}]+|y = [^}]+)\}\})");
+        QSet<QString> esempi;
+        for (int i = 0; i < 30; ++i) {
+            const QString helpMd = _inject_help("cosa sai fare");
+            const auto m = reGrafico.match(helpMd.mid(kHelpTag.length()));
+            QVERIFY2(m.hasMatch(), "riga Grafico con segnaposto {{PROVA:...}} non trovata");
+            esempi.insert(m.captured(1));
+        }
+        QVERIFY2(esempi.size() > 1,
+                 qPrintable(QString("solo %1 esempio/i distinto/i su 30 chiamate — l'esempio non cambia")
+                            .arg(esempi.size())));
+    }
+};
+
 int main(int argc, char* argv[])
 {
     QApplication app(argc, argv);
@@ -624,6 +930,9 @@ int main(int argc, char* argv[])
         TestParseEvento         t8; status |= QTest::qExec(&t8, argc, argv);
         TestIcsEscapeText       t9; status |= QTest::qExec(&t9, argc, argv);
         TestGoogleCalendarIntentUrl t10; status |= QTest::qExec(&t10, argc, argv);
+        TestNuoveDomandeD16     t11; status |= QTest::qExec(&t11, argc, argv);
+        TestManualCoverageD14D17 t12; status |= QTest::qExec(&t12, argc, argv);
+        TestHelpTableRendering   t13; status |= QTest::qExec(&t13, argc, argv);
     }
     return status;
 }

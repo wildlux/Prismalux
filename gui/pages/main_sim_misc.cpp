@@ -772,8 +772,19 @@ QVector<AlgoStep> SimulatorePage::genMaxCircularSubarray(QVector<int> arr) {
 /* ── CountInversions ── */
 QVector<AlgoStep> SimulatorePage::genCountInversions(QVector<int> arr) {
     QVector<AlgoStep> st;
-    int n=arr.size(); int totalInv=0;
+    int n=arr.size();
     { AlgoStep s; s.arr=arr; s.msg="Count Inversions con Merge Sort: conta coppie (i,j) con i<j ma a[i]>a[j]"; st<<s; }
+    /* `inv` ad ogni livello di ricorsione include GIÀ ricorsivamente il
+     * conteggio di sinistra+destra+incrocio (somma dei due return value
+     * + le inversioni trovate durante il merge) — è già il totale corretto
+     * per quel sotto-albero. Un accumulatore esterno `totalInv` sommato ad
+     * OGNI livello (bug reale trovato verificando T-D17, TODO.md: "quante
+     * inversioni in 3,1,2" dava 3 invece di 2) conta più volte lo stesso
+     * sotto-albero — una volta quando il livello figlio lo aggiunge, di
+     * nuovo quando il padre lo re-include nel proprio `inv` e lo riaggiunge.
+     * Verificato con 200 array casuali contro un conteggio a forza bruta
+     * (Python standalone) prima di questo fix: solo il valore di ritorno
+     * della chiamata più esterna è corretto. */
     std::function<int(QVector<int>&,int,int)> mergeCount=[&](QVector<int>& a,int lo,int hi)->int{
         if(hi<=lo) return 0;
         int mid=(lo+hi)/2;
@@ -791,10 +802,9 @@ QVector<AlgoStep> SimulatorePage::genCountInversions(QVector<int> arr) {
         while(i<=mid) tmp<<a[i++];
         while(j<=hi) tmp<<a[j++];
         for(int k=lo;k<=hi;k++) a[k]=tmp[k-lo];
-        totalInv+=inv;
         return inv;
     };
-    mergeCount(arr,0,n-1);
+    const int totalInv = mergeCount(arr,0,n-1);
     QVector<int> all; for(int i=0;i<n;i++) all<<i;
     AlgoStep sf; sf.arr=arr; sf.sorted=all; sf.msg=QString("Count Inversions: %1 inversioni totali").arg(totalInv); st<<sf;
     return st;

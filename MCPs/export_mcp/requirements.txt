@@ -1,1 +1,2 @@
 # stdlib only — nessuna dipendenza pip
+-c ../constraints.txt

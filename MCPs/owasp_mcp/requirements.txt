@@ -1,2 +1,3 @@
 # owasp_mcp — stdlib only
 # Pattern matching OWASP Top 10 su C++/Python: nessuna dipendenza esterna.
+-c ../constraints.txt

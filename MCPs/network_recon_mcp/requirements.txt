@@ -32,3 +32,4 @@
 #
 # Installazione consigliata Linux (tutto in una volta):
 #   sudo apt install nmap whois traceroute dnsutils
+-c ../constraints.txt

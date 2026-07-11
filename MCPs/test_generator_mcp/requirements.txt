@@ -3,3 +3,4 @@
 # Dipendenze di TEST (non di runtime MCP):
 #   sudo apt install qtbase5-dev  # per compilare test Qt
 #   pip install pytest pytest-asyncio pytest-qt
+-c ../constraints.txt

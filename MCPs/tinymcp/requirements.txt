@@ -8,5 +8,6 @@
 #
 # Linux: aggiungi utente al gruppo seriale:
 #   sudo usermod -a -G dialout $USER
+-c ../constraints.txt
 
 pyserial>=3.5

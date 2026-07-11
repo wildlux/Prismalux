@@ -5,5 +5,6 @@
 #   Linux:   sudo apt install graphviz
 #   Windows: winget install graphviz
 #   macOS:   brew install graphviz
+-c ../constraints.txt
 
 graphviz>=0.20.0

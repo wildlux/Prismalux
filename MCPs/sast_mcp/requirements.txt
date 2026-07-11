@@ -31,3 +31,4 @@
 # Installazione consigliata (tutti i tool di audit, FUORI dal venv):
 #   pipx install bandit
 #   sudo apt install cppcheck
+-c ../constraints.txt

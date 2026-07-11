@@ -1,3 +1,4 @@
 # docs_generator_mcp
 # Sistema: sudo apt install doxygen graphviz
 # pip: nessuno (subprocess doxygen)
+-c ../constraints.txt

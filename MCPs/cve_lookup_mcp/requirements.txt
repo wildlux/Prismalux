@@ -15,3 +15,4 @@
 #                   Gratuita, nessuna autenticazione.
 #
 # Nessuna installazione pip necessaria.
+-c ../constraints.txt

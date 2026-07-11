@@ -1,2 +1,3 @@
 # ssh_remote_mcp — stdlib only
 # Sistema: ssh rsync (sudo apt install openssh-client rsync)
+-c ../constraints.txt

@@ -1,5 +1,6 @@
 # OBS MCP — dipendenze
 # Installazione: pip install -r requirements.txt
 # Richiede OBS Studio con WebSocket abilitato (porta 4455)
+-c ../constraints.txt
 
 obsws-python>=1.7.0

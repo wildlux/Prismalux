@@ -1,2 +1,3 @@
 # ai_memory_mcp usa solo stdlib Python (json, subprocess, pathlib, datetime)
 # Nessuna dipendenza pip richiesta.
+-c ../constraints.txt

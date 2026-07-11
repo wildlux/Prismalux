@@ -1,3 +1,4 @@
 # qt_i18n_mcp
 # Sistema: sudo apt install qttools5-dev-tools tesseract-ocr
 # pip: nessuno (stdlib + lupdate/lrelease subprocess)
+-c ../constraints.txt

@@ -3,3 +3,4 @@
 #   sudo apt install valgrind kcachegrind linux-perf binutils
 # Python opzionale:
 #   pip install memory-profiler  # per analisi memoria script Python
+-c ../constraints.txt

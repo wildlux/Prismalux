@@ -1,3 +1,4 @@
 # web_scraper_mcp — stdlib only (urllib, html.parser)
 # Nessuna dipendenza pip. Accesso internet necessario.
 # Opzionale per OCR pagine: vedi ocr_mcp
+-c ../constraints.txt

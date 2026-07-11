@@ -7,3 +7,4 @@
 #   git  — già presente su qualsiasi sistema di sviluppo
 #
 # Nessuna installazione necessaria.
+-c ../constraints.txt
