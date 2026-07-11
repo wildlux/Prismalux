@@ -45,6 +45,7 @@ private:
 
     static QString findTerminal();
     QString        buildCmd() const;
+    QString        invalidFieldError() const;
     void           updatePreview();
     void           parseScanLines(const QString& lines);
     void           addOrUpdateHost(const QString& ip, const QString& host,

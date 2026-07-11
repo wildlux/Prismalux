@@ -453,6 +453,78 @@ void SshManagerWidget::onUseSelected()
         m_hostEdit->setText(it->text());
 }
 
+/* ── Whitelist campi SSH ──────────────────────────────────────────────────
+   buildCmd() produce una riga che finisce dentro `bash -c '...'` in un
+   terminale: host/utente/chiave devono restare DATI, mai sintassi shell.
+   Strategia a rifiuto esplicito (non sanificazione per rimozione, che
+   lascia varchi): campo fuori formato → connessione bloccata con messaggio.
+   Il '-' iniziale è respinto a parte: ssh lo leggerebbe come opzione
+   (argv injection, es. host "-oProxyCommand=..."), senza bisogno di
+   alcun metacarattere shell. */
+static bool sshTokenOk(const QString& s, const QRegularExpression& re)
+{
+    return !s.startsWith(QLatin1Char('-')) && re.match(s).hasMatch();
+}
+
+/* ── Blacklist metacaratteri shell (seconda rete) ─────────────────────────
+   La whitelist resta la difesa primaria: da sola basta. Questa blacklist
+   è un invariante indipendente — se un domani la whitelist venisse
+   allargata per un caso legittimo, i metacaratteri shell resterebbero
+   comunque respinti qui. Non può MAI sostituire la whitelist (una
+   blacklist da sola vieta solo ciò a cui si è pensato). Ritorna il primo
+   carattere vietato trovato (QChar nullo = campo pulito), così il
+   messaggio d'errore può nominarlo. */
+static QChar sshFirstForbiddenChar(const QString& s)
+{
+    static const QString kForbidden =
+        QStringLiteral("'\"`$;|&<>(){}[]*?!#\\ \t");
+    for (const QChar c : s)
+        if (c.unicode() < 0x20 || kForbidden.contains(c))
+            return c;
+    return {};
+}
+
+QString SshManagerWidget::invalidFieldError() const
+{
+    /* IP, IPv6 (con ':'), hostname — niente spazi, quote o metacaratteri */
+    static const QRegularExpression reHost(QStringLiteral("^[A-Za-z0-9._:\\-]+$"));
+    static const QRegularExpression reUser(QStringLiteral("^[A-Za-z0-9._\\-]+$"));
+    /* Path chiave: assoluto o ~/ — gli spazi romperebbero comunque la riga */
+    static const QRegularExpression reKey(QStringLiteral("^[A-Za-z0-9._/~\\-]+$"));
+
+    const QString host = m_hostEdit->text().trimmed();
+    const QString user = m_userEdit->text().trimmed();
+    const QString key  = m_keyEdit->text().trimmed();
+
+    /* Prima la blacklist: se scatta, il messaggio nomina il carattere
+       incriminato — più utile del generico "campo non valido". */
+    const struct { QString label; const QString& value; } fields[] = {
+        { tr("Host"),            host },
+        { tr("Utente"),          user },
+        { tr("Percorso chiave"), key  },
+    };
+    for (const auto& f : fields) {
+        const QChar bad = sshFirstForbiddenChar(f.value);
+        if (bad.isNull()) continue;
+        if (bad.unicode() < 0x20 || bad == QLatin1Char(' ') || bad == QLatin1Char('\t'))
+            return tr("%1: contiene spazi o caratteri di controllo").arg(f.label);
+        return tr("%1: carattere vietato \xc2\xab%2\xc2\xbb "
+                  "(metacarattere shell)").arg(f.label).arg(bad);
+    }
+
+    if (!host.isEmpty() && !sshTokenOk(host, reHost))
+        return tr("Host non valido: ammessi solo lettere, numeri e . : - _ "
+                  "(niente '-' iniziale)");
+    if (!user.isEmpty() && !sshTokenOk(user, reUser))
+        return tr("Utente non valido: ammessi solo lettere, numeri e . - _ "
+                  "(niente '-' iniziale)");
+    if (!key.isEmpty() && !sshTokenOk(key, reKey))
+        return tr("Percorso chiave non valido: niente spazi, apici o "
+                  "caratteri speciali \xe2\x80\x94 sposta la chiave in un "
+                  "percorso semplice (es. ~/.ssh/)");
+    return {};
+}
+
 /* ── buildCmd ─────────────────────────────────────────────────────────── */
 QString SshManagerWidget::buildCmd() const
 {
@@ -528,6 +600,12 @@ void SshManagerWidget::onConnectClicked()
         return;
     }
 
+    const QString fieldErr = invalidFieldError();
+    if (!fieldErr.isEmpty()) {
+        m_scanLbl->setText("\xe2\x9d\x8c  " + fieldErr);
+        return;
+    }
+
     const QString term = findTerminal();
     if (term.isEmpty()) {
         m_scanLbl->setText(tr(
@@ -537,7 +615,10 @@ void SshManagerWidget::onConnectClicked()
     }
 
     const QString cmd = buildCmd();
-    /* bash -c "CMD; exec bash"  mantiene il terminale aperto dopo la disconnessione */
+    /* bash -c "CMD; exec bash"  mantiene il terminale aperto dopo la disconnessione.
+       La concatenazione con apici è sicura SOLO perché invalidFieldError()
+       (chiamata sopra) garantisce che host/utente/chiave non contengano
+       apici né altri metacaratteri shell. */
     const QString shell = "bash -c '" + cmd + "; exec bash'";
 
     QStringList termArgs;
@@ -560,6 +641,13 @@ void SshManagerWidget::onConnectClicked()
 /* ── onCopyClicked ────────────────────────────────────────────────────── */
 void SshManagerWidget::onCopyClicked()
 {
+    /* Stessa whitelist di onConnectClicked: il comando copiato finisce
+       incollato in un terminale, la superficie è identica. */
+    const QString fieldErr = invalidFieldError();
+    if (!fieldErr.isEmpty()) {
+        m_scanLbl->setText("\xe2\x9d\x8c  " + fieldErr);
+        return;
+    }
     QApplication::clipboard()->setText(buildCmd());
     m_copyBtn->setText("\xe2\x9c\x85  Copiato!");
     QTimer::singleShot(2000, m_copyBtn,
