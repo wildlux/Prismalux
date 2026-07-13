@@ -234,6 +234,21 @@ static QString _categorizeError(const QString& msg, AiClient::Backend backend) {
                "\xf0\x9f\xa4\x94  Il modello potrebbe essere in caricamento o troppo grande per la RAM disponibile.";
     }
 
+    /* 403 Forbidden — verificato su Ollama 0.31.2 (D-38): risponde 403 a corpo
+       VUOTO quando la richiesta porta un header Origin fuori dalla sua
+       allowlist (default: solo localhost/127.0.0.1 e file://). L'AiClient
+       desktop (QNetworkAccessManager) non manda mai Origin, quindi se appare
+       qui la chiamata arriva da una pagina browser (es. web chat aperta via
+       IP LAN) o da un altro client con Origin impostato. */
+    if (ml.contains("403") || ml.contains("forbidden")) {
+        return "\xf0\x9f\x9a\xab  Accesso negato dal backend (HTTP 403).\n"
+               "\xf0\x9f\x92\xa1  Ollama rifiuta le richieste con header <code>Origin</code> "
+               "non-localhost (es. pagina web aperta via IP LAN). "
+               "Rimedio: avviare Ollama con <code>OLLAMA_ORIGINS=*</code> "
+               "oppure usare la web chat di Prismalux, che inoltra le richieste "
+               "dal server locale.";
+    }
+
     /* RAM insufficiente — Ollama restituisce 500 con "more system memory" */
     if (ml.contains("system memory") || ml.contains("more system memory") ||
         ml.contains("requires more") || ml.contains("not enough memory") ||
@@ -319,6 +334,21 @@ void AgentiPage::onError(const QString& msg) {
             "QCheckBox { color: #ef4444; }"
             "QCheckBox::indicator:checked { background-color: #ef4444;"
             " border: 2px solid #b91c1c; border-radius: 3px; }");
+
+    /* D-38: rimuove la striscia temporanea "generando..." (con gli eventuali
+       token parziali) anche sul path di errore — prima restava appesa nel log
+       e appariva duplicata al tentativo successivo. Stesso blocco di
+       onAiAborted(). Guardia m_opMode: error() arriva anche da fetchModels/
+       embedding a pipeline ferma, quando m_agentBlockStart punta a una bolla
+       già completata che NON va toccata. */
+    if (m_opMode != OpMode::Idle && m_agentBlockStart > 0) {
+        QTextCursor sel(m_log->document());
+        sel.setPosition(m_agentBlockStart);
+        sel.movePosition(QTextCursor::End, QTextCursor::KeepAnchor);
+        if (!sel.selectedText().trimmed().isEmpty())
+            sel.removeSelectedText();
+        m_agentBlockStart = 0;
+    }
 
     const QString categorized = _categorizeError(msg, m_ai->backend());
     if (!categorized.isEmpty()) {
