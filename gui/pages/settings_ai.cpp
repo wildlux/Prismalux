@@ -62,6 +62,8 @@ namespace P = PrismaluxPaths;
 #include <QJsonArray>
 #include <QGuiApplication>
 #include <QClipboard>
+#include <QMouseEvent>
+#include <QToolTip>
 #include <QMessageBox>
 #include <QProgressBar>
 #include <QTextEdit>
@@ -161,6 +163,10 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
     auto* modelList = new QListWidget(rightGroup);
     modelList->setObjectName("modelsList");
     modelList->setAlternatingRowColors(true);
+    modelList->setToolTip(tr("Doppio clic: attiva il modello\n"
+                             "Clic centrale: copia il nome negli appunti"));
+    /* Middle-click → copia nome modello (gestito in eventFilter) */
+    modelList->viewport()->installEventFilter(this);
     rightLay->addWidget(modelList, 1);
 
     colsLay->addWidget(rightGroup, 1);
@@ -2272,3 +2278,36 @@ void ImpostazioniPage::onSmartRouterSaveClicked()
 }
 
 
+
+/* ══════════════════════════════════════════════════════════════
+   eventFilter — middle-click sulla lista modelli (Gestione LLM):
+   copia il nome del modello (Ollama) o il percorso GGUF (llama-server)
+   negli appunti. Su X11/Wayland scrive anche la selezione primaria,
+   così si incolla direttamente col tasto centrale in un terminale.
+   ══════════════════════════════════════════════════════════════ */
+bool ImpostazioniPage::eventFilter(QObject* watched, QEvent* ev)
+{
+    if (m_aiModelList && watched == m_aiModelList->viewport()
+        && ev->type() == QEvent::MouseButtonRelease) {
+        auto* me = static_cast<QMouseEvent*>(ev);
+        if (me->button() == Qt::MiddleButton) {
+            QListWidgetItem* item = m_aiModelList->itemAt(me->position().toPoint());
+            if (item) {
+                const QString name = item->data(Qt::UserRole).toString();
+                /* Placeholder "(Ollama non raggiungibile)" ecc. non hanno UserRole */
+                if (!name.isEmpty()) {
+                    QClipboard* cb = QGuiApplication::clipboard();
+                    cb->setText(name);
+                    if (cb->supportsSelection())
+                        cb->setText(name, QClipboard::Selection);
+                    QToolTip::showText(me->globalPosition().toPoint(),
+                                       QString::fromUtf8("\xf0\x9f\x93\x8b Copiato: %1")
+                                           .arg(name),
+                                       m_aiModelList);
+                }
+            }
+            return true;   /* consumato: niente altri effetti dal middle-click */
+        }
+    }
+    return QWidget::eventFilter(watched, ev);
+}

@@ -84,6 +84,11 @@ public:
      *  Pensato per essere chiamato una volta all'avvio (es. via QTimer::singleShot). */
     void autoIndexIfEmpty();
 
+protected:
+    /** Middle-click sulla lista modelli (Gestione LLM) → copia il nome
+     *  del modello negli appunti (clipboard + selezione X11). */
+    bool eventFilter(QObject* watched, QEvent* ev) override;
+
 signals:
     /** Emesso quando l'utente cambia la modalità etichette tab (in tempo reale). */
     void tabModeChanged(const QString& mode);
