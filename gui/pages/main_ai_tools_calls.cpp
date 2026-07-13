@@ -391,25 +391,54 @@ if (input.isEmpty()) { onDone("errore: query di ricerca non specificata"); retur
         QJsonArray _ra; _ra.append(input.left(200));
         const QString _inputJson = QString::fromUtf8(
             QJsonDocument(_ra).toJson(QJsonDocument::Compact)).mid(1).chopped(1);
+        /* Tre fonti in cascata: instant-answer API (abstract enciclopedico,
+           spesso vuoto per query fattuali) + primi 10 risultati organici
+           (titolo+snippet) da lite.duckduckgo.com, con fallback Bing RSS se
+           DDG risponde col bot-challenge (html.duckduckgo.com dà 202 vuoto,
+           verificato 2026-07-13 — lite passa, ma potrebbe cambiare) — servono
+           al retry automatico "LLM incerto" come contesto per la 2ª chiamata. */
         const QString script =
-            "import urllib.request,urllib.parse,json\n"
+            "import urllib.request,urllib.parse,json,re,html as H\n"
             "q=urllib.parse.quote_plus(" + _inputJson + ")\n"
-            "url=f'https://api.duckduckgo.com/?q={q}&format=json&no_redirect=1&no_html=1'\n"
-            "try:\n"
+            "out=[]\n"
+            "strip=lambda s:H.unescape(re.sub(r'<[^>]+>','',s)).strip()\n"
+            "def fetch(url,t):\n"
             "    req=urllib.request.Request(url,headers={'User-Agent':'Mozilla/5.0'})\n"
-            "    with urllib.request.urlopen(req,timeout=7) as r: d=json.load(r)\n"
-            "    out=[]\n"
+            "    with urllib.request.urlopen(req,timeout=t) as r:\n"
+            "        return r.read().decode('utf-8','replace')\n"
+            "try:\n"
+            "    d=json.loads(fetch(f'https://api.duckduckgo.com/?q={q}&format=json&no_redirect=1&no_html=1',7))\n"
             "    if d.get('AbstractText'): out.append(d['AbstractText'][:400])\n"
             "    elif d.get('Answer'): out.append(d['Answer'][:400])\n"
             "    for t in d.get('RelatedTopics',[])[:5]:\n"
             "        if isinstance(t,dict) and t.get('Text'): out.append(t['Text'][:200])\n"
-            "    print('\\n'.join(out) if out else 'nessun risultato — prova fetch_url se hai un URL diretto')\n"
-            "except Exception as e: print('ERRORE:',e)\n";
+            "except Exception: pass\n"
+            "res=[]\n"
+            "try:\n"
+            "    page=fetch(f'https://lite.duckduckgo.com/lite/?q={q}',8)\n"
+            "    titles=re.findall(r\"class='result-link'>(.*?)</a>\",page,re.S)\n"
+            "    snips=re.findall(r\"class='result-snippet'>(.*?)</td>\",page,re.S)\n"
+            "    res=[(strip(t),strip(snips[i]) if i<len(snips) else '')\n"
+            "         for i,t in enumerate(titles[:10])]\n"
+            "except Exception: pass\n"
+            "if not res:\n"
+            "    try:\n"
+            "        rss=fetch(f'https://www.bing.com/search?q={q}&format=rss',8)\n"
+            "        items=re.findall(r'<item><title>(.*?)</title>.*?<description>(.*?)</description>',rss,re.S)\n"
+            "        res=[(strip(t),strip(d)) for t,d in items[:10]]\n"
+            "    except Exception: pass\n"
+            "for i,(t,sn) in enumerate(res):\n"
+            "    row=t[:120]\n"
+            "    if sn: row+=' — '+sn[:220]\n"
+            "    out.append(f'{i+1}. {row}')\n"
+            "print('\\n'.join(out) if out else 'nessun risultato — prova fetch_url se hai un URL diretto')\n";
         auto* proc = new QProcess(this);
         proc->setProcessChannelMode(QProcess::MergedChannels);
         connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
                 this, [proc, onDone, cacheKey](int, QProcess::ExitStatus) {
-            const QString out = _truncateResult(QString::fromUtf8(proc->readAll()).trimmed(), 600);
+            /* 2800 (era 600): 10 risultati organici ~230 char l'uno — con 600
+               il contesto del retry automatico si riduceva a 2-3 righe. */
+            const QString out = _truncateResult(QString::fromUtf8(proc->readAll()).trimmed(), 2800);
             proc->deleteLater();
             const QString result = out.isEmpty() ? "nessun risultato" : out;
             s_ddgCache[cacheKey] = { result, QDateTime::currentMSecsSinceEpoch() };

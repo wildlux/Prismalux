@@ -906,6 +906,7 @@ void AgentiPage::advancePipeline() {
             m_ctxSingle->appendPair(m_taskOriginal, m_agentOutputs.last());
             _saveResponseCache(m_taskOriginal, m_agentOutputs.last()); /* D-25 */
         }
+        _emitContextUsage();   /* aggiorna indicatore 🧠 nell'header */
 
         emit pipelineStatus(100, "\xe2\x9c\x85  Lavoro completato");
         _setRunBusy(false);
@@ -1821,6 +1822,14 @@ void AgentiPage::_finishedPipeline(const QString& full) {
         }
     }
 
+    /* ── Retry riuscito: persisti domanda + risultati + sintesi nel RAG,
+       così le domande simili future trovano i dati in locale (la bolla
+       "🌐 Ricerca Online" è già stata inserita nel log qui sopra) ── */
+    if (m_autoRetryActive && !m_autoRetrySearchResults.isEmpty() && !rawResp.isEmpty()) {
+        _saveAutoSearchToRag(rawResp);
+        m_autoRetrySearchResults.clear();
+    }
+
     /* ── TASK-2/3: auto-ricerca web quando LLM incerto (solo single-shot) ── */
     if (shouldAutoSearch) {
         m_autoRetryActive = true;
@@ -1848,6 +1857,7 @@ void AgentiPage::_finishedPipeline(const QString& full) {
                 return;
             }
             /* TASK-3: re-interroga l'LLM con il contesto web */
+            m_autoRetrySearchResults = sr;  /* → _saveAutoSearchToRag a fine sintesi */
             const QString now = QLocale(QLocale::Italian).toString(
                 QDateTime::currentDateTime(), "dddd d MMMM yyyy, HH:mm");
             const QString sys = _buildSys(
@@ -1857,7 +1867,9 @@ void AgentiPage::_finishedPipeline(const QString& full) {
                 QString(), m_ai->model(), m_ai->backend());
             const QString uMsg = "Domanda: " + m_taskOriginal
                 + "\n\nRisultati ricerca web:\n" + sr
-                + "\n\nRispondi alla domanda originale usando questi risultati.";
+                + "\n\nRispondi alla domanda originale usando questi risultati, "
+                  "poi fai un breve riassunto dei dati trovati. Se i risultati "
+                  "non bastano a rispondere, dillo chiaramente senza inventare.";
             emit pipelineStatus(50, "\xf0\x9f\xa4\x96  Elaboro risultati ricerca...");
             m_currentAgentTime = QString::number(m_agentTimer.elapsed()) + " ms";
             m_ai->chat(sys, uMsg);
@@ -2220,6 +2232,80 @@ void AgentiPage::_finishedPipeline(const QString& full) {
         advancePipeline();
     }
     m_autoRetryActive = false;  /* reset sempre alla fine (TASK-5) */
+}
+
+/* ══════════════════════════════════════════════════════════════
+   _saveAutoSearchToRag — retry "LLM incerto" riuscito: scrive
+   RAG/RICERCA/<ts>_<slug>.md con domanda + risultati web + sintesi
+   (stesso formato e stesso segnale di ingest del percorso manuale
+   websearch:/insertinfo: in main_ai_slots.cpp), così le domande
+   simili future pescano dal RAG senza rifare la ricerca.
+   ══════════════════════════════════════════════════════════════ */
+void AgentiPage::_saveAutoSearchToRag(const QString& synthesis)
+{
+    const QString ragDir = P::ragDir() + "/RICERCA";
+    QDir().mkpath(ragDir);
+    QString slug = m_taskOriginal.left(40);
+    slug.replace(QRegularExpression(
+        "[^a-zA-Z0-9_\xc3\xa0\xc3\xa8\xc3\xac\xc3\xb2\xc3\xb9 ]"), "_");
+    slug = slug.simplified().replace(' ', '_');
+    const QString outFile = ragDir + "/" +
+        QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss") + "_" + slug + ".md";
+
+    QFile f(outFile);
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        qWarning() << "[auto-search] salvataggio RAG fallito:" << outFile;
+        return;
+    }
+    const QString md =
+        "# Ricerca: " + m_taskOriginal + "\n"
+        "Data: " + QDate::currentDate().toString(Qt::ISODate) + "\n\n"
+        "## Risultati web\n" + m_autoRetrySearchResults.trimmed() + "\n\n"
+        "## Sintesi\n" + synthesis.trimmed() + "\n";
+    f.write(md.toUtf8());
+    f.close();
+
+    /* Iniezione immediata nel RAG inline della chat: il file su disco serve
+       solo al prossimo ingest del Grafo RAG (nessun receiver automatico di
+       onlineSearchResultReady) — addEntry rende i dati subito disponibili
+       alle prossime domande di QUESTA sessione. Dedup per nome interno. */
+    if (m_ragInline)
+        m_ragInline->addEntry(
+            "\xf0\x9f\x8c\x90 Ricerca: " + m_taskOriginal.left(60),
+            m_autoRetrySearchResults.trimmed() +
+            "\n\nSintesi:\n" + synthesis.trimmed());
+
+    m_log->moveCursor(QTextCursor::End);
+    m_log->insertHtml(
+        "<p style='color:#4ade80;font-size:11px;margin:4px 0;'>"
+        "\xe2\x9c\x85  Ricerca e sintesi salvate in RAG/RICERCA e aggiunte "
+        "al contesto RAG di questa chat.</p>");
+    emit onlineSearchResultReady(outFile, m_taskOriginal);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   _emitContextUsage — stima i token già impegnati nella finestra
+   di contesto (storia chat compressa + RAG inline + RAG condiviso,
+   ~4 caratteri/token) e li emette per l'indicatore 🧠 nell'header.
+   È una stima: il system prompt e l'overhead del formato chat non
+   sono conteggiati (ordine di grandezza: poche centinaia di token).
+   ══════════════════════════════════════════════════════════════ */
+void AgentiPage::_emitContextUsage()
+{
+    qsizetype chars = 0;
+    if (m_ctxSingle) {
+        const QJsonArray ctx = m_ctxSingle->buildContext();
+        for (const QJsonValue& v : ctx)
+            chars += v.toObject().value("content").toString().size();
+    }
+    if (m_ragInline && m_ragInline->hasContext())
+        chars += m_ragInline->ragContext().size();
+    if (m_cfgDlg && m_cfgDlg->sharedRagWidget()
+        && m_cfgDlg->sharedRagWidget()->hasContext())
+        chars += m_cfgDlg->sharedRagWidget()->ragContext().size();
+
+    const int usedTok = static_cast<int>(chars / 4);
+    emit contextUsage(usedTok, AiChatParams::load().num_ctx);
 }
 
 /* ══════════════════════════════════════════════════════════════

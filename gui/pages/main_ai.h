@@ -128,6 +128,10 @@ signals:
     void requestOpenSettings(const QString& tabName);
     /** Emesso quando una ricerca online è completata e il file è pronto nel RAG */
     void onlineSearchResultReady(const QString& filePath, const QString& query);
+    /** Stima occupazione finestra di contesto dopo ogni turno chat:
+     *  usedTok = storia compressa + RAG inline/condiviso (~4 char/token),
+     *  maxTok = num_ctx corrente. Per l'indicatore 🧠 nell'header. */
+    void contextUsage(int usedTok, int maxTok);
     /** Chiede a MainWindow di mostrare un grafico nel tab Grafico (Alt+3).
      *  Se @p formula è non vuota → grafico cartesiano y=f(x) su [xMin, xMax].
      *  Se @p formula è vuota e @p points non è vuoto → scatter di punti. */
@@ -198,6 +202,7 @@ private:
     QVector<QString> m_agentOutputs;
     QString          m_taskOriginal;
     bool             m_autoRetryActive = false; /* guardia anti-loop incertezza LLM */
+    QString          m_autoRetrySearchResults;  /* risultati web del retry → salvataggio RAG */
 
     /* ── History conversazione (solo modalita' chat singola) ── */
     /* ContextCompressor gestisce la finestra scorrevole + summary LLM asincrono
@@ -508,6 +513,11 @@ private:
     /** Bolla QR evento (risultato "QR_EVENTO_JSON:" del tool
      *  crea_evento_calendario) — true se il risultato è stato gestito */
     bool _showQrEventoBubble(const QString& result);
+    /** Retry "LLM incerto" riuscito: salva domanda + risultati web + sintesi
+     *  in RAG/RICERCA/<ts>_<slug>.md (stesso formato/segnale di websearch:) */
+    void _saveAutoSearchToRag(const QString& synthesis);
+    /** Calcola la stima token usati ed emette contextUsage() */
+    void _emitContextUsage();
     void runByzantine();
     void runMathTheory();
     void runConsiglioScientifico();

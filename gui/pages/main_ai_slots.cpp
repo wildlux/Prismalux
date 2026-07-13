@@ -1387,6 +1387,7 @@ void AgentiPage::onCmbModeMathChanged(int idx)
 void AgentiPage::onAiAborted()
 {
     m_autoRetryActive = false;
+    m_autoRetrySearchResults.clear();  /* niente salvataggio RAG da retry interrotto */
     m_autoAborted     = true;   /* ferma le continuazioni ReAct schedulate */
     m_waitLbl->setVisible(false);
 
