@@ -6,7 +6,7 @@ requires-python = ">=3.10"
 dependencies = []
 
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=83.0.0"]
 build-backend = "setuptools.backends.legacy:build"
 
 [tool.setuptools.packages.find]

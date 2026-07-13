@@ -3,5 +3,5 @@
 # Alternativa conda: conda install -c conda-forge avogadro2
 -c ../constraints.txt
 
-avogadro>=0.0.1
+avogadro>=2.0.0
 # oppure: avogadro2
