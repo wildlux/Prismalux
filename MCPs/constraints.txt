@@ -13,16 +13,16 @@
 #
 # Per aggiungere un nuovo pacchetto condiviso: pinnarlo qui UNA volta,
 # lasciare il requirements.txt del singolo MCP senza numero di versione
-# (es. "Pillow" invece di "Pillow==12.1.1").
+# (es. "Pillow" invece di "Pillow==12.3.0").
 
 # Pillow — richiesto da rdkit_mcp (immagini molecole) e stable_diffusion_local
 # (pipeline diffusers/torch, versione testata insieme al resto dello stack
 # 2026-05-15). Stessa versione per entrambi: evita che l'installazione
 # dell'uno sovrascriva silenziosamente quella testata dall'altro nel venv
 # condiviso.
-Pillow==12.1.1
+Pillow==12.3.0
 
 # requests — richiesto da gns3_mcp. Centralizzato qui così un futuro MCP
 # che aggiunge "requests" al proprio requirements.txt eredita la stessa
 # versione testata invece di sceglierne una propria.
-requests==2.33.1
+requests==2.34.2

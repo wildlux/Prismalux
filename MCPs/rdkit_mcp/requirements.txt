@@ -4,5 +4,5 @@
 # Alternativa apt:   sudo apt install python3-rdkit
 -c ../constraints.txt
 
-rdkit>=2023.9.0
+rdkit>=2026.3.3
 Pillow

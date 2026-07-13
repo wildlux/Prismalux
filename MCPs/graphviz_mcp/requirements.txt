@@ -7,4 +7,4 @@
 #   macOS:   brew install graphviz
 -c ../constraints.txt
 
-graphviz>=0.20.0
+graphviz>=0.21
