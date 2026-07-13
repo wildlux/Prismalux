@@ -114,6 +114,15 @@ void MainWindow::buildGaugesSection(QHBoxLayout* lay)
     lay->addWidget(m_gRam);
     lay->addWidget(m_gGpu);
 
+    /* 🧠 contesto LLM residuo — subito dopo la GPU, aggiornato da
+       AgentiPage::contextUsage() dopo ogni turno chat (onContextUsage) */
+    m_ctxLbl = new QLabel("", hdr);
+    m_ctxLbl->setObjectName("ctxLabel");
+    m_ctxLbl->setStyleSheet(
+        "QLabel#ctxLabel{color:#94a3b8;font-size:11px;padding:0 4px;}");
+    lay->addWidget(m_ctxLbl);
+    onContextUsage(0, AiChatParams::load().num_ctx);  /* stato iniziale: tutto libero */
+
     m_tempLbl = new QLabel("", hdr);
     m_tempLbl->setObjectName("tempLabel");
     m_tempLbl->setToolTip(tr("Temperatura CPU / GPU rilevata dal sensore termico"));

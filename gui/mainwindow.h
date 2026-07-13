@@ -153,6 +153,7 @@ private:
     ResourceGauge*  m_gGpu        = nullptr;  ///< Gauge GPU dedicata nell'header
     ResourceGauge*  m_gIgpu       = nullptr;  ///< Gauge Intel iGPU (nascosto se assente)
     QLabel*         m_tempLbl     = nullptr;  ///< Indicatore temperatura CPU/GPU nell'header
+    QLabel*         m_ctxLbl      = nullptr;  ///< 🧠 contesto LLM residuo stimato (header)
     QLabel*         m_ttftLbl     = nullptr;  ///< TTFT ultimo token (header)
     QElapsedTimer   m_ttftTimer;              ///< Misura TTFT per ogni richiesta
     bool            m_ttftGotFirst = false;   ///< True dopo il primo token della richiesta corrente
@@ -356,6 +357,7 @@ private slots:
 
     /* ── Agenti / Pipeline ──────────────────────────────────────── */
     void onChatCompleted(const QString& title, const QString& logHtml);
+    void onContextUsage(int usedTok, int maxTok);
     void onPipelineStatus(int pct, const QString& text);
 
     /* ── Whisper setup ──────────────────────────────────────────── */

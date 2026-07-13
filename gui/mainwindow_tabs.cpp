@@ -373,6 +373,8 @@ void MainWindow::buildAiTab()
     auto* agentiPage = new AgentiPage(m_ai, this);
     connect(agentiPage, &AgentiPage::chatCompleted,
             this,       &MainWindow::onChatCompleted);
+    connect(agentiPage, &AgentiPage::contextUsage,
+            this,       &MainWindow::onContextUsage);
     connect(agentiPage, &AgentiPage::pipelineStatus,
             this,       &MainWindow::onPipelineStatus);
     connect(agentiPage, &AgentiPage::requestOpenSettings,

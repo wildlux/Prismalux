@@ -26,6 +26,31 @@ namespace P = PrismaluxPaths;
 /* ══════════════════════════════════════════════════════════════
    Slot hardware
    ══════════════════════════════════════════════════════════════ */
+/* ── 🧠 contesto LLM residuo (header, accanto alla GPU) ──────────
+   Riceve la stima da AgentiPage::contextUsage() dopo ogni turno:
+   mostra i token ancora liberi per domande e documenti RAG futuri. */
+void MainWindow::onContextUsage(int usedTok, int maxTok)
+{
+    if (!m_ctxLbl || maxTok <= 0) return;
+    const int freeTok = qMax(0, maxTok - usedTok);
+    const double freePct = 100.0 * freeTok / maxTok;
+    auto fmtK = [](int t) {
+        return t >= 1000 ? QString::number(t / 1000.0, 'f', 1) + "k"
+                         : QString::number(t);
+    };
+    const char* col = freePct > 50 ? "#4ade80"
+                    : freePct > 20 ? "#facc15" : "#f87171";
+    m_ctxLbl->setText(QString::fromUtf8("\xf0\x9f\xa7\xa0 %1").arg(fmtK(freeTok)));
+    m_ctxLbl->setStyleSheet(
+        QString("QLabel#ctxLabel{color:%1;font-size:11px;padding:0 4px;}").arg(col));
+    m_ctxLbl->setToolTip(QString::fromUtf8(
+        "\xf0\x9f\xa7\xa0  Contesto LLM ancora libero (stima ~4 caratteri/token)\n"
+        "Usati: %1 tok su %2 (num_ctx, Impostazioni \xe2\x86\x92 Parametri AI)\n"
+        "Conteggia storia chat compressa + documenti RAG della chat.\n"
+        "Quello che resta \xc3\xa8 lo spazio per domande e RAG futuri.")
+        .arg(fmtK(usedTok), fmtK(maxTok)));
+}
+
 void MainWindow::onHWUpdated(SysSnapshot snap) {
     if (!m_gCpu || !m_gRam || !m_gGpu) return;
     m_gCpu->update(snap.cpu_pct, snap.cpu_name);
