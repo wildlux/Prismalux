@@ -286,6 +286,18 @@ private slots:
         const QString html = AgentiPage::markdownToHtml("```python\nprint('mai chiuso')");
         QVERIFY2(html.contains("<pre"), "code fence non chiusa deve avere fallback <pre>");
     }
+
+    /* D-17 (TODO D-37): i blocchi codice devono usare white-space:pre-wrap,
+       non pre — QTextBrowser non ha overflow-x per-blocco, una riga lunga
+       non-wrappata forza la scrollbar orizzontale dell'intero log chat. */
+    void codeFencePreWrap() {
+        const QString html = AgentiPage::markdownToHtml(
+            "```python\nx = 'riga molto lunga che non deve forzare lo scroll'\n```");
+        QVERIFY2(html.contains("white-space:pre-wrap"),
+                 "blocco codice senza pre-wrap: scrollbar orizzontale (D-37)");
+        QVERIFY2(!html.contains("white-space:pre;"),
+                 "white-space:pre residuo nel blocco codice (D-37)");
+    }
 };
 
 /* ══════════════════════════════════════════════════════════════

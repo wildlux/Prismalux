@@ -758,7 +758,10 @@ QString AgentiPage::markdownToHtml(const QString& md,
                 "padding:10px 14px;margin:" + marginTop + " 0 8px 0;"
                 "overflow-x:auto;"
                 "font-family:\"JetBrains Mono\",\"Fira Code\",monospace;"
-                "font-size:12px;line-height:1.5;white-space:pre;'>"
+                /* pre-wrap, non pre: QTextBrowser non ha overflow-x per-blocco,
+                   una riga lunga non-wrappata forza la scrollbar orizzontale
+                   dell'intero log (D-37) */
+                "font-size:12px;line-height:1.5;white-space:pre-wrap;'>"
                 + esc + "</pre>\n";
     };
 
