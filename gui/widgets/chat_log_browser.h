@@ -13,6 +13,13 @@
    (quadrate) + il testo, `paintEvent` ridisegna i 4 angoli di ogni
    bolla "tagliandoli" col colore di sfondo del log — l'effetto è un
    angolo arrotondato vero, col raggio scelto dall'utente.
+   Il taglio amputa però anche il bordo 1px della bolla (le linee
+   dritte terminavano di colpo e la curva restava senza contorno —
+   segnalato da Paolo 2026-07-13 con screenshot): dopo il taglio si
+   ridisegna quindi l'intero contorno con drawRoundedRect, usando
+   colore/spessore letti dal QTextTableCellFormat della cella
+   (verificato in standalone: lo stroke coincide coi lati dritti
+   già disegnati dalla base, nessuna doppia linea visibile).
 
    Riconoscimento bolle: si iterano SOLO le tabelle di primo livello
    (figlie del root frame) e, di queste, le celle con uno sfondo
@@ -122,6 +129,23 @@ protected:
                     continue;                                  /* fuori schermo */
 
                 cutRoundedCorners(p, box, radius, pageBg);
+
+                /* Contorno arrotondato completo al posto del bordo
+                   amputato dal taglio (solo se la cella ha un bordo). */
+                const QTextTableCellFormat cf =
+                    cell.format().toTableCellFormat();
+                const qreal  bw = cf.topBorder();
+                const QColor bc = cf.topBorderBrush().color();
+                if (bw > 0 && bc.isValid() && bc.alpha() > 0) {
+                    const qreal rad = qMin<qreal>(radius,
+                        qMin(box.width(), box.height()) / 2.0);
+                    p.setPen(QPen(bc, bw));
+                    p.setBrush(Qt::NoBrush);
+                    p.drawRoundedRect(
+                        box.adjusted(bw/2, bw/2, -bw/2, -bw/2), rad, rad);
+                    p.setPen(Qt::NoPen);   /* ripristina per i cut successivi */
+                    p.setBrush(pageBg);
+                }
             }
         }
     }
@@ -129,8 +153,9 @@ protected:
 private:
     /* Taglia i 4 angoli del riquadro col colore di sfondo: la parte del
        quadratino d'angolo che sta FUORI dal quarto di cerchio viene
-       coperta, lasciando l'angolo arrotondato. Non tocca i lati dritti,
-       così il bordo originale della bolla resta del suo colore. */
+       coperta, lasciando l'angolo arrotondato. Copre anche i segmenti
+       di bordo che cadono negli angoli — il contorno viene ridisegnato
+       intero dal chiamante con drawRoundedRect. */
     static void cutRoundedCorners(QPainter& p, const QRectF& box,
                                   int radius, const QColor& bg)
     {
