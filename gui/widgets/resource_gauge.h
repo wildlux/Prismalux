@@ -24,6 +24,14 @@ public:
      */
     void update(double pct, const QString& detail = "");
 
+    /**
+     * updateWithText(pct, valueText, detail) — come update() ma mostra
+     * `valueText` (es. "12.8k") al posto della percentuale a destra.
+     * Il riempimento e il colore della barra restano guidati da `pct`.
+     */
+    void updateWithText(double pct, const QString& valueText,
+                        const QString& detail = "");
+
 private:
     QLabel*       m_lbl;  ///< Etichetta fissa a sinistra ("CPU", "RAM", "GPU")
     QProgressBar* m_bar;  ///< Barra orizzontale colorata

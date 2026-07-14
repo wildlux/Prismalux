@@ -31,24 +31,42 @@ namespace P = PrismaluxPaths;
    mostra i token ancora liberi per domande e documenti RAG futuri. */
 void MainWindow::onContextUsage(int usedTok, int maxTok)
 {
-    if (!m_ctxLbl || maxTok <= 0) return;
+    if (maxTok <= 0) return;
     const int freeTok = qMax(0, maxTok - usedTok);
     const double freePct = 100.0 * freeTok / maxTok;
+    const double usedPct = qBound(0.0, 100.0 - freePct, 100.0);
     auto fmtK = [](int t) {
         return t >= 1000 ? QString::number(t / 1000.0, 'f', 1) + "k"
                          : QString::number(t);
     };
+
+    /* Barra CTX: il riempimento = contesto usato (verde poco pieno → rosso
+       quasi pieno, come i gauge HW), ma il NUMERO mostrato sono i token che
+       ci possiamo ancora permettere (liberi). Il 🧠 a destra dice invece
+       quanti ne abbiamo già consumati. */
+    const QString ctxTip = QString::fromUtf8(
+        "\xf0\x9f\xa7\xa0  Contesto LLM (stima ~4 caratteri/token)\n"
+        "Disponibili: %1 token su %2 (num_ctx)\n"
+        "Gia' consumati: %3 (%4% pieno)\n"
+        "num_ctx configurabile in Impostazioni \xe2\x86\x92 Parametri AI.")
+        .arg(fmtK(freeTok), fmtK(maxTok),
+             fmtK(usedTok), QString::number(usedPct, 'f', 0));
+    if (m_gCtx)
+        m_gCtx->updateWithText(usedPct, fmtK(freeTok), ctxTip);
+
+    if (!m_ctxLbl) return;
+    /* 🧠 = token gia' consumati; colore in base a quanto contesto resta libero
+       (verde = tanto libero, rosso = quasi pieno). */
     const char* col = freePct > 50 ? "#4ade80"
                     : freePct > 20 ? "#facc15" : "#f87171";
-    m_ctxLbl->setText(QString::fromUtf8("\xf0\x9f\xa7\xa0 %1").arg(fmtK(freeTok)));
+    m_ctxLbl->setText(QString::fromUtf8("\xf0\x9f\xa7\xa0 %1").arg(fmtK(usedTok)));
     m_ctxLbl->setStyleSheet(
         QString("QLabel#ctxLabel{color:%1;font-size:11px;padding:0 4px;}").arg(col));
     m_ctxLbl->setToolTip(QString::fromUtf8(
-        "\xf0\x9f\xa7\xa0  Contesto LLM ancora libero (stima ~4 caratteri/token)\n"
-        "Usati: %1 tok su %2 (num_ctx, Impostazioni \xe2\x86\x92 Parametri AI)\n"
-        "Conteggia storia chat compressa + documenti RAG della chat.\n"
-        "Quello che resta \xc3\xa8 lo spazio per domande e RAG futuri.")
-        .arg(fmtK(usedTok), fmtK(maxTok)));
+        "\xf0\x9f\xa7\xa0  Token gia' consumati in questa chat\n"
+        "Consumati: %1 su %2 (num_ctx) \xe2\x80\x94 restano %3 liberi (barra CTX)\n"
+        "Conteggia storia chat compressa + documenti RAG della chat.")
+        .arg(fmtK(usedTok), fmtK(maxTok), fmtK(freeTok)));
 }
 
 void MainWindow::onHWUpdated(SysSnapshot snap) {

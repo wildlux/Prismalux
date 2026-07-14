@@ -26,9 +26,13 @@ ResourceGauge::ResourceGauge(const QString& label, QWidget* parent)
     m_bar->setTextVisible(false);
     m_bar->setFixedSize(dpiScale(70), dpiScale(8));
 
-    m_pct = new QLabel("  0.0%", this);
+    m_pct = new QLabel("0.0%", this);
     m_pct->setObjectName("gaugePct");
     m_pct->setFixedWidth(dpiScale(42));
+    /* Allineato a sinistra: il valore resta attaccato alla sua barra (chiara
+       associazione barra→valore). Lo spazio di 12px tra un gauge e l'altro
+       separa i gruppi. Vale per tutti (CPU/RAM/GPU e conteggio token CTX). */
+    m_pct->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
 
     lay->addWidget(m_lbl);
     lay->addWidget(m_bar);
@@ -37,7 +41,16 @@ ResourceGauge::ResourceGauge(const QString& label, QWidget* parent)
 
 void ResourceGauge::update(double pct, const QString& detail) {
     m_bar->setValue(static_cast<int>(pct));
-    m_pct->setText(QString("%1%").arg(pct, 5, 'f', 1));
+    m_pct->setText(QString("%1%").arg(pct, 0, 'f', 1));
+    setLevel(pct);
+    if (!detail.isEmpty())
+        setToolTip(detail);
+}
+
+void ResourceGauge::updateWithText(double pct, const QString& valueText,
+                                    const QString& detail) {
+    m_bar->setValue(static_cast<int>(pct));
+    m_pct->setText(valueText);
     setLevel(pct);
     if (!detail.isEmpty())
         setToolTip(detail);

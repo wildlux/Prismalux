@@ -114,8 +114,12 @@ void MainWindow::buildGaugesSection(QHBoxLayout* lay)
     lay->addWidget(m_gRam);
     lay->addWidget(m_gGpu);
 
-    /* 🧠 contesto LLM residuo — subito dopo la GPU, aggiornato da
-       AgentiPage::contextUsage() dopo ogni turno chat (onContextUsage) */
+    /* 🧠 contesto LLM — barra come CPU/RAM/GPU (percentuale usata) + indice
+       numerico dei token liberi accanto. Aggiornati da AgentiPage::contextUsage()
+       dopo ogni turno chat (onContextUsage). */
+    m_gCtx = new ResourceGauge("CTX ", hdr);
+    lay->addWidget(m_gCtx);
+
     m_ctxLbl = new QLabel("", hdr);
     m_ctxLbl->setObjectName("ctxLabel");
     m_ctxLbl->setStyleSheet(
