@@ -91,9 +91,6 @@ protected:
             auto* t = qobject_cast<QTextTable*>(f);
             if (!t) continue;
 
-            const QRectF tableRect = lay->frameBoundingRect(t);
-            const QList<QTextLength> cons = t->format().columnWidthConstraints();
-
             for (int r = 0; r < t->rows(); ++r)
             for (int col = 0; col < t->columns(); ++col) {
                 QTextTableCell cell = t->cellAt(r, col);
@@ -102,47 +99,57 @@ protected:
                 if (bg.style() == Qt::NoBrush || bg.color().alpha() == 0)
                     continue;
 
-                /* Larghezza reale della cella colorata = larghezza tabella
-                   meno le colonne-spacer (celle senza sfondo, larghezza
-                   fissa: 80px a sx per l'utente, 30px a dx per l'agente,
-                   ecc.). Il testo NON basta: la cella riempie tutta la riga
-                   tranne gli spacer, quindi con messaggi corti il riquadro
-                   colorato è molto più largo del testo. (bug: prima usavo il
-                   rettangolo del testo → tagliavo angoli in mezzo alla cella
-                   e sembrava cambiare la lunghezza del box.) */
-                qreal leftInset = 0, rightInset = 0;
-                for (int k = 0; k < t->columns(); ++k) {
-                    if (k == col) continue;
-                    const QBrush kb = t->cellAt(r, k).format().background();
-                    if (kb.style() != Qt::NoBrush) continue;   /* solo spacer */
-                    const qreal w = (k < cons.size() &&
-                                     cons[k].type() == QTextLength::FixedLength)
-                                    ? cons[k].rawValue() : 0.0;
-                    (k < col ? leftInset : rightInset) += w;
-                }
-
-                QRectF box(tableRect.left() + leftInset, tableRect.top(),
-                           tableRect.width() - leftInset - rightInset,
-                           tableRect.height());
+                /* Geometria REALE della cella dai block rect interni:
+                   contenuto (primo ∪ ultimo blocco) + padding + bordo.
+                   frameBoundingRect() ± larghezza spacer (versione
+                   precedente) includeva i margini del frame tabella
+                   (~16px): il taglio cadeva fuori dalla cella e lo
+                   stroke "fluttuava" accanto al bordo vero — doppio
+                   contorno visibile (screenshot Paolo 2026-07-14).
+                   Verificato in standalone: bordo reale a x=565,
+                   blocchi+padding+bordo → 566; frameBoundingRect → 581. */
+                /* Bordi per lato: la riga inferiore della striscia
+                   "Ragionamento" ha border-top:none — usare solo
+                   topBorder() lì azzerava box e stroke. */
+                const QTextTableCellFormat cf =
+                    cell.format().toTableCellFormat();
+                const qreal bwT = cf.topBorder(),  bwB = cf.bottomBorder();
+                const qreal bwL = cf.leftBorder(), bwR = cf.rightBorder();
+                const QRectF firstBlk = lay->blockBoundingRect(
+                    cell.firstCursorPosition().block());
+                const QRectF lastBlk = lay->blockBoundingRect(
+                    cell.lastCursorPosition().block());
+                QRectF box = firstBlk.united(lastBlk).adjusted(
+                    -cf.leftPadding() - bwL, -cf.topPadding()  - bwT,
+                     cf.rightPadding() + bwR, cf.bottomPadding() + bwB);
                 box.translate(off);
                 if (box.isEmpty() || !box.intersects(vpRect))
                     continue;                                  /* fuori schermo */
 
-                cutRoundedCorners(p, box, radius, pageBg);
+                /* Nelle tabelle multi-riga (striscia "Ragionamento":
+                   header + corpo) si arrotondano solo gli angoli sul
+                   perimetro esterno — mai la giuntura tra le righe. */
+                const bool roundTop    = (r == 0);
+                const bool roundBottom = (r == t->rows() - 1);
+                const qreal rad = qMin<qreal>(radius,
+                    qMin(box.width(), box.height()) / 2.0);
 
-                /* Contorno arrotondato completo al posto del bordo
-                   amputato dal taglio (solo se la cella ha un bordo). */
-                const QTextTableCellFormat cf =
-                    cell.format().toTableCellFormat();
-                const qreal  bw = cf.topBorder();
-                const QColor bc = cf.topBorderBrush().color();
+                cutRoundedCorners(p, box, rad, roundTop, roundBottom);
+
+                /* Contorno con gli stessi angoli arrotondati al posto del
+                   bordo dritto amputato dal taglio (se la cella ne ha uno).
+                   Spessore/colore dal primo lato con bordo reale. */
+                const qreal bw = qMax(qMax(bwT, bwB), qMax(bwL, bwR));
+                const QColor bc = (bwT > 0 ? cf.topBorderBrush()
+                                 : bwB > 0 ? cf.bottomBorderBrush()
+                                 : bwL > 0 ? cf.leftBorderBrush()
+                                           : cf.rightBorderBrush()).color();
                 if (bw > 0 && bc.isValid() && bc.alpha() > 0) {
-                    const qreal rad = qMin<qreal>(radius,
-                        qMin(box.width(), box.height()) / 2.0);
                     p.setPen(QPen(bc, bw));
                     p.setBrush(Qt::NoBrush);
-                    p.drawRoundedRect(
-                        box.adjusted(bw/2, bw/2, -bw/2, -bw/2), rad, rad);
+                    p.drawPath(roundedCellPath(
+                        box.adjusted(bw/2, bw/2, -bw/2, -bw/2),
+                        rad, roundTop, roundBottom));
                     p.setPen(Qt::NoPen);   /* ripristina per i cut successivi */
                     p.setBrush(pageBg);
                 }
@@ -151,16 +158,14 @@ protected:
     }
 
 private:
-    /* Taglia i 4 angoli del riquadro col colore di sfondo: la parte del
-       quadratino d'angolo che sta FUORI dal quarto di cerchio viene
-       coperta, lasciando l'angolo arrotondato. Copre anche i segmenti
-       di bordo che cadono negli angoli — il contorno viene ridisegnato
-       intero dal chiamante con drawRoundedRect. */
+    /* Taglia gli angoli richiesti del riquadro col colore di sfondo: la
+       parte del quadratino d'angolo che sta FUORI dal quarto di cerchio
+       viene coperta, lasciando l'angolo arrotondato. Copre anche i
+       segmenti di bordo che cadono negli angoli — il contorno viene
+       ridisegnato intero dal chiamante con roundedCellPath(). */
     static void cutRoundedCorners(QPainter& p, const QRectF& box,
-                                  int radius, const QColor& bg)
+                                  qreal rad, bool top, bool bottom)
     {
-        const qreal rad = qMin<qreal>(radius,
-            qMin(box.width(), box.height()) / 2.0);
         if (rad <= 0.5) return;
 
         auto cut = [&](const QRectF& corner, const QPointF& center) {
@@ -170,10 +175,34 @@ private:
         };
         const qreal L = box.left(),  R = box.right();
         const qreal T = box.top(),   B = box.bottom();
-        cut(QRectF(L,        T,        rad, rad), QPointF(L + rad, T + rad)); /* alto-sx */
-        cut(QRectF(R - rad,  T,        rad, rad), QPointF(R - rad, T + rad)); /* alto-dx */
-        cut(QRectF(L,        B - rad,  rad, rad), QPointF(L + rad, B - rad)); /* basso-sx */
-        cut(QRectF(R - rad,  B - rad,  rad, rad), QPointF(R - rad, B - rad)); /* basso-dx */
-        Q_UNUSED(bg);
+        if (top) {
+            cut(QRectF(L,       T, rad, rad), QPointF(L + rad, T + rad)); /* alto-sx */
+            cut(QRectF(R - rad, T, rad, rad), QPointF(R - rad, T + rad)); /* alto-dx */
+        }
+        if (bottom) {
+            cut(QRectF(L,       B - rad, rad, rad), QPointF(L + rad, B - rad)); /* basso-sx */
+            cut(QRectF(R - rad, B - rad, rad, rad), QPointF(R - rad, B - rad)); /* basso-dx */
+        }
+    }
+
+    /* Rettangolo con i soli angoli alto/basso arrotondati a scelta —
+       serve alle strisce multi-riga dove la giuntura resta dritta. */
+    static QPainterPath roundedCellPath(const QRectF& r, qreal rad,
+                                        bool top, bool bottom)
+    {
+        QPainterPath path;
+        const qreal tl = top ? rad : 0, tr = top ? rad : 0;
+        const qreal bl = bottom ? rad : 0, br = bottom ? rad : 0;
+        path.moveTo(r.left() + tl, r.top());
+        path.lineTo(r.right() - tr, r.top());
+        if (tr > 0) path.arcTo(r.right() - 2*tr, r.top(), 2*tr, 2*tr, 90, -90);
+        path.lineTo(r.right(), r.bottom() - br);
+        if (br > 0) path.arcTo(r.right() - 2*br, r.bottom() - 2*br, 2*br, 2*br, 0, -90);
+        path.lineTo(r.left() + bl, r.bottom());
+        if (bl > 0) path.arcTo(r.left(), r.bottom() - 2*bl, 2*bl, 2*bl, 270, -90);
+        path.lineTo(r.left(), r.top() + tl);
+        if (tl > 0) path.arcTo(r.left(), r.top(), 2*tl, 2*tl, 180, -90);
+        path.closeSubpath();
+        return path;
     }
 };
