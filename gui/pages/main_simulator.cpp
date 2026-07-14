@@ -7,6 +7,8 @@
  */
 #include "../dpi_utils.h"
 #include "main_simulator.h"
+#include "../prismalux_paths.h"
+namespace P = PrismaluxPaths;
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QAbstractItemView>
@@ -595,9 +597,9 @@ double BigOWidget::logScale(double v, double ref) {
 }
 BigOWidget::BigOWidget(QWidget* parent) : QWidget(parent) {
     setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-    setToolTip("Grafico O-grande: curva evidenziata = algoritmo selezionato.\n"
+    setToolTip(tr("Grafico O-grande: curva evidenziata = algoritmo selezionato.\n"
                "Grigio chiaro = altre classi.\n"
-               "Asse X = dimensione input n, Asse Y = operazioni (scala log-cubica).");
+               "Asse X = dimensione input n, Asse Y = operazioni (scala log-cubica)."));
 }
 void BigOWidget::set(BigOClass cls, const char* label, const char* badge) {
     m_cls = cls; m_label = label; m_badge = badge;
@@ -772,8 +774,8 @@ SimulatorePage::SimulatorePage(AiClient* ai, QWidget* parent)
     /* ── Header ── */
     auto* hdrW = new QWidget(this);
     auto* hdrL = new QHBoxLayout(hdrW); hdrL->setContentsMargins(0,0,0,0);
-    auto* back  = new QPushButton("\u2190 Torna", hdrW); back->setObjectName("actionBtn");
-    auto* title = new QLabel("\u26a1  Simulatore Algoritmi", hdrW); title->setObjectName("pageTitle");
+    auto* back  = new QPushButton(tr("\u2190 Torna"), hdrW); back->setObjectName("actionBtn");
+    auto* title = new QLabel(tr("\u26a1  Simulatore Algoritmi"), hdrW); title->setObjectName("pageTitle");
     hdrL->addWidget(back); hdrL->addWidget(title, 1);
     lay->addWidget(hdrW);
 
@@ -784,19 +786,19 @@ SimulatorePage::SimulatorePage(AiClient* ai, QWidget* parent)
     auto* cfgW = new QWidget(this);
     auto* cfgL = new QHBoxLayout(cfgW); cfgL->setContentsMargins(0,0,0,0); cfgL->setSpacing(10);
 
-    cfgL->addWidget(new QLabel("Categoria:", cfgW));
+    cfgL->addWidget(new QLabel(tr("Categoria:"), cfgW));
     m_catCmb = new QComboBox(cfgW);
     static const char* kCatNames[CAT_COUNT+1] = {
-        "Tutti", "Ordinamento", "Ricerca", "Strutture Dati",
-        "Grafi", "Prog. Dinamica", "Greedy",
-        "Backtracking", "Stringhe", "Matematica",
-        "Pattern Array", "Classici"
+        QT_TRANSLATE_NOOP("Tabelle", "Tutti"), QT_TRANSLATE_NOOP("Tabelle", "Ordinamento"), QT_TRANSLATE_NOOP("Tabelle", "Ricerca"), QT_TRANSLATE_NOOP("Tabelle", "Strutture Dati"),
+        QT_TRANSLATE_NOOP("Tabelle", "Grafi"), QT_TRANSLATE_NOOP("Tabelle", "Prog. Dinamica"), QT_TRANSLATE_NOOP("Tabelle", "Greedy"),
+        QT_TRANSLATE_NOOP("Tabelle", "Backtracking"), QT_TRANSLATE_NOOP("Tabelle", "Stringhe"), QT_TRANSLATE_NOOP("Tabelle", "Matematica"),
+        QT_TRANSLATE_NOOP("Tabelle", "Pattern Array"), QT_TRANSLATE_NOOP("Tabelle", "Classici")
     };
     for (int c = -1; c < (int)CAT_COUNT; c++)
-        m_catCmb->addItem(QString::fromUtf8(c < 0 ? kCatNames[0] : kCatNames[c+1]));
+        m_catCmb->addItem(P::trTab(c < 0 ? kCatNames[0] : kCatNames[c+1]));
     cfgL->addWidget(m_catCmb);
 
-    cfgL->addWidget(new QLabel("Algoritmo:", cfgW));
+    cfgL->addWidget(new QLabel(tr("Algoritmo:"), cfgW));
     m_algoCmb = new QComboBox(cfgW);
     m_algoCmb->setMinimumWidth(200);
     m_algoCmb->setMaxVisibleItems(20);
@@ -809,7 +811,7 @@ SimulatorePage::SimulatorePage(AiClient* ai, QWidget* parent)
     m_sizeCmb->setCurrentIndex(1);
     cfgL->addWidget(m_sizeCmb);
 
-    auto* newBtn = new QPushButton("\U0001f504  Nuovo Array", cfgW); newBtn->setObjectName("actionBtn");
+    auto* newBtn = new QPushButton(tr("\U0001f504  Nuovo Array"), cfgW); newBtn->setObjectName("actionBtn");
     cfgL->addWidget(newBtn);
 
     /* ── Grafico O-grande a destra del pulsante ── */
@@ -842,15 +844,15 @@ SimulatorePage::SimulatorePage(AiClient* ai, QWidget* parent)
     /* ── Navigazione ── */
     auto* navW = new QWidget(this);
     auto* navL = new QHBoxLayout(navW); navL->setContentsMargins(0,0,0,0); navL->setSpacing(8);
-    m_prevBtn = new QPushButton("\u25c4 Prec", navW); m_prevBtn->setObjectName("actionBtn");
-    m_stepLbl = new QLabel("Passo 0/0", navW); m_stepLbl->setObjectName("cardDesc");
+    m_prevBtn = new QPushButton(tr("\u25c4 Prec"), navW); m_prevBtn->setObjectName("actionBtn");
+    m_stepLbl = new QLabel(tr("Passo 0/0"), navW); m_stepLbl->setObjectName("cardDesc");
     m_stepLbl->setAlignment(Qt::AlignCenter); m_stepLbl->setMinimumWidth(110);
-    m_nextBtn = new QPushButton("Succ \u25ba", navW); m_nextBtn->setObjectName("actionBtn");
-    m_autoBtn = new QPushButton("\u25b6\u25b6 Auto", navW); m_autoBtn->setObjectName("actionBtn");
+    m_nextBtn = new QPushButton(tr("Succ \u25ba"), navW); m_nextBtn->setObjectName("actionBtn");
+    m_autoBtn = new QPushButton(tr("\u25b6\u25b6 Auto"), navW); m_autoBtn->setObjectName("actionBtn");
     navL->addWidget(m_prevBtn); navL->addWidget(m_stepLbl); navL->addWidget(m_nextBtn);
     navL->addStretch(1);
     navL->addWidget(m_autoBtn);
-    navL->addWidget(new QLabel("Velocit\xc3\xa0:", navW));
+    navL->addWidget(new QLabel(tr("Velocit\xc3\xa0:"), navW));
     m_speedSlider = new QSlider(Qt::Horizontal, navW);
     m_speedSlider->setRange(200, 1500); m_speedSlider->setValue(700);
     m_speedSlider->setFixedWidth(dpiScale(120));
@@ -864,7 +866,7 @@ SimulatorePage::SimulatorePage(AiClient* ai, QWidget* parent)
 
     auto* aiRow = new QWidget(this);
     auto* aiRL  = new QHBoxLayout(aiRow); aiRL->setContentsMargins(0,0,0,0); aiRL->setSpacing(8);
-    m_aiAskBtn = new QPushButton("\U0001f916  Chiedi all'AI sull'algoritmo", aiRow);
+    m_aiAskBtn = new QPushButton(tr("\U0001f916  Chiedi all'AI sull'algoritmo"), aiRow);
     m_aiAskBtn->setObjectName("actionBtn");
     m_aiStopBtn = new QPushButton("\u23f9", aiRow);
     m_aiStopBtn->setObjectName("actionBtn"); m_aiStopBtn->setProperty("danger", true);
@@ -877,7 +879,7 @@ SimulatorePage::SimulatorePage(AiClient* ai, QWidget* parent)
     m_aiLog->setMaximumHeight(160); m_aiLog->setVisible(false);
     lay->addWidget(m_aiLog);
 
-    m_aiWaitLbl = new QLabel("\xe2\x8f\xb3  Elaborazione in corso \xe2\x80\x94 il modello sta generando la risposta...", this);
+    m_aiWaitLbl = new QLabel(tr("\xe2\x8f\xb3  Elaborazione in corso \xe2\x80\x94 il modello sta generando la risposta..."), this);
     m_aiWaitLbl->setObjectName("cardDesc");
     m_aiWaitLbl->setStyleSheet("color: #E5C400; padding: 4px 0;");
     m_aiWaitLbl->setVisible(false);

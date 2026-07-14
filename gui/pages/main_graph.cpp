@@ -399,7 +399,7 @@ QWidget* GraficoPage::buildLeftPanel() {
     lay->addWidget(titleRow);
 
     /* Tipo grafico */
-    auto* lblType = new QLabel("Tipo:", panel);
+    auto* lblType = new QLabel(tr("Tipo:"), panel);
     lblType->setObjectName("formLabel");
     lay->addWidget(lblType);
 
@@ -549,7 +549,7 @@ QWidget* GraficoPage::buildLeftPanel() {
             rl->setContentsMargins(0, 0, 0, 0);
             rl->setSpacing(4);
 
-            auto* lFrom = new QLabel("x da:", rangeRow);
+            auto* lFrom = new QLabel(tr("x da:"), rangeRow);
             lFrom->setObjectName("formLabel");
             m_genFrom = new QDoubleSpinBox(rangeRow);
             m_genFrom->setObjectName("inputLine");
@@ -621,12 +621,12 @@ QWidget* GraficoPage::buildLeftPanel() {
             auto* dimLay = new QVBoxLayout(dimRow);
             dimLay->setContentsMargins(0, 0, 0, 0);
             dimLay->setSpacing(4);
-            auto* dim1Lbl = new QLabel("dim.1 (lato/raggio):", dimRow);
+            auto* dim1Lbl = new QLabel(tr("dim.1 (lato/raggio):"), dimRow);
             m_solidDim1 = new QDoubleSpinBox(dimRow);
             m_solidDim1->setRange(0.1, 1000.0);
             m_solidDim1->setValue(4.0);
             m_solidDim1->setObjectName("inputLine");
-            auto* dim2Lbl = new QLabel("dim.2 (altezza/raggio tubo):", dimRow);
+            auto* dim2Lbl = new QLabel(tr("dim.2 (altezza/raggio tubo):"), dimRow);
             m_solidDim2 = new QDoubleSpinBox(dimRow);
             m_solidDim2->setRange(0.1, 1000.0);
             m_solidDim2->setValue(6.0);
@@ -662,7 +662,7 @@ QWidget* GraficoPage::buildLeftPanel() {
         vl->addWidget(m_solid3DSection);
 
         /* ── Hint formato manuale ───────────────────────────────── */
-        m_dataHint = new QLabel("etichetta:valore (una per riga)", w);
+        m_dataHint = new QLabel(tr("etichetta:valore (una per riga)"), w);
         m_dataHint->setObjectName("hintLabel");
         m_dataHint->setFont(QFont("Inter,Ubuntu,sans-serif", 8));
         m_dataHint->setWordWrap(true);
@@ -706,13 +706,13 @@ QWidget* GraficoPage::buildLeftPanel() {
         normLay->addWidget(m_smithNorm, 1);
         fl->addRow("Scala:", normRow);
 
-        m_smithReal  = new QCheckBox("Primi reali (rosso)",           w);
-        m_smithGauss = new QCheckBox("Primi gaussiani (blu/giallo)",  w);
-        m_smithFib   = new QCheckBox("Fibonacci (giallo)",            w);
-        m_smithTri   = new QCheckBox("Triangolari (ciano)",           w);
-        m_smithSqr   = new QCheckBox("Quadrati perfetti (verde)",     w);
-        m_smithExp   = new QCheckBox("Dominio espanso (|Γ|≤2)",       w);
-        m_smithLabels= new QCheckBox("Mostra etichette numeriche",    w);
+        m_smithReal  = new QCheckBox(tr("Primi reali (rosso)"),           w);
+        m_smithGauss = new QCheckBox(tr("Primi gaussiani (blu/giallo)"),  w);
+        m_smithFib   = new QCheckBox(tr("Fibonacci (giallo)"),            w);
+        m_smithTri   = new QCheckBox(tr("Triangolari (ciano)"),           w);
+        m_smithSqr   = new QCheckBox(tr("Quadrati perfetti (verde)"),     w);
+        m_smithExp   = new QCheckBox(tr("Dominio espanso (|Γ|≤2)"),       w);
+        m_smithLabels= new QCheckBox(tr("Mostra etichette numeriche"),    w);
         m_smithReal ->setChecked(true);
         m_smithGauss->setChecked(true);
         m_smithFib  ->setChecked(false);
@@ -791,8 +791,8 @@ QWidget* GraficoPage::buildLeftPanel() {
 
         m_mathPi     = new QCheckBox(QString::fromUtf8(
             "\xcf\x80  Serie di Leibniz"), w);       /* π */
-        m_mathE      = new QCheckBox("e  Serie di Taylor", w);
-        m_mathPrimes = new QCheckBox("Primi reali (log\xe2\x82\x82)", w);  /* log₂ */
+        m_mathE      = new QCheckBox(tr("e  Serie di Taylor"), w);
+        m_mathPrimes = new QCheckBox(tr("Primi reali (log\xe2\x82\x82)"), w);  /* log₂ */
         m_mathPi    ->setChecked(true);
         m_mathE     ->setChecked(true);
         m_mathPrimes->setChecked(true);
@@ -975,13 +975,13 @@ QWidget* GraficoPage::buildLeftPanel() {
     sc->setWidget(panel);
 
     /* Pulsanti fissi SOTTO la scroll area — sempre visibili senza scroll */
-    auto* btnPlot = new QPushButton("\xf0\x9f\x93\x88  Traccia", outer);
+    auto* btnPlot = new QPushButton(tr("\xf0\x9f\x93\x88  Traccia"), outer);
     btnPlot->setObjectName("primaryBtn");
     btnPlot->setFixedHeight(dpiScale(36));
     connect(btnPlot, &QPushButton::clicked, this, &GraficoPage::plot);
     outerLay->addWidget(btnPlot);
 
-    auto* btnReset = new QPushButton("\xf0\x9f\x94\x84  Reset vista", outer);
+    auto* btnReset = new QPushButton(tr("\xf0\x9f\x94\x84  Reset vista"), outer);
     btnReset->setObjectName("actionBtn");
     btnReset->setFixedHeight(dpiScale(28));
     connect(btnReset, &QPushButton::clicked, m_canvas, &GraficoCanvas::resetView);
@@ -1071,10 +1071,10 @@ void GraficoPage::plot() {
             QString f = m_formulaEdit->text().trimmed();
             if (f.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Inserisci una formula")); return; }
             double xMin = m_xMinSpin->value(), xMax = m_xMaxSpin->value();
-            if (xMin >= xMax)  { m_statusLbl->setText("\xe2\x9a\xa0  x min deve essere < x max"); return; }
+            if (xMin >= xMax)  { m_statusLbl->setText(tr("\xe2\x9a\xa0  x min deve essere < x max")); return; }
             m_canvas->setCartesian(f, xMin, xMax);
             FormulaParser fp(f);
-            if (!fp.ok()) m_statusLbl->setText("\xe2\x9a\xa0  " + fp.err());
+            if (!fp.ok()) m_statusLbl->setText(tr("\xe2\x9a\xa0  ") + fp.err());
             else          m_statusLbl->setText(tr("\xe2\x9c\x85  Grafico aggiornato"));
             break;
         }
@@ -1098,7 +1098,7 @@ void GraficoPage::plot() {
             if (vals.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessun valore valido")); return; }
             m_canvas->setData(vals, lbls);
             m_canvas->setType(type == 1 ? GraficoCanvas::Pie : GraficoCanvas::Histogram);
-            m_statusLbl->setText("\xe2\x9c\x85  " + QString::number(vals.size()) + " voci");
+            m_statusLbl->setText(tr("\xe2\x9c\x85  ") + QString::number(vals.size()) + " voci");
             break;
         }
         case 3: {   /* Scatter XY */
@@ -1123,7 +1123,7 @@ void GraficoPage::plot() {
             }
             if (pts.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessuna coppia x,y valida")); return; }
             m_canvas->setScatter(pts);
-            m_statusLbl->setText("\xe2\x9c\x85  " + QString::number(pts.size()) + " punti");
+            m_statusLbl->setText(tr("\xe2\x9c\x85  ") + QString::number(pts.size()) + " punti");
             break;
         }
         case 4: {   /* Grafo */
@@ -1137,7 +1137,7 @@ void GraficoPage::plot() {
             }
             if (edges.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessun arco valido (A-B)")); return; }
             m_canvas->setEdges(edges);
-            m_statusLbl->setText("\xe2\x9c\x85  " + QString::number(edges.size()) + " archi");
+            m_statusLbl->setText(tr("\xe2\x9c\x85  ") + QString::number(edges.size()) + " archi");
             break;
         }
         case 5: {   /* 3D Scatter */
@@ -1159,7 +1159,7 @@ void GraficoPage::plot() {
             }
             if (pts.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessuna tripla x,y,z valida")); return; }
             m_canvas->setScatter3D(pts);
-            m_statusLbl->setText("\xe2\x9c\x85  " + QString::number(pts.size()) + " punti 3D");
+            m_statusLbl->setText(tr("\xe2\x9c\x85  ") + QString::number(pts.size()) + " punti 3D");
             break;
         }
         case 7: {   /* Smith Prime */
@@ -1240,7 +1240,7 @@ void GraficoPage::plot() {
             }
             if (nodes.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessun nodo (formato: Nome, x, y, z)")); return; }
             m_canvas->setGraph3D(nodes, edges);
-            m_statusLbl->setText("\xe2\x9c\x85  " + QString::number(nodes.size()) +
+            m_statusLbl->setText(tr("\xe2\x9c\x85  ") + QString::number(nodes.size()) +
                                   " nodi, " + QString::number(edges.size()) + " archi");
             break;
         }
@@ -1277,7 +1277,7 @@ void GraficoPage::plot() {
             m_canvas->setLine(series, names);
             if (type == 15) m_canvas->setType(GraficoCanvas::Area);
             else if (type == 17) m_canvas->setType(GraficoCanvas::Step);
-            m_statusLbl->setText("\xe2\x9c\x85  " + QString::number(series.size()) + " serie, " +
+            m_statusLbl->setText(tr("\xe2\x9c\x85  ") + QString::number(series.size()) + " serie, " +
                                   QString::number(series[0].size()) + " punti");
             break;
         }
@@ -1287,7 +1287,7 @@ void GraficoPage::plot() {
             if (f.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Inserisci r = f(\xce\xb8)")); return; }
             double tMin = m_polarTMinSpin->value();
             double tMax = m_polarTMaxSpin->value();
-            if (tMin >= tMax) { m_statusLbl->setText("\xe2\x9a\xa0  \xce\xb8 min deve essere < \xce\xb8 max"); return; }
+            if (tMin >= tMax) { m_statusLbl->setText(tr("\xe2\x9a\xa0  \xce\xb8 min deve essere < \xce\xb8 max")); return; }
             m_canvas->setPolar(f, tMin, tMax);
             m_statusLbl->setText(tr("\xe2\x9c\x85  Grafico polare aggiornato"));
             break;
@@ -1314,7 +1314,7 @@ void GraficoPage::plot() {
             }
             m_canvas->setData(vals, lbls);
             m_canvas->setType(GraficoCanvas::Radar);
-            m_statusLbl->setText("\xe2\x9c\x85  " + QString::number(vals.size()) + " assi");
+            m_statusLbl->setText(tr("\xe2\x9c\x85  ") + QString::number(vals.size()) + " assi");
             break;
         }
         case 12: { /* Bolle: x, y, raggio [, etichetta] */
@@ -1338,7 +1338,7 @@ void GraficoPage::plot() {
             }
             m_canvas->setScatter3D(pts);
             m_canvas->setType(GraficoCanvas::Bubble);
-            m_statusLbl->setText("\xe2\x9c\x85  " + QString::number(pts.size()) + " bolle");
+            m_statusLbl->setText(tr("\xe2\x9c\x85  ") + QString::number(pts.size()) + " bolle");
             break;
         }
         case 13: { /* Heatmap */
@@ -1371,7 +1371,7 @@ void GraficoPage::plot() {
                 return;
             }
             m_canvas->setHeatmap(data, rowLbls, colLbls);
-            m_statusLbl->setText("\xe2\x9c\x85  " + QString::number(data.size()) + " \xc3\x97 " +
+            m_statusLbl->setText(tr("\xe2\x9c\x85  ") + QString::number(data.size()) + " \xc3\x97 " +
                                   QString::number(data[0].size()) + " matrice");
             break;
         }
@@ -1396,7 +1396,7 @@ void GraficoPage::plot() {
                 return;
             }
             m_canvas->setCandlestick(pts);
-            m_statusLbl->setText("\xe2\x9c\x85  " + QString::number(pts.size()) + " candele");
+            m_statusLbl->setText(tr("\xe2\x9c\x85  ") + QString::number(pts.size()) + " candele");
             break;
         }
         case 16: { /* Waterfall */
@@ -1421,7 +1421,7 @@ void GraficoPage::plot() {
             if (vals.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessun valore valido")); return; }
             m_canvas->setData(vals, lbls);
             m_canvas->setType(GraficoCanvas::Waterfall);
-            m_statusLbl->setText("\xe2\x9c\x85  " + QString::number(vals.size()) + " voci");
+            m_statusLbl->setText(tr("\xe2\x9c\x85  ") + QString::number(vals.size()) + " voci");
             break;
         }
         /* ── Column / HBar / Funnel / Donut / Treemap / DotPlot / Gauge ── */
@@ -1458,7 +1458,7 @@ void GraficoPage::plot() {
             GraficoCanvas::ChartType ct = GraficoCanvas::Column;
             for (int i = 0; i < 6; ++i) if (kMap[i] == type) { ct = kT[i]; break; }
             m_canvas->setType(ct);
-            m_statusLbl->setText("\xe2\x9c\x85  " + QString::number(vals.size()) + " voci");
+            m_statusLbl->setText(tr("\xe2\x9c\x85  ") + QString::number(vals.size()) + " voci");
             break;
         }
         /* ── GroupedBar / StackedBar / StackedBar100 / Pyramid / AreaStacked ── */
@@ -1507,7 +1507,7 @@ void GraficoPage::plot() {
             GraficoCanvas::ChartType ct = GraficoCanvas::GroupedBar;
             for (int i = 0; i < 5; ++i) if (kGrMap[i] == type) { ct = kGrT[i]; break; }
             m_canvas->setType(ct);
-            m_statusLbl->setText("\xe2\x9c\x85  " + QString::number(series.size()) + " serie");
+            m_statusLbl->setText(tr("\xe2\x9c\x85  ") + QString::number(series.size()) + " serie");
             break;
         }
         case 26: { /* Sunburst — Categoria/Subcategoria: valore */
@@ -1526,7 +1526,7 @@ void GraficoPage::plot() {
             if (data.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessun dato valido")); return; }
             m_canvas->setSunburstData(data);
             m_canvas->setType(GraficoCanvas::Sunburst);
-            m_statusLbl->setText("\xe2\x9c\x85  " + QString::number(data.size()) + " voci");
+            m_statusLbl->setText(tr("\xe2\x9c\x85  ") + QString::number(data.size()) + " voci");
             break;
         }
         case 27: { /* BoxPlot */
@@ -1552,7 +1552,7 @@ void GraficoPage::plot() {
             if (data.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Formato: label: min,Q1,med,Q3,max")); return; }
             m_canvas->setBoxData(data);
             m_canvas->setType(GraficoCanvas::BoxPlot);
-            m_statusLbl->setText("\xe2\x9c\x85  " + QString::number(data.size()) + " box");
+            m_statusLbl->setText(tr("\xe2\x9c\x85  ") + QString::number(data.size()) + " box");
             break;
         }
         case 29: { /* Density — valori grezzi */
@@ -1567,7 +1567,7 @@ void GraficoPage::plot() {
             if (data.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessun valore numerico")); return; }
             m_canvas->setDensityData(data);
             m_canvas->setType(GraficoCanvas::Density);
-            m_statusLbl->setText("\xe2\x9c\x85  " + QString::number(data.size()) + " campioni");
+            m_statusLbl->setText(tr("\xe2\x9c\x85  ") + QString::number(data.size()) + " campioni");
             break;
         }
         case 31: { /* OHLC — stessa struttura Candlestick */
@@ -1586,7 +1586,7 @@ void GraficoPage::plot() {
             if (pts.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Formato: Label,O,H,L,C")); return; }
             m_canvas->setCandlestick(pts);
             m_canvas->setType(GraficoCanvas::OHLC);
-            m_statusLbl->setText("\xe2\x9c\x85  " + QString::number(pts.size()) + " barre OHLC");
+            m_statusLbl->setText(tr("\xe2\x9c\x85  ") + QString::number(pts.size()) + " barre OHLC");
             break;
         }
         case 32: { /* Gauge — valore:massimo su riga 1, etichetta opzionale riga 2 */
@@ -1605,7 +1605,7 @@ void GraficoPage::plot() {
             lbls.append(lines.size() > 1 ? lines[1].trimmed() : "");
             m_canvas->setData(vals, lbls);
             m_canvas->setType(GraficoCanvas::Gauge);
-            m_statusLbl->setText("\xe2\x9c\x85  Gauge: " + QString::number(v0) + " / " + QString::number(v1));
+            m_statusLbl->setText(tr("\xe2\x9c\x85  Gauge: ") + QString::number(v0) + " / " + QString::number(v1));
             break;
         }
         case 33: { /* Bullet Chart */
@@ -1630,7 +1630,7 @@ void GraficoPage::plot() {
             if (data.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Formato: label: valore, target, min, max")); return; }
             m_canvas->setBulletData(data);
             m_canvas->setType(GraficoCanvas::Bullet);
-            m_statusLbl->setText("\xe2\x9c\x85  " + QString::number(data.size()) + " barre bullet");
+            m_statusLbl->setText(tr("\xe2\x9c\x85  ") + QString::number(data.size()) + " barre bullet");
             break;
         }
         case 34: { /* Gantt */
@@ -1656,7 +1656,7 @@ void GraficoPage::plot() {
             if (data.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Formato: task: inizio, fine [, categoria]")); return; }
             m_canvas->setGanttData(data);
             m_canvas->setType(GraficoCanvas::Gantt);
-            m_statusLbl->setText("\xe2\x9c\x85  " + QString::number(data.size()) + " task");
+            m_statusLbl->setText(tr("\xe2\x9c\x85  ") + QString::number(data.size()) + " task");
             break;
         }
         case 36: { /* ParallelCoord — come multi-serie */
@@ -1684,7 +1684,7 @@ void GraficoPage::plot() {
             if (series.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessuna riga valida")); return; }
             m_canvas->setLine(series, names);
             m_canvas->setType(GraficoCanvas::ParallelCoord);
-            m_statusLbl->setText("\xe2\x9c\x85  " + QString::number(series.size()) + " entit\xc3\xa0");
+            m_statusLbl->setText(tr("\xe2\x9c\x85  ") + QString::number(series.size()) + " entit\xc3\xa0");
             break;
         }
         case 37: { /* Sankey */
@@ -1711,7 +1711,7 @@ void GraficoPage::plot() {
             if (data.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Formato: A \xe2\x86\x92 B: valore")); return; }
             m_canvas->setSankeyData(data);
             m_canvas->setType(GraficoCanvas::Sankey);
-            m_statusLbl->setText("\xe2\x9c\x85  " + QString::number(data.size()) + " flussi");
+            m_statusLbl->setText(tr("\xe2\x9c\x85  ") + QString::number(data.size()) + " flussi");
             break;
         }
         case 38: { /* Tree */
@@ -1734,7 +1734,7 @@ void GraficoPage::plot() {
             if (data.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Formato: padre: figlio1, figlio2")); return; }
             m_canvas->setTreeData(data);
             m_canvas->setType(GraficoCanvas::Tree);
-            m_statusLbl->setText("\xe2\x9c\x85  " + QString::number(data.size()) + " archi");
+            m_statusLbl->setText(tr("\xe2\x9c\x85  ") + QString::number(data.size()) + " archi");
             break;
         }
         case 39: { /* Chord */
@@ -1756,7 +1756,7 @@ void GraficoPage::plot() {
             if (data.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Formato: A \xe2\x86\x92 B: valore")); return; }
             m_canvas->setChordData(data);
             m_canvas->setType(GraficoCanvas::Chord);
-            m_statusLbl->setText("\xe2\x9c\x85  " + QString::number(data.size()) + " corde");
+            m_statusLbl->setText(tr("\xe2\x9c\x85  ") + QString::number(data.size()) + " corde");
             break;
         }
         case 40: { /* Violin Plot */
@@ -1779,7 +1779,7 @@ void GraficoPage::plot() {
             if (data.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Formato: NomeSerie: v1 v2 v3")); return; }
             m_canvas->setViolinData(data);
             m_canvas->setType(GraficoCanvas::Violin);
-            m_statusLbl->setText("\xe2\x9c\x85  " + QString::number(data.size()) + " serie");
+            m_statusLbl->setText(tr("\xe2\x9c\x85  ") + QString::number(data.size()) + " serie");
             break;
         }
         case 41: { /* Word Cloud */
@@ -1797,7 +1797,7 @@ void GraficoPage::plot() {
             if (data.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Formato: parola:frequenza")); return; }
             m_canvas->setWordCloudData(data);
             m_canvas->setType(GraficoCanvas::WordCloud);
-            m_statusLbl->setText("\xe2\x9c\x85  " + QString::number(data.size()) + " parole");
+            m_statusLbl->setText(tr("\xe2\x9c\x85  ") + QString::number(data.size()) + " parole");
             break;
         }
         case 42: { /* Albero Radiale — stessa struttura di Tree */
@@ -1820,7 +1820,7 @@ void GraficoPage::plot() {
             if (data.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Formato: padre: figlio1, figlio2")); return; }
             m_canvas->setTreeData(data);
             m_canvas->setType(GraficoCanvas::RadialTree);
-            m_statusLbl->setText("\xe2\x9c\x85  " + QString::number(data.size()) + " archi");
+            m_statusLbl->setText(tr("\xe2\x9c\x85  ") + QString::number(data.size()) + " archi");
             break;
         }
         case 43: { /* Linea Animata — stessa struttura di Linea */
@@ -1851,7 +1851,7 @@ void GraficoPage::plot() {
             if (series.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessuna serie")); return; }
             m_canvas->setLine(series, names);
             m_canvas->setType(GraficoCanvas::AnimatedLine);
-            m_statusLbl->setText("\xe2\x9c\x85  " + QString::number(series.size()) + " serie — animazione avviata");
+            m_statusLbl->setText(tr("\xe2\x9c\x85  ") + QString::number(series.size()) + " serie — animazione avviata");
             break;
         }
         case 44: { /* Small Multiples — stessa struttura di Linea */
@@ -1882,7 +1882,7 @@ void GraficoPage::plot() {
             if (series.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessuna serie")); return; }
             m_canvas->setLine(series, names);
             m_canvas->setType(GraficoCanvas::SmallMultiples);
-            m_statusLbl->setText("\xe2\x9c\x85  " + QString::number(series.size()) + " pannelli");
+            m_statusLbl->setText(tr("\xe2\x9c\x85  ") + QString::number(series.size()) + " pannelli");
             break;
         }
     }
@@ -1983,7 +1983,7 @@ void GraficoPage::analyzeImage() {
         }
 
         m_formulaEdit->setText(formula);
-        m_statusLbl->setText("\xe2\x9c\x85  Formula estratta: " + formula);
+        m_statusLbl->setText(tr("\xe2\x9c\x85  Formula estratta: ") + formula);
         plot();
     });
 
@@ -1992,7 +1992,7 @@ void GraficoPage::analyzeImage() {
         connHolder->deleteLater();
         m_btnImgFormula->setEnabled(true);
         m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), modeloPrecedente);
-        m_statusLbl->setText("\xe2\x9d\x8c  Errore: " + err);
+        m_statusLbl->setText(tr("\xe2\x9d\x8c  Errore: ") + err);
     });
 
     m_ai->chatWithImage(kSys, kUser, b64, mime);
@@ -2006,7 +2006,7 @@ void GraficoPage::onGenFormulaClicked()
     if (expr.isEmpty()) return;
     FormulaParser fp(expr);
     if (!fp.ok()) {
-        m_statusLbl->setText("\xe2\x9a\xa0  " + fp.err());
+        m_statusLbl->setText(tr("\xe2\x9a\xa0  ") + fp.err());
         return;
     }
     double x0   = m_genFrom->value();

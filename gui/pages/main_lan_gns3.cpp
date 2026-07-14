@@ -274,7 +274,7 @@ void LanWanPage::onGns3SockError(QAbstractSocket::SocketError)
 {
     auto* sock = qobject_cast<QTcpSocket*>(sender());
     if (!sock) return;
-    m_gns3StatusLbl->setText("\xe2\x9d\x8c  " + sock->errorString());
+    m_gns3StatusLbl->setText(tr("\xe2\x9d\x8c  ") + sock->errorString());
     LogBus::post("\xe2\x9d\x8c LAN WAN: GNS3 errore socket: " + sock->errorString());
     sock->deleteLater();
 }
@@ -374,16 +374,16 @@ QWidget* LanWanPage::buildGNS3Tab()
     connLay->setContentsMargins(0, 0, 0, 0);
     connLay->setSpacing(8);
 
-    auto* lbl = new QLabel("GNS3 REST API:", connRow);
+    auto* lbl = new QLabel(tr("GNS3 REST API:"), connRow);
     lbl->setObjectName("hintLabel");
     m_gns3HostEdit = new QLineEdit("localhost:3080", connRow);
     m_gns3HostEdit->setFixedWidth(dpiScale(150));
-    auto* pingBtn = new QPushButton("\xf0\x9f\x94\x97  Verifica", connRow);
+    auto* pingBtn = new QPushButton(tr("\xf0\x9f\x94\x97  Verifica"), connRow);
     pingBtn->setObjectName("actionBtn");
     pingBtn->setFixedWidth(dpiScale(100));
-    m_gns3StatusLbl = new QLabel("\xe2\x9a\xaa  Non connesso", connRow);
+    m_gns3StatusLbl = new QLabel(tr("\xe2\x9a\xaa  Non connesso"), connRow);
     m_gns3StatusLbl->setObjectName("hintLabel");
-    m_gns3ExecBtn = new QPushButton("\xf0\x9f\x8c\x90  Esegui su GNS3", connRow);
+    m_gns3ExecBtn = new QPushButton(tr("\xf0\x9f\x8c\x90  Esegui su GNS3"), connRow);
     m_gns3ExecBtn->setObjectName("actionBtn");
     m_gns3ExecBtn->setFixedWidth(dpiScale(160));
     m_gns3ExecBtn->setEnabled(false);
@@ -425,9 +425,9 @@ QWidget* LanWanPage::buildGNS3Tab()
     for (int i = 0; kGNS3Actions[i]; i++)
         m_gns3Action->addItem(QString::fromUtf8(kGNS3Actions[i]));
     m_gns3Model = new ModelComboBox(m_ai, toolRow);
-    toolLay->addWidget(new QLabel("Azione:", toolRow));
+    toolLay->addWidget(new QLabel(tr("Azione:"), toolRow));
     toolLay->addWidget(m_gns3Action, 1);
-    toolLay->addWidget(new QLabel("Modello:", toolRow));
+    toolLay->addWidget(new QLabel(tr("Modello:"), toolRow));
     toolLay->addWidget(m_gns3Model, 1);
     lay->addWidget(toolRow);
 
@@ -442,9 +442,9 @@ QWidget* LanWanPage::buildGNS3Tab()
     auto* btnRow = new QWidget(w);
     auto* btnLay = new QHBoxLayout(btnRow);
     btnLay->setContentsMargins(0, 0, 0, 0);
-    m_gns3RunBtn  = new QPushButton("\xf0\x9f\xa4\x96  Genera script GNS3", btnRow);
+    m_gns3RunBtn  = new QPushButton(tr("\xf0\x9f\xa4\x96  Genera script GNS3"), btnRow);
     m_gns3RunBtn->setObjectName("actionBtn");
-    m_gns3StopBtn = new QPushButton("\xe2\x8f\xb9  Stop", btnRow);
+    m_gns3StopBtn = new QPushButton(tr("\xe2\x8f\xb9  Stop"), btnRow);
     m_gns3StopBtn->setObjectName("actionBtn");
     m_gns3StopBtn->setProperty("danger", true);
     m_gns3StopBtn->setEnabled(false);

@@ -1028,7 +1028,7 @@ bool AgentiPage::checkRam()
         return false;
     }
     if (ramPct >= 75.0) {
-        auto btn = QMessageBox::warning(this, "RAM elevata",
+        auto btn = QMessageBox::warning(this, tr("RAM elevata"),
             QString("RAM al %1% — la pipeline potrebbe crashare a met\xc3\xa0.\n\nContinuare comunque?")
                 .arg(ramPct, 0, 'f', 0),
             QMessageBox::Yes | QMessageBox::No, QMessageBox::No);

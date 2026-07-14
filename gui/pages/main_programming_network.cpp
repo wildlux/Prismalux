@@ -96,7 +96,7 @@ void ProgrammazionePage::buildNetToolbar(QVBoxLayout* lay, QWidget* w)
     auto* toolRow = new QHBoxLayout;
     toolRow->setSpacing(6);
 
-    toolRow->addWidget(new QLabel("\xf0\x9f\x93\xa1  Interfaccia:", w));
+    toolRow->addWidget(new QLabel(tr("\xf0\x9f\x93\xa1  Interfaccia:"), w));
     m_netIface = new QComboBox(w);
     m_netIface->setMinimumWidth(110);
     for (const QNetworkInterface& iface : QNetworkInterface::allInterfaces()) {
@@ -107,7 +107,7 @@ void ProgrammazionePage::buildNetToolbar(QVBoxLayout* lay, QWidget* w)
     if (m_netIface->count() == 0) m_netIface->addItem("\xf0\x9f\x8c\x90  any", "any");
     toolRow->addWidget(m_netIface);
 
-    toolRow->addWidget(new QLabel("Protocollo:", w));
+    toolRow->addWidget(new QLabel(tr("Protocollo:"), w));
     m_netProto = new QComboBox(w);
     m_netProto->addItem("Tutti",  QString(""));
     m_netProto->addItem("TCP",    QString("tcp"));
@@ -120,7 +120,7 @@ void ProgrammazionePage::buildNetToolbar(QVBoxLayout* lay, QWidget* w)
     m_netProto->setMinimumWidth(90);
     toolRow->addWidget(m_netProto);
 
-    toolRow->addWidget(new QLabel("Porta:", w));
+    toolRow->addWidget(new QLabel(tr("Porta:"), w));
     m_netPort = new QSpinBox(w);
     m_netPort->setRange(0, 65535);
     m_netPort->setValue(0);
@@ -129,18 +129,18 @@ void ProgrammazionePage::buildNetToolbar(QVBoxLayout* lay, QWidget* w)
     m_netPort->setToolTip(tr("0 = tutte le porte"));
     toolRow->addWidget(m_netPort);
 
-    toolRow->addWidget(new QLabel("Max:", w));
+    toolRow->addWidget(new QLabel(tr("Max:"), w));
     m_netMaxPkts = new QSpinBox(w);
     m_netMaxPkts->setRange(10, 5000);
     m_netMaxPkts->setValue(200);
     m_netMaxPkts->setFixedWidth(dpiScale(70));
     toolRow->addWidget(m_netMaxPkts);
 
-    m_btnNetStart    = new QPushButton("\xe2\x96\xb6  Start",          w);
-    m_btnNetStop     = new QPushButton("\xe2\x96\xa0  Stop",           w);
-    m_btnNetClear    = new QPushButton("\xf0\x9f\x97\x91  Clear",      w);
-    m_btnNetAnalyze  = new QPushButton("\xf0\x9f\xa4\x96  Analisi AI", w);
-    m_btnNetFixPerms = new QPushButton("\xf0\x9f\x94\x91  Fix permessi", w);
+    m_btnNetStart    = new QPushButton(tr("\xe2\x96\xb6  Start"),          w);
+    m_btnNetStop     = new QPushButton(tr("\xe2\x96\xa0  Stop"),           w);
+    m_btnNetClear    = new QPushButton(tr("\xf0\x9f\x97\x91  Clear"),      w);
+    m_btnNetAnalyze  = new QPushButton(tr("\xf0\x9f\xa4\x96  Analisi AI"), w);
+    m_btnNetFixPerms = new QPushButton(tr("\xf0\x9f\x94\x91  Fix permessi"), w);
     m_btnNetStop->setEnabled(false);
     m_btnNetAnalyze->setEnabled(false);
     m_btnNetFixPerms->setToolTip(
@@ -329,13 +329,13 @@ QWidget* ProgrammazionePage::buildReteLan(QWidget* parent)
     btnLay->setContentsMargins(0, 0, 0, 0);
     btnLay->setSpacing(8);
 
-    m_lanScanArp  = new QPushButton("\xf0\x9f\x94\x8d  ARP Cache (rapido)", btnRow);
-    m_lanScanNmap = new QPushButton("\xf0\x9f\x8c\x90  Scan nmap (completo)", btnRow);
-    m_lanStopBtn  = new QPushButton("\xe2\x8f\xb9  Stop", btnRow);
+    m_lanScanArp  = new QPushButton(tr("\xf0\x9f\x94\x8d  ARP Cache (rapido)"), btnRow);
+    m_lanScanNmap = new QPushButton(tr("\xf0\x9f\x8c\x90  Scan nmap (completo)"), btnRow);
+    m_lanStopBtn  = new QPushButton(tr("\xe2\x8f\xb9  Stop"), btnRow);
     m_lanStopBtn->setObjectName("actionBtn");
     m_lanStopBtn->setProperty("danger", true);
     m_lanStopBtn->setEnabled(false);
-    auto* btnRefresh = new QPushButton("\xf0\x9f\x94\x84  Aggiorna info", btnRow);
+    auto* btnRefresh = new QPushButton(tr("\xf0\x9f\x94\x84  Aggiorna info"), btnRow);
 
     btnLay->addWidget(m_lanScanArp);
     btnLay->addWidget(m_lanScanNmap);
@@ -417,7 +417,7 @@ void ProgrammazionePage::lanRefreshInfo()
     }
 
     if (rows.isEmpty()) {
-        m_lanInfoLbl->setText("<i>\xf0\x9f\x9f\xa1 Nessuna interfaccia IPv4 attiva</i>");
+        m_lanInfoLbl->setText(tr("<i>\xf0\x9f\x9f\xa1 Nessuna interfaccia IPv4 attiva</i>"));
         return;
     }
 

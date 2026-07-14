@@ -59,7 +59,7 @@ StableDiffusionWidget::StableDiffusionWidget(QWidget* parent)
     /* ── Selettore backend ── */
     auto* modeRow = new QHBoxLayout;
     modeRow->setSpacing(4);
-    modeRow->addWidget(new QLabel("Backend:", this));
+    modeRow->addWidget(new QLabel(tr("Backend:"), this));
 
     m_rbLocal = new QRadioButton(
         "\xf0\x9f\x92\xbb  Locale (diffusers)", this);
@@ -80,7 +80,7 @@ StableDiffusionWidget::StableDiffusionWidget(QWidget* parent)
     m_urlWidget = new QWidget(this);
     auto* urlRow = new QHBoxLayout(m_urlWidget);
     urlRow->setContentsMargins(0, 0, 0, 0);
-    urlRow->addWidget(new QLabel("WebUI URL:", m_urlWidget));
+    urlRow->addWidget(new QLabel(tr("WebUI URL:"), m_urlWidget));
     m_urlEdit = new QLineEdit(kDefaultUrl, m_urlWidget);
     m_urlEdit->setPlaceholderText(tr("http://localhost:7860"));
     urlRow->addWidget(m_urlEdit, 1);
@@ -127,14 +127,14 @@ StableDiffusionWidget::StableDiffusionWidget(QWidget* parent)
     auto* paramLay = new QVBoxLayout(paramGroup);
     paramLay->setSpacing(6);
 
-    paramLay->addWidget(new QLabel("Prompt:", paramGroup));
+    paramLay->addWidget(new QLabel(tr("Prompt:"), paramGroup));
     m_prompt = new QTextEdit(paramGroup);
     m_prompt->setMaximumHeight(80);
     m_prompt->setPlaceholderText(
         "Es: a futuristic city at sunset, detailed, photorealistic, 8k");
     paramLay->addWidget(m_prompt);
 
-    paramLay->addWidget(new QLabel("Prompt negativo:", paramGroup));
+    paramLay->addWidget(new QLabel(tr("Prompt negativo:"), paramGroup));
     m_negPrompt = new QTextEdit(paramGroup);
     m_negPrompt->setMaximumHeight(52);
     m_negPrompt->setPlaceholderText(
@@ -145,7 +145,7 @@ StableDiffusionWidget::StableDiffusionWidget(QWidget* parent)
 
     /* Modello */
     auto* modelRow = new QHBoxLayout;
-    modelRow->addWidget(new QLabel("Modello:", paramGroup));
+    modelRow->addWidget(new QLabel(tr("Modello:"), paramGroup));
     m_modelCombo = new QComboBox(paramGroup);
     m_modelCombo->setEditable(true);
     m_modelCombo->addItem("runwayml/stable-diffusion-v1-5");
@@ -163,26 +163,26 @@ StableDiffusionWidget::StableDiffusionWidget(QWidget* parent)
     grid->setHorizontalSpacing(12);
     grid->setVerticalSpacing(4);
 
-    grid->addWidget(new QLabel("Steps:", paramGroup), 0, 0);
+    grid->addWidget(new QLabel(tr("Steps:"), paramGroup), 0, 0);
     m_steps = new QSpinBox(paramGroup);
     m_steps->setRange(1, 150);
     m_steps->setValue(20);
     grid->addWidget(m_steps, 0, 1);
 
-    grid->addWidget(new QLabel("CFG Scale:", paramGroup), 0, 2);
+    grid->addWidget(new QLabel(tr("CFG Scale:"), paramGroup), 0, 2);
     m_cfg = new QDoubleSpinBox(paramGroup);
     m_cfg->setRange(1.0, 30.0);
     m_cfg->setSingleStep(0.5);
     m_cfg->setValue(7.0);
     grid->addWidget(m_cfg, 0, 3);
 
-    grid->addWidget(new QLabel("Dimensioni:", paramGroup), 1, 0);
+    grid->addWidget(new QLabel(tr("Dimensioni:"), paramGroup), 1, 0);
     m_size = new QComboBox(paramGroup);
     m_size->addItems({"512 \xc3\x97 512", "512 \xc3\x97 768", "768 \xc3\x97 512",
                       "768 \xc3\x97 768", "1024 \xc3\x97 1024", "1024 \xc3\x97 768"});
     grid->addWidget(m_size, 1, 1, 1, 3);
 
-    grid->addWidget(new QLabel("Seed:", paramGroup), 2, 0);
+    grid->addWidget(new QLabel(tr("Seed:"), paramGroup), 2, 0);
     m_seed = new QLineEdit("-1", paramGroup);
     m_seed->setPlaceholderText(tr("-1 = casuale"));
     m_seed->setMaximumWidth(100);
@@ -329,7 +329,7 @@ void StableDiffusionWidget::checkServer()
 void StableDiffusionWidget::checkA1111()
 {
     const QString base = m_urlEdit->text().trimmed();
-    setStatus("\xf0\x9f\x94\x84  Connessione a " + base + "...", true);
+    setStatus(tr("\xf0\x9f\x94\x84  Connessione a ") + base + "...", true);
     m_btnCheck->setEnabled(false);
 
     m_checkReply = m_nam->get(QNetworkRequest(QUrl(base + "/sdapi/v1/sd-models")));
@@ -341,7 +341,7 @@ void StableDiffusionWidget::checkDiffusers()
 {
     m_btnCheck->setEnabled(false);
     m_installHintRow->hide();
-    setStatus("\xf0\x9f\x94\x84  Verifica diffusers...", true);
+    setStatus(tr("\xf0\x9f\x94\x84  Verifica diffusers..."), true);
 
     auto* proc = new QProcess(this);
     proc->start(PrismaluxPaths::findPython(), {"-c",
@@ -373,11 +373,11 @@ void StableDiffusionWidget::generateLocal()
 {
     const QString prompt = m_prompt->toPlainText().trimmed();
     if (prompt.isEmpty()) {
-        setStatus("\xe2\x9d\x8c  Scrivi un prompt prima.", false);
+        setStatus(tr("\xe2\x9d\x8c  Scrivi un prompt prima."), false);
         return;
     }
     if (m_sdProc && m_sdProc->state() != QProcess::NotRunning) {
-        setStatus("\xe2\x9a\xa0  Generazione già in corso...", false);
+        setStatus(tr("\xe2\x9a\xa0  Generazione già in corso..."), false);
         return;
     }
 
@@ -437,7 +437,7 @@ void StableDiffusionWidget::generateLocal()
 
     m_sdProc->start(PrismaluxPaths::findPython(), args);
     if (!m_sdProc->waitForStarted(P::kProcessStartTimeoutMs)) {
-        setStatus("\xe2\x9d\x8c  Python non trovato nel PATH.", false);
+        setStatus(tr("\xe2\x9d\x8c  Python non trovato nel PATH."), false);
         m_sdProc->deleteLater();
         m_sdProc = nullptr;
         m_btnGen->setEnabled(true);
@@ -450,7 +450,7 @@ void StableDiffusionWidget::generateA1111()
 {
     const QString prompt = m_prompt->toPlainText().trimmed();
     if (prompt.isEmpty()) {
-        setStatus("\xe2\x9d\x8c  Scrivi un prompt prima.", false);
+        setStatus(tr("\xe2\x9d\x8c  Scrivi un prompt prima."), false);
         return;
     }
 
@@ -503,7 +503,7 @@ void StableDiffusionWidget::showImage(const QByteArray& pngData)
     m_lastPng = pngData;
     QPixmap px;
     if (!px.loadFromData(m_lastPng, "PNG")) {
-        setStatus("\xe2\x9d\x8c  Impossibile decodificare l'immagine.", false);
+        setStatus(tr("\xe2\x9d\x8c  Impossibile decodificare l'immagine."), false);
         emit _imageReady(false);
         return;
     }
@@ -542,7 +542,7 @@ void StableDiffusionWidget::onBtnSaveClicked()
     QFile f(path);
     if (f.open(QIODevice::WriteOnly)) {
         f.write(m_lastPng);
-        setStatus("\xf0\x9f\x92\xbe  Salvata in: " + path, true);
+        setStatus(tr("\xf0\x9f\x92\xbe  Salvata in: ") + path, true);
     }
 }
 
@@ -614,7 +614,7 @@ void StableDiffusionWidget::onCheckDiffusersFinished(int code, QProcess::ExitSta
             : QString();
         m_installHintRow->hide();
         m_btnGen->setEnabled(true);
-        setStatus("\xe2\x9c\x85  Pronto: " + info, true);
+        setStatus(tr("\xe2\x9c\x85  Pronto: ") + info, true);
     } else {
         m_installHintRow->show();
         m_btnGen->setEnabled(false);
@@ -633,7 +633,7 @@ void StableDiffusionWidget::onLocalProcReadyRead()
         const QJsonObject obj =
             QJsonDocument::fromJson(line.toUtf8()).object();
         if (obj.contains("status"))
-            setStatus("\xf0\x9f\x94\x84  " + obj["status"].toString(), true);
+            setStatus(tr("\xf0\x9f\x94\x84  ") + obj["status"].toString(), true);
         if (obj.contains("total_steps") && obj["total_steps"].toInt() > 0) {
             const int total = obj["total_steps"].toInt();
             const int step  = obj["step"].toInt();
@@ -654,14 +654,14 @@ void StableDiffusionWidget::onLocalProcFinished(int code, QProcess::ExitStatus)
     }
 
     if (code != 0) {
-        setStatus("\xe2\x9d\x8c  Errore generazione locale.", false);
+        setStatus(tr("\xe2\x9d\x8c  Errore generazione locale."), false);
         emit _imageReady(false);
         return;
     }
 
     QFile f(m_pendingOutPath);
     if (!f.open(QIODevice::ReadOnly)) {
-        setStatus("\xe2\x9d\x8c  File immagine non trovato.", false);
+        setStatus(tr("\xe2\x9d\x8c  File immagine non trovato."), false);
         emit _imageReady(false);
         return;
     }
@@ -678,7 +678,7 @@ void StableDiffusionWidget::onA1111ReplyFinished()
     reply->deleteLater();
 
     if (reply->error() != QNetworkReply::NoError) {
-        setStatus("\xe2\x9d\x8c  Errore: " + reply->errorString(), false);
+        setStatus(tr("\xe2\x9d\x8c  Errore: ") + reply->errorString(), false);
         emit _imageReady(false);
         return;
     }
@@ -687,7 +687,7 @@ void StableDiffusionWidget::onA1111ReplyFinished()
         QJsonDocument::fromJson(reply->readAll()).object();
     const QJsonArray images = resp["images"].toArray();
     if (images.isEmpty()) {
-        setStatus("\xe2\x9d\x8c  Nessuna immagine nella risposta.", false);
+        setStatus(tr("\xe2\x9d\x8c  Nessuna immagine nella risposta."), false);
         emit _imageReady(false);
         return;
     }

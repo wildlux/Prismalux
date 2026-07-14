@@ -117,7 +117,7 @@ void MainWindow::onHWUpdated(SysSnapshot snap) {
         if (snap.gpu_temp_c >= 0)
             parts << QString("GPU %1\xc2\xb0" "C").arg((int)snap.gpu_temp_c);
         if (!parts.isEmpty()) {
-            m_tempLbl->setText("\xf0\x9f\x8c\xa1  " + parts.join(" | "));  /* 🌡 */
+            m_tempLbl->setText(tr("\xf0\x9f\x8c\xa1  ") + parts.join(" | "));  /* 🌡 */
             const double maxTemp = qMax(snap.cpu_temp_c, snap.gpu_temp_c);
             if (maxTemp >= 90) {
                 m_tempLbl->setStyleSheet(
@@ -210,16 +210,16 @@ void MainWindow::closeEvent(QCloseEvent* ev) {
     /* Se l'AI sta elaborando, chiedi se fermare e scaricare il modello */
     if (m_ai->busy()) {
         QMessageBox dlg(this);
-        dlg.setWindowTitle("Prismalux — Chiusura");
+        dlg.setWindowTitle(tr("Prismalux — Chiusura"));
         dlg.setIcon(QMessageBox::Question);
-        dlg.setText("<b>Un agente AI \xc3\xa8 ancora in elaborazione.</b><br>"
-                    "Vuoi fermare la generazione e scaricare il modello dalla RAM?");
+        dlg.setText(tr("<b>Un agente AI \xc3\xa8 ancora in elaborazione.</b><br>"
+                    "Vuoi fermare la generazione e scaricare il modello dalla RAM?"));
         dlg.setInformativeText(
             "Modello attivo: <b>" + m_ai->model() + "</b><br>"
             "Se non lo scarichi rimarr\xc3\xa0 in memoria anche dopo la chiusura.");
-        auto* btnUnload = dlg.addButton("Ferma e scarica dalla RAM", QMessageBox::AcceptRole);
-        dlg.addButton("Chiudi comunque",                               QMessageBox::DestructiveRole);
-        auto* btnCancel = dlg.addButton("Annulla",                     QMessageBox::RejectRole);
+        auto* btnUnload = dlg.addButton(tr("Ferma e scarica dalla RAM"), QMessageBox::AcceptRole);
+        dlg.addButton(tr("Chiudi comunque"),                               QMessageBox::DestructiveRole);
+        auto* btnCancel = dlg.addButton(tr("Annulla"),                     QMessageBox::RejectRole);
         dlg.setDefaultButton(btnCancel);
         dlg.exec();
 

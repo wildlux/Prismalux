@@ -719,19 +719,19 @@ QWidget* MatematicaPage::buildSolveTab()
     connect(m_btnSolve, &QPushButton::clicked, this, &MatematicaPage::onSolveClicked);
     btnRow->addWidget(m_btnSolve);
 
-    auto* btnStop = new QPushButton("\xe2\x96\xa0  Stop", w);  /* ■ */
+    auto* btnStop = new QPushButton(tr("\xe2\x96\xa0  Stop"), w);  /* ■ */
     btnStop->setObjectName("stopBtn");
     connect(btnStop, &QPushButton::clicked, this, &MatematicaPage::onSolveStopClicked);
     btnRow->addWidget(btnStop);
 
-    m_btnSolveAi = new QPushButton("\xf0\x9f\xa4\x96  Spiega con AI", w);  /* 🤖 */
+    m_btnSolveAi = new QPushButton(tr("\xf0\x9f\xa4\x96  Spiega con AI"), w);  /* 🤖 */
     m_btnSolveAi->setObjectName("actionBtn");
     m_btnSolveAi->setToolTip(tr("Usa l'LLM selezionato per spiegare i passi SymPy in italiano"));
     m_btnSolveAi->setVisible(false);
     connect(m_btnSolveAi, &QPushButton::clicked, this, &MatematicaPage::onSolveAiClicked);
     btnRow->addWidget(m_btnSolveAi);
 
-    m_btnSolveCopy = new QPushButton("\xf0\x9f\x93\x8b  Copia", w);  /* 📋 */
+    m_btnSolveCopy = new QPushButton(tr("\xf0\x9f\x93\x8b  Copia"), w);  /* 📋 */
     m_btnSolveCopy->setObjectName("actionBtn");
     connect(m_btnSolveCopy, &QPushButton::clicked, this, &MatematicaPage::onSolveCopyClicked);
     btnRow->addWidget(m_btnSolveCopy);
@@ -769,7 +769,7 @@ void MatematicaPage::onSolveClicked()
     clearOutput();
     m_solveFullText.clear();
     if (m_btnSolveAi) m_btnSolveAi->setVisible(false);
-    setStatus("\xf0\x9f\x93\x90  SymPy in calcolo...");
+    setStatus(tr("\xf0\x9f\x93\x90  SymPy in calcolo..."));
 
     const QString tipo = m_solveCmb->currentText();
 
@@ -820,7 +820,7 @@ void MatematicaPage::onSolveStopClicked()
         if (m_btnSolve)   m_btnSolve->setEnabled(true);
         if (m_btnSolveAi) m_btnSolveAi->setVisible(true);
     }
-    setStatus("\xe2\x96\xa0  Risoluzione interrotta.");
+    setStatus(tr("\xe2\x96\xa0  Risoluzione interrotta."));
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -849,7 +849,7 @@ void MatematicaPage::onSolveAiClicked()
     m_solveBusy = true;
     m_btnSolve->setEnabled(false);
     if (m_btnSolveAi) m_btnSolveAi->setEnabled(false);
-    setStatus("\xf0\x9f\xa4\x96  AI sta spiegando...");
+    setStatus(tr("\xf0\x9f\xa4\x96  AI sta spiegando..."));
 
     appendOutput("\n\n\xe2\x94\x80\xe2\x94\x80 \xf0\x9f\xa4\x96 Spiegazione AI "
                  "\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\n");
@@ -931,7 +931,7 @@ void MatematicaPage::onSolveFinished(const QString& full)
     m_solveBusy = false;
     if (m_btnSolve)   m_btnSolve->setEnabled(true);
     if (m_btnSolveAi) { m_btnSolveAi->setEnabled(true); m_btnSolveAi->setVisible(true); }
-    setStatus("\xe2\x9c\x85  Spiegazione AI completata.");
+    setStatus(tr("\xe2\x9c\x85  Spiegazione AI completata."));
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -945,7 +945,7 @@ void MatematicaPage::onSolveError(const QString& msg)
     if (m_btnSolve)   m_btnSolve->setEnabled(true);
     if (m_btnSolveAi) { m_btnSolveAi->setEnabled(true); m_btnSolveAi->setVisible(true); }
     appendOutput("\n\xe2\x9d\x8c  Errore AI: " + msg + "\n");
-    setStatus("\xe2\x9d\x8c  Errore AI.");
+    setStatus(tr("\xe2\x9d\x8c  Errore AI."));
     LogBus::post("\xe2\x9d\x8c Matematica: Errore AI risoluzione: " + msg);
 }
 

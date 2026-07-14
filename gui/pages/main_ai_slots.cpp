@@ -137,7 +137,7 @@ void AgentiPage::onCmbLLMIndexChanged(int idx)
         QString shortMdl = mdl;
         if (shortMdl.length() > 18)
             shortMdl = shortMdl.left(16) + "\xe2\x80\xa6";  /* … */
-        m_btnRegen->setText("\xf0\x9f\x94\x84 " + shortMdl);
+        m_btnRegen->setText(tr("\xf0\x9f\x94\x84 ") + shortMdl);
         m_btnRegen->setVisible(true);
     }
 }
@@ -220,8 +220,8 @@ void AgentiPage::onModeBtnChanged(int mode)
     }
 
     /* 2. Ripristina run button di default, poi specializza */
-    m_btnRun->setText("\xf0\x9f\x93\xa4 Invia");
-    if (m_modeBtn) m_modeBtn->setActionText("\xf0\x9f\x93\xa4 Invia");
+    m_btnRun->setText(tr("\xf0\x9f\x93\xa4 Invia"));
+    if (m_modeBtn) m_modeBtn->setActionText(tr("\xf0\x9f\x93\xa4 Invia"));
 
     /* 3. Attiva nuova modalità */
     switch (mode) {
@@ -231,8 +231,8 @@ void AgentiPage::onModeBtnChanged(int mode)
         onModeToggleToggled(true);   /* gestisce anche il testo del run button + hub */
         break;
     case 2:   /* Conversa */
-        m_btnRun->setText("\xf0\x9f\x8e\x99  Dialoga");
-        if (m_modeBtn) m_modeBtn->setActionText("\xf0\x9f\x8e\x99  Dialoga");
+        m_btnRun->setText(tr("\xf0\x9f\x8e\x99  Dialoga"));
+        if (m_modeBtn) m_modeBtn->setActionText(tr("\xf0\x9f\x8e\x99  Dialoga"));
         break;
     }
 }
@@ -476,11 +476,11 @@ void AgentiPage::onLogAnchorClicked(const QUrl& url)
     if (s.startsWith("del:")) {
         QMessageBox ask(this);
         ask.setWindowTitle(tr("\xf0\x9f\x97\x91  Elimina messaggio"));
-        ask.setText("<b>Eliminare questo messaggio dalla chat?</b>");
+        ask.setText(tr("<b>Eliminare questo messaggio dalla chat?</b>"));
         ask.setInformativeText(
             "Questa operazione \xc3\xa8 irreversibile.");
-        QPushButton* btnDel = ask.addButton("Elimina", QMessageBox::DestructiveRole);
-        ask.addButton("Annulla", QMessageBox::RejectRole);
+        QPushButton* btnDel = ask.addButton(tr("Elimina"), QMessageBox::DestructiveRole);
+        ask.addButton(tr("Annulla"), QMessageBox::RejectRole);
         ask.setDefaultButton(btnDel);
         ask.exec();
         if (ask.clickedButton() != btnDel) return;
@@ -606,8 +606,8 @@ void AgentiPage::onLogAnchorClicked(const QUrl& url)
         cv2->setStyleSheet("background:#1e1e2e;color:#cdd6f4;border:1px solid #45475a;padding:4px;");
         lay2->addWidget(cv2, 1);
         auto* bb2 = new QDialogButtonBox(dlg2);
-        auto* btnRun2 = bb2->addButton("\xe2\x96\xb6  Esegui", QDialogButtonBox::AcceptRole);
-        bb2->addButton("\xe2\x9c\x96  Annulla", QDialogButtonBox::RejectRole);
+        auto* btnRun2 = bb2->addButton(tr("\xe2\x96\xb6  Esegui"), QDialogButtonBox::AcceptRole);
+        bb2->addButton(tr("\xe2\x9c\x96  Annulla"), QDialogButtonBox::RejectRole);
         btnRun2->setStyleSheet(useSandbox
             ? "background:#16a34a;color:#fff;font-weight:bold;padding:4px 18px;"
             : "background:#ef4444;color:#fff;font-weight:bold;padding:4px 18px;");
@@ -824,9 +824,9 @@ void AgentiPage::onLogAnchorClicked(const QUrl& url)
         dlgLay->addWidget(editor, 1);
 
         auto* btnBox = new QDialogButtonBox(dlg);
-        auto* btnTask   = btnBox->addButton("Invia come task \xe2\x96\xb6",
+        auto* btnTask   = btnBox->addButton(tr("Invia come task \xe2\x96\xb6"),
                                             QDialogButtonBox::AcceptRole);
-        auto* btnUpdate = btnBox->addButton("Aggiorna bolla \xf0\x9f\x94\x84",
+        auto* btnUpdate = btnBox->addButton(tr("Aggiorna bolla \xf0\x9f\x94\x84"),
                                             QDialogButtonBox::ApplyRole);
         auto* btnCancel = btnBox->addButton(QDialogButtonBox::Cancel);
         btnCancel->setText(tr("Annulla"));
@@ -1173,7 +1173,7 @@ bool AgentiPage::_buildTranslateDialog(const QString& inputText,
     dlgLay->setSpacing(10);
 
     auto* srcRow = new QHBoxLayout;
-    srcRow->addWidget(new QLabel("Da:", dlg));
+    srcRow->addWidget(new QLabel(tr("Da:"), dlg));
     auto* cmbSrc = new QComboBox(dlg);
     cmbSrc->addItems(kLangs);
     int si = cmbSrc->findText(m_translateSrcLang);
@@ -1191,7 +1191,7 @@ bool AgentiPage::_buildTranslateDialog(const QString& inputText,
     dlgLay->addLayout(dstRow);
 
     auto* mdlRow = new QHBoxLayout;
-    mdlRow->addWidget(new QLabel("Modello:", dlg));
+    mdlRow->addWidget(new QLabel(tr("Modello:"), dlg));
     auto* cmbMdl = new QComboBox(dlg);
     for (auto& mi : m_modelInfos) cmbMdl->addItem(mi.name);
     if (cmbMdl->count() == 0) cmbMdl->addItem(m_ai->model());
@@ -1546,7 +1546,7 @@ void AgentiPage::onRagUrlFetched()
     m_ragUrlReply = nullptr;
 
     if (err != QNetworkReply::NoError) {
-        if (m_ragStatusLbl) m_ragStatusLbl->setText("\xe2\x9d\x8c  Errore rete: " +
+        if (m_ragStatusLbl) m_ragStatusLbl->setText(tr("\xe2\x9d\x8c  Errore rete: ") +
             QString::number(static_cast<int>(err)));
         LogBus::post(QString("\xe2\x9d\x8c AI UI: Errore rete RAG URL: %1 (codice %2)")
                      .arg(finalUrl.toString())

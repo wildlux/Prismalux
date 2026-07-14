@@ -120,7 +120,7 @@ QWidget* AppControllerPage::buildTelegramTab()
     s1Lay->addWidget(step1Hint);
 
     auto* tokenRow = new QHBoxLayout;
-    auto* tokenLbl = new QLabel("Token:", step1);
+    auto* tokenLbl = new QLabel(tr("Token:"), step1);
     tokenLbl->setFixedWidth(dpiScale(60));
     m_telegramTokenEdit = new QLineEdit(step1);
     m_telegramTokenEdit->setPlaceholderText(tr("7123456789:AAF-DEFxxx..."));
@@ -161,7 +161,7 @@ QWidget* AppControllerPage::buildTelegramTab()
     s2Lay->addWidget(step2Hint);
 
     auto* wlRow = new QHBoxLayout;
-    auto* wlLbl = new QLabel("ID autorizzati:", step2);
+    auto* wlLbl = new QLabel(tr("ID autorizzati:"), step2);
     wlLbl->setFixedWidth(dpiScale(100));
     m_telegramWhitelistEdit = new QLineEdit(step2);
     m_telegramWhitelistEdit->setPlaceholderText(

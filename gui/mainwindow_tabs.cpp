@@ -263,7 +263,7 @@ QWidget* MainWindow::buildContent()
     m_mainTabs->setObjectName("mainTabs");
     m_mainTabs->setTabPosition(QTabWidget::North);
     m_mainTabs->setMovable(false);
-    m_mainTabs->setAccessibleName("Sezioni principali di Prismalux");
+    m_mainTabs->setAccessibleName(tr("Sezioni principali di Prismalux"));
 
     /* Backend button + status badge come corner widget sinistro */
     if (m_btnBackend) {
@@ -462,7 +462,7 @@ QWidget* MainWindow::createMatematicaWidget()
     sub->setObjectName("mathSubTabs");
     sub->setTabPosition(QTabWidget::North);
     sub->addTab(new MatematicaPage(m_ai, container), "\xf0\x9f\x93\x90  Matematica");
-    sub->addTab(grafPage, "\xf0\x9f\x93\x88  Grafico");
+    sub->addTab(grafPage, tr("\xf0\x9f\x93\x88  Grafico"));
     connect(sub, &QTabWidget::currentChanged, this, &MainWindow::onMathSubTabChanged);
     lay->addWidget(sub);
     return container;
@@ -528,7 +528,7 @@ void MainWindow::buildLanWanTab()
 
     /* Inserisce LAN & WAN dentro Utility [5] invece di un tab principale separato */
     if (m_utilityPage)
-        m_utilityPage->addTab(m_lanWanPage, "\xf0\x9f\x8c\x90  LAN & WAN");
+        m_utilityPage->addTab(m_lanWanPage, tr("\xf0\x9f\x8c\x90  LAN & WAN"));
 }
 
 /* ── Livello 2: ex tab [9] Multi-Agente — ora embedded in LAN & WAN ── */

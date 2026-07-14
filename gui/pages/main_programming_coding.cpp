@@ -112,7 +112,7 @@ QWidget* ProgrammazionePage::buildCodingToolbar(QWidget* parent,
     toolLay->setContentsMargins(0, 0, 0, 0);
     toolLay->setSpacing(8);
 
-    toolLay->addWidget(new QLabel("Linguaggio:", toolRow));
+    toolLay->addWidget(new QLabel(tr("Linguaggio:"), toolRow));
     m_lang = new QComboBox(toolRow);
     m_lang->setObjectName("settingCombo");
     m_lang->addItem("Python",     QString("py"));
@@ -130,26 +130,26 @@ QWidget* ProgrammazionePage::buildCodingToolbar(QWidget* parent,
         btn->setProperty("execText", QString::fromUtf8(text));
     };
 
-    m_btnRun = new QPushButton("\xe2\x96\xb6  Esegui", toolRow);
+    m_btnRun = new QPushButton(tr("\xe2\x96\xb6  Esegui"), toolRow);
     m_btnRun->setObjectName("actionBtn");
     m_btnRun->setToolTip(tr("Esegui il codice nell’editor (F5)"));
     tagExecP(m_btnRun, "\xe2\x96\xb6", "Esegui");
 
-    auto* btnClear = new QPushButton("\xf0\x9f\x97\x91  Pulisci", toolRow);
+    auto* btnClear = new QPushButton(tr("\xf0\x9f\x97\x91  Pulisci"), toolRow);
     btnClear->setObjectName("actionBtn");
 
     toolLay->addWidget(m_btnRun);
     toolLay->addWidget(btnClear);
     toolLay->addStretch(1);
 
-    m_btnAi = new QPushButton("\xf0\x9f\xa4\x96  Chiedi all’AI", toolRow);
+    m_btnAi = new QPushButton(tr("\xf0\x9f\xa4\x96  Chiedi all’AI"), toolRow);
     m_btnAi->setObjectName("actionBtn");
     m_btnAi->setCheckable(true);
     m_btnAi->setToolTip(tr("Apri il pannello AI per scrivere una richiesta"));
     tagExecP(m_btnAi, "\xf0\x9f\xa4\x96", "Chiedi all’AI");
     toolLay->addWidget(m_btnAi);
 
-    m_btnFix = new QPushButton("\xf0\x9f\x94\xa7  Correggi con AI", toolRow);
+    m_btnFix = new QPushButton(tr("\xf0\x9f\x94\xa7  Correggi con AI"), toolRow);
     m_btnFix->setObjectName("actionBtn");
     m_btnFix->setProperty("highlight", "true");
     tagExecP(m_btnFix, "\xf0\x9f\x94\xa7", "Correggi con AI");
@@ -199,7 +199,7 @@ QWidget* ProgrammazionePage::buildEditorColumn(QWidget* parent)
     monoFont.setStyleHint(QFont::Monospace);
     monoFont.setPointSize(monoFontPt(11));
 
-    auto* editorGroup = new QGroupBox("\xf0\x9f\x96\x8a  Codice", parent);
+    auto* editorGroup = new QGroupBox(tr("\xf0\x9f\x96\x8a  Codice"), parent);
     editorGroup->setObjectName("cardGroup");
     auto* editorLay = new QVBoxLayout(editorGroup);
     editorLay->setContentsMargins(4, 8, 4, 4);
@@ -236,13 +236,13 @@ QWidget* ProgrammazionePage::buildOutputColumn(QWidget* parent)
     rightLay->setContentsMargins(0, 0, 0, 0);
     rightLay->setSpacing(6);
 
-    auto* outputGroup = new QGroupBox("\xf0\x9f\x93\x9f  Output", rightCol);
+    auto* outputGroup = new QGroupBox(tr("\xf0\x9f\x93\x9f  Output"), rightCol);
     outputGroup->setObjectName("cardGroup");
     auto* outputLay = new QVBoxLayout(outputGroup);
     outputLay->setContentsMargins(4, 8, 4, 4);
     outputLay->setSpacing(4);
 
-    m_status = new QLabel("Pronto.", outputGroup);
+    m_status = new QLabel(tr("Pronto."), outputGroup);
     m_status->setObjectName("hintLabel");
     outputLay->addWidget(m_status);
 
@@ -298,7 +298,7 @@ QWidget* ProgrammazionePage::buildAiPanel(QWidget* parent,
     modelLay->setContentsMargins(0, 0, 0, 0);
     modelLay->setSpacing(8);
 
-    auto* lblModel = new QLabel("\xf0\x9f\xa4\x96  Modello:", modelRow);
+    auto* lblModel = new QLabel(tr("\xf0\x9f\xa4\x96  Modello:"), modelRow);
     lblModel->setObjectName("cardDesc");
     modelLay->addWidget(lblModel);
 
@@ -336,7 +336,7 @@ QWidget* ProgrammazionePage::buildAiPanel(QWidget* parent,
         "\"spiega questo codice\", \"trova i bug\"");
     aiInputLay->addWidget(m_aiInput, 1);
 
-    m_btnSend = new QPushButton("Invia \xe2\x96\xb6", aiInputRow);
+    m_btnSend = new QPushButton(tr("Invia \xe2\x96\xb6"), aiInputRow);
     m_btnSend->setObjectName("m_btnSend");
 
     m_btnInsert = new QPushButton(
@@ -952,7 +952,7 @@ void ProgrammazionePage::runLint()
     const QString tmpPath = tmp->fileName();
 
     if (m_status)
-        m_status->setText("\xf0\x9f\x94\x8d  Analisi in corso (" + m_lang->currentText() + ")...");
+        m_status->setText(tr("\xf0\x9f\x94\x8d  Analisi in corso (") + m_lang->currentText() + ")...");
     m_diffGroup->setVisible(false);
 
     auto* proc = new QProcess(this);
@@ -1037,7 +1037,7 @@ void ProgrammazionePage::onAutoFixToggled(bool on)
     dlg.button(QMessageBox::Ok)->setText(tr("Ho capito, abilita"));
     dlg.button(QMessageBox::Cancel)->setText(tr("Annulla"));
 
-    auto* chk = new QCheckBox("Non mostrare pi\xc3\xb9 questo avviso", &dlg);
+    auto* chk = new QCheckBox(tr("Non mostrare pi\xc3\xb9 questo avviso"), &dlg);
     dlg.setCheckBox(chk);
 
     if (dlg.exec() != QMessageBox::Ok) {

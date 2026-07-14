@@ -75,9 +75,9 @@ ChatBubble::ChatBubble(Role role, const QString& sender,
     btnLay->setSpacing(4);
 
     /* Pulsante Grafico (visibile solo se formula rilevata) */
-    m_btnChart = new QPushButton("\xf0\x9f\x93\x8a  Grafico", actionBar);
+    m_btnChart = new QPushButton(tr("\xf0\x9f\x93\x8a  Grafico"), actionBar);
     m_btnChart->setObjectName("bubbleBtn");
-    m_btnChart->setToolTip("Genera il grafico dalla formula rilevata");
+    m_btnChart->setToolTip(tr("Genera il grafico dalla formula rilevata"));
     m_btnChart->setVisible(false);
     btnLay->addWidget(m_btnChart);
 
@@ -85,11 +85,11 @@ ChatBubble::ChatBubble(Role role, const QString& sender,
 
     m_btnCopy = new QPushButton("\xf0\x9f\x97\x82", actionBar);
     m_btnCopy->setObjectName("bubbleBtn");
-    m_btnCopy->setToolTip("Copia il testo negli appunti");
+    m_btnCopy->setToolTip(tr("Copia il testo negli appunti"));
 
     m_btnTts = new QPushButton("\xf0\x9f\x8e\x99", actionBar);
     m_btnTts->setObjectName("bubbleBtn");
-    m_btnTts->setToolTip("Leggi ad alta voce");
+    m_btnTts->setToolTip(tr("Leggi ad alta voce"));
 
     btnLay->addWidget(m_btnCopy);
     btnLay->addWidget(m_btnTts);
@@ -98,7 +98,7 @@ ChatBubble::ChatBubble(Role role, const QString& sender,
     if (role == User) {
         m_btnEdit = new QPushButton("\xe2\x9c\x8f", actionBar);  /* ✏ */
         m_btnEdit->setObjectName("bubbleBtn");
-        m_btnEdit->setToolTip("Modifica e rimanda questo messaggio");
+        m_btnEdit->setToolTip(tr("Modifica e rimanda questo messaggio"));
         btnLay->addWidget(m_btnEdit);
     }
 
@@ -108,8 +108,8 @@ ChatBubble::ChatBubble(Role role, const QString& sender,
         m_btnDown = new QPushButton("\xf0\x9f\x91\x8e", actionBar);
         m_btnUp->setObjectName("bubbleBtn");
         m_btnDown->setObjectName("bubbleBtn");
-        m_btnUp->setToolTip("Risposta utile");
-        m_btnDown->setToolTip("Risposta non utile");
+        m_btnUp->setToolTip(tr("Risposta utile"));
+        m_btnDown->setToolTip(tr("Risposta non utile"));
         m_btnUp->setVisible(false);
         m_btnDown->setVisible(false);
         btnLay->addWidget(m_btnUp);

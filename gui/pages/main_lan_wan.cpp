@@ -173,7 +173,7 @@ void LanWanPage::openQrDialog(QPushButton* parent, const QString& url,
     vl->setSpacing(12);
     vl->setContentsMargins(20, 20, 20, 20);
 
-    auto* hdr = new QLabel("<b>" + subtitle + "</b>", dlg);
+    auto* hdr = new QLabel(tr("<b>") + subtitle + "</b>", dlg);
     hdr->setTextFormat(Qt::RichText);
     hdr->setAlignment(Qt::AlignCenter);
     vl->addWidget(hdr);
@@ -188,15 +188,15 @@ void LanWanPage::openQrDialog(QPushButton* parent, const QString& url,
     urlLbl->setTextInteractionFlags(Qt::TextSelectableByMouse);
     vl->addWidget(urlLbl);
 
-    auto* copyBtn = new QPushButton("\xf0\x9f\x93\x8b" "  Copia URL", dlg);
+    auto* copyBtn = new QPushButton(tr("\xf0\x9f\x93\x8b" "  Copia URL"), dlg);
     connect(copyBtn, &QPushButton::clicked, dlg, [url, copyBtn]() {
         QApplication::clipboard()->setText(url);
-        copyBtn->setText("\xe2\x9c\x85" "  Copiato!");
+        copyBtn->setText(tr("\xe2\x9c\x85" "  Copiato!"));
     });
     vl->addWidget(copyBtn);
 
     if (!note.isEmpty()) {
-        auto* noteLbl2 = new QLabel("<small><i>" + note + "</i></small>", dlg);
+        auto* noteLbl2 = new QLabel(tr("<small><i>") + note + "</i></small>", dlg);
         noteLbl2->setTextFormat(Qt::RichText);
         noteLbl2->setAlignment(Qt::AlignCenter);
         noteLbl2->setWordWrap(true);
@@ -719,12 +719,12 @@ QWidget* LanWanPage::buildLanAndroidTab()
     leftLay->setSpacing(8);
 
     /* Controllo server */
-    auto* srvGroup = new QGroupBox("\xf0\x9f\x94\xa7  Controllo server", leftW);
+    auto* srvGroup = new QGroupBox(tr("\xf0\x9f\x94\xa7  Controllo server"), leftW);
     auto* srvLay   = new QVBoxLayout(srvGroup);
     srvLay->setSpacing(6);
 
     auto* ctrlRow = new QHBoxLayout;
-    m_lanToggleBtn = new QPushButton("\xe2\x97\x8b  Server OFF", srvGroup);
+    m_lanToggleBtn = new QPushButton(tr("\xe2\x97\x8b  Server OFF"), srvGroup);
     m_lanToggleBtn->setCheckable(true);
     m_lanToggleBtn->setObjectName("LanToggleBtn");
     m_lanPortSpin = new QSpinBox(srvGroup);
@@ -741,9 +741,9 @@ QWidget* LanWanPage::buildLanAndroidTab()
         auto* tokenRow = new QWidget(srvGroup);
         auto* tokenLay = new QHBoxLayout(tokenRow);
         tokenLay->setContentsMargins(0, 0, 0, 0); tokenLay->setSpacing(4);
-        auto* tokenLbl = new QLabel("\xf0\x9f\x94\x91  Token:", tokenRow);
+        auto* tokenLbl = new QLabel(tr("\xf0\x9f\x94\x91  Token:"), tokenRow);
         m_lanTokenEdit = new QLineEdit(tokenRow);
-        m_lanTokenEdit->setPlaceholderText("Auto-generato all\xe2\x80\x99" "avvio");
+        m_lanTokenEdit->setPlaceholderText(tr("Auto-generato all\xe2\x80\x99" "avvio"));
         m_lanTokenEdit->setEchoMode(QLineEdit::Password);
         QString saved = loadLanToken();
         if (saved.isEmpty()) {
@@ -770,7 +770,7 @@ QWidget* LanWanPage::buildLanAndroidTab()
         srvLay->addWidget(tokenRow);
     }
 
-    m_lanStatusLbl = new QLabel("\xe2\x97\x8b  Fermo", srvGroup);
+    m_lanStatusLbl = new QLabel(tr("\xe2\x97\x8b  Fermo"), srvGroup);
     m_lanStatusLbl->setStyleSheet("color: #9e9e9e;");
     srvLay->addWidget(m_lanStatusLbl);
 
@@ -780,7 +780,7 @@ QWidget* LanWanPage::buildLanAndroidTab()
         auto* ipLay = new QHBoxLayout(ipRow);
         ipLay->setContentsMargins(0, 0, 0, 0); ipLay->setSpacing(2);
 
-        ipLay->addWidget(new QLabel("IP:", ipRow));
+        ipLay->addWidget(new QLabel(tr("IP:"), ipRow));
 
         /* Legge IP salvato; se non c'è usa l'auto-detect */
         QSettings sets("Prismalux", "GUI");
@@ -830,7 +830,7 @@ QWidget* LanWanPage::buildLanAndroidTab()
         auto* maskLay = new QHBoxLayout(maskRow);
         maskLay->setContentsMargins(0, 0, 0, 0); maskLay->setSpacing(2);
 
-        maskLay->addWidget(new QLabel("Mask:", maskRow));
+        maskLay->addWidget(new QLabel(tr("Mask:"), maskRow));
 
         QSettings sets("Prismalux", "GUI");
         const QString savedMask = sets.value("lan/manualMask", "255.255.255.0").toString();
@@ -884,11 +884,11 @@ QWidget* LanWanPage::buildLanAndroidTab()
     auto* kickRow = new QWidget(clientGroup);
     auto* kickLay = new QHBoxLayout(kickRow);
     kickLay->setContentsMargins(0, 0, 0, 0); kickLay->setSpacing(6);
-    m_kickBtn = new QPushButton("\xf0\x9f\x9a\xab  Disconnetti selezionato", kickRow);
+    m_kickBtn = new QPushButton(tr("\xf0\x9f\x9a\xab  Disconnetti selezionato"), kickRow);
     m_kickBtn->setObjectName("actionBtn");
     m_kickBtn->setProperty("danger", true);
     m_kickBtn->setToolTip(tr("Chiude la connessione del client selezionato"));
-    m_kickAllBtn = new QPushButton("\xf0\x9f\x9a\xab  Disconnetti tutti", kickRow);
+    m_kickAllBtn = new QPushButton(tr("\xf0\x9f\x9a\xab  Disconnetti tutti"), kickRow);
     m_kickAllBtn->setObjectName("actionBtn");
     m_kickAllBtn->setProperty("danger", true);
     m_kickAllBtn->setToolTip(tr("Chiude tutte le connessioni client attive"));
@@ -967,7 +967,7 @@ QWidget* LanWanPage::buildLanAndroidTab()
     qrWebColLay->setContentsMargins(0, 0, 0, 0);
     qrWebColLay->setSpacing(4);
 
-    auto* qrWebLbl = new QLabel("\xf0\x9f\x8c\x90  <b>Web Chat</b>", qrWebCol);
+    auto* qrWebLbl = new QLabel(tr("\xf0\x9f\x8c\x90  <b>Web Chat</b>"), qrWebCol);
     qrWebLbl->setTextFormat(Qt::RichText);
     qrWebLbl->setAlignment(Qt::AlignCenter);
     qrWebLbl->setStyleSheet("font-size:12px;");
@@ -980,7 +980,7 @@ QWidget* LanWanPage::buildLanAndroidTab()
         "Si aggiorna automaticamente con IP, porta e token.");
     qrWebColLay->addWidget(m_qrInlineWidget, 0, Qt::AlignHCenter);
 
-    auto* qrWebHintLbl = new QLabel("<small>Apri nel browser</small>", qrWebCol);
+    auto* qrWebHintLbl = new QLabel(tr("<small>Apri nel browser</small>"), qrWebCol);
     qrWebHintLbl->setTextFormat(Qt::RichText);
     qrWebHintLbl->setAlignment(Qt::AlignCenter);
     qrWebHintLbl->setStyleSheet("color: gray; font-size:11px;");
@@ -992,7 +992,7 @@ QWidget* LanWanPage::buildLanAndroidTab()
     qrAppColLay->setContentsMargins(0, 0, 0, 0);
     qrAppColLay->setSpacing(4);
 
-    auto* qrAppLbl = new QLabel("\xf0\x9f\x93\xb1  <b>App Android</b>", qrAppCol);
+    auto* qrAppLbl = new QLabel(tr("\xf0\x9f\x93\xb1  <b>App Android</b>"), qrAppCol);
     qrAppLbl->setTextFormat(Qt::RichText);
     qrAppLbl->setAlignment(Qt::AlignCenter);
     qrAppLbl->setStyleSheet("font-size:12px;");
@@ -1063,7 +1063,7 @@ QWidget* LanWanPage::buildLanAndroidTab()
     urlCopyBtn->setFixedSize(dpiSize(28, 24));
     urlCopyBtn->setToolTip(tr("Copia URL negli appunti"));
     urlCopyBtn->setObjectName("actionBtn");
-    urlCopyBtn->setAccessibleName("Copia URL server LAN negli appunti");
+    urlCopyBtn->setAccessibleName(tr("Copia URL server LAN negli appunti"));
 
     urlRowL->addWidget(urlIcon);
     urlRowL->addWidget(m_urlDisplayLbl, 1);
@@ -1110,10 +1110,10 @@ QWidget* LanWanPage::buildLanAndroidTab()
     auto* qrRow  = new QWidget(scrollW);
     auto* qrRowL = new QHBoxLayout(qrRow);
     qrRowL->setContentsMargins(0, 0, 0, 0); qrRowL->setSpacing(6);
-    m_qrApkBtn  = new QPushButton("\xf0\x9f\x93\xa6  QR APK",  qrRow);
+    m_qrApkBtn  = new QPushButton(tr("\xf0\x9f\x93\xa6  QR APK"),  qrRow);
     m_qrApkBtn->setObjectName("actionBtn");
     m_qrApkBtn->setEnabled(false);
-    m_qrPageBtn = new QPushButton("\xf0\x9f\x8c\x90  QR Pagina", qrRow);
+    m_qrPageBtn = new QPushButton(tr("\xf0\x9f\x8c\x90  QR Pagina"), qrRow);
     m_qrPageBtn->setObjectName("actionBtn");
     m_qrPageBtn->setEnabled(false);
     qrRowL->addWidget(m_qrApkBtn, 1);
@@ -1141,7 +1141,7 @@ QWidget* LanWanPage::buildLanAndroidTab()
             ? "adb non trovato — installa Android Platform Tools"
             : QString("adb: %1").arg(adbPath));
     m_adbInstallBtn->setEnabled(!adbPath.isEmpty());
-    m_adbInstallBtn->setAccessibleName("Installa APK PrismaluxMobile sul telefono Android via USB");
+    m_adbInstallBtn->setAccessibleName(tr("Installa APK PrismaluxMobile sul telefono Android via USB"));
     scrollLay->addWidget(m_adbInstallBtn);
 
     m_adbStatusLbl = new QLabel(

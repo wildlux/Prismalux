@@ -695,8 +695,8 @@ void AgentiPage::onToolScriviFile(const QString& input, const std::function<void
                                    "border:1px solid #45475a;padding:4px;");
             lay->addWidget(preview, 1);
             auto* btnBox = new QDialogButtonBox(dlg);
-            btnBox->addButton("\xf0\x9f\x93\x9d  Scrivi", QDialogButtonBox::AcceptRole);
-            btnBox->addButton("\xe2\x9c\x96  Annulla", QDialogButtonBox::RejectRole);
+            btnBox->addButton(tr("\xf0\x9f\x93\x9d  Scrivi"), QDialogButtonBox::AcceptRole);
+            btnBox->addButton(tr("\xe2\x9c\x96  Annulla"), QDialogButtonBox::RejectRole);
             connect(btnBox, &QDialogButtonBox::accepted, dlg, &QDialog::accept);
             connect(btnBox, &QDialogButtonBox::rejected, dlg, &QDialog::reject);
             lay->addWidget(btnBox);

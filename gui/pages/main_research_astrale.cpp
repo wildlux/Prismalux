@@ -71,7 +71,7 @@ QWidget* RicercaPage::buildAstraleTab()
     titleLbl->setTextFormat(Qt::RichText);
     leftLay->addWidget(titleLbl);
 
-    auto* formGroup = new QGroupBox("Dati natali");
+    auto* formGroup = new QGroupBox(tr("Dati natali"));
     auto* formLay   = new QFormLayout(formGroup);
     formLay->setSpacing(6);
     formLay->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
@@ -87,7 +87,7 @@ QWidget* RicercaPage::buildAstraleTab()
     m_astraleOra = new QTimeEdit(dataOraRow);
     m_astraleOra->setDisplayFormat("HH:mm");
     m_astraleOra->setTime(QTime(12, 0));
-    auto* sessoLbl = new QLabel("Sesso", dataOraRow);
+    auto* sessoLbl = new QLabel(tr("Sesso"), dataOraRow);
     sessoLbl->setStyleSheet("color:gray; font-size:11px; margin-left:6px;");
     dataOraLay->addWidget(m_astraleNascita);
     dataOraLay->addWidget(m_astraleOra);
@@ -109,7 +109,7 @@ QWidget* RicercaPage::buildAstraleTab()
     formLay->addRow("Data \xe2\x80\x94 Ora:", dataOraRow);
 
     /* ── Mappa collassabile (riga 2, spanning) ── */
-    auto* mapToggle = new QPushButton("\xe2\x96\xbc Luogo di nascita", formGroup);
+    auto* mapToggle = new QPushButton(tr("\xe2\x96\xbc Luogo di nascita"), formGroup);
     mapToggle->setCheckable(true);
     mapToggle->setChecked(true);
     mapToggle->setFlat(true);
@@ -173,14 +173,14 @@ QWidget* RicercaPage::buildAstraleTab()
     auto* modelLay = new QHBoxLayout(modelRow);
     modelLay->setContentsMargins(0, 0, 0, 0); modelLay->setSpacing(6);
     m_astraleModel = new ModelComboBox(m_ai, modelRow);
-    m_astraleRunBtn = new QPushButton("\xe2\xad\x90  Leggi gli Astri", modelRow);
+    m_astraleRunBtn = new QPushButton(tr("\xe2\xad\x90  Leggi gli Astri"), modelRow);
     m_astraleRunBtn->setObjectName("actionBtn");
     modelLay->addWidget(m_astraleModel, 1);
     modelLay->addWidget(m_astraleRunBtn);
     formLay->addRow("Modello AI:", modelRow);
 
     /* Riga 2: 🔮 Ruota Karmica (larghezza piena) */
-    m_karmicaBtn = new QPushButton("\xf0\x9f\x94\xae  Compila Ruota Karmica", formGroup);
+    m_karmicaBtn = new QPushButton(tr("\xf0\x9f\x94\xae  Compila Ruota Karmica"), formGroup);
     m_karmicaBtn->setObjectName("actionBtn");
     m_karmicaBtn->setStyleSheet(
         "QPushButton#actionBtn { background:#4a235a; color:#e8d5f0; border:1px solid #7b3fa0; }"
@@ -301,9 +301,9 @@ QWidget* RicercaPage::buildAstraleTab()
         auto* aLay  = new QHBoxLayout(aBar);
         aLay->setContentsMargins(0, 2, 0, 2);
         aLay->setSpacing(6);
-        auto* btnMd2  = new QPushButton("\xf0\x9f\x92\xbe  Salva .md");
-        auto* btnPdf2 = new QPushButton("\xf0\x9f\x96\xa8  Esporta PDF");
-        auto* btnClr2 = new QPushButton("\xf0\x9f\x97\x91  Svuota");
+        auto* btnMd2  = new QPushButton(tr("\xf0\x9f\x92\xbe  Salva .md"));
+        auto* btnPdf2 = new QPushButton(tr("\xf0\x9f\x96\xa8  Esporta PDF"));
+        auto* btnClr2 = new QPushButton(tr("\xf0\x9f\x97\x91  Svuota"));
         btnMd2->setObjectName("actionBtn");
         btnMd2->setToolTip(tr("Salva l'interpretazione della carta natale in formato Markdown"));
         btnPdf2->setObjectName("actionBtn");
@@ -320,7 +320,7 @@ QWidget* RicercaPage::buildAstraleTab()
         interpLay->addWidget(aBar);
     }
     interpLay->addWidget(m_astraleOutput, 1);
-    bottomTabs->addTab(interpTab, "\xe2\xad\x90  Interpretazione");
+    bottomTabs->addTab(interpTab, tr("\xe2\xad\x90  Interpretazione"));
 
     /* Tab 1 — Guida Astrologica */
     auto* guideTab    = new QWidget;
@@ -373,7 +373,7 @@ QWidget* RicercaPage::buildAstraleTab()
     guideSplit->setStretchFactor(0, 1);
     guideSplit->setStretchFactor(1, 1);
     guideRootLay->addWidget(guideSplit, 1);
-    bottomTabs->addTab(guideTab, "\xe2\xad\x90  Guida Astrologica");
+    bottomTabs->addTab(guideTab, tr("\xe2\xad\x90  Guida Astrologica"));
 
     /* Tab 2 — Ruota Karmica */
     auto* karmTab = new QWidget;
@@ -391,9 +391,9 @@ QWidget* RicercaPage::buildAstraleTab()
         auto* kBarLay = new QHBoxLayout(kBar);
         kBarLay->setContentsMargins(0, 2, 0, 2);
         kBarLay->setSpacing(6);
-        auto* btnMdK  = new QPushButton("\xf0\x9f\x92\xbe  Salva .md");
-        auto* btnPdfK = new QPushButton("\xf0\x9f\x96\xa8  Esporta PDF");
-        auto* btnClrK = new QPushButton("\xf0\x9f\x97\x91  Svuota");
+        auto* btnMdK  = new QPushButton(tr("\xf0\x9f\x92\xbe  Salva .md"));
+        auto* btnPdfK = new QPushButton(tr("\xf0\x9f\x96\xa8  Esporta PDF"));
+        auto* btnClrK = new QPushButton(tr("\xf0\x9f\x97\x91  Svuota"));
         btnMdK->setObjectName("actionBtn");
         btnMdK->setToolTip(tr("Salva l'analisi karmica in formato Markdown"));
         btnPdfK->setObjectName("actionBtn");
@@ -410,7 +410,7 @@ QWidget* RicercaPage::buildAstraleTab()
         karmLay->addWidget(kBar);
     }
     karmLay->addWidget(m_karmicaOutput, 1);
-    bottomTabs->addTab(karmTab, "\xf0\x9f\x94\xae  Ruota Karmica");
+    bottomTabs->addTab(karmTab, tr("\xf0\x9f\x94\xae  Ruota Karmica"));
 
     vSplit->addWidget(bottomTabs);
     vSplit->setStretchFactor(0, 3);
@@ -1089,7 +1089,7 @@ void RicercaPage::onSalvaChartPng()
     /* grab() cattura il widget al suo size corrente; scala a 2× per qualità */
     const QPixmap pix = m_natalChart->grab();
     if (pix.isNull()) {
-        QMessageBox::warning(this, "Errore",
+        QMessageBox::warning(this, tr("Errore"),
             "\xe2\x9a\xa0  La ruota non contiene dati.\n"
             "Compila prima i dati natali e clicca \xf0\x9f\x94\xae Compila Ruota Karmica.");
         return;
@@ -1101,10 +1101,10 @@ void RicercaPage::onSalvaChartPng()
         Qt::SmoothTransformation);
 
     if (hires.save(path, "PNG")) {
-        QMessageBox::information(this, "Salvato",
+        QMessageBox::information(this, tr("Salvato"),
             "\xe2\x9c\x85  Ruota astrale salvata:\n" + path);
     } else {
-        QMessageBox::warning(this, "Errore",
+        QMessageBox::warning(this, tr("Errore"),
             "\xe2\x9d\x8c  Impossibile salvare il file:\n" + path);
     }
 }

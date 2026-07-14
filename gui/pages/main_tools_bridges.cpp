@@ -45,20 +45,20 @@ QWidget* StrumentiPage::buildBlenderRow()
     lay->setContentsMargins(0, 4, 0, 0);
     lay->setSpacing(8);
 
-    auto* lbl = new QLabel("Blender:", row);
+    auto* lbl = new QLabel(tr("Blender:"), row);
     lbl->setObjectName("hintLabel");
 
     m_blenderHostEdit = new QLineEdit("localhost:6789", row);
     m_blenderHostEdit->setFixedWidth(dpiScale(160));
     m_blenderHostEdit->setPlaceholderText(tr("localhost:6789"));
 
-    auto* blenderPingBtn = new QPushButton("\xf0\x9f\x94\x97  Verifica", row);
+    auto* blenderPingBtn = new QPushButton(tr("\xf0\x9f\x94\x97  Verifica"), row);
     blenderPingBtn->setObjectName("actionBtn");
     blenderPingBtn->setToolTip(
         "Testa la connessione TCP al bridge Blender (porta 9001 default)");
     blenderPingBtn->setFixedWidth(dpiScale(100));
 
-    m_blenderStatusLbl = new QLabel("\xe2\x9a\xaa  Non connesso", row);
+    m_blenderStatusLbl = new QLabel(tr("\xe2\x9a\xaa  Non connesso"), row);
     m_blenderStatusLbl->setObjectName("hintLabel");
 
     m_blenderExecBtn = new QPushButton(
@@ -130,19 +130,19 @@ QWidget* StrumentiPage::buildOfficeRow()
     lay->setContentsMargins(0, 4, 0, 0);
     lay->setSpacing(8);
 
-    auto* lbl = new QLabel("Office:", row);
+    auto* lbl = new QLabel(tr("Office:"), row);
     lbl->setObjectName("hintLabel");
 
-    m_officeStartBtn = new QPushButton("\xe2\x96\xb6  Avvia bridge", row);
+    m_officeStartBtn = new QPushButton(tr("\xe2\x96\xb6  Avvia bridge"), row);
     m_officeStartBtn->setObjectName("actionBtn");
     m_officeStartBtn->setToolTip(
         "Avvia il bridge Python che si connette a LibreOffice via UNO API");
     m_officeStartBtn->setFixedWidth(dpiScale(120));
 
-    m_officeStatusLbl = new QLabel("\xe2\x9a\xaa  Bridge non avviato", row);
+    m_officeStatusLbl = new QLabel(tr("\xe2\x9a\xaa  Bridge non avviato"), row);
     m_officeStatusLbl->setObjectName("hintLabel");
 
-    m_officeExecBtn = new QPushButton("\xf0\x9f\x96\xa5  Esegui in Office", row);
+    m_officeExecBtn = new QPushButton(tr("\xf0\x9f\x96\xa5  Esegui in Office"), row);
     m_officeExecBtn->setObjectName("actionBtn");
     m_officeExecBtn->setToolTip(
         "Invia il codice Python UNO generato a LibreOffice tramite bridge");
@@ -208,20 +208,20 @@ QWidget* StrumentiPage::buildFreecadRow()
     lay->setContentsMargins(0, 4, 0, 0);
     lay->setSpacing(8);
 
-    auto* lbl = new QLabel("FreeCAD:", row);
+    auto* lbl = new QLabel(tr("FreeCAD:"), row);
     lbl->setObjectName("hintLabel");
 
     m_freecadHostEdit = new QLineEdit("localhost:9876", row);
     m_freecadHostEdit->setFixedWidth(dpiScale(160));
     m_freecadHostEdit->setPlaceholderText(tr("localhost:9876"));
 
-    auto* freecadPingBtn = new QPushButton("\xf0\x9f\x94\x97  Verifica", row);
+    auto* freecadPingBtn = new QPushButton(tr("\xf0\x9f\x94\x97  Verifica"), row);
     freecadPingBtn->setObjectName("actionBtn");
     freecadPingBtn->setToolTip(
         "Testa la connessione TCP al bridge FreeCAD (porta 9876 default)");
     freecadPingBtn->setFixedWidth(dpiScale(100));
 
-    m_freecadStatusLbl = new QLabel("\xe2\x9a\xaa  Non connesso", row);
+    m_freecadStatusLbl = new QLabel(tr("\xe2\x9a\xaa  Non connesso"), row);
     m_freecadStatusLbl->setObjectName("hintLabel");
 
     m_freecadExecBtn = new QPushButton(
@@ -292,7 +292,7 @@ QWidget* StrumentiPage::buildSketchRow()
     lay->setContentsMargins(0, 4, 0, 4);
     lay->setSpacing(8);
 
-    auto* iconLbl = new QLabel("\xf0\x9f\x8f\x97  Disegno:", row);
+    auto* iconLbl = new QLabel(tr("\xf0\x9f\x8f\x97  Disegno:"), row);
     iconLbl->setObjectName("hintLabel");
     lay->addWidget(iconLbl);
 
@@ -302,7 +302,7 @@ QWidget* StrumentiPage::buildSketchRow()
     sketchFileBtn->setFixedWidth(dpiScale(190));
     lay->addWidget(sketchFileBtn);
 
-    m_sketchFileLbl = new QLabel("Nessun file", row);
+    m_sketchFileLbl = new QLabel(tr("Nessun file"), row);
     m_sketchFileLbl->setObjectName("hintLabel");
     lay->addWidget(m_sketchFileLbl);
 
@@ -420,7 +420,7 @@ void StrumentiPage::onBlenderHelpBtnClicked()
         "<hr>"
         "<p>\xe2\x9c\x85 Una volta connesso, i pulsanti <b>Esegui in Blender</b>"
         " inviano il codice bpy generato dall&apos;AI direttamente a Blender.</p>");
-    auto* btnClose = new QPushButton("\xe2\x9c\x95  Chiudi", dlg);
+    auto* btnClose = new QPushButton(tr("\xe2\x9c\x95  Chiudi"), dlg);
     btnClose->setObjectName("actionBtn");
     connect(btnClose, &QPushButton::clicked, dlg, &QDialog::accept);
     dlay->addWidget(browser);
@@ -450,9 +450,9 @@ void StrumentiPage::onBlenderPingReplyFinished()
     if (reply->error() == QNetworkReply::NoError) {
         QJsonObject obj = QJsonDocument::fromJson(reply->readAll()).object();
         QString ver = obj.value("blender").toString("?");
-        m_blenderStatusLbl->setText("\xe2\x9c\x85  Blender " + ver + " connesso");
+        m_blenderStatusLbl->setText(tr("\xe2\x9c\x85  Blender ") + ver + " connesso");
     } else {
-        m_blenderStatusLbl->setText("\xe2\x9d\x8c  " + reply->errorString());
+        m_blenderStatusLbl->setText(tr("\xe2\x9d\x8c  ") + reply->errorString());
         LogBus::post("\xe2\x9d\x8c Strumenti: Blender ping errore: " + reply->errorString());
     }
 }
@@ -500,7 +500,7 @@ void StrumentiPage::onBlenderExecReplyFinished()
             LogBus::post("\xe2\x9d\x8c Strumenti: Blender errore: " + res["error"].toString());
         }
     } else {
-        m_blenderStatusLbl->setText("\xe2\x9d\x8c  " + reply->errorString());
+        m_blenderStatusLbl->setText(tr("\xe2\x9d\x8c  ") + reply->errorString());
         m_output->append("\n\xe2\x9d\x8c  Connessione a Blender fallita: " + reply->errorString());
         LogBus::post("\xe2\x9d\x8c Strumenti: Connessione a Blender fallita: " + reply->errorString());
     }
@@ -554,7 +554,7 @@ void StrumentiPage::onOfficeHelpBtnClicked()
         "<hr>"
         "<p>\xf0\x9f\x92\xa1 <b>Consiglio</b>: per uso locale usa <b>LibreOffice</b> "
         "(gratuito, bridge immediato). Per collaborazione cloud usa <b>Microsoft 365 MCP</b>.</p>");
-    auto* btnClose = new QPushButton("\xe2\x9c\x95  Chiudi", dlg);
+    auto* btnClose = new QPushButton(tr("\xe2\x9c\x95  Chiudi"), dlg);
     btnClose->setObjectName("actionBtn");
     connect(btnClose, &QPushButton::clicked, dlg, &QDialog::accept);
     dlay->addWidget(browser);
@@ -732,7 +732,7 @@ void StrumentiPage::onFreecadHelpBtnClicked()
         " per generare ed eseguire codice Python direttamente in FreeCAD.</p>"
         "<p>\xf0\x9f\x8f\x97 Usa anche il pannello <b>Disegno \xe2\x86\x92 Modello 3D</b>"
         " per generare modelli da schizzi o PDF con dimensioni.</p>");
-    auto* btnClose = new QPushButton("\xe2\x9c\x95  Chiudi", dlg);
+    auto* btnClose = new QPushButton(tr("\xe2\x9c\x95  Chiudi"), dlg);
     btnClose->setObjectName("actionBtn");
     connect(btnClose, &QPushButton::clicked, dlg, &QDialog::accept);
     dlay->addWidget(browser);
@@ -777,7 +777,7 @@ void StrumentiPage::onFreecadSockConnected()
 void StrumentiPage::onFreecadSockError(QAbstractSocket::SocketError)
 {
     if (!m_freecadPingSock) return;
-    m_freecadStatusLbl->setText("\xe2\x9d\x8c  " + m_freecadPingSock->errorString());
+    m_freecadStatusLbl->setText(tr("\xe2\x9d\x8c  ") + m_freecadPingSock->errorString());
     LogBus::post("\xe2\x9d\x8c Strumenti: FreeCAD errore socket: " + m_freecadPingSock->errorString());
     m_freecadPingSock->deleteLater();
 }
@@ -854,7 +854,7 @@ void StrumentiPage::onFreecadExecSockReadyRead()
         m_output->append("\n\xe2\x9c\x85  FreeCAD: " + (out.isEmpty() ? "OK" : out));
     } else {
         const QString err = res["message"].toString();
-        m_freecadStatusLbl->setText("\xe2\x9d\x8c  " + err);
+        m_freecadStatusLbl->setText(tr("\xe2\x9d\x8c  ") + err);
         m_output->moveCursor(QTextCursor::End);
         m_output->append("\n\xe2\x9d\x8c  FreeCAD errore: " + err);
         LogBus::post("\xe2\x9d\x8c Strumenti: FreeCAD errore: " + err);
@@ -864,7 +864,7 @@ void StrumentiPage::onFreecadExecSockReadyRead()
 void StrumentiPage::onFreecadExecSockError(QAbstractSocket::SocketError)
 {
     if (!m_freecadExecSock) return;
-    m_freecadStatusLbl->setText("\xe2\x9d\x8c  " + m_freecadExecSock->errorString());
+    m_freecadStatusLbl->setText(tr("\xe2\x9d\x8c  ") + m_freecadExecSock->errorString());
     LogBus::post("\xe2\x9d\x8c Strumenti: FreeCAD errore exec socket: " + m_freecadExecSock->errorString());
     m_freecadExecBtn->setEnabled(true);
     m_freecadExecSock->deleteLater();

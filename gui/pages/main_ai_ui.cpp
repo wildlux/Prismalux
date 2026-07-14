@@ -130,14 +130,14 @@ void AgentiPage::buildToolbarTtsSection(QHBoxLayout* toolLay, QWidget* toolbar)
     m_waitLbl->setVisible(false);
     toolLay->addWidget(m_waitLbl, 1);
 
-    m_btnTtsStop = new QPushButton("\xe2\x8f\xb9 Ferma lettura", toolbar);
+    m_btnTtsStop = new QPushButton(tr("\xe2\x8f\xb9 Ferma lettura"), toolbar);
     m_btnTtsStop->setObjectName("actionBtn");
     m_btnTtsStop->setToolTip(tr("Interrompi la lettura vocale"));
     m_btnTtsStop->setVisible(false);
     toolLay->addWidget(m_btnTtsStop);
     connect(m_btnTtsStop, &QPushButton::clicked, this, &AgentiPage::onTtsStopClicked);
 
-    m_btnTtsPause = new QPushButton("\xe2\x8f\xb8  Pausa", toolbar);
+    m_btnTtsPause = new QPushButton(tr("\xe2\x8f\xb8  Pausa"), toolbar);
     m_btnTtsPause->setObjectName("actionBtn");
     m_btnTtsPause->setToolTip(tr("Metti in pausa / riprendi la lettura vocale"));
     m_btnTtsPause->setVisible(false);
@@ -228,21 +228,21 @@ void AgentiPage::buildToolbarModeToggle(QHBoxLayout* /*toolLay*/, QWidget* /*too
 /* ── Selettore LLM nella toolbar ── */
 void AgentiPage::buildToolbarLLMSelector(QHBoxLayout* toolLay, QWidget* toolbar)
 {
-    auto* llmLbl = new QPushButton("LLM:", toolbar);
+    auto* llmLbl = new QPushButton(tr("LLM:"), toolbar);
     llmLbl->setFlat(true);
     llmLbl->setCursor(Qt::PointingHandCursor);
     llmLbl->setObjectName("cardDesc");
     llmLbl->setStyleSheet(
         "QPushButton{border:none;padding:0 2px;text-decoration:underline;}"
         "QPushButton:hover{color:#60a5fa;}");
-    llmLbl->setToolTip("Clicca per eseguire 'ollama list' e aggiornare i modelli");
+    llmLbl->setToolTip(tr("Clicca per eseguire 'ollama list' e aggiornare i modelli"));
 
     m_cmbLLM = new QComboBox(toolbar);
     m_cmbLLM->setObjectName("settingsCombo");
     m_cmbLLM->setMinimumWidth(dpiScale(240));
     m_cmbLLM->setSizeAdjustPolicy(QComboBox::AdjustToContents);
     m_cmbLLM->setToolTip(tr("Seleziona il modello AI da usare."));
-    m_cmbLLM->setAccessibleName("Selettore modello AI");
+    m_cmbLLM->setAccessibleName(tr("Selettore modello AI"));
     m_cmbLLM->addItem("(caricamento...)");
     toolLay->addWidget(llmLbl);
     toolLay->addWidget(m_cmbLLM);
@@ -274,7 +274,7 @@ void AgentiPage::buildToolbarLLMSelector(QHBoxLayout* toolLay, QWidget* toolbar)
         const QString err = QString::fromLocal8Bit(proc.readAllStandardError()).trimmed();
 
         auto* dlg = new QDialog(toolbar->window());
-        dlg->setWindowTitle("\xf0\x9f\xa6\x99  ollama list");
+        dlg->setWindowTitle(tr("\xf0\x9f\xa6\x99  ollama list"));
         dlg->setAttribute(Qt::WA_DeleteOnClose);
         dlg->resize(dpiScale(620), dpiScale(280));
         auto* lay = new QVBoxLayout(dlg);
@@ -287,7 +287,7 @@ void AgentiPage::buildToolbarLLMSelector(QHBoxLayout* toolLay, QWidget* toolbar)
         lay->addWidget(view);
         auto* bb = new QDialogButtonBox(QDialogButtonBox::Close, dlg);
         connect(bb, &QDialogButtonBox::rejected, dlg, &QDialog::close);
-        auto* refreshBtn = bb->addButton("Aggiorna combo", QDialogButtonBox::ActionRole);
+        auto* refreshBtn = bb->addButton(tr("Aggiorna combo"), QDialogButtonBox::ActionRole);
         refreshBtn->setObjectName("actionBtn");
         connect(refreshBtn, &QPushButton::clicked, this, [this, dlg] {
             m_ai->invalidateModelCache();
@@ -306,7 +306,7 @@ void AgentiPage::buildToolbarLLMSelector(QHBoxLayout* toolLay, QWidget* toolbar)
 
     /* Pulsante "🔄 Rigenera con [modello]" — appare quando il modello cambia
        con la chat non vuota, per permettere di rilanciare l'ultimo task col nuovo LLM. */
-    m_btnRegen = new QPushButton("\xf0\x9f\x94\x84 Rigenera", toolbar);
+    m_btnRegen = new QPushButton(tr("\xf0\x9f\x94\x84 Rigenera"), toolbar);
     m_btnRegen->setObjectName("actionBtn");
     m_btnRegen->setToolTip(
         "Reinvia l'ultimo messaggio utente con il modello appena selezionato");
@@ -377,7 +377,7 @@ void AgentiPage::buildChartPanel(QVBoxLayout* lay)
     cpLbl->setTextFormat(Qt::RichText);
     cpHL->addWidget(cpLbl, 1);
 
-    m_btnChartOpen = new QPushButton("\xf0\x9f\x93\x88  Apri nel Grafico", m_chartPanel);
+    m_btnChartOpen = new QPushButton(tr("\xf0\x9f\x93\x88  Apri nel Grafico"), m_chartPanel);
     m_btnChartOpen->setObjectName("actionBtn");
     m_btnChartOpen->setToolTip(tr("Apri nella sezione Grafico per zoom, export e personalizzazione"));
     connect(m_btnChartOpen, &QPushButton::clicked, this, &AgentiPage::onBtnChartOpenClicked);
@@ -429,7 +429,7 @@ void AgentiPage::buildInputTextField(QGridLayout* inputGrid, QWidget* inputArea)
     m_input->setAcceptRichText(true);
     m_input->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     m_input->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    m_input->setAccessibleName("Campo messaggio chat");
+    m_input->setAccessibleName(tr("Campo messaggio chat"));
     m_input->setAccessibleDescription(
         "Scrivi qui il messaggio da inviare all'AI. Premi Ctrl+Invio per inviare.");
     inputGrid->addWidget(m_input, 0, 0, 3, 1);
@@ -446,34 +446,34 @@ QPushButton* AgentiPage::buildInputActionButtons(QGridLayout* inputGrid, QWidget
         btn->setProperty("execText", QString::fromUtf8(text));
     };
 
-    m_btnRun = new QPushButton("\xf0\x9f\x93\xa4 Invia", inputArea);
+    m_btnRun = new QPushButton(tr("\xf0\x9f\x93\xa4 Invia"), inputArea);
     m_btnRun->setObjectName("actionBtn");
     m_btnRun->setProperty("bigBtn", "true");
     m_btnRun->setVisible(false);   /* hub ovale TriModeButton è l'azione visiva */
     m_btnRun->setToolTip(
         "Risposta immediata con contesto RAG \xe2\x80\x94 1 solo agente (Invio)\n"
         "Stop da fermo \xe2\x86\x92 cambia modalit\xc3\xa0 (Invia \xe2\x86\x94 Avvia)");
-    m_btnRun->setAccessibleName("Avvia o ferma la risposta AI");
+    m_btnRun->setAccessibleName(tr("Avvia o ferma la risposta AI"));
     tagExec(m_btnRun, "\xf0\x9f\x93\xa4", "Invia");
 
-    m_btnVoice = new QPushButton("\xf0\x9f\x8e\xa4 Trascrivi parlato", inputArea);
+    m_btnVoice = new QPushButton(tr("\xf0\x9f\x8e\xa4 Trascrivi parlato"), inputArea);
     m_btnVoice->setObjectName("actionBtn");
     m_btnVoice->setToolTip(tr("Parla — trascrivi la voce nel campo di testo (whisper.cpp)"));
-    m_btnVoice->setAccessibleName("Trascrivi voce in testo");
+    m_btnVoice->setAccessibleName(tr("Trascrivi voce in testo"));
     tagExec(m_btnVoice, "\xf0\x9f\x8e\xa4", "Trascrivi parlato");
 
-    auto* btnSymbols = new QPushButton("\xce\xa9  Simboli", inputArea);
+    auto* btnSymbols = new QPushButton(tr("\xce\xa9  Simboli"), inputArea);
     btnSymbols->setObjectName("actionBtn");
     btnSymbols->setToolTip(tr("Inserisci caratteri speciali: matematica, greco, lingue"));
-    btnSymbols->setAccessibleName("Inserisci simbolo speciale");
+    btnSymbols->setAccessibleName(tr("Inserisci simbolo speciale"));
 
-    m_btnDoc = new QPushButton("\xf0\x9f\x93\x8e  Allega file", inputArea);
+    m_btnDoc = new QPushButton(tr("\xf0\x9f\x93\x8e  Allega file"), inputArea);
     m_btnDoc->setObjectName("actionBtn");
     m_btnDoc->setToolTip(tr(
         "Allega un file alla chat.\n"
         "Documenti: .txt .md .csv .json .py .cpp .h .pdf .xls\n"
         "Immagini:  .png .jpg .jpeg .gif .webp (richiede modello vision)"));
-    m_btnDoc->setAccessibleName("Allega file al messaggio");
+    m_btnDoc->setAccessibleName(tr("Allega file al messaggio"));
     tagExec(m_btnDoc, "\xf0\x9f\x93\x8e", "Allega file");
 
     /* Col 2 r0: Allega file  r1: Simboli  r2: Trascrivi parlato (m_btnRun nascosto) */
@@ -489,14 +489,14 @@ void AgentiPage::buildInputRagToggle(QGridLayout* inputGrid, QWidget* inputArea)
 {
     m_modeBtn = new TriModeButton(inputArea);
     inputGrid->addWidget(m_modeBtn, 0, 1, 3, 1);   /* col 1, rowspan 3 */
-    m_modeBtn->setActionText("\xf0\x9f\x93\xa4 Invia");
+    m_modeBtn->setActionText(tr("\xf0\x9f\x93\xa4 Invia"));
     connect(m_modeBtn, &TriModeButton::modeChanged,   this, &AgentiPage::onModeBtnChanged);
     connect(m_modeBtn, &TriModeButton::actionClicked, this, &AgentiPage::onBtnRunClicked);
 
     /* Col 3: ⚡ Tool Veloci (r0) · 🔌 Tool Lenti (r1) · Memoria (r2) */
     inputGrid->setColumnStretch(3, 0);
 
-    m_btnToolsToggle = new QPushButton("\xe2\x9a\xa1  Tool Veloci", inputArea);
+    m_btnToolsToggle = new QPushButton(tr("\xe2\x9a\xa1  Tool Veloci"), inputArea);
     m_btnToolsToggle->setCheckable(true);
     m_btnToolsToggle->setObjectName("actionBtn");
     m_btnToolsToggle->setToolTip(
@@ -507,7 +507,7 @@ void AgentiPage::buildInputRagToggle(QGridLayout* inputGrid, QWidget* inputArea)
     connect(m_btnToolsToggle, &QPushButton::toggled,
             this, &AgentiPage::onToolsPanelToggle);
 
-    m_btnMcpToggle = new QPushButton("\xf0\x9f\x94\x8c  Tool Lenti (MCP)", inputArea);
+    m_btnMcpToggle = new QPushButton(tr("\xf0\x9f\x94\x8c  Tool Lenti (MCP)"), inputArea);
     m_btnMcpToggle->setCheckable(true);
     m_btnMcpToggle->setObjectName("actionBtn");
     m_btnMcpToggle->setToolTip(
@@ -524,7 +524,7 @@ void AgentiPage::buildInputRagToggle(QGridLayout* inputGrid, QWidget* inputArea)
     hermesCellLay->setContentsMargins(0, 0, 0, 0);
     hermesCellLay->setSpacing(2);
 
-    m_hermesToggleBar = new QPushButton("\xf0\x9f\xa7\xa0  Memoria persistente", hermesCell);
+    m_hermesToggleBar = new QPushButton(tr("\xf0\x9f\xa7\xa0  Memoria persistente"), hermesCell);
     m_hermesToggleBar->setCheckable(true);
     m_hermesToggleBar->setObjectName("actionBtn");
     m_hermesToggleBar->setToolTip(
@@ -688,7 +688,7 @@ void AgentiPage::buildRagPanel(QVBoxLayout* lay)
     m_ragUrlLine->setClearButtonEnabled(true);
     row3Lay->addWidget(m_ragUrlLine, 1);
 
-    auto* btnAddUrl = new QPushButton("\xe2\x9e\x95  Aggiungi URL", row3);  /* ➕ */
+    auto* btnAddUrl = new QPushButton(tr("\xe2\x9e\x95  Aggiungi URL"), row3);  /* ➕ */
     btnAddUrl->setObjectName("footerHints");
     row3Lay->addWidget(btnAddUrl);
 

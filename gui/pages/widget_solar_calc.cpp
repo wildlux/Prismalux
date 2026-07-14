@@ -274,7 +274,7 @@ SolarCalcWidget::SolarCalcWidget(QWidget* parent)
     /* PWM e MPPT affiancati dentro regBox */
     auto* regCompRow = new QHBoxLayout;
 
-    auto* pwmGroup = new QGroupBox("\xe2\x9a\xa1  PWM", regBox);
+    auto* pwmGroup = new QGroupBox(tr("\xe2\x9a\xa1  PWM"), regBox);
     auto* pwmFrm   = new QFormLayout(pwmGroup);
     pwmFrm->setSpacing(5);
     auto* pwmDesc = new QLabel(
@@ -302,7 +302,7 @@ SolarCalcWidget::SolarCalcWidget(QWidget* parent)
     pwmFrm->addRow(pwmNote);
     regCompRow->addWidget(pwmGroup);
 
-    auto* mpptGroup = new QGroupBox("\xf0\x9f\x9a\x80  MPPT", regBox);
+    auto* mpptGroup = new QGroupBox(tr("\xf0\x9f\x9a\x80  MPPT"), regBox);
     auto* mpptFrm   = new QFormLayout(mpptGroup);
     mpptFrm->setSpacing(5);
     auto* mpptDesc = new QLabel(
@@ -381,9 +381,9 @@ SolarCalcWidget::SolarCalcWidget(QWidget* parent)
     loadLay->setSpacing(6);
 
     auto* loadBtnRow = new QHBoxLayout;
-    auto* addBtn    = new QPushButton("\xe2\x9e\x95  Aggiungi", loadBox);
-    auto* remBtn    = new QPushButton("\xe2\x9e\x96  Rimuovi",  loadBox);
-    auto* presetBtn = new QPushButton("\xf0\x9f\x93\x8b  Preset", loadBox);
+    auto* addBtn    = new QPushButton(tr("\xe2\x9e\x95  Aggiungi"), loadBox);
+    auto* remBtn    = new QPushButton(tr("\xe2\x9e\x96  Rimuovi"),  loadBox);
+    auto* presetBtn = new QPushButton(tr("\xf0\x9f\x93\x8b  Preset"), loadBox);
     addBtn->setObjectName("actionBtn");
     presetBtn->setObjectName("actionBtn");
     loadBtnRow->addWidget(addBtn);
@@ -463,7 +463,7 @@ SolarCalcWidget::SolarCalcWidget(QWidget* parent)
     /* confronto PWM vs MPPT — 2 colonne dentro il groupbox Risultati */
     auto* cmpRow = new QHBoxLayout;
 
-    auto* pwmResGroup = new QGroupBox("\xe2\x9a\xa1  Regolatore PWM", m_resBox);
+    auto* pwmResGroup = new QGroupBox(tr("\xe2\x9a\xa1  Regolatore PWM"), m_resBox);
     auto* pwmResLay   = new QVBoxLayout(pwmResGroup);
     m_pwmIregLbl   = new QLabel("\xe2\x80\x94", pwmResGroup);
     m_pwmTagliaLbl = new QLabel("\xe2\x80\x94", pwmResGroup);
@@ -476,7 +476,7 @@ SolarCalcWidget::SolarCalcWidget(QWidget* parent)
     pwmResLay->addStretch();
     cmpRow->addWidget(pwmResGroup);
 
-    auto* mpptResGroup = new QGroupBox("\xf0\x9f\x9a\x80  Regolatore MPPT", m_resBox);
+    auto* mpptResGroup = new QGroupBox(tr("\xf0\x9f\x9a\x80  Regolatore MPPT"), m_resBox);
     auto* mpptResLay   = new QVBoxLayout(mpptResGroup);
     m_mpptIoutLbl   = new QLabel("\xe2\x80\x94", mpptResGroup);
     m_mpptTagliaLbl = new QLabel("\xe2\x80\x94", mpptResGroup);
@@ -496,7 +496,7 @@ SolarCalcWidget::SolarCalcWidget(QWidget* parent)
     resLay->addWidget(m_resDetail);
 
     auto* copyRow = new QHBoxLayout;
-    m_copyBtn = new QPushButton("\xf0\x9f\x93\x8b  Copia risultati", m_resBox);
+    m_copyBtn = new QPushButton(tr("\xf0\x9f\x93\x8b  Copia risultati"), m_resBox);
     copyRow->addWidget(m_copyBtn);
     copyRow->addStretch();
     resLay->addLayout(copyRow);
@@ -869,7 +869,7 @@ void SolarCalcWidget::onCalcolaClicked()
 void SolarCalcWidget::onCopyClicked()
 {
     QApplication::clipboard()->setText(m_resDetail->toPlainText());
-    m_copyBtn->setText("\xe2\x9c\x85  Copiato!");
+    m_copyBtn->setText(tr("\xe2\x9c\x85  Copiato!"));
     QTimer::singleShot(2000, m_copyBtn,
-        [this]{ if (m_copyBtn) m_copyBtn->setText("\xf0\x9f\x93\x8b  Copia risultati"); });
+        [this]{ if (m_copyBtn) m_copyBtn->setText(tr("\xf0\x9f\x93\x8b  Copia risultati")); });
 }

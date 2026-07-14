@@ -78,11 +78,11 @@ QWidget* ProgrammazionePage::buildRevFileRow(QWidget* parent)
     fileLay->setContentsMargins(0, 0, 0, 0);
     fileLay->setSpacing(8);
 
-    auto* btnLoad = new QPushButton("\xf0\x9f\x93\x82  Carica file...", fileRow);
+    auto* btnLoad = new QPushButton(tr("\xf0\x9f\x93\x82  Carica file..."), fileRow);
     btnLoad->setObjectName("actionBtn");
     fileLay->addWidget(btnLoad);
 
-    m_revFilePath = new QLabel("(nessun file caricato)", fileRow);
+    m_revFilePath = new QLabel(tr("(nessun file caricato)"), fileRow);
     m_revFilePath->setObjectName("hintLabel");
     fileLay->addWidget(m_revFilePath, 1);
 
@@ -102,7 +102,7 @@ QWidget* ProgrammazionePage::buildRevOptionsRow(QWidget* parent,
     optLay->setContentsMargins(0, 0, 0, 0);
     optLay->setSpacing(8);
 
-    optLay->addWidget(new QLabel("Linguaggio target:", optRow));
+    optLay->addWidget(new QLabel(tr("Linguaggio target:"), optRow));
     m_revTargetLang = new QComboBox(optRow);
     m_revTargetLang->setObjectName("settingCombo");
     m_revTargetLang->addItems({"Auto-rileva", "C", "C++", "Python",
@@ -111,7 +111,7 @@ QWidget* ProgrammazionePage::buildRevOptionsRow(QWidget* parent,
     optLay->addWidget(m_revTargetLang);
 
     optLay->addSpacing(8);
-    optLay->addWidget(new QLabel("Dettaglio:", optRow));
+    optLay->addWidget(new QLabel(tr("Dettaglio:"), optRow));
     m_revDetail = new QComboBox(optRow);
     m_revDetail->setObjectName("settingCombo");
     m_revDetail->addItem("Struttura (rapido)",  QString("fast"));
@@ -130,7 +130,7 @@ QWidget* ProgrammazionePage::buildRevOptionsRow(QWidget* parent,
     m_btnRevAnalyze->setToolTip(tr("Invia il file all'AI per la ricostruzione del sorgente"));
     optLay->addWidget(m_btnRevAnalyze);
 
-    m_btnRevStop = new QPushButton("\xe2\x96\xa0  Stop", optRow);
+    m_btnRevStop = new QPushButton(tr("\xe2\x96\xa0  Stop"), optRow);
     m_btnRevStop->setObjectName("actionBtn");
     m_btnRevStop->setProperty("danger", "true");
     m_btnRevStop->setEnabled(false);
@@ -149,7 +149,7 @@ QWidget* ProgrammazionePage::buildRevOptionsRow(QWidget* parent,
     modelLay->setContentsMargins(0, 0, 0, 0);
     modelLay->setSpacing(8);
 
-    auto* lblMod = new QLabel("\xf0\x9f\xa4\x96  Modello AI:", modelRow);
+    auto* lblMod = new QLabel(tr("\xf0\x9f\xa4\x96  Modello AI:"), modelRow);
     lblMod->setObjectName("cardDesc");
     modelLay->addWidget(lblMod);
 

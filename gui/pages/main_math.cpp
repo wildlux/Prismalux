@@ -63,7 +63,7 @@ MatematicaPage::MatematicaPage(AiClient* ai, QWidget* parent)
     modelBarLay->setContentsMargins(12, 6, 12, 6);
     modelBarLay->setSpacing(8);
 
-    auto* modelLbl = new QLabel("\xf0\x9f\xa4\x96  Modello AI:", modelBar);  /* 🤖 */
+    auto* modelLbl = new QLabel(tr("\xf0\x9f\xa4\x96  Modello AI:"), modelBar);  /* 🤖 */
     modelLbl->setObjectName("cardDesc");
     modelBarLay->addWidget(modelLbl);
 
@@ -126,24 +126,24 @@ MatematicaPage::MatematicaPage(AiClient* ai, QWidget* parent)
 
     /* Barra stato + pulsanti */
     auto* ctrlRow = new QHBoxLayout;
-    m_status = new QLabel("\xf0\x9f\x93\x90  Pronto.", outBox);
+    m_status = new QLabel(tr("\xf0\x9f\x93\x90  Pronto."), outBox);
     m_status->setObjectName("statusLabel");
     ctrlRow->addWidget(m_status, 1);
 
-    auto* btnCopy = new QPushButton("\xf0\x9f\x93\x8b  Copia", outBox);
+    auto* btnCopy = new QPushButton(tr("\xf0\x9f\x93\x8b  Copia"), outBox);
     btnCopy->setObjectName("actionBtn");
     btnCopy->setFixedHeight(dpiScale(26));
     btnCopy->setToolTip(tr("Copia tutto l'output negli appunti"));
     connect(btnCopy, &QPushButton::clicked, this, &MatematicaPage::onCopyClicked);
     ctrlRow->addWidget(btnCopy);
 
-    auto* btnClear = new QPushButton("\xf0\x9f\x97\x91  Cancella", outBox);
+    auto* btnClear = new QPushButton(tr("\xf0\x9f\x97\x91  Cancella"), outBox);
     btnClear->setObjectName("actionBtn");
     btnClear->setFixedHeight(dpiScale(26));
     connect(btnClear, &QPushButton::clicked, this, &MatematicaPage::onClearOutputClicked);
     ctrlRow->addWidget(btnClear);
 
-    auto* btnStop = new QPushButton("\xe2\x96\xa0  Stop", outBox);
+    auto* btnStop = new QPushButton(tr("\xe2\x96\xa0  Stop"), outBox);
     btnStop->setObjectName("stopBtn");
     btnStop->setFixedHeight(dpiScale(26));
     btnStop->setProperty("execFull", btnStop->text());
@@ -152,7 +152,7 @@ MatematicaPage::MatematicaPage(AiClient* ai, QWidget* parent)
     connect(btnStop, &QPushButton::clicked, this, &MatematicaPage::onStopClicked);
     ctrlRow->addWidget(btnStop);
 
-    auto* btnLatex = new QPushButton("\xf0\x9f\x94\xac LaTeX", outBox);  /* 🔬 */
+    auto* btnLatex = new QPushButton(tr("\xf0\x9f\x94\xac LaTeX"), outBox);  /* 🔬 */
     btnLatex->setObjectName("navBtn");
     btnLatex->setFixedHeight(dpiScale(26));
     btnLatex->setCheckable(true);
@@ -405,7 +405,7 @@ QWidget* MatematicaPage::buildSeqTab()
     m_seqInput->setMinimumWidth(320);
     inputRow->addWidget(m_seqInput, 1);
 
-    auto* btnFile = new QPushButton("\xf0\x9f\x93\x82  Apri file", w);  /* 📂 */
+    auto* btnFile = new QPushButton(tr("\xf0\x9f\x93\x82  Apri file"), w);  /* 📂 */
     btnFile->setObjectName("actionBtn");
     btnFile->setToolTip(
         "Importa numeri da file:\n"
@@ -428,7 +428,7 @@ QWidget* MatematicaPage::buildSeqTab()
 
     /* Opzioni: termini successivi da suggerire */
     auto* optRow = new QHBoxLayout;
-    optRow->addWidget(new QLabel("Suggerisci i prossimi", w));
+    optRow->addWidget(new QLabel(tr("Suggerisci i prossimi"), w));
     m_nextTerms = new QSpinBox(w);
     m_nextTerms->setRange(1, 20);
     m_nextTerms->setValue(5);
@@ -490,7 +490,7 @@ QWidget* MatematicaPage::buildConstTab()
     auto* grid = new QGridLayout;
     grid->setSpacing(8);
 
-    grid->addWidget(new QLabel("Costante:", w), 0, 0);
+    grid->addWidget(new QLabel(tr("Costante:"), w), 0, 0);
     m_constCombo = new QComboBox(w);
     m_constCombo->addItem("\xcf\x80  pi greco",          "pi");
     m_constCombo->addItem("e  numero di Eulero",        "e");
@@ -503,7 +503,7 @@ QWidget* MatematicaPage::buildConstTab()
     m_constCombo->addItem("Catalan  costante di Catalan",   "catalan");
     grid->addWidget(m_constCombo, 0, 1);
 
-    grid->addWidget(new QLabel("Cifre decimali:", w), 1, 0);
+    grid->addWidget(new QLabel(tr("Cifre decimali:"), w), 1, 0);
     m_precSpin = new QSpinBox(w);
     m_precSpin->setRange(10, 100000);
     m_precSpin->setValue(100);
@@ -527,7 +527,7 @@ QWidget* MatematicaPage::buildConstTab()
     connect(btnCalc, &QPushButton::clicked, this, &MatematicaPage::onConstantCalcClicked);
     btnRow->addWidget(btnCalc);
 
-    auto* btnAll = new QPushButton("Tutte le costanti (100 cifre)", w);
+    auto* btnAll = new QPushButton(tr("Tutte le costanti (100 cifre)"), w);
     btnAll->setObjectName("actionBtn");
     connect(btnAll, &QPushButton::clicked, this, &MatematicaPage::onAllConstantsClicked);
     btnRow->addWidget(btnAll);
@@ -559,7 +559,7 @@ QWidget* MatematicaPage::buildNthTab()
     auto* grid = new QGridLayout;
     grid->setSpacing(8);
 
-    grid->addWidget(new QLabel("Tipo:", w), 0, 0);
+    grid->addWidget(new QLabel(tr("Tipo:"), w), 0, 0);
     m_nthType = new QComboBox(w);
     m_nthType->addItem("\xcf\x80  N-esima cifra di \xcf\x80 (da 1)",      "pi_digit");
     m_nthType->addItem("e   N-esima cifra di e (da 1)",                   "e_digit");
@@ -571,7 +571,7 @@ QWidget* MatematicaPage::buildNthTab()
     m_nthType->addItem("\xcf\x86\xe1\xb5\x8f  primi N cifre di \xcf\x86 (blocco)", "phi_block");
     grid->addWidget(m_nthType, 0, 1);
 
-    grid->addWidget(new QLabel("N =", w), 1, 0);
+    grid->addWidget(new QLabel(tr("N ="), w), 1, 0);
     m_nthInput = new QLineEdit(w);
     m_nthInput->setPlaceholderText(tr("es. 1000000  (un milione)"));
     m_nthInput->setText(tr("100"));
@@ -588,7 +588,7 @@ QWidget* MatematicaPage::buildNthTab()
     lay->addWidget(m_nthDescLbl);
 
     auto* btnRow = new QHBoxLayout;
-    auto* btnCalc = new QPushButton("\xf0\x9f\x94\x9f  Calcola", w);   /* 🔟 — FIX byte errato, vedi tab N-esimo */
+    auto* btnCalc = new QPushButton(tr("\xf0\x9f\x94\x9f  Calcola"), w);   /* 🔟 — FIX byte errato, vedi tab N-esimo */
     btnCalc->setObjectName("actionBtn");
     btnCalc->setProperty("highlight", "true");
     btnCalc->setProperty("execFull", btnCalc->text());
@@ -622,7 +622,7 @@ QWidget* MatematicaPage::buildExprTab()
     lay->addLayout(inputRow);
 
     auto* optRow = new QHBoxLayout;
-    optRow->addWidget(new QLabel("Cifre di precisione:", w));
+    optRow->addWidget(new QLabel(tr("Cifre di precisione:"), w));
     m_exprPrec = new QSpinBox(w);
     m_exprPrec->setRange(10, 10000);
     m_exprPrec->setValue(50);
@@ -632,7 +632,7 @@ QWidget* MatematicaPage::buildExprTab()
     lay->addLayout(optRow);
 
     /* Esempi rapidi */
-    auto* exGroup = new QGroupBox("Esempi rapidi", w);
+    auto* exGroup = new QGroupBox(tr("Esempi rapidi"), w);
     auto* exGrid  = new QGridLayout(exGroup);
     exGrid->setSpacing(4);
 
@@ -661,7 +661,7 @@ QWidget* MatematicaPage::buildExprTab()
     lay->addWidget(exGroup);
 
     auto* btnRow = new QHBoxLayout;
-    auto* btnEval = new QPushButton("\xf0\x9f\xa7\xae  Calcola", w);
+    auto* btnEval = new QPushButton(tr("\xf0\x9f\xa7\xae  Calcola"), w);
     btnEval->setObjectName("actionBtn");
     btnEval->setProperty("highlight", "true");
     btnEval->setToolTip(tr("Valuta l'espressione matematica (supporta frazioni, potenze, funzioni trigonometriche)"));
@@ -671,7 +671,7 @@ QWidget* MatematicaPage::buildExprTab()
     connect(btnEval, &QPushButton::clicked, this, &MatematicaPage::onExprEvalClicked);
     btnRow->addWidget(btnEval);
 
-    auto* btnSimplify = new QPushButton("\xe2\x99\xbe  Semplifica (sympy)", w);
+    auto* btnSimplify = new QPushButton(tr("\xe2\x99\xbe  Semplifica (sympy)"), w);
     btnSimplify->setObjectName("actionBtn");
     btnSimplify->setToolTip(tr("Semplifica l'espressione algebrica con SymPy (espande, fattorizza, riduce)"));
     btnSimplify->setProperty("execFull", btnSimplify->text());
@@ -750,7 +750,7 @@ void MatematicaPage::runNth()
     bool ok = false;
     const long long N = nStr.toLongLong(&ok);
     if (!ok || N < 1) {
-        setStatus("\xe2\x9d\x8c  Inserisci un numero intero positivo per N.");
+        setStatus(tr("\xe2\x9d\x8c  Inserisci un numero intero positivo per N."));
         LogBus::post("\xe2\x9d\x8c Matematica: Inserisci un numero intero positivo per N.");
         return;
     }
@@ -1023,7 +1023,7 @@ void MatematicaPage::runAiSequence(const QString& seqStr, int nextN)
     appendOutput(QString("\xf0\x9f\xa4\x96  Modello: %1\n%2\n\n")
                  .arg(modelName, QString(modelName.length() + 12, '-')));
 
-    setStatus("\xf0\x9f\xa4\x96  AI in analisi...");
+    setStatus(tr("\xf0\x9f\xa4\x96  AI in analisi..."));
 
     /* Usa holder come context per limitare la durata delle connessioni one-shot */
     delete m_aiSeqHolder;
@@ -1059,10 +1059,10 @@ void MatematicaPage::runPython(const QString& code)
                 setStatus(tr("\xe2\x9d\x8c  Python non trovato nel PATH"));
         });
 
-    setStatus("\xe2\x8f\xb3  Calcolo in corso...");
+    setStatus(tr("\xe2\x8f\xb3  Calcolo in corso..."));
     m_proc->start(P::findPython(), QStringList{"-c", code});
     if (!m_proc->waitForStarted(P::kProcessStartTimeoutMs)) {
-        setStatus("\xe2\x9d\x8c  Python non trovato nel PATH. Installa Python da python.org");
+        setStatus(tr("\xe2\x9d\x8c  Python non trovato nel PATH. Installa Python da python.org"));
         LogBus::post("\xe2\x9d\x8c Matematica: Python non trovato nel PATH.");
         m_proc->deleteLater();
         m_proc = nullptr;
@@ -1081,7 +1081,7 @@ void MatematicaPage::stopPython()
         m_proc->waitForFinished(1000);
         m_proc->deleteLater();
         m_proc = nullptr;
-        setStatus("\xe2\x96\xa0  Calcolo interrotto.");
+        setStatus(tr("\xe2\x96\xa0  Calcolo interrotto."));
     }
 }
 
@@ -1479,15 +1479,15 @@ void MatematicaPage::importFromFile()
     const QString nums = extractNumbersFromFile(path, err);
 
     if (!err.isEmpty()) {
-        setStatus("\xe2\x9d\x8c  " + err);
+        setStatus(tr("\xe2\x9d\x8c  ") + err);
         LogBus::post("\xe2\x9d\x8c Matematica: " + err);
-        QMessageBox::warning(this, "Errore importazione", err);
+        QMessageBox::warning(this, tr("Errore importazione"), err);
         return;
     }
 
     if (nums.isEmpty()) {
-        setStatus("\xe2\x9a\xa0\xef\xb8\x8f  Nessun numero trovato nel file.");
-        QMessageBox::information(this, "Nessun numero",
+        setStatus(tr("\xe2\x9a\xa0\xef\xb8\x8f  Nessun numero trovato nel file."));
+        QMessageBox::information(this, tr("Nessun numero"),
             "Il file non contiene numeri riconoscibili.\n"
             "Assicurati che i numeri siano separati da spazi, virgole o a capo.");
         return;
@@ -1763,8 +1763,8 @@ void MatematicaPage::fetchAndFillMathModels()
     connect(m_ai, &AiClient::error, holder,
             [this, holder](const QString&) {
         holder->deleteLater();
-        setStatus("\xe2\x9d\x8c  Backend non raggiungibile \xe2\x80\x94"
-                  " avvia Ollama o llama-server per le funzioni AI.");
+        setStatus(tr("\xe2\x9d\x8c  Backend non raggiungibile \xe2\x80\x94"
+                  " avvia Ollama o llama-server per le funzioni AI."));
         LogBus::post("\xe2\x9d\x8c Matematica: Backend non raggiungibile.");
         if (m_modelCombo) m_modelCombo->setToolTip(
             "Backend non disponibile. Avvia Ollama: ollama serve");
@@ -1807,8 +1807,8 @@ void MatematicaPage::onLoadModelsOnce()
     connect(m_ai, &AiClient::error, holder,
             [this, holder](const QString&) {
         holder->deleteLater();
-        setStatus("\xe2\x9d\x8c  Backend non raggiungibile \xe2\x80\x94"
-                  " le funzioni AI non sono disponibili.");
+        setStatus(tr("\xe2\x9d\x8c  Backend non raggiungibile \xe2\x80\x94"
+                  " le funzioni AI non sono disponibili."));
         LogBus::post("\xe2\x9d\x8c Matematica: Backend non raggiungibile (onRefresh).");
     });
     m_ai->fetchModels();
@@ -1822,13 +1822,13 @@ void MatematicaPage::onLocalPatternClicked()
     QString err;
     QVector<double> seq = parseSeq(m_seqInput->text(), err);
     if (!err.isEmpty()) {
-        m_seqResult->setText("\xe2\x9d\x8c  " + err);
+        m_seqResult->setText(tr("\xe2\x9d\x8c  ") + err);
         LogBus::post("\xe2\x9d\x8c Matematica: " + err);
         m_seqResult->setVisible(true);
         return;
     }
     const QString pat = detectPatternLocal(seq);
-    m_seqResult->setText("\xf0\x9f\x94\x8d  " + pat);
+    m_seqResult->setText(tr("\xf0\x9f\x94\x8d  ") + pat);
     m_seqResult->setVisible(true);
 }
 
@@ -1836,8 +1836,8 @@ void MatematicaPage::onSympyClicked()
 {
     QString err;
     QVector<double> seq = parseSeq(m_seqInput->text(), err);
-    if (!err.isEmpty()) { setStatus("\xe2\x9d\x8c  " + err); LogBus::post("\xe2\x9d\x8c Matematica: " + err); return; }
-    if (seq.size() < 2) { setStatus("\xe2\x9d\x8c  Inserisci almeno 2 termini."); LogBus::post("\xe2\x9d\x8c Matematica: Inserisci almeno 2 termini."); return; }
+    if (!err.isEmpty()) { setStatus(tr("\xe2\x9d\x8c  ") + err); LogBus::post("\xe2\x9d\x8c Matematica: " + err); return; }
+    if (seq.size() < 2) { setStatus(tr("\xe2\x9d\x8c  Inserisci almeno 2 termini.")); LogBus::post("\xe2\x9d\x8c Matematica: Inserisci almeno 2 termini."); return; }
 
     QString listStr = "[";
     for (int i = 0; i < seq.size(); ++i) {
@@ -1889,8 +1889,8 @@ void MatematicaPage::onAnalyzeAiClicked()
 {
     QString err;
     QVector<double> seq = parseSeq(m_seqInput->text(), err);
-    if (!err.isEmpty()) { setStatus("\xe2\x9d\x8c  " + err); LogBus::post("\xe2\x9d\x8c Matematica: " + err); return; }
-    if (seq.size() < 2) { setStatus("\xe2\x9d\x8c  Inserisci almeno 2 termini."); LogBus::post("\xe2\x9d\x8c Matematica: Inserisci almeno 2 termini."); return; }
+    if (!err.isEmpty()) { setStatus(tr("\xe2\x9d\x8c  ") + err); LogBus::post("\xe2\x9d\x8c Matematica: " + err); return; }
+    if (seq.size() < 2) { setStatus(tr("\xe2\x9d\x8c  Inserisci almeno 2 termini.")); LogBus::post("\xe2\x9d\x8c Matematica: Inserisci almeno 2 termini."); return; }
     runAiSequence(m_seqInput->text().trimmed(), m_nextTerms->value());
 }
 
@@ -1935,24 +1935,24 @@ void MatematicaPage::onNthTypeChanged()
     if (!m_nthDescLbl || !m_nthType) return;
     const QString k = m_nthType->currentData().toString();
     if (k == "pi_digit")
-        m_nthDescLbl->setText("Restituisce la N-esima cifra decimale di \xcf\x80 (dopo il punto). "
-                         "Es. N=1 \xe2\x86\x92 1, N=2 \xe2\x86\x92 4, N=3 \xe2\x86\x92 1...");
+        m_nthDescLbl->setText(tr("Restituisce la N-esima cifra decimale di \xcf\x80 (dopo il punto). "
+                         "Es. N=1 \xe2\x86\x92 1, N=2 \xe2\x86\x92 4, N=3 \xe2\x86\x92 1..."));
     else if (k == "e_digit")
         m_nthDescLbl->setText(tr("N-esima cifra decimale di e. Es. N=1 \xe2\x86\x92 7, N=2 \xe2\x86\x92 1..."));
     else if (k == "prime")
-        m_nthDescLbl->setText("Il primo con indice N. p(1)=2, p(2)=3, p(3)=5... "
-                         "(sympy per N fino a ~10 000 000)");
+        m_nthDescLbl->setText(tr("Il primo con indice N. p(1)=2, p(2)=3, p(3)=5... "
+                         "(sympy per N fino a ~10 000 000)"));
     else if (k == "fib")
-        m_nthDescLbl->setText("F(1)=1, F(2)=1, F(3)=2, F(4)=3, F(5)=5... "
-                         "Anche per N molto grandi (mpmath).");
+        m_nthDescLbl->setText(tr("F(1)=1, F(2)=1, F(3)=2, F(4)=3, F(5)=5... "
+                         "Anche per N molto grandi (mpmath)."));
     else if (k == "fact")
-        m_nthDescLbl->setText("N! \xe2\x80\x94 fattoriale. 1!=1, 5!=120, 100!=93326215443944..."
-                         " (precisione arbitraria).");
+        m_nthDescLbl->setText(tr("N! \xe2\x80\x94 fattoriale. 1!=1, 5!=120, 100!=93326215443944..."
+                         " (precisione arbitraria)."));
     else if (k == "pow2")
         m_nthDescLbl->setText(tr("2^N. Anche per N molto grandi (migliaia di cifre)."));
     else if (k == "pi_block")
-        m_nthDescLbl->setText("Le prime N cifre di \xcf\x80 come blocco continuo "
-                         "(includa la parte intera: 3.14159...).");
+        m_nthDescLbl->setText(tr("Le prime N cifre di \xcf\x80 come blocco continuo "
+                         "(includa la parte intera: 3.14159...)."));
     else if (k == "phi_block")
         m_nthDescLbl->setText(tr("Le prime N cifre di \xcf\x86 (sezione aurea)."));
 }
@@ -2022,7 +2022,7 @@ void MatematicaPage::onAiSeqFinished(const QString& /*full*/)
     delete m_aiSeqHolder;
     m_aiSeqHolder = nullptr;
     m_aiRunning = false;
-    setStatus("\xe2\x9c\x85  Analisi AI completata.");
+    setStatus(tr("\xe2\x9c\x85  Analisi AI completata."));
 }
 
 void MatematicaPage::onAiSeqError(const QString& msg)
@@ -2031,7 +2031,7 @@ void MatematicaPage::onAiSeqError(const QString& msg)
     m_aiSeqHolder = nullptr;
     m_aiRunning = false;
     appendOutput("\n\xe2\x9d\x8c  Errore AI: " + msg);
-    setStatus("\xe2\x9d\x8c  Errore AI.");
+    setStatus(tr("\xe2\x9d\x8c  Errore AI."));
     LogBus::post("\xe2\x9d\x8c Matematica: Errore AI sequenza: " + msg);
 }
 

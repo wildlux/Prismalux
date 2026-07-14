@@ -90,7 +90,7 @@ QWidget* ProgrammazionePage::buildTrControlRow(QWidget* parent,
     ctrlLay->setContentsMargins(0, 0, 0, 0);
     ctrlLay->setSpacing(8);
 
-    ctrlLay->addWidget(new QLabel("Da:", ctrlRow));
+    ctrlLay->addWidget(new QLabel(tr("Da:"), ctrlRow));
     m_trSrcLang = new QComboBox(ctrlRow);
     m_trSrcLang->setObjectName("settingCombo");
     m_trSrcLang->addItems(kLangs);
@@ -113,7 +113,7 @@ QWidget* ProgrammazionePage::buildTrControlRow(QWidget* parent,
     ctrlLay->addWidget(m_trDstLang);
 
     ctrlLay->addSpacing(16);
-    ctrlLay->addWidget(new QLabel("Modello:", ctrlRow));
+    ctrlLay->addWidget(new QLabel(tr("Modello:"), ctrlRow));
     m_trModel = new QComboBox(ctrlRow);
     m_trModel->setObjectName("settingCombo");
     m_trModel->setMinimumWidth(170);
@@ -129,13 +129,13 @@ QWidget* ProgrammazionePage::buildTrControlRow(QWidget* parent,
     ctrlLay->addWidget(m_trModel);
     ctrlLay->addStretch(1);
 
-    m_btnTrRun = new QPushButton("\xf0\x9f\x94\x80  Traduci", ctrlRow);
+    m_btnTrRun = new QPushButton(tr("\xf0\x9f\x94\x80  Traduci"), ctrlRow);
     m_btnTrRun->setObjectName("actionBtn");
     m_btnTrRun->setProperty("highlight", "true");
     m_btnTrRun->setToolTip(tr("Avvia la traduzione del codice sorgente nel linguaggio scelto"));
     ctrlLay->addWidget(m_btnTrRun);
 
-    m_btnTrStop = new QPushButton("\xe2\x96\xa0  Stop", ctrlRow);
+    m_btnTrStop = new QPushButton(tr("\xe2\x96\xa0  Stop"), ctrlRow);
     m_btnTrStop->setObjectName("actionBtn");
     m_btnTrStop->setEnabled(false);
     ctrlLay->addWidget(m_btnTrStop);
@@ -161,7 +161,7 @@ QWidget* ProgrammazionePage::buildTrSplitter(QWidget* parent)
     splitter->setHandleWidth(6);
 
     /* Pannello sorgente */
-    auto* srcGroup = new QGroupBox("Codice sorgente", splitter);
+    auto* srcGroup = new QGroupBox(tr("Codice sorgente"), splitter);
     auto* srcLay   = new QVBoxLayout(srcGroup);
     srcLay->setContentsMargins(6, 6, 6, 6);
 
@@ -188,7 +188,7 @@ QWidget* ProgrammazionePage::buildTrSplitter(QWidget* parent)
     splitter->addWidget(srcGroup);
 
     /* Pannello output tradotto */
-    auto* dstGroup = new QGroupBox("Codice tradotto", splitter);
+    auto* dstGroup = new QGroupBox(tr("Codice tradotto"), splitter);
     auto* dstLay   = new QVBoxLayout(dstGroup);
     dstLay->setContentsMargins(6, 6, 6, 6);
 
@@ -214,7 +214,7 @@ QWidget* ProgrammazionePage::buildTrSplitter(QWidget* parent)
         "e lo inserisce nell'editor principale (sostituisce il contenuto attuale)");
     outBtnLay->addWidget(m_btnTrInsert);
 
-    m_btnTrCopy = new QPushButton("\xf0\x9f\x93\x8b  Copia", outBtnRow);
+    m_btnTrCopy = new QPushButton(tr("\xf0\x9f\x93\x8b  Copia"), outBtnRow);
     m_btnTrCopy->setObjectName("btnTrCopy");
     m_btnTrCopy->setEnabled(false);
     m_btnTrCopy->setToolTip(tr("Copia tutto il testo dell'output negli appunti"));

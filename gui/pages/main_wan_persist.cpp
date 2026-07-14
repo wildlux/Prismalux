@@ -332,8 +332,8 @@ QWidget* LanWanPage::buildWanComputeTab()
     auto* execModeRow = new QWidget;
     auto* execModeLay = new QHBoxLayout(execModeRow);
     execModeLay->setContentsMargins(0,0,0,0); execModeLay->setSpacing(16);
-    auto* localRb = new QRadioButton("\xf0\x9f\xa7\xa0  Solo questo PC");
-    auto* lanRb   = new QRadioButton("\xf0\x9f\x8c\x90  Rete LAN (pi\xc3\xb9 PC insieme)");
+    auto* localRb = new QRadioButton(tr("\xf0\x9f\xa7\xa0  Solo questo PC"));
+    auto* lanRb   = new QRadioButton(tr("\xf0\x9f\x8c\x90  Rete LAN (pi\xc3\xb9 PC insieme)"));
     auto* sciRb   = new QRadioButton(
         "\xf0\x9f\x94\xac  Calcolo Scientifico (BOINC-like)");
     sciRb->setToolTip(
@@ -377,8 +377,8 @@ QWidget* LanWanPage::buildWanComputeTab()
     auto* modeRow = new QWidget;
     auto* modeLay = new QHBoxLayout(modeRow);
     modeLay->setContentsMargins(0,0,0,0); modeLay->setSpacing(16);
-    auto* srvRb = new QRadioButton("\xf0\x9f\x96\xa7  Modalit\xc3\xa0 Server");
-    auto* cliRb = new QRadioButton("\xf0\x9f\x92\xbb  Modalit\xc3\xa0 Client");
+    auto* srvRb = new QRadioButton(tr("\xf0\x9f\x96\xa7  Modalit\xc3\xa0 Server"));
+    auto* cliRb = new QRadioButton(tr("\xf0\x9f\x92\xbb  Modalit\xc3\xa0 Client"));
     srvRb->setChecked(true);
     auto* modeGrp = new QButtonGroup(modeRow);
     modeGrp->addButton(srvRb, 0);
@@ -410,23 +410,23 @@ QWidget* LanWanPage::buildWanComputeTab()
     m_wanPortSpin->setRange(1024, 65535);
     m_wanPortSpin->setValue(P::kWanComputePort);
     m_wanPortSpin->setFixedWidth(dpiScale(80));
-    m_wanStartBtn = new QPushButton("\xe2\x96\xb6  Avvia Server");
+    m_wanStartBtn = new QPushButton(tr("\xe2\x96\xb6  Avvia Server"));
     m_wanStartBtn->setObjectName("actionBtn");
     m_wanStartBtn->setCheckable(true);
     m_wanStartBtn->setEnabled(false);   /* abilitato solo dopo token >= 8 char */
-    m_wanSrvStatusLbl = new QLabel("\xe2\x9a\xab  Server fermo");
+    m_wanSrvStatusLbl = new QLabel(tr("\xe2\x9a\xab  Server fermo"));
     m_wanSrvStatusLbl->setStyleSheet("color:gray;");
-    m_wanSimBtn = new QPushButton("\xe2\x9a\x97\xef\xb8\x8f  Prova in locale");  // ⚗️
+    m_wanSimBtn = new QPushButton(tr("\xe2\x9a\x97\xef\xb8\x8f  Prova in locale"));  // ⚗️
     m_wanSimBtn->setToolTip(
         "Avvia server + connette un nodo virtuale sullo stesso PC.\n"
         "Permette di testare il sistema senza altri computer.");
-    m_wanExposeAllCheck = new QCheckBox("\xe2\x9a\xa0\xef\xb8\x8f  Esponi su tutte le interfacce");
+    m_wanExposeAllCheck = new QCheckBox(tr("\xe2\x9a\xa0\xef\xb8\x8f  Esponi su tutte le interfacce"));
     m_wanExposeAllCheck->setChecked(false);
     m_wanExposeAllCheck->setToolTip(
         "OFF (default): il server accetta connessioni solo da questo PC (127.0.0.1).\n"
         "ON: bind su 0.0.0.0 — visibile a tutta la rete LAN/WAN.\n"
         "Abilita solo con token auth impostato e su reti fidate.");
-    m_wanTlsCheck = new QCheckBox("\xf0\x9f\x94\x92  TLS");
+    m_wanTlsCheck = new QCheckBox(tr("\xf0\x9f\x94\x92  TLS"));
 #if QT_CONFIG(ssl)
     m_wanTlsCheck->setChecked(true);
     m_wanTlsCheck->setToolTip(
@@ -436,9 +436,9 @@ QWidget* LanWanPage::buildWanComputeTab()
 #else
     m_wanTlsCheck->setChecked(false);
     m_wanTlsCheck->setEnabled(false);
-    m_wanTlsCheck->setToolTip("TLS non disponibile: Qt compilato senza supporto SSL.");
+    m_wanTlsCheck->setToolTip(tr("TLS non disponibile: Qt compilato senza supporto SSL."));
 #endif
-    srvCtrlLay->addWidget(new QLabel("Porta:"));
+    srvCtrlLay->addWidget(new QLabel(tr("Porta:")));
     srvCtrlLay->addWidget(m_wanPortSpin);
     srvCtrlLay->addWidget(m_wanStartBtn);
     srvCtrlLay->addWidget(m_wanSimBtn);
@@ -452,7 +452,7 @@ QWidget* LanWanPage::buildWanComputeTab()
     auto* srvTokenRow = new QWidget;
     auto* srvTokenLay = new QHBoxLayout(srvTokenRow);
     srvTokenLay->setContentsMargins(0,0,0,0); srvTokenLay->setSpacing(6);
-    auto* srvTokenLbl = new QLabel("\xf0\x9f\x94\x91  Token server:", srvTokenRow);  /* 🔑 */
+    auto* srvTokenLbl = new QLabel(tr("\xf0\x9f\x94\x91  Token server:"), srvTokenRow);  /* 🔑 */
     m_wanTokenEdit = new QLineEdit(srvTokenRow);
     m_wanTokenEdit->setPlaceholderText(tr("Obbligatorio: min 8 caratteri per avviare il server"));
     m_wanTokenEdit->setEchoMode(QLineEdit::Password);
@@ -536,14 +536,14 @@ QWidget* LanWanPage::buildWanComputeTab()
     auto* decompRight = new QWidget;
     auto* decompRightLay = new QVBoxLayout(decompRight);
     decompRightLay->setContentsMargins(0,0,0,0); decompRightLay->setSpacing(4);
-    m_wanDecomposeBtn = new QPushButton("\xf0\x9f\xa7\xa0  Crea agenti");
+    m_wanDecomposeBtn = new QPushButton(tr("\xf0\x9f\xa7\xa0  Crea agenti"));
     m_wanDecomposeBtn->setObjectName("actionBtn");
-    m_wanDecomposeStatusLbl = new QLabel("Scrivi il compito\ne premi \"Crea agenti\"");
+    m_wanDecomposeStatusLbl = new QLabel(tr("Scrivi il compito\ne premi \"Crea agenti\""));
     m_wanDecomposeStatusLbl->setStyleSheet("color:gray; font-size:11px;");
     m_wanDecomposeStatusLbl->setWordWrap(true);
     m_wanDecomposeStatusLbl->setFixedWidth(dpiScale(150));
-    auto* shuffleBtn = new QPushButton("\xf0\x9f\x94\x80  Esempio");   /* 🔀 */
-    shuffleBtn->setToolTip("Carica un compito d\xe2\x80\x99" "esempio casuale per ispirarti.");
+    auto* shuffleBtn = new QPushButton(tr("\xf0\x9f\x94\x80  Esempio"));   /* 🔀 */
+    shuffleBtn->setToolTip(tr("Carica un compito d\xe2\x80\x99" "esempio casuale per ispirarti."));
     shuffleBtn->setFlat(true);
     shuffleBtn->setStyleSheet("font-size:11px; color:#818cf8;");
 
@@ -621,7 +621,7 @@ QWidget* LanWanPage::buildWanComputeTab()
     /* 3 — Monitor nodi + coda: stretch per occupare lo spazio liberato */
     auto* tableSplit = new QSplitter(Qt::Horizontal);
 
-    auto* nodeBox = new QGroupBox("\xf0\x9f\x92\xbb  Nodi connessi");
+    auto* nodeBox = new QGroupBox(tr("\xf0\x9f\x92\xbb  Nodi connessi"));
     auto* nodeBLay = new QVBoxLayout(nodeBox);
     nodeBLay->setContentsMargins(4,4,4,4);
     m_wanNodeTable = new QTableWidget(0, 4);
@@ -633,7 +633,7 @@ QWidget* LanWanPage::buildWanComputeTab()
     nodeBLay->addWidget(m_wanNodeTable);
     tableSplit->addWidget(nodeBox);
 
-    auto* taskBox = new QGroupBox("\xf0\x9f\x93\x8b  Coda task");
+    auto* taskBox = new QGroupBox(tr("\xf0\x9f\x93\x8b  Coda task"));
     auto* taskBLay = new QVBoxLayout(taskBox);
     taskBLay->setContentsMargins(4,4,4,4);
     m_wanTaskTable = new QTableWidget(0, 5);
@@ -648,8 +648,8 @@ QWidget* LanWanPage::buildWanComputeTab()
     srvLay->addWidget(tableSplit, 1);
 
     /* Stats BOINC-style */
-    m_wanStatsLbl = new QLabel("\xf0\x9f\x96\xa5  Nodi: 0 idle / 0 working  \xe2\x80\x94  "
-                               "\xf0\x9f\x93\x8b  Task: 0 in coda / 0 running / 0 completati / 0 falliti");
+    m_wanStatsLbl = new QLabel(tr("\xf0\x9f\x96\xa5  Nodi: 0 idle / 0 working  \xe2\x80\x94  "
+                               "\xf0\x9f\x93\x8b  Task: 0 in coda / 0 running / 0 completati / 0 falliti"));
     m_wanStatsLbl->setObjectName("cardDesc");
     m_wanStatsLbl->setTextFormat(Qt::RichText);
     srvLay->addWidget(m_wanStatsLbl);
@@ -659,7 +659,7 @@ QWidget* LanWanPage::buildWanComputeTab()
         auto* dashRow = new QWidget;
         auto* dashLay = new QHBoxLayout(dashRow);
         dashLay->setContentsMargins(0, 0, 0, 0); dashLay->setSpacing(12);
-        m_wanThroughputLbl = new QLabel("\xf0\x9f\x93\x88  Throughput: \xe2\x80\x94", dashRow);
+        m_wanThroughputLbl = new QLabel(tr("\xf0\x9f\x93\x88  Throughput: \xe2\x80\x94"), dashRow);
         m_wanThroughputLbl->setObjectName("cardDesc");
         m_wanThroughputLbl->setTextFormat(Qt::RichText);
         m_wanChartWidget = new QLabel(dashRow);
@@ -684,7 +684,7 @@ QWidget* LanWanPage::buildWanComputeTab()
     m_wanDashTimer->start(5000);
 
     /* 4 — Avanzato (nascosto di default) */
-    auto* advToggle = new QPushButton("\xe2\x96\xb6  Avanzato — aggiungi task singolo, cron");
+    auto* advToggle = new QPushButton(tr("\xe2\x96\xb6  Avanzato — aggiungi task singolo, cron"));
     advToggle->setCheckable(true);
     advToggle->setChecked(false);
     advToggle->setFlat(true);
@@ -704,16 +704,16 @@ QWidget* LanWanPage::buildWanComputeTab()
     });
 
     /* Aggiungi task manuale */
-    auto* addTaskBox = new QGroupBox("\xe2\x9e\x95  Aggiungi task singolo");
+    auto* addTaskBox = new QGroupBox(tr("\xe2\x9e\x95  Aggiungi task singolo"));
     auto* addTaskLay = new QVBoxLayout(addTaskBox);
     auto* addTaskRow1 = new QWidget;
     auto* addTaskLay1 = new QHBoxLayout(addTaskRow1);
     addTaskLay1->setContentsMargins(0,0,0,0); addTaskLay1->setSpacing(8);
     m_wanTaskKind = new QComboBox;
     wanPopulateKindCombo(m_wanTaskKind);
-    m_wanAddTaskBtn = new QPushButton("\xe2\x9e\x95  Aggiungi");
+    m_wanAddTaskBtn = new QPushButton(tr("\xe2\x9e\x95  Aggiungi"));
     m_wanAddTaskBtn->setObjectName("actionBtn");
-    addTaskLay1->addWidget(new QLabel("Tipo:"));
+    addTaskLay1->addWidget(new QLabel(tr("Tipo:")));
     addTaskLay1->addWidget(m_wanTaskKind, 1);
     addTaskLay1->addWidget(m_wanAddTaskBtn);
 
@@ -749,9 +749,9 @@ QWidget* LanWanPage::buildWanComputeTab()
     auto* agentBtnRow = new QWidget;
     auto* agentBtnLay = new QHBoxLayout(agentBtnRow);
     agentBtnLay->setContentsMargins(0,0,0,0); agentBtnLay->setSpacing(6);
-    m_agentSaveBtn = new QPushButton("\xf0\x9f\x92\xbe  Salva JSON");
-    m_agentLoadBtn = new QPushButton("\xf0\x9f\x93\x82  Carica JSON");
-    auto* dropHintLbl = new QLabel("oppure trascina un file .json");
+    m_agentSaveBtn = new QPushButton(tr("\xf0\x9f\x92\xbe  Salva JSON"));
+    m_agentLoadBtn = new QPushButton(tr("\xf0\x9f\x93\x82  Carica JSON"));
+    auto* dropHintLbl = new QLabel(tr("oppure trascina un file .json"));
     dropHintLbl->setStyleSheet("color:gray; font-size:11px;");
     agentBtnLay->addWidget(m_agentSaveBtn);
     agentBtnLay->addWidget(m_agentLoadBtn);
@@ -784,7 +784,7 @@ QWidget* LanWanPage::buildWanComputeTab()
     }
 
     /* Cron */
-    auto* cronBox = new QGroupBox("\xe2\x8f\xb0  Cron — ripeti task automaticamente");
+    auto* cronBox = new QGroupBox(tr("\xe2\x8f\xb0  Cron — ripeti task automaticamente"));
     auto* cronLay = new QVBoxLayout(cronBox);
     auto* cronRow1 = new QWidget;
     auto* cronLay1 = new QHBoxLayout(cronRow1);
@@ -794,14 +794,14 @@ QWidget* LanWanPage::buildWanComputeTab()
     m_wanCronInterval->setSuffix(" min");
     m_wanCronKind = new QComboBox;
     wanPopulateKindCombo(m_wanCronKind);
-    m_wanCronStartBtn = new QPushButton("\xe2\x96\xb6  Avvia");
+    m_wanCronStartBtn = new QPushButton(tr("\xe2\x96\xb6  Avvia"));
     m_wanCronStartBtn->setObjectName("actionBtn");
-    m_wanCronStopBtn  = new QPushButton("\xe2\x8f\xb9  Stop");
+    m_wanCronStopBtn  = new QPushButton(tr("\xe2\x8f\xb9  Stop"));
     m_wanCronStopBtn->setObjectName("actionBtn");
     m_wanCronStopBtn->setEnabled(false);
-    cronLay1->addWidget(new QLabel("Ogni:"));
+    cronLay1->addWidget(new QLabel(tr("Ogni:")));
     cronLay1->addWidget(m_wanCronInterval);
-    cronLay1->addWidget(new QLabel("Tipo:"));
+    cronLay1->addWidget(new QLabel(tr("Tipo:")));
     cronLay1->addWidget(m_wanCronKind, 1);
     cronLay1->addWidget(m_wanCronStartBtn);
     cronLay1->addWidget(m_wanCronStopBtn);
@@ -853,11 +853,11 @@ QWidget* LanWanPage::buildWanComputeTab()
     m_wanCliWorkerSpin->setToolTip(
         "Numero di worker simultanei (1-4).\n"
         "Ogni worker ha un socket TCP e un AiClient propri.");
-    m_wanCliConBtn    = new QPushButton("\xf0\x9f\x94\x8c  Connetti");
+    m_wanCliConBtn    = new QPushButton(tr("\xf0\x9f\x94\x8c  Connetti"));
     m_wanCliConBtn->setObjectName("actionBtn");
-    m_wanCliDisconBtn = new QPushButton("Disconnetti");
+    m_wanCliDisconBtn = new QPushButton(tr("Disconnetti"));
     m_wanCliDisconBtn->setEnabled(false);
-    m_wanCliStatusLbl = new QLabel("\xe2\x9a\xab  Non connesso");
+    m_wanCliStatusLbl = new QLabel(tr("\xe2\x9a\xab  Non connesso"));
     m_wanCliStatusLbl->setStyleSheet("color:gray;");
     cliConLay->addWidget(m_wanCliHost, 2);
     cliConLay->addWidget(m_wanCliPort);
@@ -872,12 +872,12 @@ QWidget* LanWanPage::buildWanComputeTab()
     auto* cliSecRow = new QWidget;
     auto* cliSecLay = new QHBoxLayout(cliSecRow);
     cliSecLay->setContentsMargins(0,0,0,0); cliSecLay->setSpacing(8);
-    auto* cliTokenLbl = new QLabel("\xf0\x9f\x94\x91  Token:", cliSecRow);  /* 🔑 */
+    auto* cliTokenLbl = new QLabel(tr("\xf0\x9f\x94\x91  Token:"), cliSecRow);  /* 🔑 */
     m_wanCliTokenEdit = new QLineEdit(cliSecRow);
     m_wanCliTokenEdit->setPlaceholderText(tr("Token server (se impostato)"));
     m_wanCliTokenEdit->setEchoMode(QLineEdit::Password);
     m_wanCliTokenEdit->setToolTip(tr("Deve coincidere con il token impostato sul server."));
-    m_wanCliTlsCheck = new QCheckBox("\xf0\x9f\x94\x92  TLS", cliSecRow);
+    m_wanCliTlsCheck = new QCheckBox(tr("\xf0\x9f\x94\x92  TLS"), cliSecRow);
 #if QT_CONFIG(ssl)
     m_wanCliTlsCheck->setChecked(true);
     m_wanCliTlsCheck->setToolTip(
@@ -887,9 +887,9 @@ QWidget* LanWanPage::buildWanComputeTab()
 #else
     m_wanCliTlsCheck->setChecked(false);
     m_wanCliTlsCheck->setEnabled(false);
-    m_wanCliTlsCheck->setToolTip("TLS non disponibile: Qt compilato senza supporto SSL.");
+    m_wanCliTlsCheck->setToolTip(tr("TLS non disponibile: Qt compilato senza supporto SSL."));
 #endif
-    m_wanCliShellCheck = new QCheckBox("\xe2\x9a\xa0\xef\xb8\x8f  Permetti shell (rischio RCE)", cliSecRow);
+    m_wanCliShellCheck = new QCheckBox(tr("\xe2\x9a\xa0\xef\xb8\x8f  Permetti shell (rischio RCE)"), cliSecRow);
     m_wanCliShellCheck->setToolTip(
         "Se spuntato, questo nodo eseguirà comandi bash/python ricevuti dal server.\n"
         "Abilita SOLO su reti fidate con token auth impostato.");

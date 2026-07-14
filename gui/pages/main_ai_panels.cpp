@@ -101,8 +101,8 @@ void AgentiPage::buildToolsPanel(QVBoxLayout* lay)
             "Function Tools integrati: calcola, cerca, leggi file, Python, RAG\xe2\x80\xa6</span>");
         hdrLay->addWidget(hdr, 1);
 
-        auto* btnAll  = new QPushButton("\xe2\x9c\x85  Tutti",   hdrRow);
-        auto* btnNone = new QPushButton("\xe2\x96\xa1  Nessuno", hdrRow);
+        auto* btnAll  = new QPushButton(tr("\xe2\x9c\x85  Tutti"),   hdrRow);
+        auto* btnNone = new QPushButton(tr("\xe2\x96\xa1  Nessuno"), hdrRow);
         btnAll->setObjectName("actionBtn");
         btnNone->setObjectName("actionBtn");
         btnAll->setFixedHeight(dpiScale(22));
@@ -160,7 +160,7 @@ void AgentiPage::buildToolsPanel(QVBoxLayout* lay)
 
         /* Barra di ricerca — filtra e riorganizza il grid senza buchi */
         auto* fastSearch = new QLineEdit(m_toolsPanel);
-        fastSearch->setPlaceholderText("\xf0\x9f\x94\x8d  Cerca tool per nome o descrizione\xe2\x80\xa6");
+        fastSearch->setPlaceholderText(tr("\xf0\x9f\x94\x8d  Cerca tool per nome o descrizione\xe2\x80\xa6"));
         fastSearch->setClearButtonEnabled(true);
         fastSearch->setFixedHeight(dpiScale(26));
         fastLay->addWidget(fastSearch);
@@ -265,8 +265,8 @@ void AgentiPage::buildToolsPanel(QVBoxLayout* lay)
             "MCP Plugin: avviati come subprocess JSON-RPC 2.0 stdio</span>");
         hdrLay->addWidget(hdr, 1);
 
-        auto* btnAllMcp  = new QPushButton("\xe2\x9c\x85  Tutti",   hdrRow);
-        auto* btnNoneMcp = new QPushButton("\xe2\x96\xa1  Nessuno", hdrRow);
+        auto* btnAllMcp  = new QPushButton(tr("\xe2\x9c\x85  Tutti"),   hdrRow);
+        auto* btnNoneMcp = new QPushButton(tr("\xe2\x96\xa1  Nessuno"), hdrRow);
         btnAllMcp->setObjectName("actionBtn");
         btnNoneMcp->setObjectName("actionBtn");
         btnAllMcp->setFixedHeight(dpiScale(22));
@@ -287,7 +287,7 @@ void AgentiPage::buildToolsPanel(QVBoxLayout* lay)
 
         /* Barra di ricerca MCP */
         auto* mcpSearch = new QLineEdit(m_mcpPanel);
-        mcpSearch->setPlaceholderText("\xf0\x9f\x94\x8d  Cerca MCP per nome o etichetta\xe2\x80\xa6");
+        mcpSearch->setPlaceholderText(tr("\xf0\x9f\x94\x8d  Cerca MCP per nome o etichetta\xe2\x80\xa6"));
         mcpSearch->setClearButtonEnabled(true);
         mcpSearch->setFixedHeight(dpiScale(26));
         slowLay->addWidget(mcpSearch);
@@ -326,7 +326,7 @@ void AgentiPage::buildToolsPanel(QVBoxLayout* lay)
                     "\xf0\x9f\x94\x8c  " + mcpLabel(name) + "  (" + name + ")", grid);
                 chk->setChecked(en);
                 chk->setMinimumHeight(dpiScale(22));
-                chk->setToolTip("MCPs/" + name + "/server.py\n"
+                chk->setToolTip(tr("MCPs/") + name + "/server.py\n"
                     "Processo Python separato (JSON-RPC 2.0 stdio).\n"
                     "Usalo da AppController \xe2\x86\x92 TinyMCP per chiamate dirette.");
                 gl->addWidget(chk, i / 4, i % 4);
@@ -888,14 +888,14 @@ void AgentiPage::buildInputFormatBar()
         auto* fgTile = new QWidget(btnRow);
         auto* ftl    = new QVBoxLayout(fgTile);
         ftl->setContentsMargins(0,0,0,0); ftl->setSpacing(1);
-        auto* fgLbl = new QLabel("Colore", fgTile);
+        auto* fgLbl = new QLabel(tr("Colore"), fgTile);
         fgLbl->setAlignment(Qt::AlignCenter);
         fgLbl->setStyleSheet("font-size:9px;color:palette(mid);");
         ftl->addWidget(fgLbl);
         m_btnFmtFg = new QPushButton("A", fgTile);
         m_btnFmtFg->setFixedWidth(fgLbl->fontMetrics().horizontalAdvance("Colore") + 14);
         m_btnFmtFg->setStyleSheet(makeFgStyle(m_fmtFgColor));
-        m_btnFmtFg->setToolTip("Colore testo (apre selettore colore)");
+        m_btnFmtFg->setToolTip(tr("Colore testo (apre selettore colore)"));
         ftl->addWidget(m_btnFmtFg, 0, Qt::AlignHCenter);
         lay->addWidget(fgTile);
         connect(m_btnFmtFg, &QPushButton::clicked, this, [this, makeFgStyle](){
@@ -918,14 +918,14 @@ void AgentiPage::buildInputFormatBar()
         auto* bgTile = new QWidget(btnRow);
         auto* btl    = new QVBoxLayout(bgTile);
         btl->setContentsMargins(0,0,0,0); btl->setSpacing(1);
-        auto* bgLbl = new QLabel("Sfondo", bgTile);
+        auto* bgLbl = new QLabel(tr("Sfondo"), bgTile);
         bgLbl->setAlignment(Qt::AlignCenter);
         bgLbl->setStyleSheet("font-size:9px;color:palette(mid);");
         btl->addWidget(bgLbl);
         m_btnFmtBg = new QPushButton("A", bgTile);
         m_btnFmtBg->setFixedWidth(bgLbl->fontMetrics().horizontalAdvance("Sfondo") + 14);
         m_btnFmtBg->setStyleSheet(makeBgStyle(m_fmtBgColor));
-        m_btnFmtBg->setToolTip("Colore sfondo testo (apre selettore colore)");
+        m_btnFmtBg->setToolTip(tr("Colore sfondo testo (apre selettore colore)"));
         btl->addWidget(m_btnFmtBg, 0, Qt::AlignHCenter);
         lay->addWidget(bgTile);
         connect(m_btnFmtBg, &QPushButton::clicked, this, [this, makeBgStyle](){
@@ -952,7 +952,7 @@ void AgentiPage::buildInputFormatBar()
         auto* ttl     = new QVBoxLayout(tblTile);
         ttl->setContentsMargins(0, 0, 0, 0);
         ttl->setSpacing(1);
-        auto* tblLbl = new QLabel("Tabella", tblTile);
+        auto* tblLbl = new QLabel(tr("Tabella"), tblTile);
         tblLbl->setAlignment(Qt::AlignCenter);
         tblLbl->setStyleSheet("font-size:9px;color:palette(mid);");
         ttl->addWidget(tblLbl);
@@ -961,7 +961,7 @@ void AgentiPage::buildInputFormatBar()
         btnTbl->setStyleSheet(
             "QPushButton{background:transparent;border:none;border-radius:3px;font-size:13px;}"
             "QPushButton:hover{background:palette(highlight);color:palette(highlighted-text);}");
-        btnTbl->setToolTip("Inserisci tabella — scegli dimensioni con la griglia");
+        btnTbl->setToolTip(tr("Inserisci tabella — scegli dimensioni con la griglia"));
         ttl->addWidget(btnTbl, 0, Qt::AlignHCenter);
         lay->addWidget(tblTile);
     }
@@ -984,7 +984,7 @@ void AgentiPage::buildInputFormatBar()
         bool eventFilter(QObject* o, QEvent* e) override {
             if (auto* b = qobject_cast<QPushButton*>(o)) {
                 if (e->type() == QEvent::Enter && !b->toolTip().isEmpty())
-                    lbl->setText("<span style='font-size:9px;'>" +
+                    lbl->setText(tr("<span style='font-size:9px;'>") +
                                  b->toolTip().toHtmlEscaped() + "</span>");
                 else if (e->type() == QEvent::Leave)
                     lbl->setText(kHintDefault);

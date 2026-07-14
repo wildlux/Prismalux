@@ -309,7 +309,7 @@ QWidget* ProgrammazionePage::buildPolicyTab(QWidget* parent)
     topHL->setContentsMargins(0, 0, 0, 0);
     topHL->setSpacing(8);
 
-    topHL->addWidget(new QLabel("\xf0\x9f\x9b\xa1  Tipo:", topRow));
+    topHL->addWidget(new QLabel(tr("\xf0\x9f\x9b\xa1  Tipo:"), topRow));
     m_policyTypeCombo = new QComboBox(topRow);
     m_policyTypeCombo->setMinimumWidth(dpiScale(190));
     for (int i = 0; i < kN; ++i)
@@ -318,7 +318,7 @@ QWidget* ProgrammazionePage::buildPolicyTab(QWidget* parent)
 
     topHL->addSpacing(12);
 
-    topHL->addWidget(new QLabel("\xf0\x9f\xa7\xa0  Modello:", topRow));
+    topHL->addWidget(new QLabel(tr("\xf0\x9f\xa7\xa0  Modello:"), topRow));
     m_policyModelCombo = new QComboBox(topRow);
     m_policyModelCombo->setMinimumWidth(dpiScale(200));
     m_policyModelCombo->setToolTip(
@@ -329,7 +329,7 @@ QWidget* ProgrammazionePage::buildPolicyTab(QWidget* parent)
 
     auto* btnRefreshModels = new QPushButton("\xf0\x9f\x94\x84", topRow);
     btnRefreshModels->setFixedWidth(dpiScale(30));
-    btnRefreshModels->setToolTip("Ricarica lista modelli da Ollama");
+    btnRefreshModels->setToolTip(tr("Ricarica lista modelli da Ollama"));
     topHL->addWidget(btnRefreshModels);
 
     m_policyStatusLbl = new QLabel(topRow);
@@ -378,10 +378,10 @@ QWidget* ProgrammazionePage::buildPolicyTab(QWidget* parent)
     actHL->setContentsMargins(0, 0, 0, 0);
     actHL->setSpacing(8);
 
-    auto* btnGen  = new QPushButton("\xf0\x9f\xa4\x96  Genera policy", actRow);
+    auto* btnGen  = new QPushButton(tr("\xf0\x9f\xa4\x96  Genera policy"), actRow);
     btnGen->setObjectName("actionBtn");
-    auto* btnCopy = new QPushButton("\xf0\x9f\x93\x8b  Copia", actRow);
-    auto* btnStop = new QPushButton("\xe2\x8f\xb9  Stop", actRow);
+    auto* btnCopy = new QPushButton(tr("\xf0\x9f\x93\x8b  Copia"), actRow);
+    auto* btnStop = new QPushButton(tr("\xe2\x8f\xb9  Stop"), actRow);
     btnStop->setProperty("danger", true);
     btnStop->setEnabled(false);
 

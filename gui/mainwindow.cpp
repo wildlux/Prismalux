@@ -82,7 +82,7 @@ namespace P = PrismaluxPaths;
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
 {
-    setWindowTitle("🍺 Prismalux v3.0 — Centro di Controllo");
+    setWindowTitle(tr("🍺 Prismalux v3.0 — Centro di Controllo"));
     setWindowIcon(QIcon(P::root() + "/EXPORT/assets/prismalux.png"));
     setMinimumSize(dpiScale(1060), dpiScale(680));
     resize(dpiScale(1200), dpiScale(760));
@@ -221,7 +221,7 @@ void MainWindow::setupStatusBar()
     auto* zoomMinusBtn = new QPushButton("\xe2\x88\x92", zoomBar);  /* − */
     zoomMinusBtn->setObjectName("zoomBtn");
     zoomMinusBtn->setFixedSize(dpiSize(26, 22));
-    zoomMinusBtn->setToolTip("Riduci testo (minimo 50%)");
+    zoomMinusBtn->setToolTip(tr("Riduci testo (minimo 50%)"));
 
     m_zoomPctLbl = new QLabel("100%", zoomBar);
     m_zoomPctLbl->setObjectName("zoomBarLabel");
@@ -231,12 +231,12 @@ void MainWindow::setupStatusBar()
     auto* zoomPlusBtn = new QPushButton("+", zoomBar);
     zoomPlusBtn->setObjectName("zoomBtn");
     zoomPlusBtn->setFixedSize(dpiSize(26, 22));
-    zoomPlusBtn->setToolTip("Aumenta testo (massimo 200%)");
+    zoomPlusBtn->setToolTip(tr("Aumenta testo (massimo 200%)"));
 
     auto* zoomResetBtn = new QPushButton("\xe2\x97\x8f", zoomBar);  /* ● */
     zoomResetBtn->setObjectName("zoomResetBtn");
     zoomResetBtn->setFixedSize(dpiSize(18, 18));
-    zoomResetBtn->setToolTip("Reimposta zoom a 100%");
+    zoomResetBtn->setToolTip(tr("Reimposta zoom a 100%"));
 
     zoomLay->addWidget(zoomMinusBtn);
     zoomLay->addWidget(m_zoomPctLbl);
@@ -393,7 +393,7 @@ void MainWindow::setupBackend()
        Questo garantisce che su una macchina diversa non venga mai mostrata
        la lista modelli della macchina su cui è stato compilato il binario. */
     m_ai->invalidateModelCache();
-    m_lblModel->setText("(interrogo Ollama...)");
+    m_lblModel->setText(tr("(interrogo Ollama...)"));
     m_ai->fetchModels();
     connect(m_ai, &AiClient::modelsReady,   this, &MainWindow::onInitialModelsReady);
     connect(m_ai, &AiClient::modelChanged,  this, &MainWindow::onModelChanged);

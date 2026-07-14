@@ -59,13 +59,13 @@ QWidget* AppControllerPage::buildDevAgentTab()
     lay->addWidget(descLbl);
 
     /* ── Configurazione ── */
-    auto* cfgGroup = new QGroupBox("\xf0\x9f\x94\xa7  Configurazione", w);
+    auto* cfgGroup = new QGroupBox(tr("\xf0\x9f\x94\xa7  Configurazione"), w);
     auto* cfgLay   = new QVBoxLayout(cfgGroup);
     cfgLay->setSpacing(dpiScale(6));
 
     /* Task input */
     auto* taskRow = new QHBoxLayout;
-    auto* taskLbl = new QLabel("Task:", cfgGroup);
+    auto* taskLbl = new QLabel(tr("Task:"), cfgGroup);
     taskLbl->setFixedWidth(dpiScale(55));
     m_devTaskEdit = new QLineEdit(cfgGroup);
     m_devTaskEdit->setPlaceholderText(
@@ -76,7 +76,7 @@ QWidget* AppControllerPage::buildDevAgentTab()
 
     /* Modello */
     auto* modelRow = new QHBoxLayout;
-    auto* modelLbl = new QLabel("Modello:", cfgGroup);
+    auto* modelLbl = new QLabel(tr("Modello:"), cfgGroup);
     modelLbl->setFixedWidth(dpiScale(55));
     m_devModelCombo = new QComboBox(cfgGroup);
     m_devModelCombo->setObjectName("settingCombo");
@@ -110,7 +110,7 @@ QWidget* AppControllerPage::buildDevAgentTab()
     m_devInstallBtn->setToolTip(
         "pip install langgraph langchain-community langchain-ollama unidiff");
 
-    m_devStatusLbl = new QLabel("\xe2\x9a\xab  Pronto", cfgGroup);
+    m_devStatusLbl = new QLabel(tr("\xe2\x9a\xab  Pronto"), cfgGroup);
     m_devStatusLbl->setObjectName("statusLabel");
 
     ctrlRow->addWidget(m_devRunBtn);
@@ -217,7 +217,7 @@ QWidget* AppControllerPage::buildDevAgentTab()
 
     /* Branch + Fetch+Reset */
     auto* fetchRow = new QHBoxLayout;
-    auto* branchLbl = new QLabel("Branch:", gitGroup);
+    auto* branchLbl = new QLabel(tr("Branch:"), gitGroup);
     branchLbl->setFixedWidth(dpiScale(55));
     m_devGitBranchEdit = new QLineEdit(gitGroup);
     m_devGitBranchEdit->setText(tr("master"));
@@ -236,7 +236,7 @@ QWidget* AppControllerPage::buildDevAgentTab()
 
     /* Log commit */
     auto* gitLogRow = new QHBoxLayout;
-    auto* gitLogLbl = new QLabel("Commit:", gitGroup);
+    auto* gitLogLbl = new QLabel(tr("Commit:"), gitGroup);
     gitLogLbl->setFixedWidth(dpiScale(55));
     m_devGitLogList = new QListWidget(gitGroup);
     m_devGitLogList->setFixedHeight(dpiScale(90));

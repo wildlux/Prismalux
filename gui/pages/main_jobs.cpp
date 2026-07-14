@@ -187,7 +187,7 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     /* CV Picker — riga controlli + riga stato: lo stato ("✅ CV caricato:
        nomefile.pdf (N car.)") può essere lungo, sulla stessa riga di
        path+Sfoglia forzava la larghezza minima del box oltre la colonna. */
-    m_cvBox = new QGroupBox("\xf0\x9f\x93\x84  Curriculum Vitae", topRow);
+    m_cvBox = new QGroupBox(tr("\xf0\x9f\x93\x84  Curriculum Vitae"), topRow);
     auto* cvVLay = new QVBoxLayout(m_cvBox);
     cvVLay->setSpacing(4);
     auto* cvRow = new QWidget(m_cvBox);
@@ -227,15 +227,15 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     m_cvPath = new QLineEdit(m_cvBox);
     m_cvPath->setPlaceholderText(tr("Percorso file PDF..."));
     m_cvPath->setReadOnly(true);
-    m_cvPath->setAccessibleName("Percorso curriculum vitae");
+    m_cvPath->setAccessibleName(tr("Percorso curriculum vitae"));
     m_cvPath->setAccessibleDescription("Campo sola lettura con il percorso del file PDF del curriculum");
 
-    auto* sfogliaBtn = new QPushButton("\xf0\x9f\x93\x82 Sfoglia...", m_cvBox);
+    auto* sfogliaBtn = new QPushButton(tr("\xf0\x9f\x93\x82 Sfoglia..."), m_cvBox);
     sfogliaBtn->setObjectName("actionBtn");
     sfogliaBtn->setFixedWidth(dpiScale(90));
-    sfogliaBtn->setAccessibleName("Sfoglia file curriculum");
+    sfogliaBtn->setAccessibleName(tr("Sfoglia file curriculum"));
 
-    m_cvStatus = new QLabel("Nessun CV caricato", m_cvBox);
+    m_cvStatus = new QLabel(tr("Nessun CV caricato"), m_cvBox);
     m_cvStatus->setObjectName("pageSubtitle");
     m_cvStatus->setWordWrap(true);
 
@@ -247,7 +247,7 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     /* LLM Selector — combo+refresh su una riga, nome modello sotto: il
        nome completo (es. "antconsales/antonio-gemma3-evo-q4:latest") è
        più largo della colonna, in linea col combo tagliava tutto. */
-    m_llmBox = new QGroupBox("\xf0\x9f\xa4\x96  Modello AI", topRow);
+    m_llmBox = new QGroupBox(tr("\xf0\x9f\xa4\x96  Modello AI"), topRow);
     auto* llmVLay = new QVBoxLayout(m_llmBox);
     llmVLay->setSpacing(4);
     auto* llmRow = new QWidget(m_llmBox);
@@ -259,7 +259,7 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     m_cmbModello->setObjectName("cmbModello");
     m_cmbModello->setMinimumWidth(180);
     m_cmbModello->addItem("\xf0\x9f\x94\x84 Caricamento modelli...");
-    m_cmbModello->setAccessibleName("Selettore modello AI per analisi lavoro");
+    m_cmbModello->setAccessibleName(tr("Selettore modello AI per analisi lavoro"));
 
     {
         const QString cur = m_ai->model();
@@ -323,10 +323,10 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     auto* filtriL = new QHBoxLayout(tipoRow);
     filtriL->setContentsMargins(0,0,0,0); filtriL->setSpacing(10);
 
-    filtriL->addWidget(new QLabel("\xf0\x9f\x94\x8d Tipo:", m_filtriRow));
+    filtriL->addWidget(new QLabel(tr("\xf0\x9f\x94\x8d Tipo:"), m_filtriRow));
     m_filtroTipo = new QComboBox(m_filtriRow);
     m_filtroTipo->setObjectName("filtroTipo");
-    m_filtroTipo->setAccessibleName("Filtro tipo di lavoro");
+    m_filtroTipo->setAccessibleName(tr("Filtro tipo di lavoro"));
     m_filtroTipo->setMinimumWidth(dpiScale(120));
 
     const struct { const char* label; const char* data; } tipi[] = {
@@ -353,11 +353,11 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     auto* livelloRow = new QWidget(m_filtriRow);
     auto* livelloL = new QHBoxLayout(livelloRow);
     livelloL->setContentsMargins(0,0,0,0); livelloL->setSpacing(10);
-    livelloL->addWidget(new QLabel("\xf0\x9f\x8e\x93 Istruzione:", m_filtriRow));
+    livelloL->addWidget(new QLabel(tr("\xf0\x9f\x8e\x93 Istruzione:"), m_filtriRow));
     m_filtroLivello = new QComboBox(m_filtriRow);
     m_filtroLivello->setObjectName("filtroLivello");
     m_filtroLivello->setMinimumWidth(dpiScale(120));
-    m_filtroLivello->setAccessibleName("Filtro livello di istruzione richiesto");
+    m_filtroLivello->setAccessibleName(tr("Filtro livello di istruzione richiesto"));
 
     const struct { const char* label; const char* data; } livelli[] = {
         {"Tutti i livelli",                      "tutti"},
@@ -383,21 +383,21 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     livelloL->addWidget(filtriBtn);
     filtriV->addWidget(livelloRow);
 
-    m_analizzaUrlBtn = new QPushButton("\xf0\x9f\x94\x97 Analizza URL", m_filtriRow);
+    m_analizzaUrlBtn = new QPushButton(tr("\xf0\x9f\x94\x97 Analizza URL"), m_filtriRow);
     m_analizzaUrlBtn->setObjectName("actionBtn");
     m_analizzaUrlBtn->setToolTip(tr("Analizza uno o più URL di annunci di lavoro"));
-    m_analizzaUrlBtn->setAccessibleName("Analizza annuncio di lavoro tramite URL");
-    m_analizzaCvBtn = new QPushButton("\xf0\x9f\xa4\x96 Analizza CV", m_filtriRow);
+    m_analizzaUrlBtn->setAccessibleName(tr("Analizza annuncio di lavoro tramite URL"));
+    m_analizzaCvBtn = new QPushButton(tr("\xf0\x9f\xa4\x96 Analizza CV"), m_filtriRow);
     m_analizzaCvBtn->setObjectName("actionBtn");
     m_analizzaCvBtn->setToolTip(tr("Chiedi all'AI di analizzare il tuo CV con una domanda predefinita o personalizzata"));
-    m_analizzaCvBtn->setAccessibleName("Analizza curriculum vitae con AI");
+    m_analizzaCvBtn->setAccessibleName(tr("Analizza curriculum vitae con AI"));
     m_stopAiBtn = new QPushButton("\xe2\x8f\xb9", m_filtriRow);
     m_stopAiBtn->setObjectName("actionBtn");
     m_stopAiBtn->setProperty("danger", true);
     m_stopAiBtn->setFixedWidth(dpiScale(28));
     m_stopAiBtn->setEnabled(false);
     m_stopAiBtn->setToolTip(tr("Interrompi elaborazione AI"));
-    m_stopAiBtn->setAccessibleName("Interrompi elaborazione AI");
+    m_stopAiBtn->setAccessibleName(tr("Interrompi elaborazione AI"));
     auto* aiRow = new QWidget(m_filtriRow);
     auto* aiRowL = new QHBoxLayout(aiRow);
     aiRowL->setContentsMargins(0,0,0,0); aiRowL->setSpacing(10);
@@ -438,7 +438,7 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     m_linksLbl->setOpenExternalLinks(true);
     m_linksLbl->setTextFormat(Qt::RichText);
     m_linksLbl->setWordWrap(true);
-    m_linksLbl->setText("<i>Seleziona un'offerta per vedere i link</i>");
+    m_linksLbl->setText(tr("<i>Seleziona un'offerta per vedere i link</i>"));
     listaPaneLay->addWidget(m_linksLbl);
 
     /* FIX layout: 5 pulsanti + etichetta su un'unica riga non ci stanno
@@ -454,25 +454,25 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     auto* copiaL = new QHBoxLayout(copiaRow);
     copiaL->setContentsMargins(0,0,0,0); copiaL->setSpacing(8);
 
-    auto* genBtn   = new QPushButton("\xf0\x9f\xa4\x96 Lettera via AI", azioniRow);
+    auto* genBtn   = new QPushButton(tr("\xf0\x9f\xa4\x96 Lettera via AI"), azioniRow);
     genBtn->setObjectName("actionBtn");
     genBtn->setToolTip(tr("Genera una lettera di candidatura via email per l'offerta selezionata"));
-    auto* genCoverBtn = new QPushButton("\xf0\x9f\x93\x84 Cover letter via AI", azioniRow);
+    auto* genCoverBtn = new QPushButton(tr("\xf0\x9f\x93\x84 Cover letter via AI"), azioniRow);
     genCoverBtn->setObjectName("actionBtn");
     genCoverBtn->setToolTip(tr("Genera una cover letter professionale da allegare alla candidatura"));
-    m_emailBtn = new QPushButton("\xe2\x9c\x89 Copia Email", azioniRow);
+    m_emailBtn = new QPushButton(tr("\xe2\x9c\x89 Copia Email"), azioniRow);
     m_emailBtn->setObjectName("actionBtn");
     m_emailBtn->setEnabled(false);
     m_emailBtn->setToolTip(tr("Disponibile solo per offerte con email diretta"));
-    m_copiaBtn = new QPushButton("\xf0\x9f\x93\x8b Copia Lettera", azioniRow);
+    m_copiaBtn = new QPushButton(tr("\xf0\x9f\x93\x8b Copia Lettera"), azioniRow);
     m_copiaBtn->setObjectName("actionBtn");
     m_copiaBtn->setEnabled(false);
     m_copiaBtn->setToolTip(tr("Copia la lettera email generata negli appunti"));
-    m_copiaCoverBtn = new QPushButton("\xf0\x9f\x93\x8b Copia Cover", azioniRow);
+    m_copiaCoverBtn = new QPushButton(tr("\xf0\x9f\x93\x8b Copia Cover"), azioniRow);
     m_copiaCoverBtn->setObjectName("actionBtn");
     m_copiaCoverBtn->setEnabled(false);
     m_copiaCoverBtn->setToolTip(tr("Copia la cover letter negli appunti"));
-    m_selLbl = new QLabel("Seleziona un'offerta (doppio clic = genera subito)", azioniRow);
+    m_selLbl = new QLabel(tr("Seleziona un'offerta (doppio clic = genera subito)"), azioniRow);
     m_selLbl->setObjectName("pageSubtitle");
     m_selLbl->setWordWrap(true);
     azioniL->addWidget(genBtn); azioniL->addWidget(genCoverBtn); azioniL->addStretch(1);
@@ -496,12 +496,12 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     auto* trkTitleLbl = new QLabel(
         "\xf0\x9f\x93\x8b  <b>Tracker Candidature</b>", trkHdrRow);
     trkTitleLbl->setTextFormat(Qt::RichText);
-    m_trackerAddBtn = new QPushButton("\xe2\x9e\x95 Aggiungi", trkHdrRow);
+    m_trackerAddBtn = new QPushButton(tr("\xe2\x9e\x95 Aggiungi"), trkHdrRow);
     m_trackerAddBtn->setObjectName("actionBtn");
-    m_trackerAddBtn->setAccessibleName("Aggiungi candidatura al tracker");
-    m_trackerDelBtn = new QPushButton("\xf0\x9f\x97\x91 Rimuovi", trkHdrRow);
+    m_trackerAddBtn->setAccessibleName(tr("Aggiungi candidatura al tracker"));
+    m_trackerDelBtn = new QPushButton(tr("\xf0\x9f\x97\x91 Rimuovi"), trkHdrRow);
     m_trackerDelBtn->setObjectName("actionBtn");
-    m_trackerDelBtn->setAccessibleName("Rimuovi candidatura selezionata dal tracker");
+    m_trackerDelBtn->setAccessibleName(tr("Rimuovi candidatura selezionata dal tracker"));
     trkHdrL->addWidget(trkTitleLbl, 1);
     trkHdrL->addWidget(m_trackerAddBtn);
     trkHdrL->addWidget(m_trackerDelBtn);
@@ -525,7 +525,7 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     trackerLay->addWidget(m_trackerTable, 1);
 
     /* Calcolatore euro/ore */
-    auto* calcBox  = new QGroupBox("\xf0\x9f\x92\xb6  Calcolatore Euro / Ore", trackerPane);
+    auto* calcBox  = new QGroupBox(tr("\xf0\x9f\x92\xb6  Calcolatore Euro / Ore"), trackerPane);
     auto* calcGrid = new QFormLayout(calcBox);
     calcGrid->setSpacing(4);
 
@@ -533,10 +533,10 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     m_calcMensile = new QLineEdit(calcBox);
     m_calcAnnuo   = new QLineEdit(calcBox);
     m_calcOrario  = new QLineEdit(calcBox);
-    m_calcOre->setAccessibleName("Ore di lavoro settimanali");
-    m_calcMensile->setAccessibleName("Stipendio lordo mensile in euro");
-    m_calcAnnuo->setAccessibleName("Stipendio lordo annuo in euro");
-    m_calcOrario->setAccessibleName("Paga oraria in euro");
+    m_calcOre->setAccessibleName(tr("Ore di lavoro settimanali"));
+    m_calcMensile->setAccessibleName(tr("Stipendio lordo mensile in euro"));
+    m_calcAnnuo->setAccessibleName(tr("Stipendio lordo annuo in euro"));
+    m_calcOrario->setAccessibleName(tr("Paga oraria in euro"));
     m_calcNettoLbl = new QLabel("\xe2\x80\x94", calcBox);
     m_calcNettoLbl->setTextFormat(Qt::RichText);
 
@@ -577,7 +577,7 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     auto* emailCol = new QWidget(colSplit);
     auto* emailLay = new QVBoxLayout(emailCol);
     emailLay->setContentsMargins(0,0,2,0); emailLay->setSpacing(2);
-    auto* emailHdr = new QLabel("\xe2\x9c\x89\xef\xb8\x8f  Lettera Email", emailCol);
+    auto* emailHdr = new QLabel(tr("\xe2\x9c\x89\xef\xb8\x8f  Lettera Email"), emailCol);
     emailHdr->setObjectName("pageSubtitle");
     emailLay->addWidget(emailHdr);
 
@@ -597,7 +597,7 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     auto* coverCol = new QWidget(colSplit);
     auto* coverLay = new QVBoxLayout(coverCol);
     coverLay->setContentsMargins(2,0,0,0); coverLay->setSpacing(2);
-    auto* coverHdr = new QLabel("\xf0\x9f\x93\x84  Cover Letter", coverCol);
+    auto* coverHdr = new QLabel(tr("\xf0\x9f\x93\x84  Cover Letter"), coverCol);
     coverHdr->setObjectName("pageSubtitle");
     coverLay->addWidget(coverHdr);
 
@@ -617,7 +617,7 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     colSplit->setStretchFactor(1, 1);
     botLay->addWidget(colSplit, 1);
 
-    m_waitLbl = new QLabel("\xe2\x8f\xb3  AI in elaborazione...", botPane);
+    m_waitLbl = new QLabel(tr("\xe2\x8f\xb3  AI in elaborazione..."), botPane);
     m_waitLbl->setStyleSheet("color:#E5C400; font-style:italic; padding:2px 0;");
     m_waitLbl->setVisible(false);
     botLay->addWidget(m_waitLbl);
@@ -860,7 +860,7 @@ void LavoroPage::onModelloIndexChanged(int) {
     if (!m_cmbModello) return;
     const QString raw = m_cmbModello->currentData(Qt::UserRole).toString();
     const QString name = raw.isEmpty() ? m_cmbModello->currentText() : raw;
-    if (m_modelloLbl) m_modelloLbl->setText("\xf0\x9f\xa4\x96 " + name);
+    if (m_modelloLbl) m_modelloLbl->setText(tr("\xf0\x9f\xa4\x96 ") + name);
     if (!name.isEmpty() && !name.startsWith("\xf0\x9f\x94\x84"))
         m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), name);
 }
@@ -885,14 +885,14 @@ void LavoroPage::onOfferteItemChanged(QListWidgetItem* cur, QListWidgetItem*) {
     if (!cur) {
         if (m_selLbl) m_selLbl->setText(tr("Seleziona un'offerta dalla lista"));
         if (m_emailBtn) m_emailBtn->setEnabled(false);
-        if (m_linksLbl) m_linksLbl->setText("<i>Seleziona un'offerta per vedere i link</i>");
+        if (m_linksLbl) m_linksLbl->setText(tr("<i>Seleziona un'offerta per vedere i link</i>"));
         return;
     }
     const auto o = cur->data(Qt::UserRole).value<Offerta>();
     if (m_selLbl) m_selLbl->setText(o.azienda + " \xe2\x80\x94 " + o.ruolo);
     if (m_emailBtn) {
         m_emailBtn->setEnabled(!o.email.isEmpty());
-        if (!o.email.isEmpty()) m_emailBtn->setToolTip("\xf0\x9f\x93\x8b Copia: " + o.email);
+        if (!o.email.isEmpty()) m_emailBtn->setToolTip(tr("\xf0\x9f\x93\x8b Copia: ") + o.email);
     }
     if (!m_linksLbl) return;
 
@@ -957,8 +957,8 @@ void LavoroPage::onLavoroLogContextMenu(const QPoint& pos) {
     const QString sel = m_lavoroLog->textCursor().selectedText();
     const bool hasSel = !sel.isEmpty();
     QMenu menu(m_lavoroLog);
-    QAction* actCopy = menu.addAction("\xf0\x9f\x97\x82  Copia " + QString(hasSel ? "selezione" : "tutto"));
-    QAction* actRead = menu.addAction("\xf0\x9f\x8e\x99  Leggi " + QString(hasSel ? "selezione" : "tutto"));
+    QAction* actCopy = menu.addAction(tr("\xf0\x9f\x97\x82  Copia ") + QString(hasSel ? "selezione" : "tutto"));
+    QAction* actRead = menu.addAction(tr("\xf0\x9f\x8e\x99  Leggi ") + QString(hasSel ? "selezione" : "tutto"));
     QAction* chosen  = menu.exec(m_lavoroLog->mapToGlobal(pos));
     const QString txt = hasSel ? sel : m_lavoroLog->toPlainText();
     if (chosen == actCopy) QGuiApplication::clipboard()->setText(txt);
@@ -974,7 +974,7 @@ void LavoroPage::onCoverLogContextMenu(const QPoint& pos) {
     const QString sel = m_coverLog->textCursor().selectedText();
     const bool hasSel = !sel.isEmpty();
     QMenu menu(m_coverLog);
-    QAction* actCopy = menu.addAction("\xf0\x9f\x97\x82  Copia " + QString(hasSel ? "selezione" : "tutto"));
+    QAction* actCopy = menu.addAction(tr("\xf0\x9f\x97\x82  Copia ") + QString(hasSel ? "selezione" : "tutto"));
     QAction* chosen  = menu.exec(m_coverLog->mapToGlobal(pos));
     if (chosen == actCopy)
         QGuiApplication::clipboard()->setText(hasSel ? sel : m_coverLog->toPlainText());
@@ -1259,9 +1259,9 @@ void LavoroPage::onAnalizzaUrlBtnClicked() {
     auto* btnRow = new QWidget(dlg);
     auto* btnL   = new QHBoxLayout(btnRow);
     btnL->setContentsMargins(0,4,0,0);
-    auto* okBtn  = new QPushButton("Analizza", btnRow);
+    auto* okBtn  = new QPushButton(tr("Analizza"), btnRow);
     okBtn->setObjectName("actionBtn");
-    auto* noBtn  = new QPushButton("Annulla", btnRow);
+    auto* noBtn  = new QPushButton(tr("Annulla"), btnRow);
     noBtn->setObjectName("actionBtn");
     btnL->addStretch(1); btnL->addWidget(okBtn); btnL->addWidget(noBtn);
     dLay->addWidget(btnRow);
@@ -1301,7 +1301,7 @@ void LavoroPage::onAnalizzaCvBtnClicked() {
     };
     listW->addItems(presets);
     dLay->addWidget(listW);
-    dLay->addWidget(new QLabel("Oppure scrivi una domanda personalizzata:", dlg));
+    dLay->addWidget(new QLabel(tr("Oppure scrivi una domanda personalizzata:"), dlg));
     auto* promptEdit = new QLineEdit(dlg);
     promptEdit->setObjectName("chatInput");
     promptEdit->setPlaceholderText(
@@ -1313,9 +1313,9 @@ void LavoroPage::onAnalizzaCvBtnClicked() {
     auto* btnRow = new QWidget(dlg);
     auto* btnL   = new QHBoxLayout(btnRow);
     btnL->setContentsMargins(0,4,0,0);
-    auto* okBtn  = new QPushButton("Analizza", btnRow);
+    auto* okBtn  = new QPushButton(tr("Analizza"), btnRow);
     okBtn->setObjectName("actionBtn");
-    auto* noBtn  = new QPushButton("Annulla", btnRow);
+    auto* noBtn  = new QPushButton(tr("Annulla"), btnRow);
     noBtn->setObjectName("actionBtn");
     btnL->addStretch(1); btnL->addWidget(okBtn); btnL->addWidget(noBtn);
     dLay->addWidget(btnRow);

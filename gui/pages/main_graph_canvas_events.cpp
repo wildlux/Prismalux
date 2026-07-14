@@ -241,10 +241,10 @@ void GraficoCanvas::mouseReleaseEvent(QMouseEvent* e) {
 
 void GraficoCanvas::contextMenuEvent(QContextMenuEvent* e) {
     auto* menu = new QMenu(this);
-    auto* actSave = menu->addAction("\xf0\x9f\x96\xbc  Salva come PNG...");
+    auto* actSave = menu->addAction(tr("\xf0\x9f\x96\xbc  Salva come PNG..."));
     connect(actSave, &QAction::triggered, this, &GraficoCanvas::onContextSavePng);
     menu->addSeparator();
-    auto* actReset = menu->addAction("\xf0\x9f\x94\x84  Reset vista");
+    auto* actReset = menu->addAction(tr("\xf0\x9f\x94\x84  Reset vista"));
     connect(actReset, &QAction::triggered, this, &GraficoCanvas::resetView);
     menu->exec(e->globalPos());
     menu->deleteLater();

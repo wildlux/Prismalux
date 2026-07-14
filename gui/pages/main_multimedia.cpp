@@ -123,11 +123,11 @@ QWidget* MultimediaPage::buildAudioTab()
         "\xf0\x9f\x93\x82  Carica audio", fileRow);
     fileBtn->setObjectName("actionBtn");
     fileBtn->setFixedWidth(dpiScale(140));
-    m_recBtn = new QPushButton("\xf0\x9f\x8e\x99  Registra", fileRow);
+    m_recBtn = new QPushButton(tr("\xf0\x9f\x8e\x99  Registra"), fileRow);
     m_recBtn->setObjectName("actionBtn");
     m_recBtn->setFixedWidth(dpiScale(120));
     m_recBtn->setCheckable(true);
-    m_audioFileLbl = new QLabel("Nessun file caricato", fileRow);
+    m_audioFileLbl = new QLabel(tr("Nessun file caricato"), fileRow);
     m_audioFileLbl->setObjectName("hintLabel");
     fileLay->addWidget(fileBtn);
     fileLay->addWidget(m_recBtn);
@@ -149,7 +149,7 @@ QWidget* MultimediaPage::buildAudioTab()
     auto* actionLay = new QHBoxLayout(actionRow);
     actionLay->setContentsMargins(0, 0, 0, 0);
     actionLay->setSpacing(8);
-    auto* actionLbl = new QLabel("Azione AI:", actionRow);
+    auto* actionLbl = new QLabel(tr("Azione AI:"), actionRow);
     m_audioActionCombo = new QComboBox(actionRow);
     m_audioActionCombo->addItems({
         "\xf0\x9f\x93\x9d  Riassumi",
@@ -819,7 +819,7 @@ QWidget* MultimediaPage::buildOcrTab()
     m_ocrStartBtn->setCheckable(true);
     cl->addWidget(m_ocrStartBtn);
 
-    cl->addWidget(new QLabel("Intervallo:", ctrlRow));
+    cl->addWidget(new QLabel(tr("Intervallo:"), ctrlRow));
     m_ocrInterval = new QSpinBox(ctrlRow);
     m_ocrInterval->setRange(1, 60);
     m_ocrInterval->setValue(3);
@@ -827,7 +827,7 @@ QWidget* MultimediaPage::buildOcrTab()
     m_ocrInterval->setToolTip(tr("Secondi tra una scansione webcam e l'altra"));
     cl->addWidget(m_ocrInterval);
 
-    cl->addWidget(new QLabel("Risoluzione:", ctrlRow));
+    cl->addWidget(new QLabel(tr("Risoluzione:"), ctrlRow));
     m_ocrResCambo = new QComboBox(ctrlRow);
     m_ocrResCambo->addItem("640\xc3\x97" "480  (veloce)",   QStringLiteral("640x480"));
     m_ocrResCambo->addItem("1280\xc3\x97" "720  (consigliata)", QStringLiteral("1280x720"));
@@ -862,7 +862,7 @@ QWidget* MultimediaPage::buildOcrTab()
             this, &MultimediaPage::onOcrLoadVideoClicked);
     cl->addWidget(btnVideo);
 
-    cl->addWidget(new QLabel("1 frame ogni:", ctrlRow));
+    cl->addWidget(new QLabel(tr("1 frame ogni:"), ctrlRow));
     m_ocrVideoStep = new QSpinBox(ctrlRow);
     m_ocrVideoStep->setRange(1, 30);
     m_ocrVideoStep->setValue(2);
@@ -870,7 +870,7 @@ QWidget* MultimediaPage::buildOcrTab()
     m_ocrVideoStep->setToolTip(tr("Estrai 1 frame ogni N secondi di video"));
     cl->addWidget(m_ocrVideoStep);
 
-    m_ocrVideoLbl = new QLabel("Nessun video", ctrlRow);
+    m_ocrVideoLbl = new QLabel(tr("Nessun video"), ctrlRow);
     m_ocrVideoLbl->setObjectName("hintLabel");
     m_ocrVideoLbl->setMaximumWidth(160);
     cl->addWidget(m_ocrVideoLbl);
@@ -897,7 +897,7 @@ QWidget* MultimediaPage::buildOcrTab()
 
     cl->addStretch(1);
 
-    m_ocrStatus = new QLabel("Pronto.", panel);
+    m_ocrStatus = new QLabel(tr("Pronto."), panel);
     m_ocrStatus->setObjectName("statusLabel");
     cl->addWidget(m_ocrStatus);
 
@@ -909,19 +909,19 @@ QWidget* MultimediaPage::buildOcrTab()
     fl->setContentsMargins(0, 2, 0, 2);
     fl->setSpacing(16);
 
-    fl->addWidget(new QLabel("\xf0\x9f\xaa\x9b  Filtri:", panel));  /* 🪛 */
+    fl->addWidget(new QLabel(tr("\xf0\x9f\xaa\x9b  Filtri:"), panel));  /* 🪛 */
 
-    m_ocrChkDedup = new QCheckBox("Deduplicazione (righe gi\xc3\xa0 viste)", panel);
+    m_ocrChkDedup = new QCheckBox(tr("Deduplicazione (righe gi\xc3\xa0 viste)"), panel);
     m_ocrChkDedup->setChecked(true);
     m_ocrChkDedup->setToolTip(tr("Scarta le righe identiche gi\xc3\xa0 presenti nell'area testo"));
     fl->addWidget(m_ocrChkDedup);
 
-    m_ocrChkAlpha = new QCheckBox("Solo testo (>50% lettere)", panel);
+    m_ocrChkAlpha = new QCheckBox(tr("Solo testo (>50% lettere)"), panel);
     m_ocrChkAlpha->setChecked(true);
     m_ocrChkAlpha->setToolTip(tr("Scarta righe composte principalmente da numeri o simboli"));
     fl->addWidget(m_ocrChkAlpha);
 
-    m_ocrChkMinLen = new QCheckBox("Lunghezza \xe2\x89\xa5 4 caratteri", panel);  /* ≥ */
+    m_ocrChkMinLen = new QCheckBox(tr("Lunghezza \xe2\x89\xa5 4 caratteri"), panel);  /* ≥ */
     m_ocrChkMinLen->setChecked(true);
     m_ocrChkMinLen->setToolTip(tr("Scarta parole/frammenti troppo corti"));
     fl->addWidget(m_ocrChkMinLen);
@@ -932,14 +932,14 @@ QWidget* MultimediaPage::buildOcrTab()
     sepFilter->setFrameShadow(QFrame::Sunken);
     fl->addWidget(sepFilter);
 
-    m_ocrChkSkipUnchanged = new QCheckBox("Salta OCR se scena invariata", panel);
+    m_ocrChkSkipUnchanged = new QCheckBox(tr("Salta OCR se scena invariata"), panel);
     m_ocrChkSkipUnchanged->setChecked(true);
     m_ocrChkSkipUnchanged->setToolTip(
         tr("Confronta l'istogramma di colore del frame corrente con l'ultimo scansionato.\n"
            "Se la somiglianza supera la soglia, Tesseract viene saltato (~5ms invece di ~1-2s)."));
     fl->addWidget(m_ocrChkSkipUnchanged);
 
-    fl->addWidget(new QLabel("Soglia:", panel));
+    fl->addWidget(new QLabel(tr("Soglia:"), panel));
     m_ocrThreshSpin = new QDoubleSpinBox(panel);
     m_ocrThreshSpin->setRange(0.80, 0.999);
     m_ocrThreshSpin->setSingleStep(0.01);
@@ -1542,7 +1542,7 @@ void MultimediaPage::onOcrDaemonReadyRead()
         }
 
         if (obj.contains("error")) {
-            m_ocrStatus->setText("\xe2\x9d\x8c  " + obj["error"].toString());
+            m_ocrStatus->setText(tr("\xe2\x9d\x8c  ") + obj["error"].toString());
             LogBus::post("\xe2\x9d\x8c OCR webcam: " + obj["error"].toString());
             continue;
         }
@@ -1942,10 +1942,10 @@ QWidget* MultimediaPage::buildOsmMapTab()
     wpLay->addWidget(m_osmWpList);
 
     auto* wpBtnRow = new QHBoxLayout;
-    auto* btnRemWp = new QPushButton("\xe2\x9c\x96  Rimuovi", wpGroup);
+    auto* btnRemWp = new QPushButton(tr("\xe2\x9c\x96  Rimuovi"), wpGroup);
     btnRemWp->setObjectName("actionBtn");
     btnRemWp->setToolTip(tr("Rimuovi la tappa selezionata"));
-    auto* btnClrWp = new QPushButton("\xf0\x9f\x97\x91  Svuota", wpGroup);
+    auto* btnClrWp = new QPushButton(tr("\xf0\x9f\x97\x91  Svuota"), wpGroup);
     btnClrWp->setObjectName("actionBtn");
     btnClrWp->setToolTip(tr("Rimuovi tutte le tappe e il percorso"));
     wpBtnRow->addWidget(btnRemWp, 1);
@@ -1966,12 +1966,12 @@ QWidget* MultimediaPage::buildOsmMapTab()
     panelLay->addWidget(wpGroup);
 
     /* ── Routing ── */
-    auto* rtGroup = new QGroupBox("\xf0\x9f\x9a\x97  Percorso", panel);
+    auto* rtGroup = new QGroupBox(tr("\xf0\x9f\x9a\x97  Percorso"), panel);
     auto* rtLay = new QVBoxLayout(rtGroup);
     rtLay->setSpacing(dpiScale(4));
 
     auto* profRow = new QHBoxLayout;
-    auto* profLbl = new QLabel("Modalit\xc3\xa0:", rtGroup);
+    auto* profLbl = new QLabel(tr("Modalit\xc3\xa0:"), rtGroup);
     profLbl->setFixedWidth(dpiScale(60));
     m_osmProfileCmb = new QComboBox(rtGroup);
     m_osmProfileCmb->setObjectName("settingCombo");
@@ -1989,19 +1989,19 @@ QWidget* MultimediaPage::buildOsmMapTab()
     btnCalc->setToolTip(tr("Calcola percorso via OSRM (richiede internet)"));
     rtLay->addWidget(btnCalc);
 
-    m_osmRouteInfo = new QLabel("Distanza: \xe2\x80\x94  |  Tempo: \xe2\x80\x94", rtGroup);
+    m_osmRouteInfo = new QLabel(tr("Distanza: \xe2\x80\x94  |  Tempo: \xe2\x80\x94"), rtGroup);
     m_osmRouteInfo->setObjectName("cardDesc");
     m_osmRouteInfo->setWordWrap(true);
     rtLay->addWidget(m_osmRouteInfo);
 
-    auto* btnClrRoute = new QPushButton("\xf0\x9f\x97\x91  Cancella percorso", rtGroup);
+    auto* btnClrRoute = new QPushButton(tr("\xf0\x9f\x97\x91  Cancella percorso"), rtGroup);
     btnClrRoute->setObjectName("actionBtn");
     rtLay->addWidget(btnClrRoute);
 
     panelLay->addWidget(rtGroup);
 
     /* ── Percorsi salvati ── */
-    auto* savedGroup = new QGroupBox("\xf0\x9f\x92\xbe  Percorsi salvati", panel);
+    auto* savedGroup = new QGroupBox(tr("\xf0\x9f\x92\xbe  Percorsi salvati"), panel);
     auto* savedLay = new QVBoxLayout(savedGroup);
     savedLay->setSpacing(dpiScale(4));
 
@@ -2010,10 +2010,10 @@ QWidget* MultimediaPage::buildOsmMapTab()
     savedLay->addWidget(m_osmSavedCombo);
 
     auto* savedBtnRow = new QHBoxLayout;
-    auto* btnSaveRoute = new QPushButton("\xf0\x9f\x92\xbe  Salva", savedGroup);
+    auto* btnSaveRoute = new QPushButton(tr("\xf0\x9f\x92\xbe  Salva"), savedGroup);
     btnSaveRoute->setObjectName("actionBtn");
     btnSaveRoute->setToolTip(tr("Salva tappe e percorso disegnato con un nome"));
-    auto* btnLoadRoute = new QPushButton("\xf0\x9f\x93\x82  Carica", savedGroup);
+    auto* btnLoadRoute = new QPushButton(tr("\xf0\x9f\x93\x82  Carica"), savedGroup);
     btnLoadRoute->setObjectName("actionBtn");
     auto* btnDelRoute = new QPushButton("\xf0\x9f\x97\x91", savedGroup);
     btnDelRoute->setObjectName("actionBtn");
@@ -2231,7 +2231,7 @@ QWidget* MultimediaPage::buildOsmMapTab()
         if (m_osmRouteInfo)
             m_osmRouteInfo->setText(tr("\xf0\x9f\x94\x84  Calcolo in corso..."));
         if (m_osmElevLbl)
-            m_osmElevLbl->setText("<small>Calcolo altimetria...</small>");
+            m_osmElevLbl->setText(tr("<small>Calcolo altimetria...</small>"));
 
         QNetworkReply* reply = m_osmNam->get(req);
         connect(reply, &QNetworkReply::finished, reply,
@@ -2340,7 +2340,7 @@ QWidget* MultimediaPage::buildOsmMapTab()
         const double startLat = m_osmWpList->item(0)->data(Qt::UserRole).toDouble();
         const double startLon = m_osmWpList->item(0)->data(Qt::UserRole + 1).toDouble();
 
-        if (m_osmWeatherLbl) m_osmWeatherLbl->setText("<small>Caricamento...</small>");
+        if (m_osmWeatherLbl) m_osmWeatherLbl->setText(tr("<small>Caricamento...</small>"));
         if (m_osmWeatherBtn) m_osmWeatherBtn->setEnabled(false);
 
         QNetworkRequest req(QUrl(
@@ -2391,7 +2391,7 @@ QWidget* MultimediaPage::buildOsmMapTab()
     connect(btnDl, &QPushButton::clicked, w, [this] {
         if (!m_osmMap || !m_osmDlLbl) return;
         if (m_osmDlLbl)
-            m_osmDlLbl->setText("<small>Avvio download...</small>");
+            m_osmDlLbl->setText(tr("<small>Avvio download...</small>"));
         m_osmMap->downloadVisibleTiles();
     });
 

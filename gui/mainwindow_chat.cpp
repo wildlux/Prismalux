@@ -406,7 +406,7 @@ void MainWindow::showOnboardingWizard()
     QSettings ss("Prismalux", "GUI");
 
     auto* dlg = new QDialog(this);
-    dlg->setWindowTitle("Benvenuto in Prismalux \xf0\x9f\x8d\xba");
+    dlg->setWindowTitle(tr("Benvenuto in Prismalux \xf0\x9f\x8d\xba"));
     dlg->setMinimumWidth(dpiScale(480));
     dlg->setAttribute(Qt::WA_DeleteOnClose);
 
@@ -427,7 +427,7 @@ void MainWindow::showOnboardingWizard()
     vlay->addWidget(sep);
 
     /* Step 1 — backend */
-    auto* backendGrp = new QGroupBox("1. Backend AI", dlg);
+    auto* backendGrp = new QGroupBox(tr("1. Backend AI"), dlg);
     auto* bLay = new QVBoxLayout(backendGrp);
     auto* backendCombo = new QComboBox(backendGrp);
     backendCombo->addItem("\xf0\x9f\xa6\x99  Ollama (consigliato)", 0);
@@ -444,7 +444,7 @@ void MainWindow::showOnboardingWizard()
     vlay->addWidget(backendGrp);
 
     /* Step 2 — modello consigliato */
-    auto* modelGrp = new QGroupBox("2. Modello consigliato", dlg);
+    auto* modelGrp = new QGroupBox(tr("2. Modello consigliato"), dlg);
     auto* mLay = new QVBoxLayout(modelGrp);
     auto* modelCombo = new QComboBox(modelGrp);
     modelCombo->addItem("qwen3:4b  \xe2\x80\x94  ~2.6 GB  (8 GB RAM, veloce)", "qwen3:4b");
@@ -466,7 +466,7 @@ void MainWindow::showOnboardingWizard()
     vlay->addWidget(modelGrp);
 
     /* Step 3 — tema */
-    auto* themeGrp = new QGroupBox("3. Tema", dlg);
+    auto* themeGrp = new QGroupBox(tr("3. Tema"), dlg);
     auto* tLay = new QVBoxLayout(themeGrp);
     auto* themeCombo = new QComboBox(themeGrp);
 
@@ -537,7 +537,7 @@ void MainWindow::showOnboardingWizard()
 
     /* Bottoni */
     auto* btnBox = new QDialogButtonBox(QDialogButtonBox::Ok, dlg);
-    btnBox->button(QDialogButtonBox::Ok)->setText("\xf0\x9f\x8d\xba  Inizia!");
+    btnBox->button(QDialogButtonBox::Ok)->setText(tr("\xf0\x9f\x8d\xba  Inizia!"));
     vlay->addWidget(btnBox);
 
     m_onbBackend = backendCombo;

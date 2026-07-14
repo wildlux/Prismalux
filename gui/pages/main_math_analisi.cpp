@@ -375,7 +375,7 @@ QWidget* MatematicaPage::buildAnalisi1Tab()
 
     /* ─── Riga selettore argomento ─── */
     auto* topRow = new QHBoxLayout;
-    auto* topLbl = new QLabel("<b>\xf0\x9f\x93\x98  Argomento:</b>", w);
+    auto* topLbl = new QLabel(tr("<b>\xf0\x9f\x93\x98  Argomento:</b>"), w);
     topRow->addWidget(topLbl);
 
     m_a1TopicCmb = new QComboBox(w);
@@ -411,7 +411,7 @@ QWidget* MatematicaPage::buildAnalisi1Tab()
 
     /* ─── Riga Risolvi ─── */
     auto* tryRow = new QHBoxLayout;
-    tryRow->addWidget(new QLabel("\xf0\x9f\x93\x90  Risolvi:", w));
+    tryRow->addWidget(new QLabel(tr("\xf0\x9f\x93\x90  Risolvi:"), w));
     m_a1Input = new QLineEdit(w);
     m_a1Input->setPlaceholderText(tr("Espressione SymPy (pre-compilata dall'argomento)"));
     tryRow->addWidget(m_a1Input, 1);
@@ -441,7 +441,7 @@ QWidget* MatematicaPage::buildAnalisi1Tab()
 
     /* ─── Riga Grafico ─── */
     auto* plotRow = new QHBoxLayout;
-    plotRow->addWidget(new QLabel("\xf0\x9f\x93\x88  Grafico:", w));
+    plotRow->addWidget(new QLabel(tr("\xf0\x9f\x93\x88  Grafico:"), w));
     m_a1PlotInput = new QLineEdit(w);
     m_a1PlotInput->setPlaceholderText(tr("f(x) da disegnare nel canvas"));
     plotRow->addWidget(m_a1PlotInput, 1);
@@ -485,7 +485,7 @@ QWidget* MatematicaPage::buildAnalisi2Tab()
     lay->setSpacing(8);
 
     auto* topRow = new QHBoxLayout;
-    auto* topLbl = new QLabel("<b>\xf0\x9f\x93\x99  Argomento:</b>", w);
+    auto* topLbl = new QLabel(tr("<b>\xf0\x9f\x93\x99  Argomento:</b>"), w);
     topRow->addWidget(topLbl);
 
     m_a2TopicCmb = new QComboBox(w);
@@ -526,7 +526,7 @@ QWidget* MatematicaPage::buildAnalisi2Tab()
         auto* vBtn = new QToolButton(m_a2Canvas);
         vBtn->setObjectName("viewportShadingBtn");
         vBtn->setText(QString::fromUtf8(kVM[0].icon));
-        vBtn->setToolTip("Shading viewport");
+        vBtn->setToolTip(tr("Shading viewport"));
         vBtn->setAutoRaise(true);
         vBtn->setPopupMode(QToolButton::InstantPopup);
         vBtn->setFixedSize(dpiScale(32), dpiScale(28));
@@ -554,7 +554,7 @@ QWidget* MatematicaPage::buildAnalisi2Tab()
 
     /* ─── Riga Risolvi ─── */
     auto* tryRow = new QHBoxLayout;
-    tryRow->addWidget(new QLabel("\xf0\x9f\x93\x90  Risolvi:", w));
+    tryRow->addWidget(new QLabel(tr("\xf0\x9f\x93\x90  Risolvi:"), w));
     m_a2Input = new QLineEdit(w);
     m_a2Input->setPlaceholderText(tr("Espressione SymPy (pre-compilata dall'argomento)"));
     tryRow->addWidget(m_a2Input, 1);
@@ -584,7 +584,7 @@ QWidget* MatematicaPage::buildAnalisi2Tab()
 
     /* ─── Riga Grafico ─── */
     auto* plotRow = new QHBoxLayout;
-    plotRow->addWidget(new QLabel("\xf0\x9f\x93\x88  Grafico:", w));
+    plotRow->addWidget(new QLabel(tr("\xf0\x9f\x93\x88  Grafico:"), w));
     m_a2PlotInput = new QLineEdit(w);
     m_a2PlotInput->setPlaceholderText(tr("f(x,y) — con 'y' \xe2\x86\x92 3D"));
     plotRow->addWidget(m_a2PlotInput, 1);
@@ -705,7 +705,7 @@ void MatematicaPage::onA1AiClicked()
     clearOutput();
     appendOutput(QString("\xf0\x9f\x93\x98  Spiegazione AI: %1\n%2\n\n")
                  .arg(topicName, QString(topicName.length()+20, '-')));
-    setStatus("\xf0\x9f\xa4\x96  AI in elaborazione...");
+    setStatus(tr("\xf0\x9f\xa4\x96  AI in elaborazione..."));
 
     const QString sys =
         "Sei un professore universitario di Analisi Matematica 1. "
@@ -795,7 +795,7 @@ void MatematicaPage::onA2AiClicked()
     clearOutput();
     appendOutput(QString("\xf0\x9f\x93\x99  Spiegazione AI: %1\n%2\n\n")
                  .arg(topicName, QString(topicName.length()+20, '-')));
-    setStatus("\xf0\x9f\xa4\x96  AI in elaborazione...");
+    setStatus(tr("\xf0\x9f\xa4\x96  AI in elaborazione..."));
 
     const QString sys =
         "Sei un professore universitario di Analisi Matematica 2. "
@@ -832,7 +832,7 @@ void MatematicaPage::onAnalisiAiFinished(const QString& full)
     delete m_aiAnalisiHolder;
     m_aiAnalisiHolder = nullptr;
     m_aiRunning = false;
-    setStatus("\xe2\x9c\x85  Spiegazione AI completata.");
+    setStatus(tr("\xe2\x9c\x85  Spiegazione AI completata."));
     if (m_latexOut && m_latexOut->isVisible() && !full.isEmpty()) {
         /* toHtmlEscaped() non tocca \ — i delimitatori \(...\) e \[...\] rimangono
            intatti; KaTeX auto-render li trova e renderizza le formule. */
@@ -847,7 +847,7 @@ void MatematicaPage::onAnalisiAiError(const QString& msg)
     m_aiAnalisiHolder = nullptr;
     m_aiRunning = false;
     appendOutput("\n\xe2\x9d\x8c  Errore AI: " + msg + "\n");
-    setStatus("\xe2\x9d\x8c  Errore AI.");
+    setStatus(tr("\xe2\x9d\x8c  Errore AI."));
     LogBus::post("\xe2\x9d\x8c Matematica: Errore AI analisi: " + msg);
 }
 

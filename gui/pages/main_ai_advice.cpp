@@ -50,7 +50,7 @@ void AgentiPage::runConsiglioScientifico()
         dlg->setWindowTitle(tr("\xf0\x9f\x8f\x9b  Consiglio Scientifico — Strategia"));
         dlg->setFixedWidth(dpiScale(380));
         auto* lay = new QVBoxLayout(dlg);
-        lay->addWidget(new QLabel("Scegli la strategia di aggregazione:", dlg));
+        lay->addWidget(new QLabel(tr("Scegli la strategia di aggregazione:"), dlg));
         auto* cmb = new QComboBox(dlg);
         cmb->addItem("0  Aggregazione Pesata  (primaria + alternative)");
         cmb->addItem("1  Analisi Comparativa  (consenso Jaccard)");

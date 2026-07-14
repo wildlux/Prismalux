@@ -25,7 +25,7 @@ Rab0lWidget::Rab0lWidget(QWidget* parent)
     m_seq2 = new QLineEdit(this);
     m_seq2->setPlaceholderText(tr("Sequenza 2  (opzionale \xe2\x80\x94 calcola SIM)"));
 
-    auto* btnAn = new QPushButton("\xe2\x96\xb6  Analizza", this);
+    auto* btnAn = new QPushButton(tr("\xe2\x96\xb6  Analizza"), this);
     btnAn->setObjectName("primaryBtn");
     auto* btnCl = new QPushButton("\xf0\x9f\x97\x91", this);
     btnCl->setToolTip(tr("Pulisci"));
@@ -34,9 +34,9 @@ Rab0lWidget::Rab0lWidget(QWidget* parent)
     m_simLbl = new QLabel(this);
     m_simLbl->setTextFormat(Qt::RichText);
 
-    hlay->addWidget(new QLabel("Seq 1:", this));
+    hlay->addWidget(new QLabel(tr("Seq 1:"), this));
     hlay->addWidget(m_seq1, 3);
-    hlay->addWidget(new QLabel("Seq 2:", this));
+    hlay->addWidget(new QLabel(tr("Seq 2:"), this));
     hlay->addWidget(m_seq2, 3);
     hlay->addWidget(btnAn);
     hlay->addWidget(btnCl);

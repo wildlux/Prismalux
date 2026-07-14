@@ -319,15 +319,15 @@ void ManutenzioneePage::cronAddOrEdit(int idx)
     lay->addLayout(form);
 
     /* ── Tipo schedule ── */
-    auto* schedGrp = new QGroupBox("Pianificazione", dlg);
+    auto* schedGrp = new QGroupBox(tr("Pianificazione"), dlg);
     auto* schedLay = new QVBoxLayout(schedGrp);
     schedLay->setSpacing(6);
 
     auto* bg = new QButtonGroup(dlg);
-    auto* rdDaily    = new QRadioButton("Giornaliero — alle ore:", schedGrp);
-    auto* rdHourly   = new QRadioButton("Ogni ora — al minuto:", schedGrp);
-    auto* rdInterval = new QRadioButton("Ogni N minuti:", schedGrp);
-    auto* rdOnce     = new QRadioButton("Una volta — il:", schedGrp);
+    auto* rdDaily    = new QRadioButton(tr("Giornaliero — alle ore:"), schedGrp);
+    auto* rdHourly   = new QRadioButton(tr("Ogni ora — al minuto:"), schedGrp);
+    auto* rdInterval = new QRadioButton(tr("Ogni N minuti:"), schedGrp);
+    auto* rdOnce     = new QRadioButton(tr("Una volta — il:"), schedGrp);
     bg->addButton(rdDaily,    0);
     bg->addButton(rdHourly,   1);
     bg->addButton(rdInterval, 2);
@@ -441,16 +441,16 @@ QWidget* ManutenzioneePage::buildCronTab()
     tbLay->setContentsMargins(0, 0, 0, 0);
     tbLay->setSpacing(6);
 
-    auto* btnAdd  = new QPushButton("+ Aggiungi", tb);
-    auto* btnEdit = new QPushButton("\xe2\x9c\x8f  Modifica", tb);
-    auto* btnDel  = new QPushButton("\xf0\x9f\x97\x91  Rimuovi", tb);
-    auto* btnRun  = new QPushButton("\xe2\x96\xb6  Esegui ora", tb);
+    auto* btnAdd  = new QPushButton(tr("+ Aggiungi"), tb);
+    auto* btnEdit = new QPushButton(tr("\xe2\x9c\x8f  Modifica"), tb);
+    auto* btnDel  = new QPushButton(tr("\xf0\x9f\x97\x91  Rimuovi"), tb);
+    auto* btnRun  = new QPushButton(tr("\xe2\x96\xb6  Esegui ora"), tb);
     btnAdd->setObjectName("actionBtn");
     btnEdit->setObjectName("actionBtn");
     btnDel->setObjectName("actionBtn");
     btnRun->setObjectName("actionBtn");
 
-    m_btnCronPause = new QPushButton("\xe2\x8f\xb8  Pausa tutto", tb);
+    m_btnCronPause = new QPushButton(tr("\xe2\x8f\xb8  Pausa tutto"), tb);
     m_btnCronPause->setObjectName("actionBtn");
     m_btnCronPause->setCheckable(true);
 
@@ -478,7 +478,7 @@ QWidget* ManutenzioneePage::buildCronTab()
     lay->addWidget(m_cronTable, 1);
 
     /* Log */
-    auto* logTitle = new QLabel("\xf0\x9f\x93\x9c  Log esecuzioni:", w);
+    auto* logTitle = new QLabel(tr("\xf0\x9f\x93\x9c  Log esecuzioni:"), w);
     logTitle->setObjectName("formLabel");
     lay->addWidget(logTitle);
 

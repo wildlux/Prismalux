@@ -53,7 +53,7 @@ void AiScriptWidget::runSciScript(const QString& code, bool isBash,
     const QString tmpPath = P::safeTempPath() + "/prismalux_bio_script" + suffix;
     QFile f(tmpPath);
     if (!f.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        statusLbl->setText("\xe2\x9d\x8c  Impossibile creare script temporaneo");
+        statusLbl->setText(tr("\xe2\x9d\x8c  Impossibile creare script temporaneo"));
         return;
     }
     f.write(code.toUtf8());
@@ -83,7 +83,7 @@ void AiScriptWidget::runSciScript(const QString& code, bool isBash,
             });
     }
     execBtn->setEnabled(false);
-    statusLbl->setText("\xf0\x9f\x94\x84  Esecuzione...");
+    statusLbl->setText(tr("\xf0\x9f\x94\x84  Esecuzione..."));
     if (isBash) {
         const QString bash = QStandardPaths::findExecutable("bash");
         procRef->start(bash.isEmpty() ? "bash" : bash, {tmpPath});
@@ -91,7 +91,7 @@ void AiScriptWidget::runSciScript(const QString& code, bool isBash,
         procRef->start(P::findPython(), {tmpPath});
     }
     if (procRef->state() == QProcess::NotRunning)
-        statusLbl->setText("\xe2\x9d\x8c  Interprete non trovato");
+        statusLbl->setText(tr("\xe2\x9d\x8c  Interprete non trovato"));
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -171,7 +171,7 @@ void AiScriptWidget::onSciFinished(const QString& full)
                 if (!m_sciCodeRef->isEmpty()) {
                     m_sciExecBtn->setEnabled(true);
                     if (m_sciStatusLbl)
-                        m_sciStatusLbl->setText("\xe2\x9c\x85  Codice pronto \xe2\x80\x94 premi Esegui");
+                        m_sciStatusLbl->setText(tr("\xe2\x9c\x85  Codice pronto \xe2\x80\x94 premi Esegui"));
                 }
             }
         }

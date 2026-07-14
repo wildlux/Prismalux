@@ -80,7 +80,7 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
     mainLay->setSpacing(12);
 
     /* Titolo */
-    auto* titleLbl = new QLabel("\xf0\x9f\xa6\x99  AI Locale \xe2\x80\x94 Gestori & Modelli", page);
+    auto* titleLbl = new QLabel(tr("\xf0\x9f\xa6\x99  AI Locale \xe2\x80\x94 Gestori & Modelli"), page);
     titleLbl->setObjectName("sectionTitle");
     mainLay->addWidget(titleLbl);
 
@@ -91,18 +91,18 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
     colsLay->setSpacing(16);
 
     /* ── Colonna sinistra: selettore gestore ── */
-    auto* leftGroup = new QGroupBox("\xf0\x9f\x94\xa7  Gestore LLM", colsRow);
+    auto* leftGroup = new QGroupBox(tr("\xf0\x9f\x94\xa7  Gestore LLM"), colsRow);
     leftGroup->setObjectName("cardGroup");
     leftGroup->setMinimumWidth(220);
     leftGroup->setMaximumWidth(280);
     auto* leftLay = new QVBoxLayout(leftGroup);
     leftLay->setSpacing(10);
 
-    auto* btnOllama = new QRadioButton("\xf0\x9f\x90\xb3  Ollama", leftGroup);
+    auto* btnOllama = new QRadioButton(tr("\xf0\x9f\x90\xb3  Ollama"), leftGroup);
     btnOllama->setChecked(true);
-    btnOllama->setAccessibleName("Backend Ollama");
-    auto* btnLlama  = new QRadioButton("\xf0\x9f\xa6\x99  llama.cpp", leftGroup);
-    btnLlama->setAccessibleName("Backend llama.cpp");
+    btnOllama->setAccessibleName(tr("Backend Ollama"));
+    auto* btnLlama  = new QRadioButton(tr("\xf0\x9f\xa6\x99  llama.cpp"), leftGroup);
+    btnLlama->setAccessibleName(tr("Backend llama.cpp"));
 
     leftLay->addWidget(btnOllama);
     leftLay->addWidget(btnLlama);
@@ -117,9 +117,9 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
     statusLbl->setWordWrap(true);
     leftLay->addWidget(statusLbl);
 
-    auto* refreshBtn = new QPushButton("\xf0\x9f\x94\x84  Aggiorna lista", leftGroup);
+    auto* refreshBtn = new QPushButton(tr("\xf0\x9f\x94\x84  Aggiorna lista"), leftGroup);
     refreshBtn->setObjectName("actionBtn");
-    refreshBtn->setAccessibleName("Aggiorna lista modelli disponibili");
+    refreshBtn->setAccessibleName(tr("Aggiorna lista modelli disponibili"));
     leftLay->addWidget(refreshBtn);
 
     /* llama.cpp Studio rimosso: funzionalità integrate in scheda LLM */
@@ -130,32 +130,32 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
     sepLan->setObjectName("sidebarSep");
     leftLay->addWidget(sepLan);
 
-    auto* lanTitleLbl = new QLabel("\xf0\x9f\x93\xb1  Ollama LAN", leftGroup);
+    auto* lanTitleLbl = new QLabel(tr("\xf0\x9f\x93\xb1  Ollama LAN"), leftGroup);
     lanTitleLbl->setObjectName("cardDesc");
     leftLay->addWidget(lanTitleLbl);
 
-    auto* lanStatusLbl = new QLabel("\xe2\x9a\xaa Inattivo", leftGroup);
+    auto* lanStatusLbl = new QLabel(tr("\xe2\x9a\xaa Inattivo"), leftGroup);
     lanStatusLbl->setObjectName("hintLabel");
     lanStatusLbl->setWordWrap(true);
     leftLay->addWidget(lanStatusLbl);
 
-    auto* lanBtn = new QPushButton("\xf0\x9f\x9f\xa2  Avvia Ollama LAN", leftGroup);
+    auto* lanBtn = new QPushButton(tr("\xf0\x9f\x9f\xa2  Avvia Ollama LAN"), leftGroup);
     lanBtn->setObjectName("actionBtn");
-    lanBtn->setToolTip("Avvia ollama serve con OLLAMA_HOST=0.0.0.0:11434\n"
-                       "cos\xc3\xac il telefono in LAN pu\xc3\xb2 connettersi");
+    lanBtn->setToolTip(tr("Avvia ollama serve con OLLAMA_HOST=0.0.0.0:11434\n"
+                       "cos\xc3\xac il telefono in LAN pu\xc3\xb2 connettersi"));
     leftLay->addWidget(lanBtn);
 
     leftLay->addStretch(1);
     colsLay->addWidget(leftGroup);
 
     /* ── Colonna destra: lista modelli ── */
-    auto* rightGroup = new QGroupBox("\xf0\x9f\x93\xa6  Modelli disponibili", colsRow);
+    auto* rightGroup = new QGroupBox(tr("\xf0\x9f\x93\xa6  Modelli disponibili"), colsRow);
     rightGroup->setObjectName("cardGroup");
     auto* rightLay = new QVBoxLayout(rightGroup);
     rightLay->setSpacing(8);
 
     /* Hint sopra la lista */
-    auto* hintLbl = new QLabel("Seleziona un gestore per vedere i modelli installati.", rightGroup);
+    auto* hintLbl = new QLabel(tr("Seleziona un gestore per vedere i modelli installati."), rightGroup);
     hintLbl->setObjectName("hintLabel");
     hintLbl->setWordWrap(true);
     rightLay->addWidget(hintLbl);
@@ -197,12 +197,12 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
         topRow->setSpacing(16);
 
         /* Modalità: Off / Auto / On */
-        auto* modeLbl = new QLabel("Modalit\xc3\xa0:", thinkGroup);
+        auto* modeLbl = new QLabel(tr("Modalit\xc3\xa0:"), thinkGroup);
         modeLbl->setObjectName("cardDesc");
         topRow->addWidget(modeLbl);
 
-        auto* btnOff  = new QPushButton("Off",  thinkGroup);
-        auto* btnAuto = new QPushButton("Auto", thinkGroup);
+        auto* btnOff  = new QPushButton(tr("Off"),  thinkGroup);
+        auto* btnAuto = new QPushButton(tr("Auto"), thinkGroup);
         auto* btnOn   = new QPushButton("On",   thinkGroup);
         for (auto* b : {btnOff, btnAuto, btnOn}) {
             b->setCheckable(true);
@@ -221,7 +221,7 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
         topRow->addSpacing(24);
 
         /* Budget token (slider 1–4×) */
-        auto* budgetLbl = new QLabel("Budget token:", thinkGroup);
+        auto* budgetLbl = new QLabel(tr("Budget token:"), thinkGroup);
         budgetLbl->setObjectName("cardDesc");
         topRow->addWidget(budgetLbl);
 
@@ -319,7 +319,7 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
         }
         chkRow->addWidget(chkKn);
 
-        auto* openFileBtn = new QPushButton("Apri file", knGroup);
+        auto* openFileBtn = new QPushButton(tr("Apri file"), knGroup);
         openFileBtn->setObjectName("actionBtn");
         openFileBtn->setFixedWidth(dpiScale(90));
         openFileBtn->setToolTip(P::userKnowledgePath());
@@ -353,7 +353,7 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
         chkConst->setChecked(AppConfig::s().value(P::SK::kConstitutionEnabled, true).toBool());
         constRow->addWidget(chkConst);
 
-        auto* constFileBtn = new QPushButton("Modifica", constGroup);
+        auto* constFileBtn = new QPushButton(tr("Modifica"), constGroup);
         constFileBtn->setObjectName("actionBtn");
         constFileBtn->setFixedWidth(dpiScale(90));
         constFileBtn->setToolTip(P::constitutionPath());
@@ -405,11 +405,11 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
     leftLay->insertWidget(2, activeLbl);  /* sotto i radio button */
 
     /* Pulsante "Usa modello selezionato" */
-    auto* useBtn = new QPushButton("\xe2\x9c\x94  Usa modello", leftGroup);
+    auto* useBtn = new QPushButton(tr("\xe2\x9c\x94  Usa modello"), leftGroup);
     useBtn->setObjectName("actionBtn");
     useBtn->setEnabled(false);
     useBtn->setToolTip(tr("Imposta il modello selezionato come modello attivo"));
-    useBtn->setAccessibleName("Attiva modello selezionato");
+    useBtn->setAccessibleName(tr("Attiva modello selezionato"));
     leftLay->insertWidget(3, useBtn);
 
     /* Salva i puntatori come member variables per i slot */
@@ -485,7 +485,7 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
         srLay->addWidget(srDesc);
 
         /* Checkbox abilitazione */
-        m_smartRouterChk = new QCheckBox("Abilita Smart Router (LOCAL \xe2\x86\x92 CLOUD)", srGroup);
+        m_smartRouterChk = new QCheckBox(tr("Abilita Smart Router (LOCAL \xe2\x86\x92 CLOUD)"), srGroup);
         QSettings s;
         m_smartRouterChk->setChecked(s.value(P::SK::kSmartRouterEnabled, false).toBool());
         srLay->addWidget(m_smartRouterChk);
@@ -515,7 +515,7 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
 
         /* Pulsante salva + status */
         auto* srRow = new QHBoxLayout;
-        auto* srSaveBtn = new QPushButton("\xf0\x9f\x92\xbe  Salva", srGroup);
+        auto* srSaveBtn = new QPushButton(tr("\xf0\x9f\x92\xbe  Salva"), srGroup);
         srSaveBtn->setObjectName("actionBtn");
         srSaveBtn->setFixedWidth(dpiScale(120));
         m_smartRouterStatusLbl = new QLabel("", srGroup);
@@ -646,7 +646,7 @@ QWidget* ImpostazioniPage::buildDipendenzeTab()
         hdrLay->setContentsMargins(8, 2, 8, 2);
         hdrLay->setSpacing(10);
         auto makeHdr = [](const QString& t, int w = -1) {
-            auto* l = new QLabel("<b>" + t + "</b>");
+            auto* l = new QLabel(tr("<b>") + t + "</b>");
             l->setObjectName("hintLabel");
             if (w > 0) l->setFixedWidth(w);
             return l;
@@ -778,7 +778,7 @@ QWidget* ImpostazioniPage::buildDipendenzeTab()
                 "\xf0\x9f\x93\x8b " "Copia", dlg);
             auto* terminalBtn = new QPushButton(
                 "\xf0\x9f\x96\xa5 " "Apri terminale", dlg);
-            auto* closeBtn    = new QPushButton("Chiudi", dlg);
+            auto* closeBtn    = new QPushButton(tr("Chiudi"), dlg);
 
             copyBtn->setObjectName("actionBtn");
             terminalBtn->setObjectName("actionBtn");
@@ -793,9 +793,9 @@ QWidget* ImpostazioniPage::buildDipendenzeTab()
             QObject::connect(copyBtn, &QPushButton::clicked,
                              copyBtn, [installCmd, copyBtn]() {
                 QGuiApplication::clipboard()->setText(installCmd);
-                copyBtn->setText("\xe2\x9c\x85 " "Copiato!");
+                copyBtn->setText(tr("\xe2\x9c\x85 " "Copiato!"));
                 QTimer::singleShot(1500, copyBtn, [copyBtn]() {
-                    copyBtn->setText("\xf0\x9f\x93\x8b " "Copia");
+                    copyBtn->setText(tr("\xf0\x9f\x93\x8b " "Copia"));
                 });
             });
 
@@ -918,7 +918,7 @@ QWidget* ImpostazioniPage::buildPythonDepsTab()
     outer->setContentsMargins(16, 16, 16, 16);
     outer->setSpacing(10);
 
-    auto* titleLbl = new QLabel("\xf0\x9f\x90\x8d  Moduli Python per MCP", page);
+    auto* titleLbl = new QLabel(tr("\xf0\x9f\x90\x8d  Moduli Python per MCP"), page);
     titleLbl->setObjectName("sectionTitle");
     outer->addWidget(titleLbl);
 
@@ -935,8 +935,8 @@ QWidget* ImpostazioniPage::buildPythonDepsTab()
     btnLay->setContentsMargins(0, 0, 0, 0);
     btnLay->setSpacing(8);
 
-    auto* verifyBtn     = new QPushButton("\xf0\x9f\x94\x8d  Verifica stato", btnRow);
-    auto* installAllBtn = new QPushButton("\xf0\x9f\x9a\x80  Installa tutti i mancanti", btnRow);
+    auto* verifyBtn     = new QPushButton(tr("\xf0\x9f\x94\x8d  Verifica stato"), btnRow);
+    auto* installAllBtn = new QPushButton(tr("\xf0\x9f\x9a\x80  Installa tutti i mancanti"), btnRow);
     verifyBtn->setObjectName("actionBtn");
     installAllBtn->setObjectName("actionBtn");
     btnLay->addWidget(verifyBtn);
@@ -962,7 +962,7 @@ QWidget* ImpostazioniPage::buildPythonDepsTab()
         hdrLay->setContentsMargins(8, 2, 8, 2);
         hdrLay->setSpacing(10);
         auto mk = [](const QString& t, int w = -1) {
-            auto* l = new QLabel("<b>" + t + "</b>");
+            auto* l = new QLabel(tr("<b>") + t + "</b>");
             l->setObjectName("hintLabel");
             if (w > 0) l->setFixedWidth(w);
             return l;
@@ -1017,7 +1017,7 @@ QWidget* ImpostazioniPage::buildPythonDepsTab()
         whereL->setFixedWidth(dpiScale(195));
         whereL->setObjectName("hintLabel");
 
-        auto* btn = new QPushButton("\xf0\x9f\x92\xbe  Installa", row);
+        auto* btn = new QPushButton(tr("\xf0\x9f\x92\xbe  Installa"), row);
         btn->setFixedWidth(dpiScale(90));
         btn->setObjectName("actionBtn");
 
@@ -1043,7 +1043,7 @@ QWidget* ImpostazioniPage::buildPythonDepsTab()
     outer->addWidget(scroll, 1);
 
     /* ── Output pip (nascosto finché non si installa) ── */
-    auto* logLbl = new QLabel("Output installazione:", page);
+    auto* logLbl = new QLabel(tr("Output installazione:"), page);
     logLbl->setObjectName("hintLabel");
     logLbl->hide();
     outer->addWidget(logLbl);
@@ -1219,7 +1219,7 @@ QWidget* ImpostazioniPage::buildPythonDepsTab()
     /* ── Wrapper QTabWidget: Moduli MCP + Dipendenze esterne ── */
     auto* innerTabs = new QTabWidget;
     innerTabs->setObjectName("innerTabs");
-    innerTabs->addTab(page,                "\xf0\x9f\x90\x8d  Moduli MCP");
+    innerTabs->addTab(page,                tr("\xf0\x9f\x90\x8d  Moduli MCP"));
     innerTabs->addTab(buildDipendenzeTab(), "\xf0\x9f\x93\xa6  Dipendenze esterne");
     m_pipModuliTabs = innerTabs;
     return innerTabs;
@@ -1236,7 +1236,7 @@ QWidget* ImpostazioniPage::buildRagTab()
     outer->setSpacing(14);
 
     /* Titolo */
-    auto* title = new QLabel("\xf0\x9f\x94\x8d  RAG \xe2\x80\x94 Recupero Documenti Aumentato");
+    auto* title = new QLabel(tr("\xf0\x9f\x94\x8d  RAG \xe2\x80\x94 Recupero Documenti Aumentato"));
     title->setObjectName("sectionTitle");
     outer->addWidget(title);
 
@@ -1304,7 +1304,7 @@ QWidget* ImpostazioniPage::buildRagTab()
         }
         dirEdit->setText(saved);
     }
-    auto* browseBtn = new QPushButton("Sfoglia...");
+    auto* browseBtn = new QPushButton(tr("Sfoglia..."));
     browseBtn->setObjectName("actionBtn");
     browseBtn->setFixedWidth(dpiScale(90));
     browseBtn->setToolTip(tr("Scegli la cartella dove metti i tuoi documenti RAG"));
@@ -1374,7 +1374,7 @@ QWidget* ImpostazioniPage::buildRagTab()
 
     /* ── Trasformata Johnson-Lindenstrauss ── */
     {
-        auto* jlFrame = new QGroupBox("Ottimizzazione vettori RAG", page);
+        auto* jlFrame = new QGroupBox(tr("Ottimizzazione vettori RAG"), page);
         jlFrame->setObjectName("cardGroup");
         auto* jlLay = new QVBoxLayout(jlFrame);
         jlLay->setSpacing(6);
@@ -1448,7 +1448,7 @@ QWidget* ImpostazioniPage::buildRagTab()
     /* ── Modello embedding ── */
     {
         auto* embedRow = new QHBoxLayout;
-        auto* embedLbl = new QLabel("Modello embedding:");
+        auto* embedLbl = new QLabel(tr("Modello embedding:"));
         embedLbl->setObjectName("hintLabel");
 
         m_ragEmbedCombo = new QComboBox;
@@ -1486,7 +1486,7 @@ QWidget* ImpostazioniPage::buildRagTab()
         auto* embedRefreshBtn = new QPushButton("\xf0\x9f\x94\x84");
         embedRefreshBtn->setObjectName("navBtn");
         embedRefreshBtn->setFixedSize(28, 28);
-        embedRefreshBtn->setToolTip("Aggiorna lista modelli da Ollama");
+        embedRefreshBtn->setToolTip(tr("Aggiorna lista modelli da Ollama"));
         QObject::connect(embedRefreshBtn, &QPushButton::clicked,
                          this, &ImpostazioniPage::onRagEmbedRefreshClicked);
 
@@ -1535,7 +1535,7 @@ QWidget* ImpostazioniPage::buildRagTab()
             noteLbl->setObjectName("cardDesc");
             noteLbl->setWordWrap(true);
 
-            auto* useBtn = new QPushButton("Usa", embedCard);
+            auto* useBtn = new QPushButton(tr("Usa"), embedCard);
             useBtn->setObjectName("navBtn");
             useBtn->setFixedSize(46, 22);
             const QString modelName = r.name;
@@ -1578,7 +1578,7 @@ QWidget* ImpostazioniPage::buildRagTab()
     auto* btnRow = new QHBoxLayout;
     btnRow->setSpacing(8);
 
-    m_btnStopIndex = new QPushButton("\xe2\x8f\xb9  Ferma indicizzazione");
+    m_btnStopIndex = new QPushButton(tr("\xe2\x8f\xb9  Ferma indicizzazione"));
     m_btnStopIndex->setObjectName("actionBtn");
     m_btnStopIndex->setProperty("danger", true);
     m_btnStopIndex->setFixedHeight(dpiScale(32));
@@ -1588,7 +1588,7 @@ QWidget* ImpostazioniPage::buildRagTab()
         "I chunk già completati vengono salvati.");
     btnRow->addWidget(m_btnStopIndex);
 
-    m_ragReindexBtn = new QPushButton("\xf0\x9f\x94\x84  Reindicizza ora");
+    m_ragReindexBtn = new QPushButton(tr("\xf0\x9f\x94\x84  Reindicizza ora"));
     auto* reindexBtn = m_ragReindexBtn;  /* alias locale */
     reindexBtn->setObjectName("actionBtn");
     reindexBtn->setFixedHeight(dpiScale(32));
@@ -1661,7 +1661,7 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
     const AiChatParams cur = AiChatParams::load();
 
     /* ── Header ── */
-    auto* title = new QLabel("\xe2\x9a\x99\xef\xb8\x8f  Parametri AI");
+    auto* title = new QLabel(tr("\xe2\x9a\x99\xef\xb8\x8f  Parametri AI"));
     title->setObjectName("sectionTitle");
     outer->addWidget(title);
 
@@ -1691,7 +1691,7 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
        1. CAMPIONAMENTO
        ═══════════════════════════════════════════════ */
     {
-        auto* grp = new QGroupBox("\xe2\x9a\x97\xef\xb8\x8f  Campionamento");
+        auto* grp = new QGroupBox(tr("\xe2\x9a\x97\xef\xb8\x8f  Campionamento"));
         auto* gl  = new QVBoxLayout(grp);
         auto* fl  = new QFormLayout;
         fl->setSpacing(10);
@@ -1700,24 +1700,24 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
         auto* tempSpin = new QDoubleSpinBox;
         tempSpin->setRange(0.0, 1.5); tempSpin->setSingleStep(0.05); tempSpin->setDecimals(2);
         tempSpin->setValue(cur.temperature);
-        tempSpin->setToolTip("0 = deterministico puro\n0.05 = Brutal Honesty (default)\n0.3+ = creativo");
+        tempSpin->setToolTip(tr("0 = deterministico puro\n0.05 = Brutal Honesty (default)\n0.3+ = creativo"));
         fl->addRow("Temperatura:", tempSpin);
 
         auto* topPSpin = new QDoubleSpinBox;
         topPSpin->setRange(0.1, 1.0); topPSpin->setSingleStep(0.05); topPSpin->setDecimals(2);
         topPSpin->setValue(cur.top_p);
-        topPSpin->setToolTip("Nucleus sampling — 0.85 = conservativo (Brutal Honesty)");
+        topPSpin->setToolTip(tr("Nucleus sampling — 0.85 = conservativo (Brutal Honesty)"));
         fl->addRow("Top-P:", topPSpin);
 
         auto* topKSpin = new QSpinBox;
         topKSpin->setRange(1, 200); topKSpin->setValue(cur.top_k);
-        topKSpin->setToolTip("Limita ai K token pi\xc3\xb9 probabili — 20 = molto conservativo");
+        topKSpin->setToolTip(tr("Limita ai K token pi\xc3\xb9 probabili — 20 = molto conservativo"));
         fl->addRow("Top-K:", topKSpin);
 
         auto* repSpin = new QDoubleSpinBox;
         repSpin->setRange(1.0, 2.0); repSpin->setSingleStep(0.05); repSpin->setDecimals(2);
         repSpin->setValue(cur.repeat_penalty);
-        repSpin->setToolTip("Penalizza token gi\xc3\xa0 generati — 1.20 = riduce loop");
+        repSpin->setToolTip(tr("Penalizza token gi\xc3\xa0 generati — 1.20 = riduce loop"));
         fl->addRow("Penalità ripetizioni:", repSpin);
 
         auto* hint = new QLabel(
@@ -1741,7 +1741,7 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
        2. CONTESTO E MEMORIA
        ═══════════════════════════════════════════════ */
     {
-        auto* grp = new QGroupBox("\xf0\x9f\x92\xac  Contesto e memoria");
+        auto* grp = new QGroupBox(tr("\xf0\x9f\x92\xac  Contesto e memoria"));
         auto* gl  = new QVBoxLayout(grp);
         auto* fl  = new QFormLayout;
         fl->setSpacing(10);
@@ -1750,7 +1750,7 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
         auto* predSpin = new QSpinBox;
         predSpin->setRange(256, 16384); predSpin->setSingleStep(256);
         predSpin->setValue(cur.num_predict); predSpin->setSuffix("  token");
-        predSpin->setToolTip("Max token generati per risposta\n2048 = completo  |  512 = breve e veloce");
+        predSpin->setToolTip(tr("Max token generati per risposta\n2048 = completo  |  512 = breve e veloce"));
         fl->addRow("Max token risposta:", predSpin);
 
         auto* ctxSpin = new QSpinBox;
@@ -1811,7 +1811,7 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
        3. COMPORTAMENTO AI
        ═══════════════════════════════════════════════ */
     {
-        auto* grp = new QGroupBox("\xf0\x9f\xa7\xa0  Comportamento AI");
+        auto* grp = new QGroupBox(tr("\xf0\x9f\xa7\xa0  Comportamento AI"));
         auto* gl  = new QVBoxLayout(grp);
         gl->setSpacing(10);
 
@@ -1905,7 +1905,7 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
        4. OTTIMIZZAZIONE HARDWARE
        ═══════════════════════════════════════════════ */
     {
-        auto* grp = new QGroupBox("\xe2\x9a\xa1  Ottimizzazione hardware");
+        auto* grp = new QGroupBox(tr("\xe2\x9a\xa1  Ottimizzazione hardware"));
         auto* gl  = new QVBoxLayout(grp);
         gl->setSpacing(8);
 
@@ -1913,14 +1913,14 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
             "\xe2\x9a\xa1  Flash Attention — riduce KV-cache RAM/VRAM del 30-50%");
         flashCb->setObjectName("cardDesc");
         flashCb->setChecked(AiChatParams::load().flash_attn);
-        flashCb->setToolTip("Consigliato con \xe2\x89\xa4 8 GB RAM. Ignorato se il modello non lo supporta.");
+        flashCb->setToolTip(tr("Consigliato con \xe2\x89\xa4 8 GB RAM. Ignorato se il modello non lo supporta."));
         gl->addWidget(flashCb);
 
         auto* mlockCb = new QCheckBox(
             "\xf0\x9f\x94\x92  Blocca modello in RAM (--mlock, solo llama-server)");
         mlockCb->setObjectName("cardDesc");
         mlockCb->setChecked(AppConfig::s().value(P::SK::kMlockModel, false).toBool());
-        mlockCb->setToolTip("Impedisce lo swap su disco. Utile con \xe2\x89\xa5 16 GB RAM. Richiede riavvio server.");
+        mlockCb->setToolTip(tr("Impedisce lo swap su disco. Utile con \xe2\x89\xa5 16 GB RAM. Richiede riavvio server."));
         gl->addWidget(mlockCb);
 
         auto* hwHint = new QLabel(
@@ -1941,11 +1941,11 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
        5. RPC CLUSTER
        ═══════════════════════════════════════════════ */
     {
-        auto* grp = new QGroupBox("\xf0\x9f\x96\xa7  RPC Cluster — calcolo distribuito");
+        auto* grp = new QGroupBox(tr("\xf0\x9f\x96\xa7  RPC Cluster — calcolo distribuito"));
         auto* gl  = new QVBoxLayout(grp);
         gl->setSpacing(8);
 
-        auto* rpcCb = new QCheckBox("Abilita RPC Cluster (--rpc, llama-server)");
+        auto* rpcCb = new QCheckBox(tr("Abilita RPC Cluster (--rpc, llama-server)"));
         rpcCb->setObjectName("cardDesc");
         rpcCb->setChecked(AppConfig::s().value(P::SK::kRpcEnabled, false).toBool());
         gl->addWidget(rpcCb);
@@ -1959,7 +1959,7 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
         rpcNodesEdit->setText(AppConfig::s().value(P::SK::kRpcNodes, "").toString());
         rpcNodesEdit->setObjectName("settingsInput");
 
-        auto* rpcCheckBtn = new QPushButton("\xf0\x9f\x94\x8d  Verifica nodi");
+        auto* rpcCheckBtn = new QPushButton(tr("\xf0\x9f\x94\x8d  Verifica nodi"));
         rpcCheckBtn->setObjectName("actionBtn");
 
         auto* nodesRow = new QWidget;
@@ -1977,7 +1977,7 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
         fl->addRow("Utente SSH:", rpcSshUserEdit);
 
         auto* rpcPathEdit = new QLineEdit;
-        rpcPathEdit->setPlaceholderText("~/llama.cpp/build/bin/rpc-server");
+        rpcPathEdit->setPlaceholderText(tr("~/llama.cpp/build/bin/rpc-server"));
         rpcPathEdit->setText(AppConfig::s().value(P::SK::kRpcServerPath, "").toString());
         rpcPathEdit->setObjectName("settingsInput");
         fl->addRow("Path rpc-server:", rpcPathEdit);
@@ -1991,12 +1991,12 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
         auto* ctrlRow = new QWidget;
         auto* ctrlLay = new QHBoxLayout(ctrlRow);
         ctrlLay->setContentsMargins(0,0,0,0); ctrlLay->setSpacing(8);
-        auto* rpcStartBtn = new QPushButton("\xf0\x9f\x9a\x80  Avvia nodi RPC");
+        auto* rpcStartBtn = new QPushButton(tr("\xf0\x9f\x9a\x80  Avvia nodi RPC"));
         rpcStartBtn->setObjectName("actionBtn");
-        rpcStartBtn->setToolTip("SSH su ogni nodo → avvia rpc-server in background");
-        auto* rpcStopBtn = new QPushButton("\xe2\x8f\xb9  Ferma nodi RPC");
+        rpcStartBtn->setToolTip(tr("SSH su ogni nodo → avvia rpc-server in background"));
+        auto* rpcStopBtn = new QPushButton(tr("\xe2\x8f\xb9  Ferma nodi RPC"));
         rpcStopBtn->setObjectName("actionBtn");
-        rpcStopBtn->setToolTip("SSH su ogni nodo → pkill rpc-server");
+        rpcStopBtn->setToolTip(tr("SSH su ogni nodo → pkill rpc-server"));
         ctrlLay->addWidget(rpcStartBtn); ctrlLay->addWidget(rpcStopBtn); ctrlLay->addStretch();
         gl->addWidget(ctrlRow);
 
@@ -2031,18 +2031,18 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
         auto* presetLay = new QHBoxLayout(presetRow);
         presetLay->setContentsMargins(0, 4, 0, 0); presetLay->setSpacing(8);
 
-        auto* presetLbl = new QLabel("\xf0\x9f\x8e\x9b  Preset rapidi:");
+        auto* presetLbl = new QLabel(tr("\xf0\x9f\x8e\x9b  Preset rapidi:"));
         presetLbl->setObjectName("cardDesc");
         presetLay->addWidget(presetLbl);
 
-        auto* preset8gb = new QPushButton("8 GB RAM");
+        auto* preset8gb = new QPushButton(tr("8 GB RAM"));
         preset8gb->setObjectName("actionBtn");
-        preset8gb->setToolTip("num_ctx=4096  num_predict=1024  T=0.1  Flash Attention ON");
+        preset8gb->setToolTip(tr("num_ctx=4096  num_predict=1024  T=0.1  Flash Attention ON"));
         presetLay->addWidget(preset8gb);
 
-        auto* presetLong = new QPushButton("\xf0\x9f\x93\x9c  Contesto lungo");
+        auto* presetLong = new QPushButton(tr("\xf0\x9f\x93\x9c  Contesto lungo"));
         presetLong->setObjectName("actionBtn");
-        presetLong->setToolTip("num_ctx=16384  Flash Attention ON\nRichiede \xe2\x89\xa5 16 GB RAM");
+        presetLong->setToolTip(tr("num_ctx=16384  Flash Attention ON\nRichiede \xe2\x89\xa5 16 GB RAM"));
         presetLay->addWidget(presetLong);
         presetLay->addStretch();
         outer->addWidget(presetRow);
@@ -2051,11 +2051,11 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
         auto* btnLay = new QHBoxLayout(btnRow);
         btnLay->setContentsMargins(0, 0, 0, 0); btnLay->setSpacing(8);
 
-        auto* resetBtn = new QPushButton("\xf0\x9f\x94\x84  Ripristina default");
+        auto* resetBtn = new QPushButton(tr("\xf0\x9f\x94\x84  Ripristina default"));
         resetBtn->setObjectName("actionBtn");
         resetBtn->setToolTip(tr("Ripristina i valori ottimali anti-allucinazione"));
 
-        auto* saveBtn = new QPushButton("\xe2\x9c\x85  Salva");
+        auto* saveBtn = new QPushButton(tr("\xe2\x9c\x85  Salva"));
         saveBtn->setObjectName("actionBtn");
 
         auto* saveStatus = new QLabel;
@@ -2139,8 +2139,8 @@ QWidget* ImpostazioniPage::buildSandboxTab()
         chk->setObjectName("settingsCheck");
         chk->setChecked(AppConfig::s().value(P::SK::kSandboxEnabled, true).toBool());
         chk->setEnabled(!docker.isEmpty());
-        chk->setToolTip("Se disabilitato, il codice AI viene eseguito localmente con pip install retry.\n"
-                        "Con sandbox: rete disabilitata, nessun accesso al filesystem host.");
+        chk->setToolTip(tr("Se disabilitato, il codice AI viene eseguito localmente con pip install retry.\n"
+                        "Con sandbox: rete disabilitata, nessun accesso al filesystem host."));
         connect(chk,  &QCheckBox::toggled,
                 this, &ImpostazioniPage::onSandboxEnabledToggled);
         row->addWidget(chk);
@@ -2150,7 +2150,7 @@ QWidget* ImpostazioniPage::buildSandboxTab()
 
     /* ── Immagine Docker ── */
     {
-        auto* grp = new QGroupBox("\xe2\x9a\x99\xef\xb8\x8f  Configurazione container", page);
+        auto* grp = new QGroupBox(tr("\xe2\x9a\x99\xef\xb8\x8f  Configurazione container"), page);
         grp->setObjectName("cardGroup");
         auto* grpLay = new QFormLayout(grp);
         grpLay->setSpacing(10);
@@ -2177,9 +2177,9 @@ QWidget* ImpostazioniPage::buildSandboxTab()
         {
             memSpin->setValue(AppConfig::s().value(P::SK::kSandboxMemory, 256).toInt());
         }
-        memSpin->setToolTip("Limite RAM del container Docker.\n"
+        memSpin->setToolTip(tr("Limite RAM del container Docker.\n"
                             "256 MB \xc3\xa8 sufficiente per la maggior parte dei task.\n"
-                            "Aumenta a 512+ per elaborazioni numeriche intensive.");
+                            "Aumenta a 512+ per elaborazioni numeriche intensive."));
         connect(memSpin, QOverload<int>::of(&QSpinBox::valueChanged),
                 this,    &ImpostazioniPage::onSandboxMemSpinChanged);
         grpLay->addRow("Limite RAM:", memSpin);
@@ -2272,7 +2272,7 @@ void ImpostazioniPage::onSmartRouterSaveClicked()
         m_cloudUrlEdit->text().trimmed(),
         m_cloudModelEdit->text().trimmed(),
         m_cloudApiKeyEdit->text().trimmed());
-    m_smartRouterStatusLbl->setText("\xe2\x9c\x85  Salvato");
+    m_smartRouterStatusLbl->setText(tr("\xe2\x9c\x85  Salvato"));
     QTimer::singleShot(2000, m_smartRouterStatusLbl,
                        [this]{ m_smartRouterStatusLbl->setText(""); });
 }

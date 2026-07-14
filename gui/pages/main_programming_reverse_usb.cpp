@@ -489,7 +489,7 @@ void ProgrammazionePage::onCamServerStartClicked()
 
     const int devIdx = m_camDeviceCombo->currentData().toInt();
     if (devIdx < 0) {
-        QMessageBox::warning(this, "Nessuna webcam",
+        QMessageBox::warning(this, tr("Nessuna webcam"),
             "Seleziona un dispositivo V4L2 valido (/dev/videoN).");
         return;
     }
@@ -539,7 +539,7 @@ void ProgrammazionePage::onCamServerStartClicked()
         f.write(script.toUtf8());
         f.close();
     } else {
-        QMessageBox::critical(this, "Errore",
+        QMessageBox::critical(this, tr("Errore"),
             "Impossibile scrivere lo script server in " + m_camStreamScript);
         return;
     }
@@ -620,7 +620,7 @@ void ProgrammazionePage::onCamServerStartClicked()
     });
 
     if (!m_camStreamProc->waitForStarted(2000)) {
-        QMessageBox::critical(this, "Errore avvio",
+        QMessageBox::critical(this, tr("Errore avvio"),
             "Impossibile avviare python3. Verifica che sia installato e "
             "che il pacchetto opencv-python sia disponibile:\n"
             "pip install opencv-python");
@@ -648,7 +648,7 @@ void ProgrammazionePage::onCamServerStopClicked()
     if (!m_camStreamScript.isEmpty() && QFileInfo::exists(m_camStreamScript))
         QFile::remove(m_camStreamScript);
     if (m_camServerStatus) {
-        m_camServerStatus->setText("\xe2\x97\x8f  Server fermato.");
+        m_camServerStatus->setText(tr("\xe2\x97\x8f  Server fermato."));
         m_camServerStatus->setStyleSheet("color: #888; font-size: 12px;");
     }
     if (m_usbOutput)

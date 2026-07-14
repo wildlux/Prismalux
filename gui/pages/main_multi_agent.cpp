@@ -95,7 +95,7 @@ AgentiMultiPage::AgentiMultiPage(AiClient* ai, QWidget* parent)
     /* ModelComboBox gestisce fetch e modelChanged autonomamente */
 
     refreshMemoryStats();
-    setStatus("\xf0\x9f\x95\xb8  Pronto. Descrivi un compito complesso e premi Decomponsi.");  /* 🕸️ */
+    setStatus(tr("\xf0\x9f\x95\xb8  Pronto. Descrivi un compito complesso e premi Decomponsi."));  /* 🕸️ */
 }
 
 AgentiMultiPage::~AgentiMultiPage()
@@ -153,20 +153,20 @@ QWidget* AgentiMultiPage::buildInputBar()
             this, &AgentiMultiPage::onDecomposeClicked);
     btnRow->addWidget(m_btnDecompose);
 
-    m_btnStop = new QPushButton("\xe2\x96\xa0  Stop", bar);  /* ■ */
+    m_btnStop = new QPushButton(tr("\xe2\x96\xa0  Stop"), bar);  /* ■ */
     m_btnStop->setObjectName("stopBtn");
     m_btnStop->setEnabled(false);
     connect(m_btnStop, &QPushButton::clicked, this, &AgentiMultiPage::onStopClicked);
     btnRow->addWidget(m_btnStop);
 
-    m_btnClear = new QPushButton("\xf0\x9f\x97\x91  Reset", bar);  /* 🗑 */
+    m_btnClear = new QPushButton(tr("\xf0\x9f\x97\x91  Reset"), bar);  /* 🗑 */
     m_btnClear->setObjectName("navBtn");
     connect(m_btnClear, &QPushButton::clicked, this, &AgentiMultiPage::onClearClicked);
     btnRow->addWidget(m_btnClear);
 
     btnRow->addStretch(1);
 
-    m_status = new QLabel("\xf0\x9f\x95\xb8  Pronto.", bar);
+    m_status = new QLabel(tr("\xf0\x9f\x95\xb8  Pronto."), bar);
     m_status->setObjectName("statusLabel");
     btnRow->addWidget(m_status, 2);
 
@@ -184,7 +184,7 @@ QWidget* AgentiMultiPage::buildTaskPanel()
     lay->setContentsMargins(8, 6, 4, 6);
     lay->setSpacing(4);
 
-    auto* hdr = new QLabel("<b>Sub-Task</b>", panel);
+    auto* hdr = new QLabel(tr("<b>Sub-Task</b>"), panel);
     hdr->setTextFormat(Qt::RichText);
     hdr->setObjectName("cardDesc");
     lay->addWidget(hdr);
@@ -221,7 +221,7 @@ QWidget* AgentiMultiPage::buildOutputPanel()
     m_outputLog->setLineWrapMode(QPlainTextEdit::WidgetWidth);
     m_outputLog->setPlaceholderText(
         "L'output dei sub-agenti e la sintesi finale appariranno qui...");
-    m_outputTabs->addTab(m_outputLog, "\xf0\x9f\x93\x9d  Risultato");  /* 📝 */
+    m_outputTabs->addTab(m_outputLog, tr("\xf0\x9f\x93\x9d  Risultato"));  /* 📝 */
 
     /* Tab 2: Grafo DOT */
     m_dotView = new QPlainTextEdit(m_outputTabs);
@@ -229,7 +229,7 @@ QWidget* AgentiMultiPage::buildOutputPanel()
     m_dotView->setReadOnly(true);
     m_dotView->setLineWrapMode(QPlainTextEdit::NoWrap);
     m_dotView->setPlaceholderText(tr("Il grafo Graphviz DOT della memoria condivisa..."));
-    m_outputTabs->addTab(m_dotView, "\xf0\x9f\x95\xb8  Grafo DOT");
+    m_outputTabs->addTab(m_dotView, tr("\xf0\x9f\x95\xb8  Grafo DOT"));
 
     /* Tab 3: JSON memoria */
     m_jsonView = new QPlainTextEdit(m_outputTabs);
@@ -237,7 +237,7 @@ QWidget* AgentiMultiPage::buildOutputPanel()
     m_jsonView->setReadOnly(true);
     m_jsonView->setLineWrapMode(QPlainTextEdit::NoWrap);
     m_jsonView->setPlaceholderText(tr("Dump JSON della GraphMemory..."));
-    m_outputTabs->addTab(m_jsonView, "\xf0\x9f\x93\x8b  JSON");
+    m_outputTabs->addTab(m_jsonView, tr("\xf0\x9f\x93\x8b  JSON"));
 
     return m_outputTabs;
 }
@@ -253,12 +253,12 @@ QWidget* AgentiMultiPage::buildMemoryBar()
     lay->setContentsMargins(12, 4, 12, 4);
     lay->setSpacing(8);
 
-    auto* lbl = new QLabel("\xf0\x9f\xa7\xa0  <b>GraphMemory:</b>", bar);  /* 🧠 */
+    auto* lbl = new QLabel(tr("\xf0\x9f\xa7\xa0  <b>GraphMemory:</b>"), bar);  /* 🧠 */
     lbl->setTextFormat(Qt::RichText);
     lbl->setObjectName("cardDesc");
     lay->addWidget(lbl);
 
-    m_memStats = new QLabel("0 nodi · 0 archi", bar);
+    m_memStats = new QLabel(tr("0 nodi · 0 archi"), bar);
     m_memStats->setObjectName("statusLabel");
     lay->addWidget(m_memStats, 1);
 
@@ -313,7 +313,7 @@ void AgentiMultiPage::onDecomposeClicked()
     m_decomposeBusy = true;
     m_btnDecompose->setEnabled(false);
     m_btnStop->setEnabled(true);
-    setStatus("\xf0\x9f\x94\x84  Master agent: decomposizione compito...");
+    setStatus(tr("\xf0\x9f\x94\x84  Master agent: decomposizione compito..."));
 
     initPool();    /* sinc pool con le impostazioni correnti di m_ai */
     decompose(prompt);
@@ -375,7 +375,7 @@ void AgentiMultiPage::decompose(const QString& userPrompt)
                 m_decomposeBusy = false;
                 m_btnDecompose->setEnabled(true);
                 m_btnStop->setEnabled(false);
-                setStatus("\xe2\x9d\x8c  Errore decomposizione: " + msg.left(80));
+                setStatus(tr("\xe2\x9d\x8c  Errore decomposizione: ") + msg.left(80));
                 appendOutput("<p style='color:#f87171'>\xe2\x9d\x8c Errore: " + msg + "</p>");
                 LogBus::post("\xe2\x9d\x8c MultiAgente: Errore decomposizione: " + msg.left(80));
             });
@@ -417,7 +417,7 @@ void AgentiMultiPage::parsePlan(const QString& jsonPlan)
         t.prompt = m_promptInput->toPlainText().trimmed();
         m_tasks.append(t);
         addTaskItem(t);
-        setStatus("\xf0\x9f\x94\x84  Avvio agente...");
+        setStatus(tr("\xf0\x9f\x94\x84  Avvio agente..."));
         runNextPendingTask();
         return;
     }
@@ -699,7 +699,7 @@ void AgentiMultiPage::synthesizeFinal()
 {
     if (m_synthBusy || !m_ai) return;
     m_synthBusy = true;
-    setStatus("\xf0\x9f\x93\x9d  Sintesi finale...");
+    setStatus(tr("\xf0\x9f\x93\x9d  Sintesi finale..."));
     appendOutput("<hr><h3 style='color:#c084fc'>\xf0\x9f\x93\x9d Sintesi Finale</h3>");
 
     /* Raccoglie tutti i risultati */
@@ -747,7 +747,7 @@ void AgentiMultiPage::synthesizeFinal()
                 m_synthBusy   = false;
                 m_btnDecompose->setEnabled(true);
                 m_btnStop->setEnabled(false);
-                setStatus("\xe2\x9c\x85  Elaborazione completata.");
+                setStatus(tr("\xe2\x9c\x85  Elaborazione completata."));
 
                 /* Salva sintesi in GraphMemory */
                 if (m_gm)
@@ -764,7 +764,7 @@ void AgentiMultiPage::synthesizeFinal()
                 m_synthBusy   = false;
                 m_btnDecompose->setEnabled(true);
                 m_btnStop->setEnabled(false);
-                setStatus("\xe2\x9d\x8c  Errore sintesi: " + msg.left(80));
+                setStatus(tr("\xe2\x9d\x8c  Errore sintesi: ") + msg.left(80));
                 LogBus::post("\xe2\x9d\x8c MultiAgente: Errore sintesi: " + msg.left(80));
             });
 
@@ -870,7 +870,7 @@ void AgentiMultiPage::onStopClicked()
     m_synthBusy     = false;
     m_btnDecompose->setEnabled(true);
     m_btnStop->setEnabled(false);
-    setStatus("\xe2\x96\xa0  Interrotto.");
+    setStatus(tr("\xe2\x96\xa0  Interrotto."));
 }
 
 void AgentiMultiPage::onClearClicked()
@@ -879,7 +879,7 @@ void AgentiMultiPage::onClearClicked()
     m_tasks.clear();
     if (m_taskList) m_taskList->clear();
     clearOutput();
-    setStatus("\xf0\x9f\x95\xb8  Pronto.");
+    setStatus(tr("\xf0\x9f\x95\xb8  Pronto."));
 }
 
 void AgentiMultiPage::onExportTxtClicked()
@@ -906,7 +906,7 @@ void AgentiMultiPage::onClearMemClicked()
     refreshMemoryStats();
     if (m_dotView)  m_dotView->clear();
     if (m_jsonView) m_jsonView->clear();
-    setStatus("\xf0\x9f\x97\x91  Memoria grafo svuotata.");
+    setStatus(tr("\xf0\x9f\x97\x91  Memoria grafo svuotata."));
 }
 
 void AgentiMultiPage::onGraphMemoryChanged()

@@ -311,8 +311,8 @@ void IpaGuideWidget::buildComposeBar(QVBoxLayout* lay)
     barLay->addWidget(scroll);
 
     auto* btnRow = new QHBoxLayout();
-    m_btnPlayCompose = new QPushButton("\xe2\x96\xb6 Ascolta", bar);
-    m_btnClearCompose = new QPushButton("\xf0\x9f\x97\x91 Cancella", bar);
+    m_btnPlayCompose = new QPushButton(tr("\xe2\x96\xb6 Ascolta"), bar);
+    m_btnClearCompose = new QPushButton(tr("\xf0\x9f\x97\x91 Cancella"), bar);
     btnRow->addWidget(m_btnPlayCompose);
     btnRow->addWidget(m_btnClearCompose);
     btnRow->addStretch(1);
@@ -405,13 +405,13 @@ void IpaGuideWidget::startComposePlayback()
             this, &IpaGuideWidget::onComposePlaybackFinished);
     m_playProc->start("espeak-ng",
         {"-v", "en-gb", QString("[[%1]]").arg(m_composedMnemonics.join(' '))});
-    m_btnPlayCompose->setText("\xe2\x8f\xb8 Pausa");
+    m_btnPlayCompose->setText(tr("\xe2\x8f\xb8 Pausa"));
 }
 
 void IpaGuideWidget::stopComposePlayback()
 {
     if (m_playProc) m_playProc->kill();
-    m_btnPlayCompose->setText("\xe2\x96\xb6 Ascolta");
+    m_btnPlayCompose->setText(tr("\xe2\x96\xb6 Ascolta"));
 }
 
 void IpaGuideWidget::onComposePlaybackFinished(int, QProcess::ExitStatus)
@@ -419,7 +419,7 @@ void IpaGuideWidget::onComposePlaybackFinished(int, QProcess::ExitStatus)
     QProcess* finished = m_playProc;
     m_playProc = nullptr;
     if (finished) finished->deleteLater();
-    m_btnPlayCompose->setText("\xe2\x96\xb6 Ascolta");
+    m_btnPlayCompose->setText(tr("\xe2\x96\xb6 Ascolta"));
 }
 
 void IpaGuideWidget::onPlayPauseComposeClicked()

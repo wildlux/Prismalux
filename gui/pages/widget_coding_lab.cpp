@@ -42,8 +42,8 @@ CodingLabWidget::CodingLabWidget(AiClient* ai, QWidget* parent)
 
     /* ── Tasti azione ── */
     auto* btnRow = new QHBoxLayout;
-    m_runBtn   = new QPushButton("\xf0\x9f\x9a\x80  Genera & Testa", this);
-    m_abortBtn = new QPushButton("\xe2\x9c\x96  Ferma", this);
+    m_runBtn   = new QPushButton(tr("\xf0\x9f\x9a\x80  Genera & Testa"), this);
+    m_abortBtn = new QPushButton(tr("\xe2\x9c\x96  Ferma"), this);
     m_runBtn->setMinimumHeight(40);
     m_abortBtn->setMinimumHeight(40);
     m_runBtn->setStyleSheet(
@@ -59,7 +59,7 @@ CodingLabWidget::CodingLabWidget(AiClient* ai, QWidget* parent)
     root->addLayout(btnRow);
 
     /* ── Fase corrente ── */
-    m_phaseLbl = new QLabel("Pronto.", this);
+    m_phaseLbl = new QLabel(tr("Pronto."), this);
     m_phaseLbl->setStyleSheet("color:#64748b; font-style:italic;");
     root->addWidget(m_phaseLbl);
 
@@ -72,7 +72,7 @@ CodingLabWidget::CodingLabWidget(AiClient* ai, QWidget* parent)
     resLayout->setContentsMargins(10, 8, 10, 8);
     resLayout->setSpacing(6);
 
-    auto* codeLbl = new QLabel("<b>Codice generato:</b>", m_resultArea);
+    auto* codeLbl = new QLabel(tr("<b>Codice generato:</b>"), m_resultArea);
     resLayout->addWidget(codeLbl);
     m_codeView = new QTextBrowser(m_resultArea);
     m_codeView->setFont(QFont("monospace", 11));
@@ -82,7 +82,7 @@ CodingLabWidget::CodingLabWidget(AiClient* ai, QWidget* parent)
         "QTextBrowser { background:#1e293b; color:#e2e8f0; border-radius:6px; padding:8px; }");
     resLayout->addWidget(m_codeView);
 
-    auto* outLbl = new QLabel("<b>Output del programma:</b>", m_resultArea);
+    auto* outLbl = new QLabel(tr("<b>Output del programma:</b>"), m_resultArea);
     resLayout->addWidget(outLbl);
     m_outputView = new QTextBrowser(m_resultArea);
     m_outputView->setFont(QFont("monospace", 11));
@@ -120,10 +120,10 @@ CodingLabWidget::CodingLabWidget(AiClient* ai, QWidget* parent)
         "<b>\xf0\x9f\x94\xa7 Cosa vuoi modificare?</b>", m_modArea);
     modLayout->addWidget(modTitle);
     m_modInput = new QTextEdit(m_modArea);
-    m_modInput->setPlaceholderText("Es: \"Mostra anche i numeri dispari\" oppure \"Aggiungi i commenti al codice\"");
+    m_modInput->setPlaceholderText(tr("Es: \"Mostra anche i numeri dispari\" oppure \"Aggiungi i commenti al codice\""));
     m_modInput->setMaximumHeight(70);
     modLayout->addWidget(m_modInput);
-    m_modBtn = new QPushButton("\xf0\x9f\x94\x84  Applica modifica", m_modArea);
+    m_modBtn = new QPushButton(tr("\xf0\x9f\x94\x84  Applica modifica"), m_modArea);
     m_modBtn->setMinimumHeight(38);
     m_modBtn->setStyleSheet(
         "QPushButton { background:#2563eb; color:white; border-radius:6px; font-weight:bold; }"
@@ -235,7 +235,7 @@ void CodingLabWidget::onCodeFinished()
     disconnectAi();
     m_currentCode = extractCode(m_codeBuffer);
     if (m_currentCode.isEmpty()) {
-        setPhase("\xe2\x9d\x8c Nessun codice valido generato. Riprova con una descrizione diversa.");
+        setPhase(tr("\xe2\x9d\x8c Nessun codice valido generato. Riprova con una descrizione diversa."));
         setIdle();
         return;
     }
@@ -245,7 +245,7 @@ void CodingLabWidget::onCodeFinished()
 void CodingLabWidget::onCodeError(const QString& e)
 {
     disconnectAi();
-    setPhase("\xe2\x9d\x8c Errore AI: " + e);
+    setPhase(tr("\xe2\x9d\x8c Errore AI: ") + e);
     setIdle();
 }
 
@@ -257,13 +257,13 @@ void CodingLabWidget::runCode(const QString& code)
     m_state = Testing;
     m_runOutput.clear();
     m_runError.clear();
-    setPhase("\xf0\x9f\xa7\xaa Testo il codice…");
+    setPhase(tr("\xf0\x9f\xa7\xaa Testo il codice…"));
 
     /* Scrivi il codice in un file temporaneo */
     auto* tmp = new QTemporaryFile(QDir::tempPath() + "/prismalux_lab_XXXXXX.py", this);
     tmp->setAutoRemove(false);
     if (!tmp->open()) {
-        setPhase("\xe2\x9d\x8c Impossibile creare file temporaneo.");
+        setPhase(tr("\xe2\x9d\x8c Impossibile creare file temporaneo."));
         setIdle();
         tmp->deleteLater();
         return;
@@ -386,7 +386,7 @@ void CodingLabWidget::onFixFinished()
 void CodingLabWidget::onFixError(const QString& e)
 {
     disconnectAi();
-    setPhase("\xe2\x9d\x8c Errore AI durante correzione: " + e);
+    setPhase(tr("\xe2\x9d\x8c Errore AI durante correzione: ") + e);
     setIdle();
 }
 
@@ -397,7 +397,7 @@ void CodingLabWidget::startAnecdote()
 {
     m_state = Anecdote;
     m_anecdoteBuffer.clear();
-    setPhase("\xf0\x9f\x92\xa1 Preparo un aneddoto tecnico…");
+    setPhase(tr("\xf0\x9f\x92\xa1 Preparo un aneddoto tecnico…"));
 
     const QString sys =
         "Sei un mentore per un perito informatico che vuole crescere come sviluppatore. "
@@ -441,7 +441,7 @@ void CodingLabWidget::showResult()
     m_modArea->setVisible(true);
     m_modInput->clear();
     m_modInput->setFocus();
-    setPhase("\xe2\x9c\x85 Tutto pronto! Leggi il risultato e dimmi cosa vuoi cambiare.");
+    setPhase(tr("\xe2\x9c\x85 Tutto pronto! Leggi il risultato e dimmi cosa vuoi cambiare."));
     setIdle();
 }
 

@@ -94,19 +94,19 @@ VoiceClonerWidget::~VoiceClonerWidget()
 
 QGroupBox* VoiceClonerWidget::buildSampleGroup()
 {
-    auto* gb = new QGroupBox("\xf0\x9f\x8e\xa4  Campione vocale", this); /* 🎤 */
+    auto* gb = new QGroupBox(tr("\xf0\x9f\x8e\xa4  Campione vocale"), this); /* 🎤 */
     auto* lay = new QVBoxLayout(gb);
     lay->setSpacing(dpiScale(4));
 
-    m_sampleLbl = new QLabel("Nessun campione caricato", gb);
+    m_sampleLbl = new QLabel(tr("Nessun campione caricato"), gb);
     m_sampleLbl->setStyleSheet("color:#94a3b8;font-style:italic;");
 
     auto* row = new QHBoxLayout;
-    m_loadBtn = new QPushButton("\xf0\x9f\x93\x82  Carica campione", gb); /* 📂 */
-    m_loadBtn->setToolTip("Carica un file WAV/MP3/OGG come campione vocale (ideale 5-30 secondi)");
-    m_recBtn  = new QPushButton("\xf0\x9f\x94\xb4  Registra", gb); /* 🔴 */
+    m_loadBtn = new QPushButton(tr("\xf0\x9f\x93\x82  Carica campione"), gb); /* 📂 */
+    m_loadBtn->setToolTip(tr("Carica un file WAV/MP3/OGG come campione vocale (ideale 5-30 secondi)"));
+    m_recBtn  = new QPushButton(tr("\xf0\x9f\x94\xb4  Registra"), gb); /* 🔴 */
     m_recBtn->setCheckable(true);
-    m_recBtn->setToolTip("Registra un campione dal microfono (tieni premuto, poi rilascia)");
+    m_recBtn->setToolTip(tr("Registra un campione dal microfono (tieni premuto, poi rilascia)"));
     row->addWidget(m_loadBtn);
     row->addWidget(m_recBtn);
     row->addStretch();
@@ -121,11 +121,11 @@ QGroupBox* VoiceClonerWidget::buildSampleGroup()
 
 QGroupBox* VoiceClonerWidget::buildTextGroup()
 {
-    auto* gb = new QGroupBox("\xf0\x9f\x93\x9d  Testo da sintetizzare", this); /* 📝 */
+    auto* gb = new QGroupBox(tr("\xf0\x9f\x93\x9d  Testo da sintetizzare"), this); /* 📝 */
     auto* lay = new QVBoxLayout(gb);
 
     m_textEdit = new QTextEdit(gb);
-    m_textEdit->setPlaceholderText("Scrivi qui il testo che vuoi far leggere con la voce clonata...");
+    m_textEdit->setPlaceholderText(tr("Scrivi qui il testo che vuoi far leggere con la voce clonata..."));
     m_textEdit->setFixedHeight(dpiScale(100));
 
     lay->addWidget(m_textEdit);
@@ -134,10 +134,10 @@ QGroupBox* VoiceClonerWidget::buildTextGroup()
 
 QGroupBox* VoiceClonerWidget::buildSettingsGroup()
 {
-    auto* gb = new QGroupBox("\xe2\x9a\x99  Impostazioni", this); /* ⚙ */
+    auto* gb = new QGroupBox(tr("\xe2\x9a\x99  Impostazioni"), this); /* ⚙ */
     auto* lay = new QHBoxLayout(gb);
 
-    lay->addWidget(new QLabel("Lingua:", gb));
+    lay->addWidget(new QLabel(tr("Lingua:"), gb));
     m_langCombo = new QComboBox(gb);
     m_langCombo->addItem("Italiano",  "it");
     m_langCombo->addItem("English",   "en");
@@ -146,7 +146,7 @@ QGroupBox* VoiceClonerWidget::buildSettingsGroup()
     m_langCombo->addItem("Espanol",   "es");
     m_langCombo->addItem("Portugues", "pt");
     m_langCombo->addItem("Polski",    "pl");
-    m_langCombo->setToolTip("Lingua del testo sintetizzato (non del campione)");
+    m_langCombo->setToolTip(tr("Lingua del testo sintetizzato (non del campione)"));
     lay->addWidget(m_langCombo);
 
     m_backendLbl = new QLabel("", gb);
@@ -155,8 +155,8 @@ QGroupBox* VoiceClonerWidget::buildSettingsGroup()
 
     lay->addStretch();
 
-    m_installBtn = new QPushButton("\xf0\x9f\x93\xa6  Installa TTS", gb); /* 📦 */
-    m_installBtn->setToolTip("Installa il backend TTS disponibile per questa versione di Python");
+    m_installBtn = new QPushButton(tr("\xf0\x9f\x93\xa6  Installa TTS"), gb); /* 📦 */
+    m_installBtn->setToolTip(tr("Installa il backend TTS disponibile per questa versione di Python"));
     lay->addWidget(m_installBtn);
     connect(m_installBtn, &QPushButton::clicked, this, &VoiceClonerWidget::onInstallClicked);
     return gb;
@@ -168,14 +168,14 @@ QWidget* VoiceClonerWidget::buildActionRow()
     auto* lay = new QHBoxLayout(w);
     lay->setContentsMargins(0, 0, 0, 0);
 
-    m_genBtn  = new QPushButton("\xe2\x96\xb6  Genera voce", w); /* ▶ */
+    m_genBtn  = new QPushButton(tr("\xe2\x96\xb6  Genera voce"), w); /* ▶ */
     m_genBtn->setFixedHeight(dpiScale(36));
     m_genBtn->setStyleSheet("QPushButton{background:#1d4ed8;color:#fff;border-radius:6px;font-weight:bold;}"
                             "QPushButton:hover{background:#2563eb;}"
                             "QPushButton:disabled{background:#334155;color:#64748b;}");
     m_genBtn->setEnabled(false);
 
-    m_stopBtn = new QPushButton("\xe2\x8f\xb9  Stop", w); /* ⏹ */
+    m_stopBtn = new QPushButton(tr("\xe2\x8f\xb9  Stop"), w); /* ⏹ */
     m_stopBtn->setEnabled(false);
 
     m_progress = new QProgressBar(w);
@@ -199,12 +199,12 @@ QWidget* VoiceClonerWidget::buildActionRow()
 
 QGroupBox* VoiceClonerWidget::buildOutputGroup()
 {
-    auto* gb = new QGroupBox("\xf0\x9f\x94\x8a  Output", this); /* 🔊 */
+    auto* gb = new QGroupBox(tr("\xf0\x9f\x94\x8a  Output"), this); /* 🔊 */
     auto* lay = new QHBoxLayout(gb);
 
-    m_playBtn = new QPushButton("\xe2\x96\xb6  Riproduci output", gb); /* ▶ */
+    m_playBtn = new QPushButton(tr("\xe2\x96\xb6  Riproduci output"), gb); /* ▶ */
     m_playBtn->setEnabled(false);
-    m_saveBtn = new QPushButton("\xf0\x9f\x92\xbe  Salva WAV", gb); /* 💾 */
+    m_saveBtn = new QPushButton(tr("\xf0\x9f\x92\xbe  Salva WAV"), gb); /* 💾 */
     m_saveBtn->setEnabled(false);
 
     lay->addWidget(m_playBtn);
@@ -218,7 +218,7 @@ QGroupBox* VoiceClonerWidget::buildOutputGroup()
 
 QGroupBox* VoiceClonerWidget::buildLogGroup()
 {
-    auto* gb = new QGroupBox("Log", this);
+    auto* gb = new QGroupBox(tr("Log"), this);
     auto* lay = new QVBoxLayout(gb);
 
     m_logView = new QTextEdit(gb);
@@ -252,7 +252,7 @@ void VoiceClonerWidget::onLoadSampleClicked()
 void VoiceClonerWidget::onRecordToggled(bool on)
 {
     if (on) {
-        m_recBtn->setText("\xe2\x8f\xb9  Registra (stop)");
+        m_recBtn->setText(tr("\xe2\x8f\xb9  Registra (stop)"));
         QString tmp = QDir::tempPath() + "/prismalux_vc_sample.wav";
         if (!m_recProc) {
             m_recProc = new QProcess(this);
@@ -275,7 +275,7 @@ void VoiceClonerWidget::onRecordToggled(bool on)
         m_samplePath = tmp;
         appendLog("Registrazione in corso...");
     } else {
-        m_recBtn->setText("\xf0\x9f\x94\xb4  Registra");
+        m_recBtn->setText(tr("\xf0\x9f\x94\xb4  Registra"));
         if (m_recProc && m_recProc->state() != QProcess::NotRunning)
             m_recProc->terminate();
     }
@@ -292,10 +292,10 @@ void VoiceClonerWidget::onRecProcFinished(int, QProcess::ExitStatus)
         m_genBtn->setEnabled(m_ttsInstalled && (m_backend != BackendEdge));
         appendLog("Registrazione completata: " + m_samplePath);
     } else {
-        setStatus("Errore registrazione — verifica il microfono");
+        setStatus(tr("Errore registrazione — verifica il microfono"));
     }
     m_recBtn->setChecked(false);
-    m_recBtn->setText("\xf0\x9f\x94\xb4  Registra");
+    m_recBtn->setText(tr("\xf0\x9f\x94\xb4  Registra"));
 }
 
 /* ──────────────────────────────────────── generazione voce ── */
@@ -303,10 +303,10 @@ void VoiceClonerWidget::onRecProcFinished(int, QProcess::ExitStatus)
 void VoiceClonerWidget::onGenerateClicked()
 {
     QString testo = m_textEdit->toPlainText().trimmed();
-    if (testo.isEmpty()) { setStatus("Scrivi il testo da sintetizzare"); return; }
+    if (testo.isEmpty()) { setStatus(tr("Scrivi il testo da sintetizzare")); return; }
 
     if (m_backend != BackendEdge && m_samplePath.isEmpty()) {
-        setStatus("Carica prima un campione vocale"); return;
+        setStatus(tr("Carica prima un campione vocale")); return;
     }
 
     QString lang   = m_langCombo->currentData().toString();
@@ -332,7 +332,7 @@ void VoiceClonerWidget::onGenerateClicked()
     m_playBtn->setEnabled(false);
     m_saveBtn->setEnabled(false);
     m_progress->setVisible(true);
-    setStatus("Avvio sintesi...");
+    setStatus(tr("Avvio sintesi..."));
     appendLog("--- Avvio " + QString(m_backend == BackendCoqui ? "XTTS-v2"
                                   : m_backend == BackendChatterbox ? "chatterbox-tts"
                                   : "edge-tts") + " ---");
@@ -421,7 +421,7 @@ void VoiceClonerWidget::onStopClicked()
     m_genBtn->setEnabled(hasSample() && m_ttsInstalled && m_backend != BackendNone);
     m_stopBtn->setEnabled(false);
     m_progress->setVisible(false);
-    setStatus("Interrotto dall'utente");
+    setStatus(tr("Interrotto dall'utente"));
 }
 
 void VoiceClonerWidget::onCloneProcReadyRead()
@@ -434,7 +434,7 @@ void VoiceClonerWidget::onCloneProcReadyRead()
             if (line.startsWith("INFO:"))
                 setStatus(line.mid(5));
             else if (line.startsWith("ERROR:"))
-                setStatus("\xe2\x9d\x8c  " + line.mid(6));
+                setStatus(tr("\xe2\x9d\x8c  ") + line.mid(6));
         }
     };
     readAll(false);
@@ -451,10 +451,10 @@ void VoiceClonerWidget::onCloneProcFinished(int code, QProcess::ExitStatus)
     if (code == 0 && QFile::exists(m_outputWav)) {
         m_playBtn->setEnabled(true);
         m_saveBtn->setEnabled(true);
-        setStatus("\xe2\x9c\x85  Voce generata — premi Riproduci");
+        setStatus(tr("\xe2\x9c\x85  Voce generata — premi Riproduci"));
         appendLog("Output: " + m_outputWav);
     } else {
-        setStatus("\xe2\x9d\x8c  Errore sintesi (codice " + QString::number(code) + ")");
+        setStatus(tr("\xe2\x9d\x8c  Errore sintesi (codice ") + QString::number(code) + ")");
     }
 }
 
@@ -489,9 +489,9 @@ void VoiceClonerWidget::onSaveWavClicked()
     if (QFile::exists(dest)) QFile::remove(dest);
     if (QFile::copy(m_outputWav, dest)) {
         appendLog("Salvato in: " + dest);
-        setStatus("File salvato in " + dest);
+        setStatus(tr("File salvato in ") + dest);
     } else {
-        setStatus("Errore nel salvataggio");
+        setStatus(tr("Errore nel salvataggio"));
     }
 }
 
@@ -539,7 +539,7 @@ void VoiceClonerWidget::onInstallClicked()
                "Vuoi procedere con l'installazione?";
     }
 
-    auto reply = QMessageBox::question(this, "Installa TTS", info,
+    auto reply = QMessageBox::question(this, tr("Installa TTS"), info,
                                        QMessageBox::Yes | QMessageBox::No);
     if (reply != QMessageBox::Yes) return;
 
@@ -559,7 +559,7 @@ void VoiceClonerWidget::onInstallClicked()
     }
 
     m_installBtn->setEnabled(false);
-    setStatus("Installazione " + pkg + "...");
+    setStatus(tr("Installazione ") + pkg + "...");
     appendLog("--- pip install " + pkg + " ---");
     m_instProc->start("pip3", {"install", "--break-system-packages", pkg});
 }
@@ -580,7 +580,7 @@ void VoiceClonerWidget::onInstallProcFinished(int code, QProcess::ExitStatus)
         appendLog("Installazione completata. Rilevamento backend...");
         checkTtsInstalled();
     } else {
-        setStatus("\xe2\x9d\x8c  Installazione fallita (codice " + QString::number(code) + ")");
+        setStatus(tr("\xe2\x9d\x8c  Installazione fallita (codice ") + QString::number(code) + ")");
         appendLog("Prova: pip3 install --break-system-packages chatterbox-tts");
         appendLog("Fallback senza voice cloning: pip3 install edge-tts");
     }
@@ -646,33 +646,33 @@ void VoiceClonerWidget::applyBackend()
 {
     switch (m_backend) {
     case BackendCoqui:
-        m_installBtn->setText("\xe2\x9c\x85  XTTS-v2");
+        m_installBtn->setText(tr("\xe2\x9c\x85  XTTS-v2"));
         m_installBtn->setEnabled(false);
         m_backendLbl->setText(
             "<span style='color:#4ade80;'>XTTS-v2 (voice cloning)</span>");
-        setStatus("Coqui XTTS-v2 disponibile — carica un campione per iniziare");
+        setStatus(tr("Coqui XTTS-v2 disponibile — carica un campione per iniziare"));
         appendLog("Backend: Coqui TTS (XTTS-v2) — voice cloning completo.");
         if (m_sampleGroup) m_sampleGroup->setEnabled(true);
         break;
 
     case BackendChatterbox:
-        m_installBtn->setText("\xe2\x9c\x85  chatterbox");
+        m_installBtn->setText(tr("\xe2\x9c\x85  chatterbox"));
         m_installBtn->setEnabled(false);
         m_backendLbl->setText(
             "<span style='color:#4ade80;'>chatterbox-tts (voice cloning)</span>");
-        setStatus("chatterbox-tts disponibile — carica un campione per iniziare");
+        setStatus(tr("chatterbox-tts disponibile — carica un campione per iniziare"));
         appendLog("Backend: chatterbox-tts (Resemble AI) — voice cloning su Python 3.12+.");
         if (m_sampleGroup) m_sampleGroup->setEnabled(true);
         break;
 
     case BackendEdge:
-        m_installBtn->setText("Installa chatterbox");
+        m_installBtn->setText(tr("Installa chatterbox"));
         m_installBtn->setToolTip(
             "Installa chatterbox-tts per voice cloning reale. "
             "edge-tts e' gia' disponibile ma usa voci predefinite (no campione).");
         m_backendLbl->setText(
             "<span style='color:#fb923c;'>edge-tts online (no campione)</span>");
-        setStatus("edge-tts attivo — nessun campione richiesto, voce predefinita online");
+        setStatus(tr("edge-tts attivo — nessun campione richiesto, voce predefinita online"));
         appendLog("Backend: edge-tts (Microsoft Edge, online). Il campione non viene usato.");
         appendLog("Per voice cloning installa: pip3 install --break-system-packages chatterbox-tts");
         if (m_sampleGroup) m_sampleGroup->setEnabled(false);
@@ -681,10 +681,10 @@ void VoiceClonerWidget::applyBackend()
 
     case BackendNone:
     default:
-        m_installBtn->setText("\xf0\x9f\x93\xa6  Installa TTS");
+        m_installBtn->setText(tr("\xf0\x9f\x93\xa6  Installa TTS"));
         m_backendLbl->setText(
             "<span style='color:#f87171;'>nessun backend</span>");
-        setStatus("TTS non installato — usa il pulsante per installare");
+        setStatus(tr("TTS non installato — usa il pulsante per installare"));
         appendLog("Nessun backend TTS trovato.");
         appendLog("Opzioni:");
         appendLog("  Python 3.12+: pip3 install --break-system-packages chatterbox-tts");

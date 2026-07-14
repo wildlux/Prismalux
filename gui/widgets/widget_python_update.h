@@ -56,12 +56,12 @@ public:
         title->setTextFormat(Qt::RichText);
         headerLay->addWidget(title, 1);
 
-        m_btnCheck = new QPushButton("\xf0\x9f\x94\x84  Controlla aggiornamenti", header);
+        m_btnCheck = new QPushButton(tr("\xf0\x9f\x94\x84  Controlla aggiornamenti"), header);
         m_btnCheck->setObjectName("actionBtn");
         m_btnCheck->setFixedHeight(dpiScale(28));
         headerLay->addWidget(m_btnCheck);
 
-        m_btnUpdateAll = new QPushButton("\xe2\xac\x87  Aggiorna tutti", header);
+        m_btnUpdateAll = new QPushButton(tr("\xe2\xac\x87  Aggiorna tutti"), header);
         m_btnUpdateAll->setObjectName("dangerBtn");
         m_btnUpdateAll->setFixedHeight(dpiScale(28));
         m_btnUpdateAll->setEnabled(false);
@@ -119,7 +119,7 @@ private slots:
         m_btnCheck->setEnabled(false);
         m_btnUpdateAll->setEnabled(false);
         for (auto& r : m_rows) {
-            r.statusLbl->setText("\xe2\x8f\xb3 ...");
+            r.statusLbl->setText(tr("\xe2\x8f\xb3 ..."));
             r.updateBtn->setEnabled(false);
         }
 
@@ -140,7 +140,7 @@ private slots:
 
         if (code != 0) {
             m_btnCheck->setEnabled(true);
-            for (auto& r : m_rows) r.statusLbl->setText("\xe2\x9d\x8c pip non raggiungibile");
+            for (auto& r : m_rows) r.statusLbl->setText(tr("\xe2\x9d\x8c pip non raggiungibile"));
             return;
         }
 
@@ -216,7 +216,7 @@ private slots:
         if (target.isEmpty()) { doNextUpdate(); return; }
 
         r.backupVersion = r.installedVersion;   /* "quelle di default" da ripristinare */
-        r.statusLbl->setText("\xe2\x8f\xb3 installo " + target + "...");
+        r.statusLbl->setText(tr("\xe2\x8f\xb3 installo ") + target + "...");
         m_log->append("<b>\xe2\xac\x87  " + QString::fromUtf8(r.pkg.pip)
                       + "==" + target.toHtmlEscaped() + "...</b>");
 
@@ -253,7 +253,7 @@ private slots:
         Row& r = m_rows[idx];
 
         if (code != 0) {
-            r.statusLbl->setText("<span style='color:#ef4444;'>\xe2\x9c\x96 errore pip install</span>");
+            r.statusLbl->setText(tr("<span style='color:#ef4444;'>\xe2\x9c\x96 errore pip install</span>"));
             r.statusLbl->setTextFormat(Qt::RichText);
             m_log->append("<span style='color:#ef4444;'>\xe2\x9c\x96  pip install fallito per "
                           + QString::fromUtf8(r.pkg.pip) + "</span>");
@@ -282,7 +282,7 @@ private slots:
 
         if (code == 0) {
             r.installedVersion = target;
-            r.statusLbl->setText("<span style='color:#22c55e;'>\xe2\x9c\x85 " + target + "</span>");
+            r.statusLbl->setText(tr("<span style='color:#22c55e;'>\xe2\x9c\x85 ") + target + "</span>");
             r.statusLbl->setTextFormat(Qt::RichText);
             m_log->append("<span style='color:#22c55e;'>\xe2\x9c\x85  "
                           + QString::fromUtf8(r.pkg.pip) + " aggiornato a " + target + "</span>");
@@ -294,7 +294,7 @@ private slots:
         m_log->append("<span style='color:#fbbf24;'>\xe2\x9a\xa0  " + QString::fromUtf8(r.pkg.pip)
                       + "==" + target + " non \xc3\xa8 compatibile (import fallito). "
                       "Ripristino " + r.backupVersion + "...</span>");
-        r.statusLbl->setText("\xe2\x8f\xb3 rollback...");
+        r.statusLbl->setText(tr("\xe2\x8f\xb3 rollback..."));
 
         auto* rbProc = new QProcess(this);
         rbProc->setProperty("pkgIdx", idx);
@@ -318,12 +318,12 @@ private slots:
         Row& r = m_rows[idx];
 
         if (code == 0) {
-            r.statusLbl->setText("<span style='color:#fbbf24;'>\xe2\x86\xa9 ripristinato "
+            r.statusLbl->setText(tr("<span style='color:#fbbf24;'>\xe2\x86\xa9 ripristinato ")
                                  + r.backupVersion + "</span>");
             m_log->append("<span style='color:#fbbf24;'>\xe2\x86\xa9  " + QString::fromUtf8(r.pkg.pip)
                           + " ripristinato alla versione di default " + r.backupVersion + "</span>");
         } else {
-            r.statusLbl->setText("<span style='color:#ef4444;'>\xe2\x9c\x96 rollback fallito!</span>");
+            r.statusLbl->setText(tr("<span style='color:#ef4444;'>\xe2\x9c\x96 rollback fallito!</span>"));
             m_log->append("<span style='color:#ef4444;'>\xe2\x9c\x96  Rollback di "
                           + QString::fromUtf8(r.pkg.pip) + " fallito \xe2\x80\x94 verifica manualmente "
                           "lo stato del pacchetto.</span>");
@@ -399,7 +399,7 @@ private:
             hdrLay->setContentsMargins(4, 0, 4, 2);
             hdrLay->setSpacing(8);
             auto mk = [](const QString& t, int w) {
-                auto* l = new QLabel("<b>" + t + "</b>");
+                auto* l = new QLabel(tr("<b>") + t + "</b>");
                 l->setObjectName("hintLabel");
                 if (w > 0) l->setFixedWidth(w);
                 return l;
@@ -438,18 +438,18 @@ private:
 
             r.targetEdit = new QLineEdit(row);
             r.targetEdit->setFixedWidth(dpiScale(110));
-            r.targetEdit->setPlaceholderText("es. 1.2.3");
-            r.targetEdit->setToolTip("Modifica per scegliere una versione diversa (anche precedente)");
+            r.targetEdit->setPlaceholderText(tr("es. 1.2.3"));
+            r.targetEdit->setToolTip(tr("Modifica per scegliere una versione diversa (anche precedente)"));
             rowLay->addWidget(r.targetEdit);
 
-            r.updateBtn = new QPushButton("\xe2\xac\x87  Aggiorna", row);
+            r.updateBtn = new QPushButton(tr("\xe2\xac\x87  Aggiorna"), row);
             r.updateBtn->setFixedWidth(dpiScale(70));
             r.updateBtn->setEnabled(false);
             r.updateBtn->setProperty("pkgIdx", m_rows.size());
             rowLay->addWidget(r.updateBtn);
             connect(r.updateBtn, &QPushButton::clicked, this, &PythonUpdatePanel::onUpdateSingleClicked);
 
-            r.statusLbl = new QLabel("non verificato", row);
+            r.statusLbl = new QLabel(tr("non verificato"), row);
             r.statusLbl->setObjectName("cardDesc");
             rowLay->addWidget(r.statusLbl, 1);
 
@@ -467,7 +467,7 @@ private:
 
             if (installed.isEmpty()) {
                 r.installedVersion.clear();
-                r.installedLbl->setText("non installato");
+                r.installedLbl->setText(tr("non installato"));
                 r.latestLbl->setText("\xe2\x80\x94");
                 r.targetEdit->clear();
                 r.updateBtn->setEnabled(false);
@@ -484,7 +484,7 @@ private:
                     "<span style='color:#fbbf24;'>" + latest + "</span>");
                 r.latestLbl->setTextFormat(Qt::RichText);
                 r.targetEdit->setText(latest);
-                r.statusLbl->setText("aggiornamento disponibile");
+                r.statusLbl->setText(tr("aggiornamento disponibile"));
             } else {
                 r.latestLbl->setText(
                     "<span style='color:#22c55e;'>aggiornata</span>");

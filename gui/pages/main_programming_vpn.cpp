@@ -823,7 +823,7 @@ QWidget* ProgrammazionePage::buildVpnTab(QWidget* parent)
     typeHL->setContentsMargins(0, 0, 0, 0);
     typeHL->setSpacing(8);
 
-    auto* typeLbl = new QLabel("\xf0\x9f\x94\x92  Tipo:", typeRow);
+    auto* typeLbl = new QLabel(tr("\xf0\x9f\x94\x92  Tipo:"), typeRow);
     m_vpnTypeCombo = new QComboBox(typeRow);
     m_vpnTypeCombo->setFixedWidth(dpiScale(160));
     for (int i = 0; i < kN; ++i)
@@ -924,7 +924,7 @@ QWidget* ProgrammazionePage::buildVpnTab(QWidget* parent)
     statusHL->setContentsMargins(0, 0, 0, 0);
     auto* statusCap = new QLabel(tr("Connessione:"), statusRow);
     m_vpnLiveStatusLbl = new QLabel(tr("\xe2\x9a\xaa  Nessuna VPN attiva"), statusRow);
-    m_vpnTestBtn = new QPushButton("\xf0\x9f\x94\x8d  Verifica stato", statusRow);
+    m_vpnTestBtn = new QPushButton(tr("\xf0\x9f\x94\x8d  Verifica stato"), statusRow);
     m_vpnTestBtn->setToolTip(tr("Rileva interfacce VPN attive (wg/tun) e il loro IP, senza root"));
     statusHL->addWidget(statusCap);
     statusHL->addWidget(m_vpnLiveStatusLbl, 1);

@@ -259,18 +259,18 @@ QWidget* AppControllerPage::buildBlenderTab()
     connLay->setContentsMargins(0, 0, 0, 0);
     connLay->setSpacing(8);
 
-    auto* lbl = new QLabel("Blender:", connRow);
+    auto* lbl = new QLabel(tr("Blender:"), connRow);
     lbl->setObjectName("hintLabel");
 
     m_blenderHostEdit = new QLineEdit("localhost:6789", connRow);
     m_blenderHostEdit->setFixedWidth(dpiScale(150));
 
-    auto* pingBtn = new QPushButton("\xf0\x9f\x94\x97  Verifica", connRow);
+    auto* pingBtn = new QPushButton(tr("\xf0\x9f\x94\x97  Verifica"), connRow);
     pingBtn->setToolTip(tr("Verifica che Blender sia in ascolto sulla porta WebSocket specificata"));
     pingBtn->setObjectName("actionBtn");
     pingBtn->setFixedWidth(dpiScale(100));
 
-    m_blenderStatusLbl = new QLabel("\xe2\x9a\xaa  Non connesso", connRow);
+    m_blenderStatusLbl = new QLabel(tr("\xe2\x9a\xaa  Non connesso"), connRow);
     m_blenderStatusLbl->setObjectName("hintLabel");
 
     m_blenderExecBtn = new QPushButton(
@@ -279,7 +279,7 @@ QWidget* AppControllerPage::buildBlenderTab()
     m_blenderExecBtn->setFixedWidth(dpiScale(160));
     m_blenderExecBtn->setEnabled(false);
 
-    auto* helpBtn = new QPushButton("\xf0\x9f\x9b\x9f  Aiuto", connRow);
+    auto* helpBtn = new QPushButton(tr("\xf0\x9f\x9b\x9f  Aiuto"), connRow);
     helpBtn->setToolTip(tr("Apri la documentazione e i comandi AI disponibili per Blender"));
     helpBtn->setObjectName("actionBtn");
     helpBtn->setFixedWidth(dpiScale(80));
@@ -327,9 +327,9 @@ QWidget* AppControllerPage::buildBlenderTab()
 
     m_blenderModel = new ModelComboBox(m_ai, toolRow);
 
-    toolLay->addWidget(new QLabel("Azione:", toolRow));
+    toolLay->addWidget(new QLabel(tr("Azione:"), toolRow));
     toolLay->addWidget(m_blenderAction, 1);
-    toolLay->addWidget(new QLabel("Modello:", toolRow));
+    toolLay->addWidget(new QLabel(tr("Modello:"), toolRow));
     toolLay->addWidget(m_blenderModel, 1);
     lay->addWidget(toolRow);
 
@@ -352,9 +352,9 @@ QWidget* AppControllerPage::buildBlenderTab()
     auto* btnLay = new QHBoxLayout(btnRow);
     btnLay->setContentsMargins(0, 0, 0, 0);
     btnLay->setSpacing(8);
-    m_blenderRunBtn  = new QPushButton("\xe2\x96\xb6  Genera codice AI", btnRow);
+    m_blenderRunBtn  = new QPushButton(tr("\xe2\x96\xb6  Genera codice AI"), btnRow);
     m_blenderRunBtn->setObjectName("actionBtn");
-    m_blenderStopBtn = new QPushButton("\xe2\x8f\xb9  Stop", btnRow);
+    m_blenderStopBtn = new QPushButton(tr("\xe2\x8f\xb9  Stop"), btnRow);
     m_blenderStopBtn->setObjectName("actionBtn");
     m_blenderStopBtn->setProperty("danger", true);
     m_blenderStopBtn->setEnabled(false);
@@ -491,7 +491,7 @@ void AppControllerPage::onBlenderPingClicked()
                 + "  \xc2\xb7  " + QString::number(objs) + " oggetti");
         } else {
             const QString blenderErr = res.value("error").toString("non raggiungibile");
-            m_blenderStatusLbl->setText("\xe2\x9d\x8c  " + blenderErr);
+            m_blenderStatusLbl->setText(tr("\xe2\x9d\x8c  ") + blenderErr);
             LogBus::post("\xe2\x9d\x8c Blender: Ping fallito: " + blenderErr);
         }
     });
@@ -522,7 +522,7 @@ void AppControllerPage::onBlenderExecClicked()
         if (!pingOk) {
             m_blenderExecBtn->setEnabled(true);
             const QString blenderPingErr = pingRes.value("error").toString("connessione rifiutata");
-            m_blenderStatusLbl->setText("\xe2\x9d\x8c  Non raggiungibile: " + blenderPingErr);
+            m_blenderStatusLbl->setText(tr("\xe2\x9d\x8c  Non raggiungibile: ") + blenderPingErr);
             m_blenderOutput->append(
                 "\n\xe2\x9d\x8c  Blender non connesso. "
                 "Avvia il server MCP in Blender (N \xe2\x86\x92 MCP \xe2\x86\x92 Start).");
@@ -597,7 +597,7 @@ void AppControllerPage::onBlenderHelpClicked()
         "Protocollo: TCP socket JSON null-terminated (porta 6789).</p>"
         "<p><i>L'AI gira via Ollama e genera codice Python eseguito direttamente in Blender via TCP. "
         "llama.cpp non \xc3\xa8 richiesto.</i></p>");
-    auto* btnClose = new QPushButton("\xe2\x9c\x95  Chiudi", dlg);
+    auto* btnClose = new QPushButton(tr("\xe2\x9c\x95  Chiudi"), dlg);
     btnClose->setObjectName("actionBtn");
     connect(btnClose, &QPushButton::clicked, dlg, &QDialog::accept);
     dlay->addWidget(browser);

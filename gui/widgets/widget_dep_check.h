@@ -62,14 +62,14 @@ public:
         m_btnCheckAll = new QPushButton(
             "\xf0\x9f\x94\x84  Controlla tutto", header);  /* 🔄 */
         m_btnCheckAll->setObjectName("actionBtn");
-        m_btnCheckAll->setToolTip("Verifica lo stato di ogni dipendenza");
+        m_btnCheckAll->setToolTip(tr("Verifica lo stato di ogni dipendenza"));
         m_btnCheckAll->setFixedHeight(dpiScale(28));
         headerLay->addWidget(m_btnCheckAll);
 
         m_btnInstallAll = new QPushButton(
             "\xe2\xac\x87  Installa mancanti", header);  /* ⬇ */
         m_btnInstallAll->setObjectName("dangerBtn");
-        m_btnInstallAll->setToolTip("Installa via pip le dipendenze mancanti");
+        m_btnInstallAll->setToolTip(tr("Installa via pip le dipendenze mancanti"));
         m_btnInstallAll->setFixedHeight(dpiScale(28));
         m_btnInstallAll->setEnabled(false);
         headerLay->addWidget(m_btnInstallAll);
@@ -113,7 +113,7 @@ public:
             rowLay->addWidget(nameCol, 1);
 
             /* Status */
-            auto* lblStatus = new QLabel("\xe2\x8f\xb3 ...", row);  /* ⏳ */
+            auto* lblStatus = new QLabel(tr("\xe2\x8f\xb3 ..."), row);  /* ⏳ */
             lblStatus->setFixedWidth(dpiScale(90));
             lblStatus->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
             m_statusLabels.append(lblStatus);
@@ -122,7 +122,7 @@ public:
             /* Pulsante install individuale */
             auto* btnInst = new QPushButton("\xe2\xac\x87", row);  /* ⬇ */
             btnInst->setFixedSize(dpiScale(28), dpiScale(24));
-            btnInst->setToolTip("Installa " + d.label);
+            btnInst->setToolTip(tr("Installa ") + d.label);
             btnInst->setEnabled(false);
             btnInst->setProperty("depIdx", i);
             m_installBtns.append(btnInst);
@@ -178,7 +178,7 @@ private slots:
         m_btnCheckAll->setEnabled(false);
         m_btnInstallAll->setEnabled(false);
         for (auto* s : m_statusLabels)
-            s->setText("\xe2\x8f\xb3 ...");
+            s->setText(tr("\xe2\x8f\xb3 ..."));
         for (auto* b : m_installBtns)
             b->setEnabled(false);
         m_checkedOk.clear();
@@ -288,7 +288,7 @@ private slots:
         const QString py = P::findPython();
 
         m_log->append("<b>\xe2\xac\x87  Installo " + d.label.toHtmlEscaped() + "...</b>");
-        m_statusLabels[idx]->setText("\xe2\x8f\xb3 installo...");
+        m_statusLabels[idx]->setText(tr("\xe2\x8f\xb3 installo..."));
 
         auto* proc = new QProcess(this);
         proc->setProperty("depIdx", idx);

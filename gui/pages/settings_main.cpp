@@ -627,7 +627,7 @@ QWidget* ImpostazioniPage::buildGraficoTab(GraficoCanvas* canvas)
     prevLay->setContentsMargins(14,12,14,12);
     prevLay->setSpacing(8);
 
-    auto* prevTitle = new QLabel("\xf0\x9f\x96\xbc  Anteprima stile", prevCard);  /* 🖼 */
+    auto* prevTitle = new QLabel(tr("\xf0\x9f\x96\xbc  Anteprima stile"), prevCard);  /* 🖼 */
     prevTitle->setObjectName("cardTitle");
     prevLay->addWidget(prevTitle);
 
@@ -648,7 +648,7 @@ QWidget* ImpostazioniPage::buildGraficoTab(GraficoCanvas* canvas)
     axLay->setContentsMargins(14,12,14,12);
     axLay->setSpacing(10);
 
-    auto* axTitle = new QLabel("\xf0\x9f\x93\x88  Posizione assi", axCard);  /* 📈 */
+    auto* axTitle = new QLabel(tr("\xf0\x9f\x93\x88  Posizione assi"), axCard);  /* 📈 */
     axTitle->setObjectName("cardTitle");
     axLay->addWidget(axTitle);
 
@@ -689,11 +689,11 @@ QWidget* ImpostazioniPage::buildGraficoTab(GraficoCanvas* canvas)
     palLay->setContentsMargins(14,12,14,12);
     palLay->setSpacing(10);
 
-    auto* palTitle = new QLabel("\xf0\x9f\x8e\xb2  Colori serie (palette)", palCard);  /* 🎲 */
+    auto* palTitle = new QLabel(tr("\xf0\x9f\x8e\xb2  Colori serie (palette)"), palCard);  /* 🎲 */
     palTitle->setObjectName("cardTitle");
     palLay->addWidget(palTitle);
 
-    auto* palDesc = new QLabel("8 colori ciclici per le linee/barre. Svuota per usare la palette interna.", palCard);
+    auto* palDesc = new QLabel(tr("8 colori ciclici per le linee/barre. Svuota per usare la palette interna."), palCard);
     palDesc->setObjectName("cardDesc");
     palDesc->setWordWrap(true);
     palLay->addWidget(palDesc);
@@ -780,7 +780,7 @@ QWidget* ImpostazioniPage::buildGraficoTab(GraficoCanvas* canvas)
     colLay->setContentsMargins(14,12,14,12);
     colLay->setSpacing(10);
 
-    auto* colTitle = new QLabel("\xf0\x9f\x8e\xa8  Colori grafico", colCard);  /* 🎨 */
+    auto* colTitle = new QLabel(tr("\xf0\x9f\x8e\xa8  Colori grafico"), colCard);  /* 🎨 */
     colTitle->setObjectName("cardTitle");
     colLay->addWidget(colTitle);
 
@@ -810,7 +810,7 @@ QWidget* ImpostazioniPage::buildGraficoTab(GraficoCanvas* canvas)
     gridRowLay->setContentsMargins(0,0,0,0);
     gridRowLay->setSpacing(8);
     gridRowLay->addWidget(btnGrid);
-    auto* chkGrid = new QCheckBox("Visibile", colCard);
+    auto* chkGrid = new QCheckBox(tr("Visibile"), colCard);
     chkGrid->setChecked(defStyle.showGrid);
     if (canvas)
         QObject::connect(chkGrid, &QCheckBox::toggled, canvas,
@@ -835,7 +835,7 @@ QWidget* ImpostazioniPage::buildGraficoTab(GraficoCanvas* canvas)
     fntLay->setContentsMargins(14,12,14,12);
     fntLay->setSpacing(10);
 
-    auto* fntTitle = new QLabel("\xf0\x9f\x94\xa4  Carattere etichette", fntCard);  /* 🔤 */
+    auto* fntTitle = new QLabel(tr("\xf0\x9f\x94\xa4  Carattere etichette"), fntCard);  /* 🔤 */
     fntTitle->setObjectName("cardTitle");
     fntLay->addWidget(fntTitle);
 
@@ -882,7 +882,7 @@ QWidget* ImpostazioniPage::buildGraficoTab(GraficoCanvas* canvas)
     preLay->setContentsMargins(14,12,14,12);
     preLay->setSpacing(10);
 
-    auto* preTitle = new QLabel("\xe2\x9c\xa8  Preset stile grafico", preCard);  /* ✨ */
+    auto* preTitle = new QLabel(tr("\xe2\x9c\xa8  Preset stile grafico"), preCard);  /* ✨ */
     preTitle->setObjectName("cardTitle");
     preLay->addWidget(preTitle);
 

@@ -24,11 +24,11 @@ void StrumentiPage::onActBtnClicked()
     m_currentCat = cat;
     m_navList->setCurrentRow(cat);
     m_cmbSub->setCurrentIndex(act);
-    m_inputArea->setPlaceholderText(QString::fromUtf8(kPlaceholders[cat]));
+    m_inputArea->setPlaceholderText(P::trTab(kPlaceholders[cat]));
     if (m_lblSel)
         m_lblSel->setText(
             "\xe2\x9c\x85  <b>" +
-            QString::fromUtf8(kSubActions[cat][act]) +
+            P::trTab(kSubActions[cat][act]) +
             "</b>");
 }
 
@@ -61,11 +61,11 @@ void StrumentiPage::onCatGroupIdClicked(int cat)
     m_currentCat = cat;
     m_navList->setCurrentRow(cat);
     m_cmbSub->setCurrentIndex(0);
-    m_inputArea->setPlaceholderText(QString::fromUtf8(kPlaceholders[cat]));
+    m_inputArea->setPlaceholderText(P::trTab(kPlaceholders[cat]));
     if (m_lblSel)
         m_lblSel->setText(
             "\xe2\x9c\x85  <b>" +
-            QString::fromUtf8(kSubActions[cat][0]) +
+            P::trTab(kSubActions[cat][0]) +
             "</b>");
     m_pdfRow->setVisible(cat == 5);
     m_ragRow->setVisible(true);
@@ -167,11 +167,11 @@ void StrumentiPage::onCatTabChanged(int idx)
     m_navList->setCurrentRow(idx);
     m_cmbSub->setCurrentIndex(0);
     if (m_inputArea)
-        m_inputArea->setPlaceholderText(QString::fromUtf8(kPlaceholders[idx]));
+        m_inputArea->setPlaceholderText(P::trTab(kPlaceholders[idx]));
     if (m_lblSel)
         m_lblSel->setText(
             "\xe2\x9c\x85  <b>" +
-            QString::fromUtf8(kSubActions[idx][0]) +
+            P::trTab(kSubActions[idx][0]) +
             "</b>");
 
     /* Righe speciali: nascondi tutte, poi riabilita in base alla categoria */

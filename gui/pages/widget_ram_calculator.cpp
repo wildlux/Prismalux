@@ -70,7 +70,7 @@ RamCalculatorWidget::RamCalculatorWidget(QWidget* parent) : QWidget(parent)
     root->addWidget(subtitle);
 
     /* ── Gruppo: modello ── */
-    auto* modelBox = new QGroupBox("Modello", inner);
+    auto* modelBox = new QGroupBox(tr("Modello"), inner);
     auto* modelForm = new QFormLayout(modelBox);
     modelForm->setSpacing(dpiScale(8));
 
@@ -105,7 +105,7 @@ RamCalculatorWidget::RamCalculatorWidget(QWidget* parent) : QWidget(parent)
     root->addWidget(modelBox);
 
     /* ── Gruppo: RAM disponibile ── */
-    auto* ramBox = new QGroupBox("RAM disponibile sul PC", inner);
+    auto* ramBox = new QGroupBox(tr("RAM disponibile sul PC"), inner);
     auto* ramLay = new QVBoxLayout(ramBox);
     ramLay->setSpacing(dpiScale(8));
 
@@ -128,7 +128,7 @@ RamCalculatorWidget::RamCalculatorWidget(QWidget* parent) : QWidget(parent)
     root->addWidget(ramBox);
 
     /* ── Gruppo: risultato ── */
-    m_resBox = new QGroupBox("Risultato", inner);
+    m_resBox = new QGroupBox(tr("Risultato"), inner);
     auto* resLay = new QVBoxLayout(m_resBox);
     resLay->setSpacing(dpiScale(6));
 

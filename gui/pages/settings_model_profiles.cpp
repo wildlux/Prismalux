@@ -39,7 +39,7 @@ void ModelProfilesTab::buildUi() {
     leftV->setContentsMargins(0, 0, 0, 0);
     leftV->setSpacing(dpiScale(6));
 
-    auto* listLbl = new QLabel("<b>Profili attivi</b>", leftW);
+    auto* listLbl = new QLabel(tr("<b>Profili attivi</b>"), leftW);
     leftV->addWidget(listLbl);
 
     m_list = new QListWidget(leftW);
@@ -48,10 +48,10 @@ void ModelProfilesTab::buildUi() {
 
     auto* btnRow = new QHBoxLayout;
     btnRow->setSpacing(dpiScale(4));
-    m_btnAdd    = new QPushButton("\xe2\x9e\x95  Aggiungi", leftW);
-    m_btnDel    = new QPushButton("\xf0\x9f\x97\x91  Elimina", leftW);
-    m_btnToggle = new QPushButton("\xe2\x9c\x85  Attiva/Dis.", leftW);
-    m_btnDefs   = new QPushButton("\xf0\x9f\x93\x8b  Predefiniti", leftW);
+    m_btnAdd    = new QPushButton(tr("\xe2\x9e\x95  Aggiungi"), leftW);
+    m_btnDel    = new QPushButton(tr("\xf0\x9f\x97\x91  Elimina"), leftW);
+    m_btnToggle = new QPushButton(tr("\xe2\x9c\x85  Attiva/Dis."), leftW);
+    m_btnDefs   = new QPushButton(tr("\xf0\x9f\x93\x8b  Predefiniti"), leftW);
     btnRow->addWidget(m_btnAdd);
     btnRow->addWidget(m_btnDel);
     btnRow->addWidget(m_btnToggle);
@@ -71,15 +71,15 @@ void ModelProfilesTab::buildUi() {
     formV->setSpacing(dpiScale(8));
 
     /* Dati base */
-    auto* grpBase = new QGroupBox("\xf0\x9f\x93\x9d  Profilo", formW);
+    auto* grpBase = new QGroupBox(tr("\xf0\x9f\x93\x9d  Profilo"), formW);
     auto* fl = new QFormLayout(grpBase);
     fl->setSpacing(dpiScale(6));
     m_edLabel   = new QLineEdit(grpBase);
     m_edPattern = new QLineEdit(grpBase);
-    m_edPattern->setPlaceholderText("es: deepseek.* qwen.* mistral.*");
-    m_edPattern->setToolTip("Espressione regolare (case-insensitive) abbinata al nome modello.\n"
-                            "Il primo profilo che matcha viene applicato.");
-    m_chkEnabled = new QCheckBox("Attivato", grpBase);
+    m_edPattern->setPlaceholderText(tr("es: deepseek.* qwen.* mistral.*"));
+    m_edPattern->setToolTip(tr("Espressione regolare (case-insensitive) abbinata al nome modello.\n"
+                            "Il primo profilo che matcha viene applicato."));
+    m_chkEnabled = new QCheckBox(tr("Attivato"), grpBase);
     m_chkEnabled->setChecked(true);
     fl->addRow("Nome profilo:", m_edLabel);
     fl->addRow("Pattern modello:", m_edPattern);
@@ -87,12 +87,12 @@ void ModelProfilesTab::buildUi() {
     formV->addWidget(grpBase);
 
     /* Pre-processing */
-    auto* grpPre = new QGroupBox("\xe2\x9c\x8f\xef\xb8\x8f  Pre-processing (prima di inviare all'LLM)", formW);
+    auto* grpPre = new QGroupBox(tr("\xe2\x9c\x8f\xef\xb8\x8f  Pre-processing (prima di inviare all'LLM)"), formW);
     auto* preV = new QVBoxLayout(grpPre);
     preV->setSpacing(dpiScale(6));
 
     auto* langRow = new QHBoxLayout;
-    langRow->addWidget(new QLabel("Forza lingua output:", grpPre));
+    langRow->addWidget(new QLabel(tr("Forza lingua output:"), grpPre));
     m_cmbLang = new QComboBox(grpPre);
     m_cmbLang->addItems({
         "Nessuna",
@@ -102,55 +102,55 @@ void ModelProfilesTab::buildUi() {
         "\xf0\x9f\x87\xa8\xf0\x9f\x87\xb3  Cinese",
         "\xf0\x9f\x87\xa9\xf0\x9f\x87\xaa  Tedesco"
     });
-    m_cmbLang->setToolTip("Aggiunge una riga al system prompt che impone la lingua di risposta.");
+    m_cmbLang->setToolTip(tr("Aggiunge una riga al system prompt che impone la lingua di risposta."));
     langRow->addWidget(m_cmbLang);
     langRow->addStretch();
     preV->addLayout(langRow);
 
     auto* prepSysRow = new QHBoxLayout;
-    m_chkPrepSys = new QCheckBox("Aggiungi testo al system prompt:", grpPre);
+    m_chkPrepSys = new QCheckBox(tr("Aggiungi testo al system prompt:"), grpPre);
     prepSysRow->addWidget(m_chkPrepSys);
     preV->addLayout(prepSysRow);
     m_edPrepSys = new QTextEdit(grpPre);
-    m_edPrepSys->setPlaceholderText("Testo anteposto al system prompt di ogni chiamata...");
+    m_edPrepSys->setPlaceholderText(tr("Testo anteposto al system prompt di ogni chiamata..."));
     m_edPrepSys->setFixedHeight(dpiScale(60));
     preV->addWidget(m_edPrepSys);
 
     auto* prepUserRow = new QHBoxLayout;
-    m_chkPrepUser = new QCheckBox("Aggiungi prefisso al messaggio utente:", grpPre);
+    m_chkPrepUser = new QCheckBox(tr("Aggiungi prefisso al messaggio utente:"), grpPre);
     prepUserRow->addWidget(m_chkPrepUser);
     preV->addLayout(prepUserRow);
     m_edPrepUser = new QLineEdit(grpPre);
-    m_edPrepUser->setPlaceholderText("es: [Rispondi solo in italiano] ");
+    m_edPrepUser->setPlaceholderText(tr("es: [Rispondi solo in italiano] "));
     preV->addWidget(m_edPrepUser);
 
     auto* replSysRow = new QHBoxLayout;
-    m_chkReplSys = new QCheckBox("Sostituisci completamente il system prompt:", grpPre);
+    m_chkReplSys = new QCheckBox(tr("Sostituisci completamente il system prompt:"), grpPre);
     replSysRow->addWidget(m_chkReplSys);
     preV->addLayout(replSysRow);
     m_edReplSys = new QTextEdit(grpPre);
-    m_edReplSys->setPlaceholderText("System prompt sostitutivo completo...");
+    m_edReplSys->setPlaceholderText(tr("System prompt sostitutivo completo..."));
     m_edReplSys->setFixedHeight(dpiScale(60));
     preV->addWidget(m_edReplSys);
 
     formV->addWidget(grpPre);
 
     /* Post-processing */
-    auto* grpPost = new QGroupBox("\xf0\x9f\x94\x8d  Post-processing (dopo la risposta LLM)", formW);
+    auto* grpPost = new QGroupBox(tr("\xf0\x9f\x94\x8d  Post-processing (dopo la risposta LLM)"), formW);
     auto* postV = new QVBoxLayout(grpPost);
     postV->setSpacing(dpiScale(6));
 
-    m_chkPostThink = new QCheckBox("Rimuovi blocchi <think>…</think>", grpPost);
-    m_chkPostMd    = new QCheckBox("Rimuovi formattazione Markdown (**bold**, ##header, `code`)", grpPost);
+    m_chkPostThink = new QCheckBox(tr("Rimuovi blocchi <think>…</think>"), grpPost);
+    m_chkPostMd    = new QCheckBox(tr("Rimuovi formattazione Markdown (**bold**, ##header, `code`)"), grpPost);
     postV->addWidget(m_chkPostThink);
     postV->addWidget(m_chkPostMd);
 
-    m_chkPostRx = new QCheckBox("Sostituzione con regex:", grpPost);
+    m_chkPostRx = new QCheckBox(tr("Sostituzione con regex:"), grpPost);
     postV->addWidget(m_chkPostRx);
     auto* rxRow = new QHBoxLayout;
-    rxRow->addWidget(new QLabel("Da:", grpPost));
+    rxRow->addWidget(new QLabel(tr("Da:"), grpPost));
     m_edRxFrom = new QLineEdit(grpPost);
-    m_edRxFrom->setPlaceholderText("regex es: \\bAI\\b");
+    m_edRxFrom->setPlaceholderText(tr("regex es: \\bAI\\b"));
     rxRow->addWidget(m_edRxFrom, 2);
     rxRow->addWidget(new QLabel("A:", grpPost));
     m_edRxTo = new QLineEdit(grpPost);
@@ -160,23 +160,23 @@ void ModelProfilesTab::buildUi() {
 
     /* Traduzione LLM — lingua */
     auto* transRow = new QHBoxLayout;
-    transRow->addWidget(new QLabel("Traduzione LLM:", grpPost));
+    transRow->addWidget(new QLabel(tr("Traduzione LLM:"), grpPost));
     m_cmbTranslate = new QComboBox(grpPost);
     m_cmbTranslate->addItems({
         "Nessuna",
         "\xf0\x9f\x87\xae\xf0\x9f\x87\xb9  In italiano",
         "\xf0\x9f\x87\xac\xf0\x9f\x87\xa7  In inglese"
     });
-    m_cmbTranslate->setToolTip("Avvia una seconda chiamata LLM dedicata per tradurre la risposta.\n"
-                               "Usa un modello leggero e veloce per massimizzare la qualità senza perdere velocità.");
+    m_cmbTranslate->setToolTip(tr("Avvia una seconda chiamata LLM dedicata per tradurre la risposta.\n"
+                               "Usa un modello leggero e veloce per massimizzare la qualità senza perdere velocità."));
     transRow->addWidget(m_cmbTranslate);
     transRow->addStretch();
     postV->addLayout(transRow);
 
     /* Modello dedicato per la traduzione */
-    auto* transModelBox = new QGroupBox("  Modello traduzione", grpPost);
-    transModelBox->setToolTip("Modello Ollama usato SOLO per tradurre.\n"
-                              "Scegli un modello leggero e multilingue per massima velocità.");
+    auto* transModelBox = new QGroupBox(tr("  Modello traduzione"), grpPost);
+    transModelBox->setToolTip(tr("Modello Ollama usato SOLO per tradurre.\n"
+                              "Scegli un modello leggero e multilingue per massima velocità."));
     auto* tmV = new QVBoxLayout(transModelBox);
     tmV->setSpacing(dpiScale(4));
     tmV->setContentsMargins(dpiScale(6), dpiScale(6), dpiScale(6), dpiScale(6));
@@ -194,12 +194,12 @@ void ModelProfilesTab::buildUi() {
         "mistral:7b  \xe2\x80\x94 buono per IT/EN/FR",
         "(personalizzato)"
     });
-    m_cmbTransModel->setToolTip("Seleziona il modello per la traduzione.\n"
-                                "Deve essere installato in Ollama (ollama pull <nome>).");
+    m_cmbTransModel->setToolTip(tr("Seleziona il modello per la traduzione.\n"
+                                "Deve essere installato in Ollama (ollama pull <nome>)."));
     tmV->addWidget(m_cmbTransModel);
 
     m_edTransModelCustom = new QLineEdit(transModelBox);
-    m_edTransModelCustom->setPlaceholderText("es: opus-mt-it-en:latest  /  nllb-200:latest");
+    m_edTransModelCustom->setPlaceholderText(tr("es: opus-mt-it-en:latest  /  nllb-200:latest"));
     m_edTransModelCustom->setEnabled(false);
     tmV->addWidget(m_edTransModelCustom);
 
@@ -222,7 +222,7 @@ void ModelProfilesTab::buildUi() {
     formV->addWidget(grpPost);
 
     /* Bottone salva */
-    m_btnSave = new QPushButton("\xf0\x9f\x92\xbe  Salva modifiche", formW);
+    m_btnSave = new QPushButton(tr("\xf0\x9f\x92\xbe  Salva modifiche"), formW);
     m_btnSave->setFixedHeight(dpiScale(34));
     formV->addWidget(m_btnSave);
     formV->addStretch();
@@ -294,7 +294,7 @@ void ModelProfilesTab::onAddClicked() {
 void ModelProfilesTab::onDeleteClicked() {
     const int row = currentRow();
     if (row < 0) return;
-    if (QMessageBox::question(this, "Elimina profilo",
+    if (QMessageBox::question(this, tr("Elimina profilo"),
             "Eliminare il profilo selezionato?",
             QMessageBox::Yes | QMessageBox::No) != QMessageBox::Yes)
         return;
@@ -305,7 +305,7 @@ void ModelProfilesTab::onDeleteClicked() {
 }
 
 void ModelProfilesTab::onLoadDefaultsClicked() {
-    if (QMessageBox::question(this, "Carica predefiniti",
+    if (QMessageBox::question(this, tr("Carica predefiniti"),
             "Aggiungere i profili predefiniti alla lista attuale?\n"
             "(I profili esistenti non vengono rimossi)",
             QMessageBox::Yes | QMessageBox::No) != QMessageBox::Yes)
@@ -477,18 +477,18 @@ ModelProfile ModelProfilesTab::profileFromForm() const {
 void ModelProfilesTab::onSaveClicked() {
     const int row = currentRow();
     if (row < 0) {
-        QMessageBox::information(this, "Nessun profilo", "Seleziona un profilo dalla lista.");
+        QMessageBox::information(this, tr("Nessun profilo"), tr("Seleziona un profilo dalla lista."));
         return;
     }
     if (m_edPattern->text().trimmed().isEmpty()) {
-        QMessageBox::warning(this, "Pattern vuoto", "Il pattern del modello non può essere vuoto.");
+        QMessageBox::warning(this, tr("Pattern vuoto"), tr("Il pattern del modello non può essere vuoto."));
         return;
     }
     /* Valida regex */
     QRegularExpression re(m_edPattern->text().trimmed(),
                           QRegularExpression::CaseInsensitiveOption);
     if (!re.isValid()) {
-        QMessageBox::warning(this, "Regex non valida",
+        QMessageBox::warning(this, tr("Regex non valida"),
             "Il pattern non è una regex valida:\n" + re.errorString());
         return;
     }

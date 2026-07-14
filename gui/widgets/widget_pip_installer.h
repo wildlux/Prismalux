@@ -42,7 +42,7 @@ public:
         lay->setSpacing(dpiScale(4));
 
         if (!title.isEmpty()) {
-            auto* lbl = new QLabel("<b>" + title + "</b>", this);
+            auto* lbl = new QLabel(tr("<b>") + title + "</b>", this);
             lay->addWidget(lbl);
         }
 

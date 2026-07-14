@@ -90,9 +90,9 @@ BlhmWidget::BlhmWidget(QWidget* parent)
             m_table->setItem(r, 3, new QTableWidgetItem(QString::number(kDef[r].uw, 'f', 3)));
         }
 
-        auto* btnAdd = new QPushButton("+ Aggiungi peso");
+        auto* btnAdd = new QPushButton(tr("+ Aggiungi peso"));
         btnAdd->setObjectName("actionBtn");
-        auto* btnDel = new QPushButton("\xf0\x9f\x97\x91  Rimuovi riga");
+        auto* btnDel = new QPushButton(tr("\xf0\x9f\x97\x91  Rimuovi riga"));
         btnDel->setObjectName("actionBtn");
         auto* rowBar = new QWidget;
         auto* rowLay = new QHBoxLayout(rowBar);
@@ -113,10 +113,10 @@ BlhmWidget::BlhmWidget(QWidget* parent)
         qHlay->setSpacing(6);
         m_query = new QLineEdit;
         m_query->setPlaceholderText(tr("Query path  es. Bio,Ani,Mam,Cane"));
-        m_query->setText("Bio,Ani,Mam,Cane");
-        auto* btnCalc = new QPushButton("\xf0\x9f\xa7\xae  Calcola R");
+        m_query->setText(tr("Bio,Ani,Mam,Cane"));
+        auto* btnCalc = new QPushButton(tr("\xf0\x9f\xa7\xae  Calcola R"));
         btnCalc->setObjectName("primaryBtn");
-        qHlay->addWidget(new QLabel("Query:"));
+        qHlay->addWidget(new QLabel(tr("Query:")));
         qHlay->addWidget(m_query, 1);
         qHlay->addWidget(btnCalc);
         m_output = new QTextEdit;
@@ -136,7 +136,7 @@ BlhmWidget::BlhmWidget(QWidget* parent)
         connect(m_query, &QLineEdit::returnPressed,  this, &BlhmWidget::onComputeClicked);
         connect(btnAdd,  &QPushButton::clicked,      this, &BlhmWidget::onAddRowClicked);
         connect(btnDel,  &QPushButton::clicked,      this, &BlhmWidget::onDeleteRowClicked);
-        inner->addTab(calcW, "\xf0\x9f\xa7\xae  Calcolatore");
+        inner->addTab(calcW, tr("\xf0\x9f\xa7\xae  Calcolatore"));
     }
 
     /* ── TAB 2: NOTE ── */
@@ -153,10 +153,10 @@ BlhmWidget::BlhmWidget(QWidget* parent)
             "<b>\xf0\x9f\x93\x9d  Appunti BLHM / RAB\xe2\x82\x80-L</b>"
             "  <span style='color:gray;font-size:11px;'>salvato in RAG/BLHM_note.md</span>");
         lbl->setTextFormat(Qt::RichText);
-        auto* btnLoad = new QPushButton("\xf0\x9f\x93\x82  Carica");
+        auto* btnLoad = new QPushButton(tr("\xf0\x9f\x93\x82  Carica"));
         btnLoad->setObjectName("actionBtn");
         btnLoad->setToolTip(tr("Carica appunti BLHM da file RAG/BLHM_note.md"));
-        auto* btnSave = new QPushButton("\xf0\x9f\x92\xbe  Salva");
+        auto* btnSave = new QPushButton(tr("\xf0\x9f\x92\xbe  Salva"));
         btnSave->setObjectName("primaryBtn");
         btnSave->setToolTip(tr("Salva appunti in RAG/BLHM_note.md"));
         auto* btnClr  = new QPushButton("\xf0\x9f\x97\x91");
@@ -165,7 +165,7 @@ BlhmWidget::BlhmWidget(QWidget* parent)
         blay->addWidget(lbl); blay->addStretch();
         blay->addWidget(btnLoad); blay->addWidget(btnSave); blay->addWidget(btnClr);
         m_noteEdit = new QTextEdit;
-        m_noteEdit->setPlaceholderText("Prendi appunti sui documenti BLHM e RAB\xe2\x82\x80-L...\n");
+        m_noteEdit->setPlaceholderText(tr("Prendi appunti sui documenti BLHM e RAB\xe2\x82\x80-L...\n"));
         QFile f(P::ragDir() + "/BLHM_note.md");
         if (f.open(QIODevice::ReadOnly | QIODevice::Text))
             m_noteEdit->setPlainText(QTextStream(&f).readAll());
@@ -174,7 +174,7 @@ BlhmWidget::BlhmWidget(QWidget* parent)
         connect(btnSave, &QPushButton::clicked, this, &BlhmWidget::onNoteSave);
         connect(btnLoad, &QPushButton::clicked, this, &BlhmWidget::onNoteLoad);
         connect(btnClr,  &QPushButton::clicked, this, &BlhmWidget::onNotesClearClicked);
-        inner->addTab(noteW, "\xf0\x9f\x93\x9d  Note");
+        inner->addTab(noteW, tr("\xf0\x9f\x93\x9d  Note"));
     }
 
     /* ── TAB 3: DNA VIEWER ── */
@@ -191,7 +191,7 @@ BlhmWidget::BlhmWidget(QWidget* parent)
         m_dnaSeq1->setPlaceholderText(tr("Sequenza DNA 1  (A/T/C/G)"));
         m_dnaSeq2 = new QLineEdit;
         m_dnaSeq2->setPlaceholderText(tr("Sequenza DNA 2  (opzionale)"));
-        auto* btnAn = new QPushButton("\xf0\x9f\xa7\xac  Analizza");
+        auto* btnAn = new QPushButton(tr("\xf0\x9f\xa7\xac  Analizza"));
         btnAn->setObjectName("primaryBtn");
         btnAn->setToolTip(tr("Analizza similitudine e composizione delle sequenze DNA"));
         auto* btnCl = new QPushButton("\xf0\x9f\x97\x91");
@@ -199,8 +199,8 @@ BlhmWidget::BlhmWidget(QWidget* parent)
         btnCl->setToolTip(tr("Cancella le sequenze inserite"));
         m_dnaSimLbl = new QLabel;
         m_dnaSimLbl->setTextFormat(Qt::RichText);
-        hlay->addWidget(new QLabel("Seq 1:")); hlay->addWidget(m_dnaSeq1, 3);
-        hlay->addWidget(new QLabel("Seq 2:")); hlay->addWidget(m_dnaSeq2, 3);
+        hlay->addWidget(new QLabel(tr("Seq 1:"))); hlay->addWidget(m_dnaSeq1, 3);
+        hlay->addWidget(new QLabel(tr("Seq 2:"))); hlay->addWidget(m_dnaSeq2, 3);
         hlay->addWidget(btnAn); hlay->addWidget(btnCl);
         hlay->addWidget(m_dnaSimLbl, 2);
         m_dnaCanvas = new Rab0lCanvas(dnaW);
@@ -209,7 +209,7 @@ BlhmWidget::BlhmWidget(QWidget* parent)
         connect(btnAn,    &QPushButton::clicked,    this, &BlhmWidget::onDnaAnalyzeClicked);
         connect(m_dnaSeq1,&QLineEdit::returnPressed,this, &BlhmWidget::onDnaAnalyzeClicked);
         connect(btnCl,    &QPushButton::clicked,    this, &BlhmWidget::onDnaClearClicked);
-        inner->addTab(dnaW, "\xf0\x9f\xa7\xac  DNA");
+        inner->addTab(dnaW, tr("\xf0\x9f\xa7\xac  DNA"));
     }
 
     /* ── TAB 4: ENGINE C ── */
@@ -227,16 +227,16 @@ BlhmWidget::BlhmWidget(QWidget* parent)
         auto* topHLay = new QHBoxLayout(topBar);
         topHLay->setContentsMargins(0, 0, 0, 0);
         topHLay->setSpacing(8);
-        auto* btnSync = new QPushButton("\xe2\x86\x93  Importa dal Calcolatore");
+        auto* btnSync = new QPushButton(tr("\xe2\x86\x93  Importa dal Calcolatore"));
         btnSync->setObjectName("actionBtn");
-        auto* btnRun = new QPushButton("\xe2\x96\xb6  Esegui Inferenza (3 thread)");
+        auto* btnRun = new QPushButton(tr("\xe2\x96\xb6  Esegui Inferenza (3 thread)"));
         btnRun->setObjectName("primaryBtn");
         m_engineLatency = new QLabel("\xe2\x80\x94");
         topHLay->addWidget(btnSync); topHLay->addWidget(btnRun);
         topHLay->addStretch();
-        topHLay->addWidget(new QLabel("Latenza:")); topHLay->addWidget(m_engineLatency);
+        topHLay->addWidget(new QLabel(tr("Latenza:"))); topHLay->addWidget(m_engineLatency);
         engLay->addWidget(topBar);
-        m_engineStatus = new QLabel("Grafo non inizializzato.");
+        m_engineStatus = new QLabel(tr("Grafo non inizializzato."));
         m_engineStatus->setStyleSheet("color:#888;font-size:11px;");
         engLay->addWidget(m_engineStatus);
 
@@ -273,7 +273,7 @@ BlhmWidget::BlhmWidget(QWidget* parent)
         auto* combHLay = new QHBoxLayout(combBar);
         combHLay->setContentsMargins(0, 0, 0, 0);
         combHLay->setSpacing(8);
-        combHLay->addWidget(new QLabel("<b>R_merged:</b>"));
+        combHLay->addWidget(new QLabel(tr("<b>R_merged:</b>")));
         m_engineCombined = new QLabel("\xe2\x80\x94");
         m_engineCombined->setStyleSheet("font-size:20px;font-weight:bold;");
         combHLay->addWidget(m_engineCombined);
@@ -292,14 +292,14 @@ BlhmWidget::BlhmWidget(QWidget* parent)
         auto* autoftHLay = new QHBoxLayout(autoftBar);
         autoftHLay->setContentsMargins(0, 0, 0, 0);
         autoftHLay->setSpacing(8);
-        autoftHLay->addWidget(new QLabel("LR:"));
+        autoftHLay->addWidget(new QLabel(tr("LR:")));
         m_engineLrSpin = new QDoubleSpinBox;
         m_engineLrSpin->setRange(0.001, 1.0);
         m_engineLrSpin->setSingleStep(0.01);
         m_engineLrSpin->setValue(0.05);
         m_engineLrSpin->setDecimals(3);
         m_engineLrSpin->setFixedWidth(dpiScale(80));
-        auto* btnAutoft = new QPushButton("Applica Autoft");
+        auto* btnAutoft = new QPushButton(tr("Applica Autoft"));
         btnAutoft->setObjectName("actionBtn");
         autoftHLay->addWidget(m_engineLrSpin); autoftHLay->addWidget(btnAutoft); autoftHLay->addStretch();
         engLay->addWidget(autoftBar);
@@ -316,9 +316,9 @@ BlhmWidget::BlhmWidget(QWidget* parent)
         auto* ioHLay = new QHBoxLayout(ioBar);
         ioHLay->setContentsMargins(0, 0, 0, 0);
         ioHLay->setSpacing(8);
-        auto* btnSave = new QPushButton("\xf0\x9f\x92\xbe  Salva .blhm");
+        auto* btnSave = new QPushButton(tr("\xf0\x9f\x92\xbe  Salva .blhm"));
         btnSave->setObjectName("actionBtn");
-        auto* btnLoad = new QPushButton("\xf0\x9f\x93\x82  Carica .blhm");
+        auto* btnLoad = new QPushButton(tr("\xf0\x9f\x93\x82  Carica .blhm"));
         btnLoad->setObjectName("actionBtn");
         ioHLay->addWidget(btnSave); ioHLay->addWidget(btnLoad); ioHLay->addStretch();
         engLay->addWidget(ioBar);
@@ -329,7 +329,7 @@ BlhmWidget::BlhmWidget(QWidget* parent)
         connect(btnAutoft,  &QPushButton::clicked, this, &BlhmWidget::onEngineAutoftClicked);
         connect(btnSave,    &QPushButton::clicked, this, &BlhmWidget::onEngineSaveClicked);
         connect(btnLoad,    &QPushButton::clicked, this, &BlhmWidget::onEngineLoadClicked);
-        inner->addTab(engW, "\xe2\x9a\x99  Engine C");
+        inner->addTab(engW, tr("\xe2\x9a\x99  Engine C"));
     }
 
     vlay->addWidget(inner, 1);
@@ -486,7 +486,7 @@ void BlhmWidget::onEngineSyncClicked()
 void BlhmWidget::onEngineRunClicked()
 {
     if (!m_graph || blhm_graph_count(m_graph) == 0) {
-        if (m_engineStatus) m_engineStatus->setText("Grafo vuoto \xe2\x80\x94 premi prima Importa.");
+        if (m_engineStatus) m_engineStatus->setText(tr("Grafo vuoto \xe2\x80\x94 premi prima Importa."));
         return;
     }
     QStringList qParts;
@@ -564,7 +564,7 @@ void BlhmWidget::onEngineAutoftClicked()
 void BlhmWidget::onEngineSaveClicked()
 {
     if (!m_graph || blhm_graph_count(m_graph) == 0) {
-        QMessageBox::warning(this, "BLHM Engine", "Grafo vuoto \xe2\x80\x94 importa prima i pesi.");
+        QMessageBox::warning(this, tr("BLHM Engine"), tr("Grafo vuoto \xe2\x80\x94 importa prima i pesi."));
         return;
     }
     QString path = QFileDialog::getSaveFileName(
@@ -573,7 +573,7 @@ void BlhmWidget::onEngineSaveClicked()
         "BLHM Graph (*.blhm);;Tutti i file (*)");
     if (path.isEmpty()) return;
     if (!blhm_save(m_graph, path.toUtf8().constData()))
-        QMessageBox::critical(this, "BLHM Engine", "Errore durante il salvataggio.");
+        QMessageBox::critical(this, tr("BLHM Engine"), tr("Errore durante il salvataggio."));
     else if (m_engineStatus)
         m_engineStatus->setText(QString("Grafo salvato \xe2\x86\x92 %1").arg(path));
 }
@@ -586,7 +586,7 @@ void BlhmWidget::onEngineLoadClicked()
         "BLHM Graph (*.blhm);;Tutti i file (*)");
     if (path.isEmpty()) return;
     BLHMGraph* g = blhm_load(path.toUtf8().constData());
-    if (!g) { QMessageBox::critical(this, "BLHM Engine", "Impossibile leggere il file .blhm."); return; }
+    if (!g) { QMessageBox::critical(this, tr("BLHM Engine"), tr("Impossibile leggere il file .blhm.")); return; }
     if (m_graph) blhm_graph_free(m_graph);
     m_graph = g;
     if (m_engineStatus)

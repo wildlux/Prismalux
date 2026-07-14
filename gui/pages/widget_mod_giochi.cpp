@@ -13,6 +13,8 @@
    ══════════════════════════════════════════════════════════════ */
 #include "widget_mod_giochi.h"
 #include "../dpi_utils.h"
+#include "../prismalux_paths.h"
+namespace P = PrismaluxPaths;
 #include "../widgets/model_combo_box.h"
 
 #include <QVBoxLayout>
@@ -246,12 +248,12 @@ static const char* kGodotSys[] = {
     nullptr
 };
 static const char* kGodotActions[] = {
-    "\xf0\x9f\x8e\xae  Script gameplay",
-    "\xf0\x9f\x8c\x8d  Crea scena 2D",
-    "\xf0\x9f\x95\xb9  Meccanica di gioco",
-    "\xf0\x9f\x8c\x9f  Shader GLSL",
-    "\xf0\x9f\x96\xa5  UI & Menu",
-    "\xf0\x9f\x90\x8d  Script libero",
+    QT_TRANSLATE_NOOP("Tabelle", "\xf0\x9f\x8e\xae  Script gameplay"),
+    QT_TRANSLATE_NOOP("Tabelle", "\xf0\x9f\x8c\x8d  Crea scena 2D"),
+    QT_TRANSLATE_NOOP("Tabelle", "\xf0\x9f\x95\xb9  Meccanica di gioco"),
+    QT_TRANSLATE_NOOP("Tabelle", "\xf0\x9f\x8c\x9f  Shader GLSL"),
+    QT_TRANSLATE_NOOP("Tabelle", "\xf0\x9f\x96\xa5  UI & Menu"),
+    QT_TRANSLATE_NOOP("Tabelle", "\xf0\x9f\x90\x8d  Script libero"),
     nullptr
 };
 
@@ -279,7 +281,7 @@ QWidget* ModGiochiWidget::buildGodotTab()
     connLay->setContentsMargins(0, 0, 0, 0);
     connLay->setSpacing(8);
 
-    m_godotStatusLbl = new QLabel("\xe2\x9a\xaa  GDScript pronto", connRow);
+    m_godotStatusLbl = new QLabel(tr("\xe2\x9a\xaa  GDScript pronto"), connRow);
     m_godotStatusLbl->setObjectName("hintLabel");
 
     m_godotExecBtn = new QPushButton(
@@ -310,11 +312,11 @@ QWidget* ModGiochiWidget::buildGodotTab()
     toolLay->setSpacing(8);
     m_godotAction = new QComboBox(toolRow);
     for (int i = 0; kGodotActions[i]; i++)
-        m_godotAction->addItem(QString::fromUtf8(kGodotActions[i]));
+        m_godotAction->addItem(P::trTab(kGodotActions[i]));
     m_godotModel = new ModelComboBox(m_ai, toolRow);
-    toolLay->addWidget(new QLabel("Tipo:", toolRow));
+    toolLay->addWidget(new QLabel(tr("Tipo:"), toolRow));
     toolLay->addWidget(m_godotAction, 1);
-    toolLay->addWidget(new QLabel("Modello:", toolRow));
+    toolLay->addWidget(new QLabel(tr("Modello:"), toolRow));
     toolLay->addWidget(m_godotModel, 1);
     lay->addWidget(toolRow);
 
@@ -331,9 +333,9 @@ QWidget* ModGiochiWidget::buildGodotTab()
     auto* btnRow = new QWidget(w);
     auto* btnLay = new QHBoxLayout(btnRow);
     btnLay->setContentsMargins(0, 0, 0, 0);
-    m_godotRunBtn  = new QPushButton("\xf0\x9f\xa4\x96  Genera GDScript", btnRow);
+    m_godotRunBtn  = new QPushButton(tr("\xf0\x9f\xa4\x96  Genera GDScript"), btnRow);
     m_godotRunBtn->setObjectName("actionBtn");
-    m_godotStopBtn = new QPushButton("\xe2\x8f\xb9  Stop", btnRow);
+    m_godotStopBtn = new QPushButton(tr("\xe2\x8f\xb9  Stop"), btnRow);
     m_godotStopBtn->setObjectName("actionBtn");
     m_godotStopBtn->setProperty("danger", true);
     m_godotStopBtn->setEnabled(false);
@@ -367,7 +369,7 @@ void ModGiochiWidget::onGodotExecClicked()
     QFile f(path);
     if (f.open(QIODevice::WriteOnly | QIODevice::Text)) {
         f.write(m_godotCode.toUtf8());
-        m_godotStatusLbl->setText("\xe2\x9c\x85  Salvato: " + path);
+        m_godotStatusLbl->setText(tr("\xe2\x9c\x85  Salvato: ") + path);
     } else {
         m_godotStatusLbl->setText(tr("\xe2\x9d\x8c  Impossibile salvare il file"));
     }
@@ -397,11 +399,11 @@ void ModGiochiWidget::onGodotStopClicked()
 
 /* ── GTA V ── */
 static const char* kGtaActions[] = {
-    "Script missione (C#)",
-    "Menu trainer (C#)",
-    "Script Lua (FiveM/RAGE)",
-    "Modifica veicolo / skin",
-    "Teleporter / cheat F",
+    QT_TRANSLATE_NOOP("Tabelle", "Script missione (C#)"),
+    QT_TRANSLATE_NOOP("Tabelle", "Menu trainer (C#)"),
+    QT_TRANSLATE_NOOP("Tabelle", "Script Lua (FiveM/RAGE)"),
+    QT_TRANSLATE_NOOP("Tabelle", "Modifica veicolo / skin"),
+    QT_TRANSLATE_NOOP("Tabelle", "Teleporter / cheat F"),
     nullptr
 };
 static const char* kGtaSys[] = {
@@ -437,10 +439,10 @@ static const char* kGtaFolder =
 
 /* ── Skyrim SE / SKSE ── */
 static const char* kSkyrimActions[] = {
-    "Script Papyrus (.psc)",
-    "Incantesimo / Perk / Abilita'",
-    "Quest scripting Papyrus",
-    "Item / Arma / Armatura (XML)",
+    QT_TRANSLATE_NOOP("Tabelle", "Script Papyrus (.psc)"),
+    QT_TRANSLATE_NOOP("Tabelle", "Incantesimo / Perk / Abilita'"),
+    QT_TRANSLATE_NOOP("Tabelle", "Quest scripting Papyrus"),
+    QT_TRANSLATE_NOOP("Tabelle", "Item / Arma / Armatura (XML)"),
     nullptr
 };
 static const char* kSkyrimSys[] = {
@@ -471,10 +473,10 @@ static const char* kSkyrimFolder =
 
 /* ── Terraria tModLoader ── */
 static const char* kTerrariaActions[] = {
-    "Nuovo item (C#)",
-    "Nuovo boss / NPC (C#)",
-    "Meccanica / Hook (C#)",
-    "Nuovo proiettile (C#)",
+    QT_TRANSLATE_NOOP("Tabelle", "Nuovo item (C#)"),
+    QT_TRANSLATE_NOOP("Tabelle", "Nuovo boss / NPC (C#)"),
+    QT_TRANSLATE_NOOP("Tabelle", "Meccanica / Hook (C#)"),
+    QT_TRANSLATE_NOOP("Tabelle", "Nuovo proiettile (C#)"),
     nullptr
 };
 static const char* kTerrariaSys[] = {
@@ -506,10 +508,10 @@ static const char* kTerrariaFolder =
 
 /* ── World of Warcraft ── */
 static const char* kWowActions[] = {
-    "AddOn UI (Lua)",
-    "WeakAura (Lua)",
-    "Macro avanzata (Lua)",
-    "Boss tracking frame (Lua)",
+    QT_TRANSLATE_NOOP("Tabelle", "AddOn UI (Lua)"),
+    QT_TRANSLATE_NOOP("Tabelle", "WeakAura (Lua)"),
+    QT_TRANSLATE_NOOP("Tabelle", "Macro avanzata (Lua)"),
+    QT_TRANSLATE_NOOP("Tabelle", "Boss tracking frame (Lua)"),
     nullptr
 };
 static const char* kWowSys[] = {
@@ -540,10 +542,10 @@ static const char* kWowFolder =
 
 /* ── Noita ── */
 static const char* kNoitaActions[] = {
-    "Spell personalizzata (Lua)",
-    "Entity / creature (Lua + XML)",
-    "Generazione mondo (Lua)",
-    "Script barrel in-game (Lua)",
+    QT_TRANSLATE_NOOP("Tabelle", "Spell personalizzata (Lua)"),
+    QT_TRANSLATE_NOOP("Tabelle", "Entity / creature (Lua + XML)"),
+    QT_TRANSLATE_NOOP("Tabelle", "Generazione mondo (Lua)"),
+    QT_TRANSLATE_NOOP("Tabelle", "Script barrel in-game (Lua)"),
     nullptr
 };
 static const char* kNoitaSys[] = {
@@ -575,10 +577,10 @@ static const char* kNoitaFolder =
 
 /* ── Minecraft ── */
 static const char* kMinecraftActions[] = {
-    "Datapack (JSON / mcfunction)",
-    "Fabric Mod (Java)",
-    "WorldGen bioma (JSON)",
-    "ResourcePack (JSON / lang)",
+    QT_TRANSLATE_NOOP("Tabelle", "Datapack (JSON / mcfunction)"),
+    QT_TRANSLATE_NOOP("Tabelle", "Fabric Mod (Java)"),
+    QT_TRANSLATE_NOOP("Tabelle", "WorldGen bioma (JSON)"),
+    QT_TRANSLATE_NOOP("Tabelle", "ResourcePack (JSON / lang)"),
     nullptr
 };
 static const char* kMinecraftSys[] = {
@@ -609,10 +611,10 @@ static const char* kMinecraftFolder =
 
 /* ── Stardew Valley ── */
 static const char* kStardewActions[] = {
-    "Nuovo item / crop (JSON)",
-    "Evento / dialogo NPC (JSON)",
-    "Mod SMAPI (C#)",
-    "Modifica negozio (JSON patch)",
+    QT_TRANSLATE_NOOP("Tabelle", "Nuovo item / crop (JSON)"),
+    QT_TRANSLATE_NOOP("Tabelle", "Evento / dialogo NPC (JSON)"),
+    QT_TRANSLATE_NOOP("Tabelle", "Mod SMAPI (C#)"),
+    QT_TRANSLATE_NOOP("Tabelle", "Modifica negozio (JSON patch)"),
     nullptr
 };
 static const char* kStardewSys[] = {
@@ -643,10 +645,10 @@ static const char* kStardewFolder =
 
 /* ── RimWorld ── */
 static const char* kRimworldActions[] = {
-    "Def XML (ThingDef / RecipeDef)",
-    "Patch XML (PatchOperation)",
-    "Harmony C# patch",
-    "Scenario XML",
+    QT_TRANSLATE_NOOP("Tabelle", "Def XML (ThingDef / RecipeDef)"),
+    QT_TRANSLATE_NOOP("Tabelle", "Patch XML (PatchOperation)"),
+    QT_TRANSLATE_NOOP("Tabelle", "Harmony C# patch"),
+    QT_TRANSLATE_NOOP("Tabelle", "Scenario XML"),
     nullptr
 };
 static const char* kRimworldSys[] = {
@@ -868,7 +870,7 @@ void ModGiochiWidget::onModdingGameChanged(int idx)
     m_moddingTypeCombo->clear();
     for (int i = 0; kModGames[idx].actions[i]; i++)
         m_moddingTypeCombo->addItem(
-            QString::fromUtf8(kModGames[idx].actions[i]));
+            P::trTab(kModGames[idx].actions[i]));
     m_moddingTypeCombo->blockSignals(false);
 
     /* Aggiorna il percorso cartella suggerito */
@@ -879,7 +881,7 @@ void ModGiochiWidget::onModdingGameChanged(int idx)
     m_moddingCode.clear();
     if (m_moddingSaveBtn) m_moddingSaveBtn->setEnabled(false);
     if (m_moddingStatusLbl)
-        m_moddingStatusLbl->setText("\xe2\x9a\xaa  Pronto");
+        m_moddingStatusLbl->setText(tr("\xe2\x9a\xaa  Pronto"));
 }
 
 void ModGiochiWidget::onModdingRunClicked()

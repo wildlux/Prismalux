@@ -109,7 +109,7 @@ QWidget* PersonalizzaPage::buildLlamaStudio() {
     auto* page = new QWidget(this);
     auto* lay  = new QVBoxLayout(page);
     lay->setContentsMargins(24, 16, 24, 16); lay->setSpacing(10);
-    auto* _hdr = new QLabel("🦙  llama.cpp Studio", page); _hdr->setObjectName("pageTitle"); lay->addWidget(_hdr);
+    auto* _hdr = new QLabel(tr("🦙  llama.cpp Studio"), page); _hdr->setObjectName("pageTitle"); lay->addWidget(_hdr);
 
     /* ── Sotto-stack interno ── */
     m_llamaStack = new QStackedWidget(page);
@@ -146,7 +146,7 @@ QWidget* PersonalizzaPage::buildLlamaStudio() {
         auto* lt  = new QLabel(s.title, txt); lt->setObjectName("cardTitle");
         auto* ld  = new QLabel(s.desc,  txt); ld->setObjectName("cardDesc"); ld->setWordWrap(true);
         tl->addWidget(lt); tl->addWidget(ld);
-        auto* btn = new QPushButton("Apri →", card);
+        auto* btn = new QPushButton(tr("Apri →"), card);
         btn->setObjectName("actionBtn"); btn->setFixedWidth(dpiScale(90));
         btn->setProperty("_targetPage", s.pg);
         connect(btn, &QPushButton::clicked, this, &PersonalizzaPage::onSubMenuBtnClicked);
@@ -163,7 +163,7 @@ QWidget* PersonalizzaPage::buildLlamaStudio() {
     auto* compTop = new QWidget(compPg);
     auto* compTopL = new QHBoxLayout(compTop);
     compTopL->setContentsMargins(0,0,0,0); compTopL->setSpacing(10);
-    auto* backComp = new QPushButton("← Menu llama", compPg);
+    auto* backComp = new QPushButton(tr("← Menu llama"), compPg);
     backComp->setObjectName("actionBtn");
     connect(backComp, &QPushButton::clicked, this, &PersonalizzaPage::onBackCompClicked);
     auto* compTitle = new QLabel(binExists ? "\xf0\x9f\x94\x84  Aggiorna llama.cpp"
@@ -171,7 +171,7 @@ QWidget* PersonalizzaPage::buildLlamaStudio() {
     compTitle->setObjectName("cardTitle");
     m_llamaCompBtn = new QPushButton(binExists ? "\xf0\x9f\x94\x84  Aggiorna" : "\xe2\x96\xb6  Compila", compPg);
     m_llamaCompBtn->setObjectName("actionBtn");
-    m_llamaStopBtn = new QPushButton("\xe2\x8f\xb9  Ferma", compPg);
+    m_llamaStopBtn = new QPushButton(tr("\xe2\x8f\xb9  Ferma"), compPg);
     m_llamaStopBtn->setObjectName("actionBtn");
     m_llamaStopBtn->setEnabled(false);
     connect(m_llamaStopBtn, &QPushButton::clicked,
@@ -204,10 +204,10 @@ QWidget* PersonalizzaPage::buildLlamaStudio() {
     auto* modTop  = new QWidget(modPg);
     auto* modTopL = new QHBoxLayout(modTop);
     modTopL->setContentsMargins(0,0,0,0);
-    auto* backMod   = new QPushButton("\xe2\x86\x90 Menu llama", modPg);
+    auto* backMod   = new QPushButton(tr("\xe2\x86\x90 Menu llama"), modPg);
     backMod->setObjectName("actionBtn");
     connect(backMod, &QPushButton::clicked, this, &PersonalizzaPage::onBackModClicked);
-    auto* modTitle  = new QLabel("\xf0\x9f\x93\x82  Gestione Modelli .gguf", modPg);
+    auto* modTitle  = new QLabel(tr("\xf0\x9f\x93\x82  Gestione Modelli .gguf"), modPg);
     modTitle->setObjectName("cardTitle");
     m_modDirLbl = new QLabel("", modPg);
     m_modDirLbl->setObjectName("cardDesc");
@@ -224,7 +224,7 @@ QWidget* PersonalizzaPage::buildLlamaStudio() {
     auto* splitter = new QSplitter(Qt::Vertical, modPg);
 
     /* ── Lista modelli installati ── */
-    auto* listBox     = new QGroupBox("\xf0\x9f\x93\xa6  Modelli installati", splitter);
+    auto* listBox     = new QGroupBox(tr("\xf0\x9f\x93\xa6  Modelli installati"), splitter);
     auto* listBoxLay  = new QVBoxLayout(listBox);
     auto* scrollArea  = new QScrollArea(listBox);
     scrollArea->setWidgetResizable(true);
@@ -238,7 +238,7 @@ QWidget* PersonalizzaPage::buildLlamaStudio() {
     listBoxLay->addWidget(scrollArea);
 
     /* ── Sezione download ── */
-    auto* modDlBox  = new QGroupBox("\xe2\xac\x87  Installa / Aggiorna modello", splitter);
+    auto* modDlBox  = new QGroupBox(tr("\xe2\xac\x87  Installa / Aggiorna modello"), splitter);
     auto* modDlLay  = new QVBoxLayout(modDlBox);
     modDlLay->setSpacing(6);
 
@@ -261,7 +261,7 @@ QWidget* PersonalizzaPage::buildLlamaStudio() {
     m_modUrlEdit = new QLineEdit(modDlBox);
     m_modUrlEdit->setObjectName("chatInput");
     m_modUrlEdit->setPlaceholderText(tr("URL HuggingFace .gguf personalizzato..."));
-    m_modDlBtn  = new QPushButton("\xe2\xac\x87  Scarica URL", modDlBox);
+    m_modDlBtn  = new QPushButton(tr("\xe2\xac\x87  Scarica URL"), modDlBox);
     m_modDlBtn->setObjectName("actionBtn");
 
     int modRow = 0, modCol = 0;
@@ -320,10 +320,10 @@ QWidget* PersonalizzaPage::buildLlamaStudio() {
     auto* dlTop  = new QWidget(dlPg);
     auto* dlTopL = new QHBoxLayout(dlTop);
     dlTopL->setContentsMargins(0,0,0,0); dlTopL->setSpacing(10);
-    auto* backDl = new QPushButton("\xe2\x86\x90 Menu llama", dlPg);
+    auto* backDl = new QPushButton(tr("\xe2\x86\x90 Menu llama"), dlPg);
     backDl->setObjectName("actionBtn");
     connect(backDl, &QPushButton::clicked, this, &PersonalizzaPage::onBackDlClicked);
-    auto* dlTitle = new QLabel("\xf0\x9f\x93\xa5  Scarica Modelli Matematica / Logica", dlPg);
+    auto* dlTitle = new QLabel(tr("\xf0\x9f\x93\xa5  Scarica Modelli Matematica / Logica"), dlPg);
     dlTitle->setObjectName("cardTitle");
     dlTopL->addWidget(backDl); dlTopL->addWidget(dlTitle, 1);
     dlLay->addWidget(dlTop);
@@ -399,7 +399,7 @@ QWidget* PersonalizzaPage::buildLlamaStudio() {
         auto* descL = new QLabel(mm.desc,  txtW); descL->setObjectName("cardDesc");
         tl->addWidget(nameL); tl->addWidget(descL);
 
-        auto* dlBtn = new QPushButton("\xe2\xac\x87 Scarica", card);
+        auto* dlBtn = new QPushButton(tr("\xe2\xac\x87 Scarica"), card);
         dlBtn->setObjectName("actionBtn"); dlBtn->setFixedWidth(dpiScale(100));
         dlBtn->setToolTip(tr("Scarica il modello GGUF selezionato tramite wget/curl"));
         dlBtn->setProperty("_url",  mm.url);
@@ -416,7 +416,7 @@ QWidget* PersonalizzaPage::buildLlamaStudio() {
     customCard->setObjectName("actionCard");
     auto* ccL = new QVBoxLayout(customCard);
     ccL->setContentsMargins(14,10,14,10); ccL->setSpacing(6);
-    auto* customTitle = new QLabel("\xf0\x9f\x94\x97  URL personalizzato (HuggingFace o altro)", customCard);
+    auto* customTitle = new QLabel(tr("\xf0\x9f\x94\x97  URL personalizzato (HuggingFace o altro)"), customCard);
     customTitle->setObjectName("cardTitle");
     ccL->addWidget(customTitle);
     auto* urlRow = new QWidget(customCard);
@@ -424,7 +424,7 @@ QWidget* PersonalizzaPage::buildLlamaStudio() {
     urlRowL->setContentsMargins(0,0,0,0); urlRowL->setSpacing(8);
     m_dlCustomUrlEdit = new QLineEdit(customCard);
     m_dlCustomUrlEdit->setPlaceholderText(tr("https://huggingface.co/.../resolve/main/modello.gguf"));
-    m_dlCustomBtn = new QPushButton("\xe2\xac\x87 Scarica", customCard);
+    m_dlCustomBtn = new QPushButton(tr("\xe2\xac\x87 Scarica"), customCard);
     m_dlCustomBtn->setObjectName("actionBtn"); m_dlCustomBtn->setFixedWidth(dpiScale(100));
     urlRowL->addWidget(m_dlCustomUrlEdit, 1); urlRowL->addWidget(m_dlCustomBtn);
     ccL->addWidget(urlRow);
@@ -466,7 +466,7 @@ QWidget* PersonalizzaPage::buildLlamaStudio() {
                 "Operazione una tantum (~5-15 min)."
                 "</span>", m_firstLaunchBanner);
             txt->setWordWrap(true); txt->setTextFormat(Qt::RichText);
-            auto* compNowBtn = new QPushButton("\xf0\x9f\x94\xa8  Compila ora", m_firstLaunchBanner);
+            auto* compNowBtn = new QPushButton(tr("\xf0\x9f\x94\xa8  Compila ora"), m_firstLaunchBanner);
             compNowBtn->setObjectName("actionBtn");
             compNowBtn->setToolTip(tr("Compila llama.cpp dal sorgente (richiede git, cmake, gcc — ~5-15 min)"));
             compNowBtn->setStyleSheet(
@@ -807,14 +807,14 @@ void PersonalizzaPage::refreshModelList() {
         m_modDirLbl->setText(QString("\xf0\x9f\x93\x81  %1").arg(modelsDir));
     QDir d(modelsDir);
     if (!d.exists()) {
-        auto* lbl = new QLabel("\xe2\x9a\xa0  Cartella models/ non trovata.", m_listContainer);
+        auto* lbl = new QLabel(tr("\xe2\x9a\xa0  Cartella models/ non trovata."), m_listContainer);
         lbl->setObjectName("cardDesc");
         listContLay->insertWidget(0, lbl);
         return;
     }
     auto files = d.entryInfoList({"*.gguf","*.bin"}, QDir::Files, QDir::Size | QDir::Reversed);
     if (files.isEmpty()) {
-        auto* lbl = new QLabel("\xf0\x9f\x8c\xab  Nessun modello trovato — scaricane uno dalla sezione sotto.", m_listContainer);
+        auto* lbl = new QLabel(tr("\xf0\x9f\x8c\xab  Nessun modello trovato — scaricane uno dalla sezione sotto."), m_listContainer);
         lbl->setObjectName("cardDesc");
         listContLay->insertWidget(0, lbl);
         return;
@@ -860,7 +860,7 @@ void PersonalizzaPage::onDeleteModelBtnClicked() {
     const QString filePath = btn->property("_filePath").toString();
     const QString fileName = btn->property("_fileName").toString();
     const QString sizeStr  = btn->property("_sizeStr").toString();
-    auto ans = QMessageBox::question(this, "Elimina modello",
+    auto ans = QMessageBox::question(this, tr("Elimina modello"),
         QString("Eliminare permanentemente:\n%1\n(%2)?").arg(fileName).arg(sizeStr),
         QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
     if (ans == QMessageBox::Yes) {

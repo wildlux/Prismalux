@@ -100,15 +100,15 @@ RagDropWidget::RagDropWidget(QWidget* parent) : QFrame(parent) {
     setMinimumWidth(dpiScale(120));
     setMaximumHeight(52);
     setCursor(Qt::PointingHandCursor);
-    setToolTip("Trascina file o cartelle qui per fornire contesto RAG a questo agente.\n"
+    setToolTip(tr("Trascina file o cartelle qui per fornire contesto RAG a questo agente.\n"
                "Clicca per aprire il selettore file. Max 32 KB totali.\n"
-               "Pulsante \xf0\x9f\x8c\x90 per caricare una pagina web.");
+               "Pulsante \xf0\x9f\x8c\x90 per caricare una pagina web."));
 
     auto* lay = new QHBoxLayout(this);
     lay->setContentsMargins(6, 4, 6, 4);
     lay->setSpacing(4);
 
-    m_lbl = new QLabel("\xf0\x9f\x93\x8e Trascina file", this);
+    m_lbl = new QLabel(tr("\xf0\x9f\x93\x8e Trascina file"), this);
     m_lbl->setObjectName("cardDesc");
     m_lbl->setWordWrap(false);
     lay->addWidget(m_lbl, 1);
@@ -737,7 +737,7 @@ void AgentsConfigDialog::setupUI() {
     lay->setSpacing(8);
 
     /* Titolo */
-    auto* title = new QLabel("\xf0\x9f\xa4\x96  Configurazione Agenti Pipeline", this);
+    auto* title = new QLabel(tr("\xf0\x9f\xa4\x96  Configurazione Agenti Pipeline"), this);
     title->setObjectName("pageTitle");
     lay->addWidget(title);
 
@@ -758,7 +758,7 @@ void AgentsConfigDialog::setupUI() {
     auto* numLay = new QHBoxLayout(numRow);
     numLay->setContentsMargins(0, 0, 0, 0);
     numLay->setSpacing(8);
-    auto* numLbl = new QLabel("Numero agenti attivi:", numRow);
+    auto* numLbl = new QLabel(tr("Numero agenti attivi:"), numRow);
     numLbl->setObjectName("cardDesc");
     m_spinShots = new QSpinBox(numRow);
     m_spinShots->setRange(1, MAX_AGENTS);
@@ -778,7 +778,7 @@ void AgentsConfigDialog::setupUI() {
         auto* modeLay = new QHBoxLayout(modeRow);
         modeLay->setContentsMargins(0, 0, 0, 0);
         modeLay->setSpacing(8);
-        auto* modeLbl = new QLabel("\xf0\x9f\x8e\xaf  Modalit\xc3\xa0:", modeRow);
+        auto* modeLbl = new QLabel(tr("\xf0\x9f\x8e\xaf  Modalit\xc3\xa0:"), modeRow);
         modeLbl->setObjectName("cardDesc");
         m_cmbMode = new QComboBox(modeRow);
         m_cmbMode->setMinimumWidth(dpiScale(220));
@@ -810,7 +810,7 @@ void AgentsConfigDialog::setupUI() {
         auto* sharedLay = new QHBoxLayout(sharedRow);
         sharedLay->setContentsMargins(0, 0, 0, 0);
         sharedLay->setSpacing(8);
-        auto* sharedLbl = new QLabel("\xf0\x9f\x93\x82  RAG condiviso (tutti gli agenti):", sharedRow);
+        auto* sharedLbl = new QLabel(tr("\xf0\x9f\x93\x82  RAG condiviso (tutti gli agenti):"), sharedRow);
         sharedLbl->setObjectName("cardDesc");
         sharedLbl->setToolTip(
             "Documenti caricati qui sono visibili a TUTTI gli agenti della pipeline.\n"
@@ -988,7 +988,7 @@ void AgentsConfigDialog::setupUI() {
     }
 
     /* Pulsante chiudi */
-    auto* closeBtn = new QPushButton("\xe2\x9c\x93  Applica e Chiudi", this);
+    auto* closeBtn = new QPushButton(tr("\xe2\x9c\x93  Applica e Chiudi"), this);
     closeBtn->setObjectName("actionBtn");
     connect(closeBtn, &QPushButton::clicked, this, &QDialog::accept);
 
@@ -1240,7 +1240,7 @@ void AgentsConfigDialog::onSavePresetClicked()
     const QString path = presetDir() + "/" + slug + ".json";
     QFile f(path);
     if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-        QMessageBox::warning(this, "Errore", "Impossibile salvare: " + path);
+        QMessageBox::warning(this, tr("Errore"), tr("Impossibile salvare: ") + path);
         return;
     }
     f.write(QJsonDocument(root).toJson());
@@ -1261,12 +1261,12 @@ void AgentsConfigDialog::onLoadPresetClicked()
 
     QFile f(path);
     if (!f.open(QIODevice::ReadOnly)) {
-        QMessageBox::warning(this, "Errore", "File non trovato: " + path);
+        QMessageBox::warning(this, tr("Errore"), tr("File non trovato: ") + path);
         return;
     }
     const QJsonObject root = QJsonDocument::fromJson(f.readAll()).object();
     if (root.isEmpty()) {
-        QMessageBox::warning(this, "Errore", "Preset non valido.");
+        QMessageBox::warning(this, tr("Errore"), tr("Preset non valido."));
         return;
     }
 

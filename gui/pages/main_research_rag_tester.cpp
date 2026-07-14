@@ -56,16 +56,16 @@ QWidget* RicercaPage::buildRagTesterTab()
     leftLay->setContentsMargins(0, 0, 0, 0);
     leftLay->setSpacing(8);
 
-    auto* docTitle = new QLabel("\xf0\x9f\x93\x81  Documenti RAG disponibili", leftPanel);
+    auto* docTitle = new QLabel(tr("\xf0\x9f\x93\x81  Documenti RAG disponibili"), leftPanel);
     docTitle->setObjectName("cardTitle");
     leftLay->addWidget(docTitle);
 
     m_ragTesterDocList = new QListWidget(leftPanel);
     m_ragTesterDocList->setAlternatingRowColors(true);
-    m_ragTesterDocList->setToolTip("Seleziona un documento per testarne la comprensione");
+    m_ragTesterDocList->setToolTip(tr("Seleziona un documento per testarne la comprensione"));
     leftLay->addWidget(m_ragTesterDocList, 1);
 
-    auto* reloadBtn = new QPushButton("\xf0\x9f\x94\x84  Aggiorna lista", leftPanel);
+    auto* reloadBtn = new QPushButton(tr("\xf0\x9f\x94\x84  Aggiorna lista"), leftPanel);
     reloadBtn->setObjectName("actionBtn");
     leftLay->addWidget(reloadBtn);
 
@@ -259,7 +259,7 @@ void RicercaPage::onRagTesterGenClicked()
         connect(m_ai, &AiClient::error, holder, [this, holder](const QString& err) {
             holder->deleteLater();
             if (m_ragTesterStatus)
-                m_ragTesterStatus->setText("\xe2\x9d\x8c  Errore AI: " + err);
+                m_ragTesterStatus->setText(tr("\xe2\x9d\x8c  Errore AI: ") + err);
             if (m_ragTesterGenBtn) m_ragTesterGenBtn->setEnabled(true);
         });
         m_ai->chat(sysDomande, userDomande);
@@ -327,7 +327,7 @@ void RicercaPage::onRagTesterRunClicked()
     if (questions.isEmpty() || m_ragTesterDocText.isEmpty()) return;
 
     if (m_ragTesterStatus)
-        m_ragTesterStatus->setText("\xf0\x9f\xa4\x96  Risposta alle domande in corso...");
+        m_ragTesterStatus->setText(tr("\xf0\x9f\xa4\x96  Risposta alle domande in corso..."));
     m_ragTesterRunBtn->setEnabled(false);
     if (m_ragTesterAnswers) m_ragTesterAnswers->clear();
 
@@ -360,7 +360,7 @@ void RicercaPage::onRagTesterRunClicked()
     connect(m_ai, &AiClient::error, holder, [this, holder](const QString& err) {
         holder->deleteLater();
         if (m_ragTesterStatus)
-            m_ragTesterStatus->setText("\xe2\x9d\x8c  Errore: " + err);
+            m_ragTesterStatus->setText(tr("\xe2\x9d\x8c  Errore: ") + err);
         if (m_ragTesterRunBtn) m_ragTesterRunBtn->setEnabled(true);
     });
     m_ai->chat(sysRisposte, userRisposte);
@@ -378,7 +378,7 @@ void RicercaPage::onRagTesterEvalClicked()
     if (questions.isEmpty() || answers.isEmpty()) return;
 
     if (m_ragTesterStatus)
-        m_ragTesterStatus->setText("\xf0\x9f\xa4\x96  Valutazione in corso...");
+        m_ragTesterStatus->setText(tr("\xf0\x9f\xa4\x96  Valutazione in corso..."));
     m_ragTesterEvalBtn->setEnabled(false);
 
     const QString sysValuta =
@@ -411,13 +411,13 @@ void RicercaPage::onRagTesterEvalClicked()
     connect(m_ai, &AiClient::finished, holder, [this, holder](const QString&) {
         holder->deleteLater();
         if (m_ragTesterStatus)
-            m_ragTesterStatus->setText("\xe2\x9c\x85  Valutazione completata.");
+            m_ragTesterStatus->setText(tr("\xe2\x9c\x85  Valutazione completata."));
         if (m_ragTesterEvalBtn) m_ragTesterEvalBtn->setEnabled(true);
     });
     connect(m_ai, &AiClient::error, holder, [this, holder](const QString& err) {
         holder->deleteLater();
         if (m_ragTesterStatus)
-            m_ragTesterStatus->setText("\xe2\x9d\x8c  " + err);
+            m_ragTesterStatus->setText(tr("\xe2\x9d\x8c  ") + err);
         if (m_ragTesterEvalBtn) m_ragTesterEvalBtn->setEnabled(true);
     });
     m_ai->chat(sysValuta, userValuta);

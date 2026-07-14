@@ -180,18 +180,18 @@ QWidget* AppControllerPage::buildKiCADTab()
     connLay->setContentsMargins(0, 0, 0, 0);
     connLay->setSpacing(8);
 
-    auto* lbl = new QLabel("KiCAD MCP:", connRow);
+    auto* lbl = new QLabel(tr("KiCAD MCP:"), connRow);
     lbl->setObjectName("hintLabel");
 
     m_kicadHostEdit = new QLineEdit("localhost:3000", connRow);
     m_kicadHostEdit->setFixedWidth(dpiScale(150));
 
-    auto* pingBtn = new QPushButton("\xf0\x9f\x94\x97  Verifica", connRow);
+    auto* pingBtn = new QPushButton(tr("\xf0\x9f\x94\x97  Verifica"), connRow);
     pingBtn->setToolTip(tr("Verifica che il server KiCAD MCP sia raggiungibile"));
     pingBtn->setObjectName("actionBtn");
     pingBtn->setFixedWidth(dpiScale(100));
 
-    m_kicadStatusLbl = new QLabel("\xe2\x9a\xaa  Non connesso", connRow);
+    m_kicadStatusLbl = new QLabel(tr("\xe2\x9a\xaa  Non connesso"), connRow);
     m_kicadStatusLbl->setObjectName("hintLabel");
 
     m_kicadExecBtn = new QPushButton(
@@ -203,7 +203,7 @@ QWidget* AppControllerPage::buildKiCADTab()
     connLay->addWidget(lbl);
     connLay->addWidget(m_kicadHostEdit);
     connLay->addWidget(pingBtn);
-    auto* kicadHelpBtn = new QPushButton("\xf0\x9f\x9b\x9f  Aiuto", connRow);
+    auto* kicadHelpBtn = new QPushButton(tr("\xf0\x9f\x9b\x9f  Aiuto"), connRow);
     kicadHelpBtn->setToolTip(tr("Apri la documentazione KiCAD MCP e guida ai comandi"));
     kicadHelpBtn->setObjectName("actionBtn");
     kicadHelpBtn->setFixedWidth(dpiScale(80));
@@ -235,9 +235,9 @@ QWidget* AppControllerPage::buildKiCADTab()
 
     m_kicadModel = new ModelComboBox(m_ai, toolRow);
 
-    toolLay->addWidget(new QLabel("Azione:", toolRow));
+    toolLay->addWidget(new QLabel(tr("Azione:"), toolRow));
     toolLay->addWidget(m_kicadAction, 1);
-    toolLay->addWidget(new QLabel("Modello AI:", toolRow));
+    toolLay->addWidget(new QLabel(tr("Modello AI:"), toolRow));
     toolLay->addWidget(m_kicadModel, 1);
     lay->addWidget(toolRow);
 
@@ -256,9 +256,9 @@ QWidget* AppControllerPage::buildKiCADTab()
     btnLay->setContentsMargins(0, 0, 0, 0);
     btnLay->setSpacing(8);
 
-    m_kicadRunBtn  = new QPushButton("\xf0\x9f\xa4\x96  Genera script", btnRow);
+    m_kicadRunBtn  = new QPushButton(tr("\xf0\x9f\xa4\x96  Genera script"), btnRow);
     m_kicadRunBtn->setObjectName("actionBtn");
-    m_kicadStopBtn = new QPushButton("\xe2\x8f\xb9  Stop", btnRow);
+    m_kicadStopBtn = new QPushButton(tr("\xe2\x8f\xb9  Stop"), btnRow);
     m_kicadStopBtn->setObjectName("actionBtn");
     m_kicadStopBtn->setEnabled(false);
     btnLay->addWidget(m_kicadRunBtn);
@@ -337,19 +337,19 @@ QWidget* AppControllerPage::buildTinyMCPTab()
     connLay->setContentsMargins(0, 0, 0, 0);
     connLay->setSpacing(8);
 
-    auto* lbl = new QLabel("Porta MCU:", connRow);
+    auto* lbl = new QLabel(tr("Porta MCU:"), connRow);
     lbl->setObjectName("hintLabel");
 
     m_mcuPort = new QComboBox(connRow);
     m_mcuPort->setMinimumWidth(dpiScale(150));
     m_mcuPort->setEditable(true);
 
-    auto* detectBtn = new QPushButton("\xf0\x9f\x94\x8d  Rileva", connRow);
+    auto* detectBtn = new QPushButton(tr("\xf0\x9f\x94\x8d  Rileva"), connRow);
     detectBtn->setObjectName("actionBtn");
     detectBtn->setFixedWidth(dpiScale(90));
     detectBtn->setToolTip(tr("Rileva le porte seriali/USB disponibili per MCU/FPGA"));
 
-    m_mcuStatusLbl = new QLabel("\xe2\x9a\xaa  MCU non connesso", connRow);
+    m_mcuStatusLbl = new QLabel(tr("\xe2\x9a\xaa  MCU non connesso"), connRow);
     m_mcuStatusLbl->setObjectName("hintLabel");
 
     m_mcuFlashBtn = new QPushButton(
@@ -361,7 +361,7 @@ QWidget* AppControllerPage::buildTinyMCPTab()
     connLay->addWidget(lbl);
     connLay->addWidget(m_mcuPort, 1);
     connLay->addWidget(detectBtn);
-    auto* mcuHelpBtn = new QPushButton("\xf0\x9f\x9b\x9f  Aiuto", connRow);
+    auto* mcuHelpBtn = new QPushButton(tr("\xf0\x9f\x9b\x9f  Aiuto"), connRow);
     mcuHelpBtn->setToolTip(tr("Apri guida al flashing MCU/FPGA: Arduino, STM32, ESP32, AVR"));
     mcuHelpBtn->setObjectName("actionBtn");
     mcuHelpBtn->setFixedWidth(dpiScale(80));
@@ -440,11 +440,11 @@ QWidget* AppControllerPage::buildTinyMCPTab()
 
     m_mcuModel = new ModelComboBox(m_ai, toolRow);
 
-    toolLay->addWidget(new QLabel("Tipo:", toolRow));
+    toolLay->addWidget(new QLabel(tr("Tipo:"), toolRow));
     toolLay->addWidget(m_mcuAction, 1);
-    toolLay->addWidget(new QLabel("Scheda:", toolRow));
+    toolLay->addWidget(new QLabel(tr("Scheda:"), toolRow));
     toolLay->addWidget(boardCombo);
-    toolLay->addWidget(new QLabel("Modello AI:", toolRow));
+    toolLay->addWidget(new QLabel(tr("Modello AI:"), toolRow));
     toolLay->addWidget(m_mcuModel, 1);
     lay->addWidget(toolRow);
 
@@ -463,9 +463,9 @@ QWidget* AppControllerPage::buildTinyMCPTab()
     btnLay->setContentsMargins(0, 0, 0, 0);
     btnLay->setSpacing(8);
 
-    m_mcuRunBtn  = new QPushButton("\xf0\x9f\xa4\x96  Genera codice", btnRow);
+    m_mcuRunBtn  = new QPushButton(tr("\xf0\x9f\xa4\x96  Genera codice"), btnRow);
     m_mcuRunBtn->setObjectName("actionBtn");
-    m_mcuStopBtn = new QPushButton("\xe2\x8f\xb9  Stop", btnRow);
+    m_mcuStopBtn = new QPushButton(tr("\xe2\x8f\xb9  Stop"), btnRow);
     m_mcuStopBtn->setObjectName("actionBtn");
     m_mcuStopBtn->setEnabled(false);
     btnLay->addWidget(m_mcuRunBtn);
@@ -577,7 +577,7 @@ void AppControllerPage::onKicadHelpClicked()
         "(deve essere abilitata nel build di KiCAD)</p>"
         "<h4>4. Collega</h4>"
         "<p>Torna qui \xe2\x86\x92 clicca <b>\xf0\x9f\x94\x97 Verifica</b>.</p>");
-    auto* btnClose = new QPushButton("\xe2\x9c\x95  Chiudi", dlg);
+    auto* btnClose = new QPushButton(tr("\xe2\x9c\x95  Chiudi"), dlg);
     btnClose->setObjectName("actionBtn");
     connect(btnClose, &QPushButton::clicked, dlg, &QDialog::accept);
     dlay->addWidget(browser);
@@ -604,7 +604,7 @@ void AppControllerPage::onKicadExecReply()
                 + res["error"].toString(reply->errorString()));
         }
     } else {
-        m_kicadStatusLbl->setText("\xe2\x9d\x8c  " + reply->errorString());
+        m_kicadStatusLbl->setText(tr("\xe2\x9d\x8c  ") + reply->errorString());
         m_kicadOutput->append("\n\xe2\x9d\x8c  " + reply->errorString());
     }
 }
@@ -694,7 +694,7 @@ void AppControllerPage::onMcuHelpClicked()
         "<p>Collega il microcontrollore via USB \xe2\x86\x92 clicca "
         "<b>\xf0\x9f\x94\x8d Rileva</b> \xe2\x86\x92 genera il codice \xe2\x86\x92 "
         "<b>\xe2\x9a\xa1 Flash MCU</b> per salvare e ottenere il comando di upload.</p>");
-    auto* btnClose = new QPushButton("\xe2\x9c\x95  Chiudi", dlg);
+    auto* btnClose = new QPushButton(tr("\xe2\x9c\x95  Chiudi"), dlg);
     btnClose->setObjectName("actionBtn");
     connect(btnClose, &QPushButton::clicked, dlg, &QDialog::accept);
     dlay->addWidget(browser);
@@ -766,26 +766,26 @@ QWidget* AppControllerPage::buildOBSTab()
     connLay->setContentsMargins(0, 0, 0, 0);
     connLay->setSpacing(8);
 
-    auto* lbl = new QLabel("OBS WebSocket:", connRow);
+    auto* lbl = new QLabel(tr("OBS WebSocket:"), connRow);
     lbl->setObjectName("hintLabel");
 
     m_obsHostEdit = new QLineEdit("localhost:4455", connRow);
     m_obsHostEdit->setFixedWidth(dpiScale(150));
 
-    auto* pingBtn = new QPushButton("\xf0\x9f\x94\x97  Verifica", connRow);
+    auto* pingBtn = new QPushButton(tr("\xf0\x9f\x94\x97  Verifica"), connRow);
     pingBtn->setToolTip(tr("Verifica connessione con OBS WebSocket (porta 4455)"));
     pingBtn->setObjectName("actionBtn");
     pingBtn->setFixedWidth(dpiScale(100));
 
-    m_obsStatusLbl = new QLabel("\xe2\x9a\xaa  Non connesso", connRow);
+    m_obsStatusLbl = new QLabel(tr("\xe2\x9a\xaa  Non connesso"), connRow);
     m_obsStatusLbl->setObjectName("hintLabel");
 
-    m_obsExecBtn = new QPushButton("\xf0\x9f\x94\xb4  Esegui in OBS", connRow);
+    m_obsExecBtn = new QPushButton(tr("\xf0\x9f\x94\xb4  Esegui in OBS"), connRow);
     m_obsExecBtn->setObjectName("actionBtn");
     m_obsExecBtn->setFixedWidth(dpiScale(150));
     m_obsExecBtn->setEnabled(false);
 
-    auto* obsHelpBtn = new QPushButton("\xf0\x9f\x9b\x9f  Aiuto", connRow);
+    auto* obsHelpBtn = new QPushButton(tr("\xf0\x9f\x9b\x9f  Aiuto"), connRow);
     obsHelpBtn->setToolTip(tr("Apri la documentazione OBS WebSocket e guida scene/sorgenti"));
     obsHelpBtn->setObjectName("actionBtn");
     obsHelpBtn->setFixedWidth(dpiScale(80));
@@ -857,9 +857,9 @@ QWidget* AppControllerPage::buildOBSTab()
 
     m_obsModel = new ModelComboBox(m_ai, toolRow);
 
-    toolLay->addWidget(new QLabel("Azione:", toolRow));
+    toolLay->addWidget(new QLabel(tr("Azione:"), toolRow));
     toolLay->addWidget(m_obsAction, 1);
-    toolLay->addWidget(new QLabel("Modello AI:", toolRow));
+    toolLay->addWidget(new QLabel(tr("Modello AI:"), toolRow));
     toolLay->addWidget(m_obsModel, 1);
     lay->addWidget(toolRow);
 
@@ -878,9 +878,9 @@ QWidget* AppControllerPage::buildOBSTab()
     btnLay->setContentsMargins(0, 0, 0, 0);
     btnLay->setSpacing(8);
 
-    m_obsRunBtn  = new QPushButton("\xf0\x9f\xa4\x96  Genera script", btnRow);
+    m_obsRunBtn  = new QPushButton(tr("\xf0\x9f\xa4\x96  Genera script"), btnRow);
     m_obsRunBtn->setObjectName("actionBtn");
-    m_obsStopBtn = new QPushButton("\xe2\x8f\xb9  Stop", btnRow);
+    m_obsStopBtn = new QPushButton(tr("\xe2\x8f\xb9  Stop"), btnRow);
     m_obsStopBtn->setObjectName("actionBtn");
     m_obsStopBtn->setProperty("danger", true);
     m_obsStopBtn->setEnabled(false);
@@ -943,7 +943,7 @@ void AppControllerPage::onObsPingClicked()
     });
     connect(sock, &QAbstractSocket::errorOccurred, this,
             [this, sock](QAbstractSocket::SocketError) {
-        m_obsStatusLbl->setText("\xe2\x9d\x8c  " + sock->errorString());
+        m_obsStatusLbl->setText(tr("\xe2\x9d\x8c  ") + sock->errorString());
         sock->deleteLater();
     });
     QPointer<QTcpSocket> sockPtr(sock);
@@ -1039,7 +1039,7 @@ void AppControllerPage::onObsHelpClicked()
         "<h4>5. Collega</h4>"
         "<p>Avvia OBS \xe2\x86\x92 clicca <b>\xf0\x9f\x94\x97 Verifica</b> \xe2\x86\x92 "
         "genera lo script \xe2\x86\x92 <b>\xf0\x9f\x94\xb4 Esegui in OBS</b>.</p>");
-    auto* btnClose = new QPushButton("\xe2\x9c\x95  Chiudi", dlg);
+    auto* btnClose = new QPushButton(tr("\xe2\x9c\x95  Chiudi"), dlg);
     btnClose->setObjectName("actionBtn");
     connect(btnClose, &QPushButton::clicked, dlg, &QDialog::accept);
     dlay->addWidget(browser);

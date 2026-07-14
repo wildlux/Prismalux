@@ -63,7 +63,7 @@ QWidget* MatematicaPage::buildBoolTab()
     lay->addLayout(inputRow);
 
     /* ── Pulsanti operatori rapidi ── */
-    auto* opGroup = new QGroupBox("Inserisci operatore / funzione", w);
+    auto* opGroup = new QGroupBox(tr("Inserisci operatore / funzione"), w);
     auto* opLay   = new QHBoxLayout(opGroup);
     opLay->setSpacing(4);
     struct Op { const char* lbl; const char* ins; const char* tip; };
@@ -97,18 +97,18 @@ QWidget* MatematicaPage::buildBoolTab()
 
     /* ── Pulsanti azione ── */
     auto* btnRow = new QHBoxLayout;
-    auto* btnEval = new QPushButton("\xe2\x9c\x94  Valuta", w);  /* ✔ */
+    auto* btnEval = new QPushButton(tr("\xe2\x9c\x94  Valuta"), w);  /* ✔ */
     btnEval->setObjectName("actionBtn");
     btnEval->setProperty("highlight", "true");
     connect(btnEval, &QPushButton::clicked, this, &MatematicaPage::onBoolEvalClicked);
     btnRow->addWidget(btnEval);
 
-    auto* btnTable = new QPushButton("\xf0\x9f\x93\x8b  Tabella di verità", w);  /* 📋 */
+    auto* btnTable = new QPushButton(tr("\xf0\x9f\x93\x8b  Tabella di verità"), w);  /* 📋 */
     btnTable->setObjectName("actionBtn");
     connect(btnTable, &QPushButton::clicked, this, &MatematicaPage::onBoolTruthTableClicked);
     btnRow->addWidget(btnTable);
 
-    auto* btnSimp = new QPushButton("\xe2\x99\xbe  Semplifica", w);  /* ♾ */
+    auto* btnSimp = new QPushButton(tr("\xe2\x99\xbe  Semplifica"), w);  /* ♾ */
     btnSimp->setObjectName("actionBtn");
     connect(btnSimp, &QPushButton::clicked, this, &MatematicaPage::onBoolSimplifyClicked);
     btnRow->addWidget(btnSimp);
@@ -131,7 +131,7 @@ QWidget* MatematicaPage::buildBoolTab()
     lay->addWidget(sep);
 
     /* ── Sezione Teoremi / Leggi — 2 colonne ── */
-    lay->addWidget(new QLabel("<b>Leggi dell'Algebra Booleana (Boole, De Morgan, Shannon)</b>", w));
+    lay->addWidget(new QLabel(tr("<b>Leggi dell'Algebra Booleana (Boole, De Morgan, Shannon)</b>"), w));
 
     static const char* kStyle =
         "<style>"

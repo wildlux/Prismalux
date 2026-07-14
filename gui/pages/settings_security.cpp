@@ -86,18 +86,18 @@ static void secDoRegenCert(QPushButton* btn, QLineEdit* fpEdit) {
         "Tutti i worker dovranno aggiornare il loro pin.\n\nProcedere?");
     if (r != QMessageBox::Yes) return;
     btn->setEnabled(false);
-    btn->setText("\xe2\x8f\xb3  Generazione...");
+    btn->setText(QObject::tr("\xe2\x8f\xb3  Generazione..."));
     const bool ok = regenCert();
     btn->setEnabled(true);
-    btn->setText("\xf0\x9f\x94\x84  Rigenera certificato");
+    btn->setText(QObject::tr("\xf0\x9f\x94\x84  Rigenera certificato"));
     if (ok) {
         const QString pin = readPin(QDir::homePath() + "/.prismalux/wan_cert.pin");
         fpEdit->setText(pin);
-        QMessageBox::information(btn->window(), "Certificato rigenerato",
+        QMessageBox::information(btn->window(), QObject::tr("Certificato rigenerato"),
             "Nuovo certificato generato.\nFingerprint:\n" + pin +
             "\n\nDistribuisci il file wan_cert.pin ai worker come wan_server.pin.");
     } else {
-        QMessageBox::warning(btn->window(), "Errore",
+        QMessageBox::warning(btn->window(), QObject::tr("Errore"),
             "Impossibile rigenerare il certificato.\nVerifica che openssl sia installato.");
     }
 }
@@ -105,7 +105,7 @@ static void secDoRegenCert(QPushButton* btn, QLineEdit* fpEdit) {
 static void secDoExportPin(QPushButton* btn) {
     const QString src = QDir::homePath() + "/.prismalux/wan_cert.pin";
     if (!QFileInfo::exists(src)) {
-        QMessageBox::warning(btn->window(), "Pin non trovato",
+        QMessageBox::warning(btn->window(), QObject::tr("Pin non trovato"),
             "wan_cert.pin non esiste.\nAvvia il server WAN con TLS per generarlo,\n"
             "oppure usa 'Rigenera certificato'.");
         return;
@@ -116,11 +116,11 @@ static void secDoExportPin(QPushButton* btn) {
     if (dst.isEmpty()) return;
     QFile::remove(dst);
     if (QFile::copy(src, dst))
-        QMessageBox::information(btn->window(), "Esportato",
+        QMessageBox::information(btn->window(), QObject::tr("Esportato"),
             "Pin esportato in:\n" + dst +
             "\n\nCopialo sul worker come:\n~/.prismalux/wan_server.pin");
     else
-        QMessageBox::warning(btn->window(), "Errore copia", "Impossibile scrivere il file.");
+        QMessageBox::warning(btn->window(), QObject::tr("Errore copia"), QObject::tr("Impossibile scrivere il file."));
 }
 
 static void secDoImportPin(QPushButton* btn) {
@@ -134,10 +134,10 @@ static void secDoImportPin(QPushButton* btn) {
     if (QFile::copy(src, dst)) {
         QFile::setPermissions(dst,
             QFileDevice::ReadOwner | QFileDevice::WriteOwner);
-        QMessageBox::information(btn->window(), "Importato",
+        QMessageBox::information(btn->window(), QObject::tr("Importato"),
             "Pin server importato.\nQuesto PC verificherà il certificato del server ad ogni connessione.");
     } else {
-        QMessageBox::warning(btn->window(), "Errore", "Impossibile copiare il file.");
+        QMessageBox::warning(btn->window(), QObject::tr("Errore"), QObject::tr("Impossibile copiare il file."));
     }
 }
 
@@ -145,7 +145,7 @@ static void secDoImportPin(QPushButton* btn) {
 static void secDoGenWgKeys(QPushButton* btn, QLineEdit* pubkeyEdit) {
     auto check = ProcHelper::run("wg", {"--version"}, 3000);
     if (!check.ok) {
-        QMessageBox::warning(btn->window(), "wg non trovato",
+        QMessageBox::warning(btn->window(), QObject::tr("wg non trovato"),
             "Installa WireGuard tools:\n  sudo apt install wireguard-tools");
         return;
     }
@@ -160,13 +160,13 @@ static void secDoGenWgKeys(QPushButton* btn, QLineEdit* pubkeyEdit) {
 
     auto privR = ProcHelper::run("wg", {"genkey"}, 5000);
     if (!privR.ok || privR.out.trimmed().isEmpty()) {
-        QMessageBox::warning(btn->window(), "Errore", "Impossibile generare la chiave privata.");
+        QMessageBox::warning(btn->window(), QObject::tr("Errore"), QObject::tr("Impossibile generare la chiave privata."));
         return;
     }
     const QString privKey = privR.out.trimmed();
     QSaveFile pf(privPath);
     if (!pf.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        QMessageBox::warning(btn->window(), "Errore", "Impossibile scrivere la chiave privata.");
+        QMessageBox::warning(btn->window(), QObject::tr("Errore"), QObject::tr("Impossibile scrivere la chiave privata."));
         return;
     }
     pf.write((privKey + "\n").toUtf8());
@@ -178,11 +178,11 @@ static void secDoGenWgKeys(QPushButton* btn, QLineEdit* pubkeyEdit) {
     auto pubR = ProcHelper::runWithInput("wg", {"pubkey"},
         (privKey + "\n").toUtf8(), 3000);
     if (!pubR.ok) {
-        QMessageBox::warning(btn->window(), "Errore", "Impossibile calcolare la chiave pubblica.");
+        QMessageBox::warning(btn->window(), QObject::tr("Errore"), QObject::tr("Impossibile calcolare la chiave pubblica."));
         return;
     }
     pubkeyEdit->setText(pubR.out.trimmed());
-    QMessageBox::information(btn->window(), "Chiavi generate",
+    QMessageBox::information(btn->window(), QObject::tr("Chiavi generate"),
         "Chiave privata salvata in:\n" + privPath + " (0600)\n\n"
         "Chiave pubblica:\n" + pubR.out.trimmed() +
         "\n\nCondividi la pubkey con il server WireGuard.");
@@ -191,7 +191,7 @@ static void secDoGenWgKeys(QPushButton* btn, QLineEdit* pubkeyEdit) {
 static void secDoExportWgConf(QPushButton* btn, QLineEdit* pubkeyEdit) {
     const QString privPath = QDir::homePath() + "/.prismalux/wireguard_private.key";
     if (!QFileInfo::exists(privPath)) {
-        QMessageBox::warning(btn->window(), "Chiave privata mancante",
+        QMessageBox::warning(btn->window(), QObject::tr("Chiave privata mancante"),
             "Genera prima le chiavi WireGuard.");
         return;
     }
@@ -232,7 +232,7 @@ static void secDoExportWgConf(QPushButton* btn, QLineEdit* pubkeyEdit) {
         sf.commit();
         QFile::setPermissions(dst,
             QFileDevice::ReadOwner | QFileDevice::WriteOwner);
-        QMessageBox::information(btn->window(), "wg0.conf generato",
+        QMessageBox::information(btn->window(), QObject::tr("wg0.conf generato"),
             "File salvato in:\n" + dst +
             "\n\nCompleta i campi <PUBKEY_SERVER> e <IP_SERVER>,\n"
             "poi: sudo wg-quick up " + dst);
@@ -250,7 +250,7 @@ QWidget* ImpostazioniPage::buildSicurezzaWanTab()
     rootLay->setSpacing(16);
 
     /* ── Sezione 0: Guida rapida ─────────────────────────────── */
-    auto* guideBox = new QGroupBox("\xf0\x9f\x93\x96  Guida rapida — come proteggere la rete WAN");
+    auto* guideBox = new QGroupBox(tr("\xf0\x9f\x93\x96  Guida rapida — come proteggere la rete WAN"));
     auto* guideLay = new QVBoxLayout(guideBox);
     guideLay->setContentsMargins(6, 6, 6, 6);
 
@@ -345,23 +345,23 @@ QWidget* ImpostazioniPage::buildSicurezzaWanTab()
     rootLay->addWidget(guideBox);
 
     /* ── Sezione 1: Certificato TLS WAN ──────────────────────── */
-    auto* certBox = new QGroupBox("\xf0\x9f\x94\x92  Certificato TLS WAN (porta 11600)");
+    auto* certBox = new QGroupBox(tr("\xf0\x9f\x94\x92  Certificato TLS WAN (porta 11600)"));
     auto* certLay = new QVBoxLayout(certBox);
     certLay->setSpacing(8);
 
     auto* fpRow = new QWidget;
     auto* fpLay = new QHBoxLayout(fpRow);
     fpLay->setContentsMargins(0,0,0,0); fpLay->setSpacing(6);
-    auto* fpLbl = new QLabel("Fingerprint (SHA-256):", fpRow);
+    auto* fpLbl = new QLabel(tr("Fingerprint (SHA-256):"), fpRow);
     fpLbl->setFixedWidth(dpiScale(160));
     auto* fpEdit = new QLineEdit(fpRow);
     fpEdit->setReadOnly(true);
     fpEdit->setFont(QFont("monospace"));
-    fpEdit->setPlaceholderText("(server non avviato con TLS / certificato non generato)");
+    fpEdit->setPlaceholderText(tr("(server non avviato con TLS / certificato non generato)"));
     fpEdit->setText(readPin(pinSrvPath()));
     auto* fpCopyBtn = new QPushButton("\xf0\x9f\x93\x8b", fpRow);
     fpCopyBtn->setFixedWidth(dpiScale(32));
-    fpCopyBtn->setToolTip("Copia fingerprint negli appunti");
+    fpCopyBtn->setToolTip(tr("Copia fingerprint negli appunti"));
     connect(fpCopyBtn, &QPushButton::clicked, fpCopyBtn, [fpEdit]() {
         QApplication::clipboard()->setText(fpEdit->text());
     });
@@ -384,7 +384,7 @@ QWidget* ImpostazioniPage::buildSicurezzaWanTab()
     auto* certBtnLay = new QHBoxLayout(certBtnRow);
     certBtnLay->setContentsMargins(0,0,0,0); certBtnLay->setSpacing(8);
 
-    auto* regenBtn = new QPushButton("\xf0\x9f\x94\x84  Rigenera certificato");
+    auto* regenBtn = new QPushButton(tr("\xf0\x9f\x94\x84  Rigenera certificato"));
     regenBtn->setToolTip(
         "Elimina server.crt e server.key e ne genera una nuova coppia.\n"
         "Aggiorna automaticamente wan_cert.pin.\n"
@@ -393,7 +393,7 @@ QWidget* ImpostazioniPage::buildSicurezzaWanTab()
         secDoRegenCert(regenBtn, fpEdit);
     });
 
-    auto* exportPinBtn = new QPushButton("\xf0\x9f\x93\xa4  Esporta pin per worker");
+    auto* exportPinBtn = new QPushButton(tr("\xf0\x9f\x93\xa4  Esporta pin per worker"));
     exportPinBtn->setToolTip(
         "Salva wan_cert.pin in una posizione a scelta.\n"
         "Copialo sul worker come ~/.prismalux/wan_server.pin");
@@ -401,7 +401,7 @@ QWidget* ImpostazioniPage::buildSicurezzaWanTab()
         secDoExportPin(exportPinBtn);
     });
 
-    auto* importPinBtn = new QPushButton("\xf0\x9f\x93\xa5  Importa pin server (lato worker)");
+    auto* importPinBtn = new QPushButton(tr("\xf0\x9f\x93\xa5  Importa pin server (lato worker)"));
     importPinBtn->setToolTip(
         "Carica il pin del server su questo PC come wan_server.pin.\n"
         "Da usare quando questo PC è il WORKER che si connette a un server remoto.");
@@ -419,16 +419,16 @@ QWidget* ImpostazioniPage::buildSicurezzaWanTab()
     auto* cliPinRow = new QWidget;
     auto* cliPinLay = new QHBoxLayout(cliPinRow);
     cliPinLay->setContentsMargins(0,0,0,0); cliPinLay->setSpacing(6);
-    auto* cliPinLbl = new QLabel("Pin server (worker):", cliPinRow);
+    auto* cliPinLbl = new QLabel(tr("Pin server (worker):"), cliPinRow);
     cliPinLbl->setFixedWidth(dpiScale(160));
     auto* cliPinEdit = new QLineEdit(cliPinRow);
     cliPinEdit->setReadOnly(true);
     cliPinEdit->setFont(QFont("monospace"));
-    cliPinEdit->setPlaceholderText("(nessun pin importato — accetta qualsiasi certificato)");
+    cliPinEdit->setPlaceholderText(tr("(nessun pin importato — accetta qualsiasi certificato)"));
     cliPinEdit->setText(readPin(pinCliPath()));
     auto* cliPinClearBtn = new QPushButton("\xf0\x9f\x97\x91", cliPinRow);
     cliPinClearBtn->setFixedWidth(dpiScale(32));
-    cliPinClearBtn->setToolTip("Rimuovi pin worker (torna a VerifyNone)");
+    cliPinClearBtn->setToolTip(tr("Rimuovi pin worker (torna a VerifyNone)"));
     connect(cliPinClearBtn, &QPushButton::clicked, cliPinClearBtn, [cliPinEdit]() {
         QFile::remove(pinCliPath());
         cliPinEdit->clear();
@@ -441,7 +441,7 @@ QWidget* ImpostazioniPage::buildSicurezzaWanTab()
     rootLay->addWidget(certBox);
 
     /* ── Sezione 2: Chiavi WireGuard VPN ─────────────────────── */
-    auto* vpnBox = new QGroupBox("\xf0\x9f\x9b\xa1  Chiavi WireGuard VPN");
+    auto* vpnBox = new QGroupBox(tr("\xf0\x9f\x9b\xa1  Chiavi WireGuard VPN"));
     auto* vpnLay = new QVBoxLayout(vpnBox);
     vpnLay->setSpacing(8);
 
@@ -461,12 +461,12 @@ QWidget* ImpostazioniPage::buildSicurezzaWanTab()
     auto* pubkeyRow = new QWidget;
     auto* pubkeyLay = new QHBoxLayout(pubkeyRow);
     pubkeyLay->setContentsMargins(0,0,0,0); pubkeyLay->setSpacing(6);
-    auto* pubkeyLbl = new QLabel("Chiave pubblica:", pubkeyRow);
+    auto* pubkeyLbl = new QLabel(tr("Chiave pubblica:"), pubkeyRow);
     pubkeyLbl->setFixedWidth(dpiScale(160));
     auto* pubkeyEdit = new QLineEdit(pubkeyRow);
     pubkeyEdit->setReadOnly(true);
     pubkeyEdit->setFont(QFont("monospace"));
-    pubkeyEdit->setPlaceholderText("(genera una coppia di chiavi)");
+    pubkeyEdit->setPlaceholderText(tr("(genera una coppia di chiavi)"));
     /* Carica pubkey se la privkey esiste già */
     const QString privKeyPath = QDir::homePath() + "/.prismalux/wireguard_private.key";
     if (QFileInfo::exists(privKeyPath)) {
@@ -480,7 +480,7 @@ QWidget* ImpostazioniPage::buildSicurezzaWanTab()
     }
     auto* pubkeyCopyBtn = new QPushButton("\xf0\x9f\x93\x8b", pubkeyRow);
     pubkeyCopyBtn->setFixedWidth(dpiScale(32));
-    pubkeyCopyBtn->setToolTip("Copia pubkey");
+    pubkeyCopyBtn->setToolTip(tr("Copia pubkey"));
     connect(pubkeyCopyBtn, &QPushButton::clicked, pubkeyCopyBtn, [pubkeyEdit]() {
         QApplication::clipboard()->setText(pubkeyEdit->text());
     });
@@ -493,13 +493,13 @@ QWidget* ImpostazioniPage::buildSicurezzaWanTab()
     auto* vpnBtnLay = new QHBoxLayout(vpnBtnRow);
     vpnBtnLay->setContentsMargins(0,0,0,0); vpnBtnLay->setSpacing(8);
 
-    auto* genKeysBtn = new QPushButton("\xf0\x9f\x94\x84  Genera chiavi WireGuard");
-    genKeysBtn->setToolTip("Richiede 'wg' installato (sudo apt install wireguard-tools)");
+    auto* genKeysBtn = new QPushButton(tr("\xf0\x9f\x94\x84  Genera chiavi WireGuard"));
+    genKeysBtn->setToolTip(tr("Richiede 'wg' installato (sudo apt install wireguard-tools)"));
     connect(genKeysBtn, &QPushButton::clicked, genKeysBtn, [genKeysBtn, pubkeyEdit](){
         secDoGenWgKeys(genKeysBtn, pubkeyEdit);
     });
 
-    auto* exportConfBtn = new QPushButton("\xf0\x9f\x93\x84  Genera wg0.conf (worker)");
+    auto* exportConfBtn = new QPushButton(tr("\xf0\x9f\x93\x84  Genera wg0.conf (worker)"));
     exportConfBtn->setToolTip(
         "Genera un file di configurazione WireGuard client da completare.\n"
         "Richiede: IP del server VPN, pubkey del server, IP assegnato al worker.");

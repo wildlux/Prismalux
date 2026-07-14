@@ -126,7 +126,7 @@ QWidget* ProgrammazionePage::buildGitRepoRow(QWidget* parent,
     auto* repoLay = new QHBoxLayout(repoRow);
     repoLay->setContentsMargins(0, 0, 0, 0);
     repoLay->setSpacing(8);
-    repoLay->addWidget(new QLabel("Repository:", repoRow));
+    repoLay->addWidget(new QLabel(tr("Repository:"), repoRow));
 
     m_gitRepoPath = new QLineEdit(repoRow);
     m_gitRepoPath->setObjectName("chatInput");
@@ -169,7 +169,7 @@ QWidget* ProgrammazionePage::buildGitActionsRow(QWidget* parent)
     auto* btnPull   = mkBtn("\xe2\xac\x87  Pull",            "git pull (richiede conferma)");
     actLay->addStretch(1);
 
-    m_btnGitStop = new QPushButton("\xe2\x96\xa0  Stop", m_gitActRow);
+    m_btnGitStop = new QPushButton(tr("\xe2\x96\xa0  Stop"), m_gitActRow);
     m_btnGitStop->setObjectName("actionBtn");
     m_btnGitStop->setProperty("danger", "true");
     m_btnGitStop->setEnabled(false);
@@ -202,13 +202,13 @@ QWidget* ProgrammazionePage::buildGitCommitRow(QWidget* parent,
     m_gitCommitMsg->setPlaceholderText(tr("Messaggio di commit..."));
     commitLay->addWidget(m_gitCommitMsg, 1);
 
-    outBtnAddCommit = new QPushButton("\xe2\x9c\x85  Add + Commit", commitRow);
+    outBtnAddCommit = new QPushButton(tr("\xe2\x9c\x85  Add + Commit"), commitRow);
     outBtnAddCommit->setObjectName("actionBtn");
     outBtnAddCommit->setProperty("highlight", "true");
     outBtnAddCommit->setToolTip(tr("git add -A  \xe2\x86\x92  git commit -m \"...\""));
     commitLay->addWidget(outBtnAddCommit);
 
-    outBtnPush = new QPushButton("\xe2\xac\x86  Push", commitRow);
+    outBtnPush = new QPushButton(tr("\xe2\xac\x86  Push"), commitRow);
     outBtnPush->setObjectName("actionBtn");
     outBtnPush->setToolTip(tr("git push (richiede conferma)"));
     commitLay->addWidget(outBtnPush);
@@ -228,7 +228,7 @@ QWidget* ProgrammazionePage::buildGitOutputGroup(QWidget* parent,
     const int appPt = QApplication::font().pointSize();
     monoFont.setPointSize(appPt > 0 ? appPt : 10);
 
-    auto* outGroup = new QGroupBox("\xf0\x9f\x96\xa5  Output git", parent);
+    auto* outGroup = new QGroupBox(tr("\xf0\x9f\x96\xa5  Output git"), parent);
     outGroup->setObjectName("cardGroup");
     auto* outLay = new QVBoxLayout(outGroup);
     outLay->setContentsMargins(4, 8, 4, 4);
@@ -248,17 +248,17 @@ QWidget* ProgrammazionePage::buildGitOutputGroup(QWidget* parent,
     outActLay->setContentsMargins(0, 2, 0, 0);
     outActLay->setSpacing(8);
 
-    outBtnClearGit = new QPushButton("\xf0\x9f\x97\x91  Pulisci", outActRow);
+    outBtnClearGit = new QPushButton(tr("\xf0\x9f\x97\x91  Pulisci"), outActRow);
     outBtnClearGit->setObjectName("actionBtn");
     outActLay->addWidget(outBtnClearGit);
 
-    outBtnGitAi = new QPushButton("\xf0\x9f\xa4\x96  Analizza con AI", outActRow);
+    outBtnGitAi = new QPushButton(tr("\xf0\x9f\xa4\x96  Analizza con AI"), outActRow);
     outBtnGitAi->setObjectName("actionBtn");
     outBtnGitAi->setToolTip(
         "L'AI spiega l'output e suggerisce le prossime operazioni");
     outActLay->addWidget(outBtnGitAi);
 
-    outBtnGenCommit = new QPushButton("\xe2\x9c\x8f  Genera commit msg", outActRow);
+    outBtnGenCommit = new QPushButton(tr("\xe2\x9c\x8f  Genera commit msg"), outActRow);
     outBtnGenCommit->setObjectName("actionBtn");
     outBtnGenCommit->setProperty("highlight", "true");
     outBtnGenCommit->setToolTip(
@@ -297,7 +297,7 @@ QWidget* ProgrammazionePage::buildGitAiPanel(QWidget* parent,
     auto* aiModLay = new QHBoxLayout(aiModRow);
     aiModLay->setContentsMargins(0, 0, 0, 0);
     aiModLay->setSpacing(8);
-    aiModLay->addWidget(new QLabel("\xf0\x9f\xa4\x96  Modello:", aiModRow));
+    aiModLay->addWidget(new QLabel(tr("\xf0\x9f\xa4\x96  Modello:"), aiModRow));
 
     m_gitAiModel = new QComboBox(aiModRow);
     m_gitAiModel->setObjectName("settingCombo");
@@ -525,16 +525,16 @@ QWidget* ProgrammazionePage::buildReplHeader(QWidget* parent,
     desc->setWordWrap(true);
     hdrLay->addWidget(desc, 1);
 
-    m_replStatus = new QLabel("\xe2\x9d\x8c  Non avviato", hdr);
+    m_replStatus = new QLabel(tr("\xe2\x9d\x8c  Non avviato"), hdr);
     m_replStatus->setObjectName("hintLabel");
     hdrLay->addWidget(m_replStatus);
 
-    outBtnRestart = new QPushButton("\xf0\x9f\x94\x84  Riavvia REPL", hdr);
+    outBtnRestart = new QPushButton(tr("\xf0\x9f\x94\x84  Riavvia REPL"), hdr);
     outBtnRestart->setObjectName("actionBtn");
     outBtnRestart->setToolTip(tr("Riavvia il processo Python (resetta tutte le variabili)"));
     hdrLay->addWidget(outBtnRestart);
 
-    outBtnImport = new QPushButton("\xe2\x86\x90  Importa dall'editor", hdr);
+    outBtnImport = new QPushButton(tr("\xe2\x86\x90  Importa dall'editor"), hdr);
     outBtnImport->setObjectName("actionBtn");
     outBtnImport->setToolTip(
         "Esegue nel REPL il codice presente nel tab \xf0\x9f\x92\xbb Programmazione");
@@ -569,7 +569,7 @@ QWidget* ProgrammazionePage::buildReplOutputGroup(QWidget* parent,
         "Premi \xf0\x9f\x94\x84 Riavvia REPL per avviare una sessione Python...");
     outLay->addWidget(m_replOutput, 1);
 
-    outBtnClear = new QPushButton("\xf0\x9f\x97\x91  Pulisci output", outGroup);
+    outBtnClear = new QPushButton(tr("\xf0\x9f\x97\x91  Pulisci output"), outGroup);
     outBtnClear->setObjectName("actionBtn");
     outLay->addWidget(outBtnClear, 0, Qt::AlignLeft);
 
@@ -604,7 +604,7 @@ QWidget* ProgrammazionePage::buildReplInputRow(QWidget* parent)
     m_replInput->setEnabled(false);
     inputLay->addWidget(m_replInput, 1);
 
-    m_btnSendRepl = new QPushButton("Invia \xe2\x96\xb6", inputRow);
+    m_btnSendRepl = new QPushButton(tr("Invia \xe2\x96\xb6"), inputRow);
     m_btnSendRepl->setObjectName("actionBtn");
     m_btnSendRepl->setEnabled(false);
     inputLay->addWidget(m_btnSendRepl);
@@ -733,7 +733,7 @@ void ProgrammazionePage::onBtnCloseGitAiClicked()
 
 void ProgrammazionePage::onBtnGitPullClicked()
 {
-    if (QMessageBox::question(this, "git pull",
+    if (QMessageBox::question(this, tr("git pull"),
             "Eseguire git pull?\n\n"
             "Le modifiche remote verranno unite al branch corrente.",
             QMessageBox::Yes | QMessageBox::No) != QMessageBox::Yes)
@@ -745,11 +745,11 @@ void ProgrammazionePage::onBtnAddCommitClicked()
 {
     const QString msg = m_gitCommitMsg ? m_gitCommitMsg->text().trimmed() : QString();
     if (msg.isEmpty()) {
-        QMessageBox::warning(this, "Messaggio mancante",
+        QMessageBox::warning(this, tr("Messaggio mancante"),
             "Inserisci un messaggio di commit prima di procedere.");
         return;
     }
-    if (QMessageBox::question(this, "Add + Commit",
+    if (QMessageBox::question(this, tr("Add + Commit"),
             QString("Eseguire:\n  git add -A\n  git commit -m \"%1\"\n\n"
                     "Tutte le modifiche verranno staged e committate.").arg(msg),
             QMessageBox::Yes | QMessageBox::No) != QMessageBox::Yes)
@@ -761,7 +761,7 @@ void ProgrammazionePage::onBtnAddCommitClicked()
 
 void ProgrammazionePage::onBtnPushClicked()
 {
-    if (QMessageBox::question(this, "git push",
+    if (QMessageBox::question(this, tr("git push"),
             "Eseguire git push?\n\n"
             "I commit locali verranno inviati al repository remoto.",
             QMessageBox::Yes | QMessageBox::No) != QMessageBox::Yes)

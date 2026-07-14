@@ -181,7 +181,7 @@ QWidget* ImpostazioniPage::buildVoceTab()
 
     auto* btnInstall = new QPushButton(secPiper);
     btnInstall->setObjectName("actionBtn");
-    btnInstall->setToolTip("Scarica e installa il binario Piper nella cartella del progetto (<appDir>/piper/)");
+    btnInstall->setToolTip(tr("Scarica e installa il binario Piper nella cartella del progetto (<appDir>/piper/)"));
 
     std::function<void()> refreshBtn = [btnInstall]() {
         const bool installed = !ImpostazioniPage::piperBinPath().isEmpty();
@@ -226,7 +226,7 @@ QWidget* ImpostazioniPage::buildVoceTab()
     auto* activeRowLay = new QHBoxLayout(activeRow);
     activeRowLay->setContentsMargins(0, 0, 0, 0);
     activeRowLay->setSpacing(8);
-    activeRowLay->addWidget(new QLabel("Voce attiva:", secVoci));
+    activeRowLay->addWidget(new QLabel(tr("Voce attiva:"), secVoci));
     auto* cmbVoice = new QComboBox(secVoci);
     cmbVoice->setObjectName("settingsCombo");
     for (int i = 0; i < N_VOICES; i++) {
@@ -682,7 +682,7 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
         llmModelCombo->setEnabled(false);
         llmModelCombo->addItem(
             "\xe2\x80\x94  Nessun modello audio disponibile", "");
-        llmModelRow->addWidget(new QLabel("Modello:", llmPanel));
+        llmModelRow->addWidget(new QLabel(tr("Modello:"), llmPanel));
         llmModelRow->addWidget(llmModelCombo, 1);
 
         auto* llmRefreshBtn = new QPushButton(
@@ -818,7 +818,7 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
     secBinLay->setContentsMargins(14, 10, 14, 10);
     secBinLay->setSpacing(6);
 
-    auto* binTitle = new QLabel("\xf0\x9f\x94\x8d  <b>Binario whisper-cli</b>", secBin);
+    auto* binTitle = new QLabel(tr("\xf0\x9f\x94\x8d  <b>Binario whisper-cli</b>"), secBin);
     binTitle->setObjectName("cardTitle");
     binTitle->setTextFormat(Qt::RichText);
     secBinLay->addWidget(binTitle);
@@ -830,7 +830,7 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
     secBinLay->addWidget(lblBin);
 
     /* Pulsante ricontrolla — aggiorna lo stato senza riaprire le impostazioni */
-    auto* btnRescan = new QPushButton("\xf0\x9f\x94\x84  Ricontrolla", secBin);
+    auto* btnRescan = new QPushButton(tr("\xf0\x9f\x94\x84  Ricontrolla"), secBin);
     btnRescan->setObjectName("actionBtn");
     btnRescan->setFixedHeight(dpiScale(28));
     btnRescan->setToolTip(tr("Riscansiona i percorsi noti per whisper-cli."));
@@ -861,7 +861,7 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
                 "cd whisper.cpp &amp;&amp; cmake -B build &amp;&amp; "
                 "cmake --build build -j$(nproc)</code>");
         } else {
-            lblBin->setText("\xe2\x9c\x85  Trovato: <code>" + b + "</code>");
+            lblBin->setText(tr("\xe2\x9c\x85  Trovato: <code>") + b + "</code>");
         }
         btnCompileWsp->setVisible(b.isEmpty());
         btnRescan->setVisible(b.isEmpty());  /* nasconde dopo il rilevamento */
@@ -935,7 +935,7 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
                 if (!log || !status) { next(false); return; }
                 log->appendPlainText("\n\xe2\x96\xb6 " + desc);
                 log->appendPlainText("$ " + prog + " " + args.join(" ") + "\n");
-                status->setText("\xe2\x8c\x9b  " + desc + "...");
+                status->setText(tr("\xe2\x8c\x9b  ") + desc + "...");
 
                 auto* proc = new QProcess(log);
                 QObject::connect(proc, &QProcess::readyReadStandardOutput,
@@ -1079,7 +1079,7 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
             lblActivePath->setText(
                 "\xe2\x9d\x8c  Nessun modello trovato &mdash; scaricane uno qui sotto.");
         else
-            lblActivePath->setText("\xe2\x9c\x85  <code>" + m + "</code>");
+            lblActivePath->setText(tr("\xe2\x9c\x85  <code>") + m + "</code>");
     };
     refreshActive();
     secActLay->addWidget(lblActivePath);
@@ -1104,7 +1104,7 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
             cmbModel->setCurrentIndex(i);
     }
 
-    auto* btnApply = new QPushButton("\xe2\x9c\x94  Applica", secActive);
+    auto* btnApply = new QPushButton(tr("\xe2\x9c\x94  Applica"), secActive);
     btnApply->setObjectName("actionBtn");
     btnApply->setToolTip(tr("Imposta il modello selezionato come modello attivo"));
     QObject::connect(btnApply, &QPushButton::clicked, inner,
@@ -1120,7 +1120,7 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
         refreshActive();
     });
 
-    selRowLay->addWidget(new QLabel("Seleziona:", secActive));
+    selRowLay->addWidget(new QLabel(tr("Seleziona:"), secActive));
     selRowLay->addWidget(cmbModel, 1);
     selRowLay->addWidget(btnApply);
     secActLay->addWidget(selRow);
@@ -1417,7 +1417,7 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
         row2Lay->setContentsMargins(0, 0, 0, 0);
         row2Lay->setSpacing(10);
 
-        row2Lay->addWidget(new QLabel("Numero speaker:", row2));
+        row2Lay->addWidget(new QLabel(tr("Numero speaker:"), row2));
         auto* spinNSpeakers = new QSpinBox(row2);
         spinNSpeakers->setRange(0, 10);
         spinNSpeakers->setSpecialValueText("Auto");

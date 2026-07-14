@@ -1181,23 +1181,23 @@ QWidget* ImpostazioniPage::buildLlmConsigliatiTab()
     /* ════════════════════════════════════════════════════════
        Colonna sinistra — Filtro gestore + categoria
        ════════════════════════════════════════════════════════ */
-    auto* leftGroup = new QGroupBox("\xf0\x9f\x94\xa7  Filtro", colsRow);
+    auto* leftGroup = new QGroupBox(tr("\xf0\x9f\x94\xa7  Filtro"), colsRow);
     leftGroup->setObjectName("cardGroup");
     leftGroup->setFixedWidth(dpiScale(190));
     auto* leftLay = new QVBoxLayout(leftGroup);
     leftLay->setSpacing(5);
 
-    auto* lblGest = new QLabel("Gestore:", leftGroup);
+    auto* lblGest = new QLabel(tr("Gestore:"), leftGroup);
     lblGest->setObjectName("cardDesc");
-    auto* btnOllama = new QRadioButton("\xf0\x9f\x90\xb3  Ollama", leftGroup);
+    auto* btnOllama = new QRadioButton(tr("\xf0\x9f\x90\xb3  Ollama"), leftGroup);
     btnOllama->setChecked(true);
-    auto* btnGguf   = new QRadioButton("\xf0\x9f\xa6\x99  GGUF (llama.cpp)", leftGroup);
+    auto* btnGguf   = new QRadioButton(tr("\xf0\x9f\xa6\x99  GGUF (llama.cpp)"), leftGroup);
 
     auto* sepFilt = new QFrame(leftGroup);
     sepFilt->setFrameShape(QFrame::HLine);
     sepFilt->setObjectName("sidebarSep");
 
-    auto* lblCat = new QLabel("Categoria:", leftGroup);
+    auto* lblCat = new QLabel(tr("Categoria:"), leftGroup);
     lblCat->setObjectName("cardDesc");
 
     leftLay->addWidget(lblGest);
@@ -1240,7 +1240,7 @@ QWidget* ImpostazioniPage::buildLlmConsigliatiTab()
     /* ════════════════════════════════════════════════════════
        Colonna destra — lista + pannello dettaglio
        ════════════════════════════════════════════════════════ */
-    auto* rightGroup = new QGroupBox("\xf0\x9f\x93\xa6  Modelli disponibili", colsRow);
+    auto* rightGroup = new QGroupBox(tr("\xf0\x9f\x93\xa6  Modelli disponibili"), colsRow);
     rightGroup->setObjectName("cardGroup");
     auto* rightLay = new QVBoxLayout(rightGroup);
     rightLay->setSpacing(8);
@@ -1272,13 +1272,13 @@ QWidget* ImpostazioniPage::buildLlmConsigliatiTab()
     detLay->setContentsMargins(0, 4, 0, 0);
     detLay->setSpacing(10);
 
-    auto* detailLbl = new QLabel("Seleziona un modello per i dettagli.", rightGroup);
+    auto* detailLbl = new QLabel(tr("Seleziona un modello per i dettagli."), rightGroup);
     detailLbl->setObjectName("cardDesc");
     detailLbl->setWordWrap(true);
     detailLbl->setTextFormat(Qt::RichText);
     detailLbl->setMinimumHeight(44);
 
-    auto* installBtn = new QPushButton("\xe2\xac\x87  Installa", rightGroup);
+    auto* installBtn = new QPushButton(tr("\xe2\xac\x87  Installa"), rightGroup);
     installBtn->setObjectName("actionBtn");
     installBtn->setFixedWidth(dpiScale(110));
     installBtn->setEnabled(false);
@@ -1319,7 +1319,7 @@ QWidget* ImpostazioniPage::buildLlmConsigliatiTab()
     customEdit->setPlaceholderText(
         "https://huggingface.co/.../resolve/main/modello.gguf");
     m_llmCustomEdit = customEdit;
-    auto* customDlBtn = new QPushButton("\xe2\xac\x87  Scarica", rightGroup);
+    auto* customDlBtn = new QPushButton(tr("\xe2\xac\x87  Scarica"), rightGroup);
     customDlBtn->setObjectName("actionBtn");
     customDlBtn->setFixedWidth(dpiScale(100));
     m_llmCustomDlBtn = customDlBtn;
@@ -1571,7 +1571,7 @@ QWidget* ImpostazioniPage::buildLlmClassificaTab()
     filterLay->setContentsMargins(0, 0, 0, 0);
     filterLay->setSpacing(10);
 
-    auto* filterLbl = new QLabel("Filtra per RAM disponibile:", filterRow);
+    auto* filterLbl = new QLabel(tr("Filtra per RAM disponibile:"), filterRow);
     filterLbl->setObjectName("cardDesc");
     auto* filterCombo = new QComboBox(filterRow);
     filterCombo->addItem("Tutti i modelli",   0);
@@ -1591,7 +1591,7 @@ QWidget* ImpostazioniPage::buildLlmClassificaTab()
     filterCatCombo->addItem("Vision",              "Vision");
     filterCatCombo->setFixedWidth(dpiScale(180));
 
-    auto* sortLbl = new QLabel("Ordina per:", filterRow);
+    auto* sortLbl = new QLabel(tr("Ordina per:"), filterRow);
     sortLbl->setObjectName("cardDesc");
     auto* sortCombo = new QComboBox(filterRow);
     sortCombo->addItem("Score qualit\xc3\xa0 \xe2\x86\x93", 0);
@@ -1647,7 +1647,7 @@ QWidget* ImpostazioniPage::buildLlmClassificaTab()
     mainLay->addWidget(table, 1);
 
     /* ── Pannello dettaglio + installazione ── */
-    auto* detailGroup = new QGroupBox("\xf0\x9f\x94\x8d  Dettaglio modello selezionato", page);
+    auto* detailGroup = new QGroupBox(tr("\xf0\x9f\x94\x8d  Dettaglio modello selezionato"), page);
     detailGroup->setObjectName("cardGroup");
     auto* detailLay = new QHBoxLayout(detailGroup);
     detailLay->setContentsMargins(10, 8, 10, 8);
@@ -1659,7 +1659,7 @@ QWidget* ImpostazioniPage::buildLlmClassificaTab()
     detailLbl->setTextFormat(Qt::RichText);
     detailLbl->setWordWrap(true);
 
-    auto* installBtn = new QPushButton("\xe2\xac\x87  Installa (Ollama)", detailGroup);
+    auto* installBtn = new QPushButton(tr("\xe2\xac\x87  Installa (Ollama)"), detailGroup);
     installBtn->setObjectName("actionBtn");
     installBtn->setFixedWidth(dpiScale(160));
     installBtn->setEnabled(false);
@@ -2005,7 +2005,7 @@ QWidget* ImpostazioniPage::buildBenchmarkLocaleTab()
     /* ── Grafico benchmark (SVG vettoriale con zoom+pan interattivo) ── */
     auto* imgView = new ZoomableImageView(page);
     imgView->setMinimumHeight(dpiScale(280));
-    imgView->setToolTip("Rotella: zoom \xe2\x80\xa2 Trascina: pan \xe2\x80\xa2 Doppio click: reset");
+    imgView->setToolTip(tr("Rotella: zoom \xe2\x80\xa2 Trascina: pan \xe2\x80\xa2 Doppio click: reset"));
     m_benchmarkImgLbl = imgView;
     auto refreshImg = [imgView]() {
         const QString svgPath = P::root() + "/benchmark_out/benchmark_combined.svg";
@@ -2059,7 +2059,7 @@ void ImpostazioniPage::onBenchmarkRunClicked()
                 "<span style='color:#f87171;'>\xe2\x9d\x8c Script non trovato: " + script + "</span>");
         return;
     }
-    if (m_benchmarkRunBtn) m_benchmarkRunBtn->setText("\xe2\x96\xa0  Stop benchmark");
+    if (m_benchmarkRunBtn) m_benchmarkRunBtn->setText(tr("\xe2\x96\xa0  Stop benchmark"));
     if (m_benchmarkStatusLbl)
         m_benchmarkStatusLbl->setText(
             "<span style='color:#facc15;'>\xe2\x8f\xb3 Benchmark in corso...</span>");
@@ -2078,7 +2078,7 @@ void ImpostazioniPage::onBenchmarkRunClicked()
                 m_benchmarkStatusLbl->setText(
                     "<span style='color:#f87171;'>\xe2\x9d\x8c Python non trovato nel PATH.</span>");
             if (m_benchmarkRunBtn)
-                m_benchmarkRunBtn->setText("\xf0\x9f\x94\x84  Riesegui benchmark");
+                m_benchmarkRunBtn->setText(tr("\xf0\x9f\x94\x84  Riesegui benchmark"));
         }
     });
     m_benchmarkProc->start(P::findPython(), {script, "--out", P::root() + "/benchmark_out"});
@@ -2098,7 +2098,7 @@ void ImpostazioniPage::onBenchmarkProcReadyRead()
 void ImpostazioniPage::onBenchmarkProcFinished(int code, QProcess::ExitStatus)
 {
     if (m_benchmarkRunBtn)
-        m_benchmarkRunBtn->setText("\xf0\x9f\x94\x84  Riesegui benchmark");
+        m_benchmarkRunBtn->setText(tr("\xf0\x9f\x94\x84  Riesegui benchmark"));
     const bool ok = (code == 0);
     if (m_benchmarkStatusLbl)
         m_benchmarkStatusLbl->setText(ok

@@ -85,7 +85,7 @@ AppControllerPage::AppControllerPage(AiClient* ai, QWidget* parent)
     /* McpManagerPage → spostato in Impostazioni → Gestione MCP */
     {
         auto* tgTab = buildTelegramTab();
-        m_tabs->addTab(tgTab, "\xf0\x9f\x93\xac  Telegram");  /* 📬 */
+        m_tabs->addTab(tgTab, tr("\xf0\x9f\x93\xac  Telegram"));  /* 📬 */
         const int tgIdx = m_tabs->indexOf(tgTab);
         connect(m_tabs, &QTabWidget::currentChanged, this,
             [this, tgIdx](int idx) {

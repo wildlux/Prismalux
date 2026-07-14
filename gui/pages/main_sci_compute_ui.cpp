@@ -274,7 +274,7 @@ Prismalux v3.0 &mdash; Calcolo Scientifico Distribuito &mdash;
 )HTML";
 
     auto* dlg  = new QDialog(parent);
-    dlg->setWindowTitle("Guida — Calcolo Scientifico Distribuito");
+    dlg->setWindowTitle(QObject::tr("Guida — Calcolo Scientifico Distribuito"));
     dlg->resize(820, 620);
     dlg->setAttribute(Qt::WA_DeleteOnClose);
 
@@ -321,14 +321,14 @@ QWidget* SciComputePage::buildUi()
     auto* cfgLay    = new QHBoxLayout(cfgBar);
     cfgLay->setContentsMargins(0,0,0,0); cfgLay->setSpacing(dpiScale(8));
 
-    auto* coordRb = new QRadioButton("\xf0\x9f\x96\xa7  Coordinator (server)", cfgBar);
-    auto* workerRb= new QRadioButton("\xf0\x9f\x96\xa5  Worker (client)",       cfgBar);
+    auto* coordRb = new QRadioButton(tr("\xf0\x9f\x96\xa7  Coordinator (server)"), cfgBar);
+    auto* workerRb= new QRadioButton(tr("\xf0\x9f\x96\xa5  Worker (client)"),       cfgBar);
     coordRb->setChecked(true);
     auto* modeBg = new QButtonGroup(cfgBar);
     modeBg->addButton(coordRb, 0);
     modeBg->addButton(workerRb, 1);
 
-    m_localChk = new QCheckBox("Usa questo PC come worker", cfgBar);
+    m_localChk = new QCheckBox(tr("Usa questo PC come worker"), cfgBar);
     m_localChk->setChecked(true);
     m_localChk->setToolTip(tr("Il coordinator esegue anche task locali"));
 
@@ -340,7 +340,7 @@ QWidget* SciComputePage::buildUi()
     auto* tokenWidget = new QWidget(cfgBar);
     auto* tokenLay = new QHBoxLayout(tokenWidget);
     tokenLay->setContentsMargins(0,0,0,0); tokenLay->setSpacing(dpiScale(4));
-    tokenLay->addWidget(new QLabel("Token:", tokenWidget));
+    tokenLay->addWidget(new QLabel(tr("Token:"), tokenWidget));
     m_tokenEdit = new QLineEdit(tokenWidget);
     m_tokenEdit->setEchoMode(QLineEdit::Password);
     m_tokenEdit->setText(m_token);
@@ -393,12 +393,12 @@ QWidget* SciComputePage::buildUi()
     auto* workerCfg = new QWidget;
     auto* wcLay     = new QHBoxLayout(workerCfg);
     wcLay->setContentsMargins(0,0,0,0); wcLay->setSpacing(dpiScale(6));
-    wcLay->addWidget(new QLabel("Coordinator IP:", workerCfg));
+    wcLay->addWidget(new QLabel(tr("Coordinator IP:"), workerCfg));
     m_coordHostEdit = new QLineEdit(workerCfg);
     m_coordHostEdit->setPlaceholderText(tr("100.64.0.1  (IP Tailscale)"));
     m_coordHostEdit->setFixedWidth(dpiScale(160));
     wcLay->addWidget(m_coordHostEdit);
-    wcLay->addWidget(new QLabel("Token:", workerCfg));
+    wcLay->addWidget(new QLabel(tr("Token:"), workerCfg));
     auto* wTokenEdit = new QLineEdit(workerCfg);
     wTokenEdit->setEchoMode(QLineEdit::Password);
     wTokenEdit->setFixedWidth(dpiScale(180));
@@ -406,7 +406,7 @@ QWidget* SciComputePage::buildUi()
     connect(wTokenEdit, &QLineEdit::textChanged, this,
             [this](const QString& t){ m_token = t; });
     wcLay->addWidget(wTokenEdit);
-    m_btnConnect = new QPushButton("\xf0\x9f\x94\x97  Connetti", workerCfg);
+    m_btnConnect = new QPushButton(tr("\xf0\x9f\x94\x97  Connetti"), workerCfg);
     m_btnConnect->setObjectName("primaryBtn");
     wcLay->addWidget(m_btnConnect);
     wcLay->addStretch(1);
@@ -444,7 +444,7 @@ QWidget* SciComputePage::buildUi()
 
     /* Tipo task */
     auto* typeRow = new QHBoxLayout;
-    typeRow->addWidget(new QLabel("Tipo:", createGroup));
+    typeRow->addWidget(new QLabel(tr("Tipo:"), createGroup));
     m_typeCombo = new QComboBox(createGroup);
     m_typeCombo->setObjectName("settingCombo");
     for (const auto& t : taskTypes()) {
@@ -456,7 +456,7 @@ QWidget* SciComputePage::buildUi()
 
     /* Label */
     auto* lblRow = new QHBoxLayout;
-    lblRow->addWidget(new QLabel("Label:", createGroup));
+    lblRow->addWidget(new QLabel(tr("Label:"), createGroup));
     m_labelEdit = new QLineEdit(createGroup);
     m_labelEdit->setPlaceholderText(tr("Descrizione breve (opzionale)"));
     lblRow->addWidget(m_labelEdit, 1);
@@ -464,7 +464,7 @@ QWidget* SciComputePage::buildUi()
 
     /* LLM del server */
     auto* llmRow = new QHBoxLayout;
-    llmRow->addWidget(new QLabel("\xf0\x9f\xa4\x96  LLM:", createGroup));
+    llmRow->addWidget(new QLabel(tr("\xf0\x9f\xa4\x96  LLM:"), createGroup));
     m_wuLlmCombo = new QComboBox(createGroup);
     m_wuLlmCombo->setObjectName("settingCombo");
     m_wuLlmCombo->setEditable(true);
@@ -487,7 +487,7 @@ QWidget* SciComputePage::buildUi()
     formLay->addLayout(llmRow);
 
     /* Params JSON */
-    formLay->addWidget(new QLabel("Parametri JSON:", createGroup));
+    formLay->addWidget(new QLabel(tr("Parametri JSON:"), createGroup));
     m_paramsEdit = new QTextEdit(createGroup);
     m_paramsEdit->setMinimumHeight(dpiScale(90));
     m_paramsEdit->setMaximumHeight(dpiScale(200));
@@ -497,7 +497,7 @@ QWidget* SciComputePage::buildUi()
 
     /* Priorità + Repliche */
     auto* prioRow = new QHBoxLayout;
-    prioRow->addWidget(new QLabel("Priorit\xc3\xa0:", createGroup));
+    prioRow->addWidget(new QLabel(tr("Priorit\xc3\xa0:"), createGroup));
     m_priorityCmb = new QComboBox(createGroup);
     m_priorityCmb->setObjectName("settingCombo");
     m_priorityCmb->addItem("1 — Normale", 1);
@@ -505,7 +505,7 @@ QWidget* SciComputePage::buildUi()
     m_priorityCmb->addItem("3 — Urgente", 3);
     prioRow->addWidget(m_priorityCmb);
     prioRow->addSpacing(dpiScale(8));
-    prioRow->addWidget(new QLabel("Repliche:", createGroup));
+    prioRow->addWidget(new QLabel(tr("Repliche:"), createGroup));
     m_replicasCmb = new QComboBox(createGroup);
     m_replicasCmb->setObjectName("settingCombo");
     m_replicasCmb->addItem("1 (nessuna validazione)", 1);
@@ -573,10 +573,10 @@ QWidget* SciComputePage::buildUi()
     auto* btnRefWu = new QPushButton("\xf0\x9f\x94\x84", wuGroup);
     btnRefWu->setObjectName("actionBtn");
     btnRefWu->setToolTip(tr("Aggiorna lista WU"));
-    auto* btnDelWu = new QPushButton("\xf0\x9f\x97\x91  Elimina", wuGroup);
+    auto* btnDelWu = new QPushButton(tr("\xf0\x9f\x97\x91  Elimina"), wuGroup);
     btnDelWu->setObjectName("actionBtn");
     btnDelWu->setToolTip(tr("Elimina WU selezionata (solo se non in esecuzione)"));
-    m_btnAggregate = new QPushButton("\xf0\x9f\x93\x8a  Aggrega risultati", wuGroup);
+    m_btnAggregate = new QPushButton(tr("\xf0\x9f\x93\x8a  Aggrega risultati"), wuGroup);
     m_btnAggregate->setObjectName("actionBtn");
     m_btnAggregate->setToolTip(
         "Aggrega tutti i risultati della pipeline (o della WU selezionata)\n"
@@ -640,7 +640,7 @@ QWidget* SciComputePage::buildUi()
         nodeLay->insertWidget(0, workerGuide);
     }
     nodeLay->addWidget(m_nodeTable);
-    bottomTabs->addTab(nodeWidget, "\xf0\x9f\x96\xa5  Nodi");
+    bottomTabs->addTab(nodeWidget, tr("\xf0\x9f\x96\xa5  Nodi"));
 
     /* Tab risultati */
     auto* resWidget = new QWidget;
@@ -651,7 +651,7 @@ QWidget* SciComputePage::buildUi()
     m_resultView->setObjectName("codeEdit");
     m_resultView->setPlaceholderText(tr("Seleziona una WU nella tabella per vedere il risultato..."));
     resLay->addWidget(m_resultView);
-    bottomTabs->addTab(resWidget, "\xf0\x9f\x93\x8a  Risultati");
+    bottomTabs->addTab(resWidget, tr("\xf0\x9f\x93\x8a  Risultati"));
 
     /* Tab log */
     auto* logWidget = new QWidget;
@@ -661,7 +661,7 @@ QWidget* SciComputePage::buildUi()
     m_logView->setReadOnly(true);
     m_logView->setObjectName("codeEdit");
     logLay->addWidget(m_logView);
-    bottomTabs->addTab(logWidget, "\xf0\x9f\x93\x9c  Log");
+    bottomTabs->addTab(logWidget, tr("\xf0\x9f\x93\x9c  Log"));
 
     /* ── Tab Strutture proteiche ── */
     m_proteinWidget = new SciProteinWidget(bottomTabs);
@@ -757,7 +757,7 @@ QWidget* SciComputePage::buildUi()
     pipLay->addWidget(pipStatusLbl);
     pipLay->addStretch(1);
 
-    bottomTabs->addTab(pipWidget, "\xe2\x9b\x93  Pipeline");
+    bottomTabs->addTab(pipWidget, tr("\xe2\x9b\x93  Pipeline"));
 
     /* ── Tab Ricerca SDS (Shwachman-Diamond, pipeline di studio distribuita) ── */
     auto* sdsWidget = new QWidget(bottomTabs);
@@ -829,7 +829,7 @@ QWidget* SciComputePage::buildUi()
     sdsLay->addWidget(sdsHint);
     sdsLay->addStretch(1);
 
-    bottomTabs->addTab(sdsWidget, "\xf0\x9f\xa7\xac  Ricerca SDS");
+    bottomTabs->addTab(sdsWidget, tr("\xf0\x9f\xa7\xac  Ricerca SDS"));
 
     splitter->addWidget(bottomTabs);
     splitter->setStretchFactor(0, 3);

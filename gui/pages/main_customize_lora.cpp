@@ -105,7 +105,7 @@ QWidget* PersonalizzaPage::buildLoraTab()
         rightCol->setSpacing(10);
 
         /* Colonna sinistra: Modello base */
-        auto* grpModel = new QGroupBox("\xf0\x9f\x93\x81  Modello base (.gguf)", colsW);
+        auto* grpModel = new QGroupBox(tr("\xf0\x9f\x93\x81  Modello base (.gguf)"), colsW);
         grpModel->setObjectName("cardGroup");
         auto* mLay = new QHBoxLayout(grpModel);
         m_loraModelEdit = new QLineEdit(grpModel);
@@ -120,7 +120,7 @@ QWidget* PersonalizzaPage::buildLoraTab()
         leftCol->addWidget(grpModel);
 
         /* Colonna sinistra: Dataset */
-        auto* grpData = new QGroupBox("\xf0\x9f\x93\x8a  Dataset di training (.jsonl)", colsW);
+        auto* grpData = new QGroupBox(tr("\xf0\x9f\x93\x8a  Dataset di training (.jsonl)"), colsW);
         grpData->setObjectName("cardGroup");
         auto* dLay = new QHBoxLayout(grpData);
         m_loraDataEdit = new QLineEdit(grpData);
@@ -135,7 +135,7 @@ QWidget* PersonalizzaPage::buildLoraTab()
         leftCol->addWidget(grpData);
 
         /* Colonna sinistra: Iperparametri (griglia 2×3) */
-        auto* grpHyper = new QGroupBox("\xe2\x9a\x99\xef\xb8\x8f  Iperparametri LoRA", colsW);
+        auto* grpHyper = new QGroupBox(tr("\xe2\x9a\x99\xef\xb8\x8f  Iperparametri LoRA"), colsW);
         grpHyper->setObjectName("cardGroup");
         auto* hGrid = new QGridLayout(grpHyper);
         hGrid->setHorizontalSpacing(16);
@@ -144,39 +144,39 @@ QWidget* PersonalizzaPage::buildLoraTab()
         m_loraSpinEpochs = new QSpinBox(grpHyper);
         m_loraSpinEpochs->setRange(1, 100); m_loraSpinEpochs->setValue(3);
         m_loraSpinEpochs->setToolTip(tr("Numero di passaggi sull'intero dataset"));
-        hGrid->addWidget(new QLabel("Epoche:"),        0, 0, Qt::AlignRight);
+        hGrid->addWidget(new QLabel(tr("Epoche:")),        0, 0, Qt::AlignRight);
         hGrid->addWidget(m_loraSpinEpochs,             0, 1);
 
         m_loraSpinR = new QSpinBox(grpHyper);
         m_loraSpinR->setRange(1, 256); m_loraSpinR->setValue(8);
         m_loraSpinR->setToolTip(tr("Rango LoRA: valori bassi = meno parametri"));
-        hGrid->addWidget(new QLabel("Rango LoRA (r):"), 0, 2, Qt::AlignRight);
+        hGrid->addWidget(new QLabel(tr("Rango LoRA (r):")), 0, 2, Qt::AlignRight);
         hGrid->addWidget(m_loraSpinR,                   0, 3);
 
         m_loraSpinAlpha = new QSpinBox(grpHyper);
         m_loraSpinAlpha->setRange(1, 512); m_loraSpinAlpha->setValue(32);
         m_loraSpinAlpha->setToolTip(tr("Alpha LoRA: scala l'impatto dell'adapter (tipico: 2-4× rank)"));
-        hGrid->addWidget(new QLabel("Alpha LoRA:"),    1, 0, Qt::AlignRight);
+        hGrid->addWidget(new QLabel(tr("Alpha LoRA:")),    1, 0, Qt::AlignRight);
         hGrid->addWidget(m_loraSpinAlpha,              1, 1);
 
         m_loraDspLr = new QDoubleSpinBox(grpHyper);
         m_loraDspLr->setRange(1e-6, 1e-2); m_loraDspLr->setValue(1e-4);
         m_loraDspLr->setDecimals(7); m_loraDspLr->setSingleStep(1e-5);
         m_loraDspLr->setToolTip(tr("Learning rate (tipico: 1e-4 – 3e-4)"));
-        hGrid->addWidget(new QLabel("Learning rate:"), 1, 2, Qt::AlignRight);
+        hGrid->addWidget(new QLabel(tr("Learning rate:")), 1, 2, Qt::AlignRight);
         hGrid->addWidget(m_loraDspLr,                  1, 3);
 
         m_loraSpinBatch = new QSpinBox(grpHyper);
         m_loraSpinBatch->setRange(1, 64); m_loraSpinBatch->setValue(4);
         m_loraSpinBatch->setToolTip(tr("Batch size: su CPU limitare a 1-4"));
-        hGrid->addWidget(new QLabel("Batch size:"),    2, 0, Qt::AlignRight);
+        hGrid->addWidget(new QLabel(tr("Batch size:")),    2, 0, Qt::AlignRight);
         hGrid->addWidget(m_loraSpinBatch,              2, 1);
 
         m_loraSpinCtx = new QSpinBox(grpHyper);
         m_loraSpinCtx->setRange(128, 32768); m_loraSpinCtx->setValue(512);
         m_loraSpinCtx->setSingleStep(128);
         m_loraSpinCtx->setToolTip(tr("Lunghezza contesto per ogni esempio"));
-        hGrid->addWidget(new QLabel("Context size:"),  2, 2, Qt::AlignRight);
+        hGrid->addWidget(new QLabel(tr("Context size:")),  2, 2, Qt::AlignRight);
         hGrid->addWidget(m_loraSpinCtx,                2, 3);
 
         hGrid->setColumnStretch(1, 1);
@@ -185,7 +185,7 @@ QWidget* PersonalizzaPage::buildLoraTab()
         leftCol->addStretch();
 
         /* Colonna destra: Output */
-        auto* grpOut = new QGroupBox("\xf0\x9f\x92\xbe  Cartella output", colsW);
+        auto* grpOut = new QGroupBox(tr("\xf0\x9f\x92\xbe  Cartella output"), colsW);
         grpOut->setObjectName("cardGroup");
         auto* oLay = new QHBoxLayout(grpOut);
         m_loraOutEdit = new QLineEdit(grpOut);
@@ -230,7 +230,7 @@ QWidget* PersonalizzaPage::buildLoraTab()
         connect(m_loraStopBtn,  &QPushButton::clicked,
                 this, &PersonalizzaPage::onLoraStopBtnClicked);
 
-        subTabs->addTab(tab, "\xf0\x9f\xa6\x99  llama-finetune");
+        subTabs->addTab(tab, tr("\xf0\x9f\xa6\x99  llama-finetune"));
     }
 
     /* ════════════════════════ TAB 2: unsloth / Python ════════════════════ */
@@ -294,7 +294,7 @@ QWidget* PersonalizzaPage::buildLoraTab()
         tLay->addWidget(installBtn, 0, Qt::AlignLeft);
         tLay->addWidget(m_loraLog2);
 
-        subTabs->addTab(tab, "\xf0\x9f\x94\xa5  unsloth");
+        subTabs->addTab(tab, tr("\xf0\x9f\x94\xa5  unsloth"));
     }
 
     /* ════════════════════════ TAB 3: Guida ══════════════════════════════ */
@@ -341,7 +341,7 @@ QWidget* PersonalizzaPage::buildLoraTab()
         sc->setFrameShape(QFrame::NoFrame);
         tLay->addWidget(sc, 1);
 
-        subTabs->addTab(tab, "\xf0\x9f\x93\x96  Guida");
+        subTabs->addTab(tab, tr("\xf0\x9f\x93\x96  Guida"));
     }
 
     /* wrap in QWidget per compatibilità con addTab */

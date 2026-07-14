@@ -84,7 +84,7 @@ CodeInterpreterWidget::CodeInterpreterWidget(AiClient* ai, QWidget* parent)
     m_modelCombo->setMinimumWidth(dpiScale(200));
     m_modelCombo->setMaximumWidth(dpiScale(300));
     m_modelCombo->setToolTip(tr("Modello AI per la generazione"));
-    topRow->addWidget(new QLabel("Modello:", this));
+    topRow->addWidget(new QLabel(tr("Modello:"), this));
     topRow->addWidget(m_modelCombo);
     topRow->addStretch();
 
@@ -138,7 +138,7 @@ CodeInterpreterWidget::CodeInterpreterWidget(AiClient* ai, QWidget* parent)
     m_btnRun  = new QPushButton(
         "\xe2\x9a\xa1  Genera e Esegui con AI", this);
     m_btnRun->setObjectName("primaryBtn");
-    m_btnStop = new QPushButton("\xe2\x8f\xb9  Stop", this);
+    m_btnStop = new QPushButton(tr("\xe2\x8f\xb9  Stop"), this);
     m_btnStop->setEnabled(false);
     m_btnCopyCode = new QPushButton(
         "\xf0\x9f\x93\x8b  Copia codice", this);
@@ -366,7 +366,7 @@ void CodeInterpreterWidget::connectAI(std::function<void(const QString&)> onDone
     connect(m_ai, &AiClient::error, m_tokenHolder,
             [this](const QString& msg){
         if (m_tokenHolder) { delete m_tokenHolder; m_tokenHolder = nullptr; }
-        m_status->setText("\xe2\x9d\x8c  Errore AI: " + msg);
+        m_status->setText(tr("\xe2\x9d\x8c  Errore AI: ") + msg);
         setRunning(false);
     });
 }

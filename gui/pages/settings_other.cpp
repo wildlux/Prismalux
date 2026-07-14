@@ -112,7 +112,7 @@ static void settingsDoResetOnboarding(QPushButton* btn)
 {
     QSettings s("Prismalux", "GUI");
     s.remove("setup/done");
-    btn->setText("\xe2\x9c\x85  Reimpostato \xe2\x80\x94 riavvia Prismalux");
+    btn->setText(QObject::tr("\xe2\x9c\x85  Reimpostato \xe2\x80\x94 riavvia Prismalux"));
     btn->setEnabled(false);
 }
 
@@ -294,7 +294,7 @@ static void showAstroEaster(QWidget* parent)
 {
     auto* dlg = new QDialog(parent, Qt::Dialog);
     dlg->setAttribute(Qt::WA_DeleteOnClose);
-    dlg->setWindowTitle("\xe2\x9c\xa8 Segreto delle Stelle");
+    dlg->setWindowTitle(QObject::tr("\xe2\x9c\xa8 Segreto delle Stelle"));
     dlg->setFixedSize(dpiScale(460), dpiScale(450));
     dlg->setStyleSheet("QDialog{background:#080818;} QLabel{color:#e8d5b7;}");
 
@@ -400,7 +400,7 @@ static void showAstroEaster(QWidget* parent)
     }
 
     auto* lay   = new QVBoxLayout(dlg);
-    auto* title = new QLabel("\xe2\x9c\xa8\xc2\xa0 Segreto delle Stelle \xc2\xa0\xe2\x9c\xa8");
+    auto* title = new QLabel(QObject::tr("\xe2\x9c\xa8\xc2\xa0 Segreto delle Stelle \xc2\xa0\xe2\x9c\xa8"));
     title->setAlignment(Qt::AlignCenter);
     title->setStyleSheet("font-size:15px;font-weight:700;color:#e8d5b7;margin:6px 0 2px;");
 
@@ -419,7 +419,7 @@ static void showAstroEaster(QWidget* parent)
         "</span></center>");
     sub->setWordWrap(true);
 
-    auto* btn = new QPushButton("Chiudi");
+    auto* btn = new QPushButton(QObject::tr("Chiudi"));
     btn->setStyleSheet(
         "QPushButton{background:#1a1232;color:#c8b8e8;border:1px solid #5a4f8a;"
         "border-radius:6px;padding:5px 22px;font-size:12px;}"
@@ -448,7 +448,7 @@ static void unlockAstraleEasterEgg(QWidget* parent)
     QSettings s("Prismalux", "GUI");
     if (!s.value(P::SK::kAstraleUnlocked, false).toBool()) {
         s.setValue(P::SK::kAstraleUnlocked, true);
-        QMessageBox::information(parent, "\xf0\x9f\x94\x93  Sbloccato",
+        QMessageBox::information(parent, QObject::tr("\xf0\x9f\x94\x93  Sbloccato"),
             "Carta Astrale sbloccata \xe2\x80\x94 riavvia Prismalux (o riapri la "
             "scheda Ricerca) per vederla.");
     }
@@ -820,9 +820,9 @@ QWidget* ImpostazioniPage::buildMcpTab()
         auto* btnLay = new QHBoxLayout(btnRow);
         btnLay->setContentsMargins(0, 0, 0, 0);
 
-        auto* btnRimuovi  = new QPushButton("\xe2\x9d\x8c  Rimuovi selezionato");
-        auto* btnApri     = new QPushButton("\xf0\x9f\x93\x82  Apri settings.json");
-        auto* btnRefresh  = new QPushButton("\xf0\x9f\x94\x84  Aggiorna");
+        auto* btnRimuovi  = new QPushButton(tr("\xe2\x9d\x8c  Rimuovi selezionato"));
+        auto* btnApri     = new QPushButton(tr("\xf0\x9f\x93\x82  Apri settings.json"));
+        auto* btnRefresh  = new QPushButton(tr("\xf0\x9f\x94\x84  Aggiorna"));
         btnRimuovi->setObjectName("actionBtn");
         btnApri->setObjectName("actionBtn");
         btnRefresh->setObjectName("actionBtn");
@@ -881,11 +881,11 @@ QWidget* ImpostazioniPage::buildMcpTab()
             if (f.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
                 f.write(QJsonDocument(root).toJson());
                 fbkIo->setStyleSheet("color: green; font-size:11px;");
-                fbkIo->setText("\xe2\x9c\x85  Salvato in " +
+                fbkIo->setText(tr("\xe2\x9c\x85  Salvato in ") +
                     QFileInfo(path).fileName());
             } else {
                 fbkIo->setStyleSheet("color: red; font-size:11px;");
-                fbkIo->setText("\xe2\x9d\x8c  Errore scrittura file");
+                fbkIo->setText(tr("\xe2\x9d\x8c  Errore scrittura file"));
                 LogBus::post("\xe2\x9d\x8c Impostazioni: Errore scrittura file MCP JSON");
             }
         });
@@ -901,7 +901,7 @@ QWidget* ImpostazioniPage::buildMcpTab()
             QFile f(path);
             if (!f.open(QIODevice::ReadOnly)) {
                 fbkIo->setStyleSheet("color: red; font-size:11px;");
-                fbkIo->setText("\xe2\x9d\x8c  File non leggibile");
+                fbkIo->setText(tr("\xe2\x9d\x8c  File non leggibile"));
                 LogBus::post("\xe2\x9d\x8c Impostazioni: File MCP non leggibile");
                 return;
             }
@@ -913,7 +913,7 @@ QWidget* ImpostazioniPage::buildMcpTab()
                 : loaded;
             if (imported.isEmpty()) {
                 fbkIo->setStyleSheet("color: red; font-size:11px;");
-                fbkIo->setText("\xe2\x9d\x8c  Nessun MCP trovato nel file");
+                fbkIo->setText(tr("\xe2\x9d\x8c  Nessun MCP trovato nel file"));
                 LogBus::post("\xe2\x9d\x8c Impostazioni: Nessun MCP trovato nel file importato");
                 return;
             }
@@ -975,7 +975,7 @@ QWidget* ImpostazioniPage::buildMcpTab()
             auto* cLay = new QHBoxLayout(card);
 
             auto* info  = new QVBoxLayout;
-            auto* title = new QLabel("<b>" + c.name + "</b>");
+            auto* title = new QLabel(tr("<b>") + c.name + "</b>");
             auto* desc  = new QLabel(c.desc);
             desc->setWordWrap(true);
             desc->setStyleSheet("color: gray; font-size: 11px;");
@@ -1073,10 +1073,10 @@ QWidget* ImpostazioniPage::buildMcpTab()
         auto* btnL   = new QHBoxLayout(btnRow);
         btnL->setContentsMargins(0,0,0,0); btnL->setSpacing(8);
 
-        auto* btnAggOllama = new QPushButton("\xe2\x9e\x95  Aggiungi a Claude");
+        auto* btnAggOllama = new QPushButton(tr("\xe2\x9e\x95  Aggiungi a Claude"));
         btnAggOllama->setObjectName("actionBtn");
         btnAggOllama->setToolTip(tr("Aggiunge questo endpoint Ollama come MCP in Claude Desktop settings.json"));
-        auto* btnCopia = new QPushButton("\xf0\x9f\x93\x8b  Copia comando");
+        auto* btnCopia = new QPushButton(tr("\xf0\x9f\x93\x8b  Copia comando"));
         btnCopia->setObjectName("actionBtn");
         btnCopia->setToolTip(tr("Copia il comando curl per testare Ollama negli appunti"));
         auto* fbkOllama = new QLabel;
@@ -1175,7 +1175,7 @@ QWidget* ImpostazioniPage::buildMcpTab()
             cfg["mcpServers"] = mcp;
             writeCfg(cfg);
             fbk->setStyleSheet("color: green;");
-            fbk->setText("\xe2\x9c\x85  \"" + nome +
+            fbk->setText(tr("\xe2\x9c\x85  \"") + nome +
                 "\" aggiunto a settings.json");
             editNome->clear();
             editCmd->clear();
@@ -1248,7 +1248,7 @@ QWidget* ImpostazioniPage::buildMcpTab()
                 "<b>" + p.name + "</b>  \xe2\x80\x94  " + p.desc);
             lbl->setTextFormat(Qt::RichText);
             auto* btnCopy = new QPushButton("\xf0\x9f\x93\x8b");
-            btnCopy->setToolTip("Copia: " + p.installCmd);
+            btnCopy->setToolTip(tr("Copia: ") + p.installCmd);
             btnCopy->setFixedSize(28, 28);
             PopMcp cap = p;
             connect(btnCopy, &QPushButton::clicked, page, [cap]{
@@ -1353,12 +1353,12 @@ QWidget* ImpostazioniPage::buildAiMemoryTab()
     /* ── pulsanti ── */
     auto* btnRow = new QHBoxLayout;
 
-    auto* refreshBtn = new QPushButton("\xf0\x9f\x94\x84  Aggiorna", w);
+    auto* refreshBtn = new QPushButton(tr("\xf0\x9f\x94\x84  Aggiorna"), w);
     connect(refreshBtn, &QPushButton::clicked, w,
             [mem, logList](){ settingsRefreshAiMemoryLog(mem, logList); });
     btnRow->addWidget(refreshBtn);
 
-    auto* revertBtn = new QPushButton("\xe2\x86\xa9  Ripristina preferences.yaml", w);
+    auto* revertBtn = new QPushButton(tr("\xe2\x86\xa9  Ripristina preferences.yaml"), w);
     revertBtn->setToolTip(
         "Ripristina il file profile/preferences.yaml al commit selezionato.\n"
         "Gli altri file (interactions/, context/) non vengono toccati.");
@@ -1366,8 +1366,8 @@ QWidget* ImpostazioniPage::buildAiMemoryTab()
             [mem, logList, w](){ settingsDoRevertAiMemory(mem, logList, w); });
     btnRow->addWidget(revertBtn);
 
-    auto* openBtn = new QPushButton("\xf0\x9f\x93\x82  Apri cartella", w);
-    openBtn->setToolTip("Apre ~/.ai-memory/ nel gestore file di sistema");
+    auto* openBtn = new QPushButton(tr("\xf0\x9f\x93\x82  Apri cartella"), w);
+    openBtn->setToolTip(tr("Apre ~/.ai-memory/ nel gestore file di sistema"));
     connect(openBtn, &QPushButton::clicked, w, []() {
         QDesktopServices::openUrl(
             QUrl::fromLocalFile(QDir::homePath() + "/.ai-memory"));
@@ -1432,9 +1432,9 @@ QWidget* ImpostazioniPage::buildFeedbackTab()
 
     /* Riga bassa: pulsanti */
     auto* btnRow = new QHBoxLayout;
-    auto* btnRefresh = new QPushButton("\xf0\x9f\x94\x84  Aggiorna", w);
-    auto* btnExport  = new QPushButton("\xf0\x9f\x93\xa4  Esporta dataset DPO (ShareGPT)", w);
-    auto* btnClear   = new QPushButton("\xf0\x9f\x97\x91  Cancella dati", w);
+    auto* btnRefresh = new QPushButton(tr("\xf0\x9f\x94\x84  Aggiorna"), w);
+    auto* btnExport  = new QPushButton(tr("\xf0\x9f\x93\xa4  Esporta dataset DPO (ShareGPT)"), w);
+    auto* btnClear   = new QPushButton(tr("\xf0\x9f\x97\x91  Cancella dati"), w);
     btnRefresh->setObjectName("actionBtn");
     btnRefresh->setToolTip(tr("Ricarica la tabella dei feedback da chat_feedback.jsonl"));
     btnExport->setObjectName("actionBtn");
@@ -1467,7 +1467,7 @@ QWidget* ImpostazioniPage::buildFeedbackTab()
     vbox->addWidget(importLbl);
 
     auto* importRow = new QHBoxLayout;
-    auto* btnImport = new QPushButton("\xf0\x9f\x93\xa5  Importa da AI esterne", w);
+    auto* btnImport = new QPushButton(tr("\xf0\x9f\x93\xa5  Importa da AI esterne"), w);
     btnImport->setObjectName("actionBtn");
     btnImport->setToolTip(tr("Importa un file JSON esportato da OpenAI/Anthropic/altri servizi AI"));
     auto* importStatLbl = new QLabel(w);

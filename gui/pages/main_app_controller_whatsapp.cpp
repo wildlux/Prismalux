@@ -60,7 +60,7 @@ QWidget* AppControllerPage::buildWhatsAppTab()
     cfgLay->setSpacing(dpiScale(6));
 
     auto* bridgeRow = new QHBoxLayout;
-    auto* bridgeLbl = new QLabel("Bridge URL:", cfgGroup);
+    auto* bridgeLbl = new QLabel(tr("Bridge URL:"), cfgGroup);
     bridgeLbl->setFixedWidth(dpiScale(90));
     m_waBridgeUrlEdit = new QLineEdit(cfgGroup);
     m_waBridgeUrlEdit->setPlaceholderText(tr("http://localhost:3000"));
@@ -121,7 +121,7 @@ QWidget* AppControllerPage::buildWhatsAppTab()
     m_waContactList->setFixedHeight(dpiScale(80));
     promoLay->addWidget(m_waContactList);
 
-    auto* waMsgLbl = new QLabel("Messaggio:", promoGroup);
+    auto* waMsgLbl = new QLabel(tr("Messaggio:"), promoGroup);
     promoLay->addWidget(waMsgLbl);
     m_waPromoMsgEdit = new QTextEdit(promoGroup);
     m_waPromoMsgEdit->setFixedHeight(dpiScale(60));
@@ -158,7 +158,7 @@ QWidget* AppControllerPage::buildWhatsAppTab()
     botLay->addWidget(botHint);
 
     auto* wlRow = new QHBoxLayout;
-    auto* wlLbl = new QLabel("Whitelist numeri:", botGroup);
+    auto* wlLbl = new QLabel(tr("Whitelist numeri:"), botGroup);
     wlLbl->setFixedWidth(dpiScale(120));
     m_waWhitelistEdit = new QLineEdit(botGroup);
     m_waWhitelistEdit->setPlaceholderText(tr("+393331234567, +391234567890 (virgola = separatore)"));
@@ -189,7 +189,7 @@ QWidget* AppControllerPage::buildWhatsAppTab()
     botCtrlRow->addWidget(m_waBotStatusLbl, 1);
     botLay->addLayout(botCtrlRow);
 
-    auto* botLogGroup = new QGroupBox("Log messaggi", botGroup);
+    auto* botLogGroup = new QGroupBox(tr("Log messaggi"), botGroup);
     auto* botLogLay   = new QVBoxLayout(botLogGroup);
     m_waBotLog = new QTextBrowser(botLogGroup);
     m_waBotLog->setReadOnly(true);

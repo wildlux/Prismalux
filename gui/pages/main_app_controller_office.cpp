@@ -106,14 +106,14 @@ QWidget* AppControllerPage::buildOfficeTab()
     connLay->setContentsMargins(0, 0, 0, 0);
     connLay->setSpacing(8);
 
-    auto* lbl = new QLabel("Office:", connRow);
+    auto* lbl = new QLabel(tr("Office:"), connRow);
     lbl->setObjectName("hintLabel");
 
-    m_officeStartBtn = new QPushButton("\xe2\x96\xb6  Avvia bridge", connRow);
+    m_officeStartBtn = new QPushButton(tr("\xe2\x96\xb6  Avvia bridge"), connRow);
     m_officeStartBtn->setObjectName("actionBtn");
     m_officeStartBtn->setFixedWidth(dpiScale(120));
 
-    m_officeStatusLbl = new QLabel("\xe2\x9a\xaa  Bridge inattivo", connRow);
+    m_officeStatusLbl = new QLabel(tr("\xe2\x9a\xaa  Bridge inattivo"), connRow);
     m_officeStatusLbl->setObjectName("hintLabel");
 
     m_officeExecBtn = new QPushButton(
@@ -123,7 +123,7 @@ QWidget* AppControllerPage::buildOfficeTab()
     m_officeExecBtn->setEnabled(false);
 
     connLay->addWidget(lbl);
-    auto* officeHelpBtn = new QPushButton("\xf0\x9f\x9b\x9f  Aiuto", connRow);
+    auto* officeHelpBtn = new QPushButton(tr("\xf0\x9f\x9b\x9f  Aiuto"), connRow);
     officeHelpBtn->setToolTip(tr("Apri la documentazione LibreOffice e guida comandi macro"));
     officeHelpBtn->setObjectName("actionBtn");
     officeHelpBtn->setFixedWidth(dpiScale(80));
@@ -154,9 +154,9 @@ QWidget* AppControllerPage::buildOfficeTab()
 
     m_officeModel = new ModelComboBox(m_ai, toolRow);
 
-    toolLay->addWidget(new QLabel("Azione:", toolRow));
+    toolLay->addWidget(new QLabel(tr("Azione:"), toolRow));
     toolLay->addWidget(m_officeAction, 1);
-    toolLay->addWidget(new QLabel("Modello:", toolRow));
+    toolLay->addWidget(new QLabel(tr("Modello:"), toolRow));
     toolLay->addWidget(m_officeModel, 1);
     lay->addWidget(toolRow);
 
@@ -175,9 +175,9 @@ QWidget* AppControllerPage::buildOfficeTab()
     auto* btnLay = new QHBoxLayout(btnRow);
     btnLay->setContentsMargins(0, 0, 0, 0);
     btnLay->setSpacing(8);
-    m_officeRunBtn  = new QPushButton("\xe2\x96\xb6  Genera codice AI", btnRow);
+    m_officeRunBtn  = new QPushButton(tr("\xe2\x96\xb6  Genera codice AI"), btnRow);
     m_officeRunBtn->setObjectName("actionBtn");
-    m_officeStopBtn = new QPushButton("\xe2\x8f\xb9  Stop", btnRow);
+    m_officeStopBtn = new QPushButton(tr("\xe2\x8f\xb9  Stop"), btnRow);
     m_officeStopBtn->setObjectName("actionBtn");
     m_officeStopBtn->setProperty("danger", true);
     m_officeStopBtn->setEnabled(false);
@@ -342,7 +342,7 @@ void AppControllerPage::onOfficeExecReply()
                 + res["error"].toString());
         }
     } else {
-        m_officeStatusLbl->setText("\xe2\x9d\x8c  " + reply->errorString());
+        m_officeStatusLbl->setText(tr("\xe2\x9d\x8c  ") + reply->errorString());
     }
 }
 
@@ -386,7 +386,7 @@ void AppControllerPage::onOfficeHelpClicked()
         "<h4>Nota</h4>"
         "<p>Il bridge controlla LibreOffice Writer / Calc / Impress via API UNO. "
         "LibreOffice deve essere installato ma non necessariamente aperto.</p>");
-    auto* btnClose = new QPushButton("\xe2\x9c\x95  Chiudi", dlg);
+    auto* btnClose = new QPushButton(tr("\xe2\x9c\x95  Chiudi"), dlg);
     btnClose->setObjectName("actionBtn");
     connect(btnClose, &QPushButton::clicked, dlg, &QDialog::accept);
     dlay->addWidget(browser);
@@ -450,18 +450,18 @@ QWidget* AppControllerPage::buildAnkiTab()
     connLay->setContentsMargins(0, 0, 0, 0);
     connLay->setSpacing(8);
 
-    auto* lbl = new QLabel("AnkiConnect:", connRow);
+    auto* lbl = new QLabel(tr("AnkiConnect:"), connRow);
     lbl->setObjectName("hintLabel");
 
     m_ankiHostEdit = new QLineEdit("localhost:8765", connRow);
     m_ankiHostEdit->setFixedWidth(dpiScale(150));
 
-    auto* pingBtn = new QPushButton("\xf0\x9f\x94\x97  Verifica", connRow);
+    auto* pingBtn = new QPushButton(tr("\xf0\x9f\x94\x97  Verifica"), connRow);
     pingBtn->setToolTip(tr("Verifica connessione con AnkiConnect (porta 8765)"));
     pingBtn->setObjectName("actionBtn");
     pingBtn->setFixedWidth(dpiScale(100));
 
-    m_ankiStatusLbl = new QLabel("\xe2\x9a\xaa  Non connesso", connRow);
+    m_ankiStatusLbl = new QLabel(tr("\xe2\x9a\xaa  Non connesso"), connRow);
     m_ankiStatusLbl->setObjectName("hintLabel");
 
     m_ankiSendBtn = new QPushButton(
@@ -473,7 +473,7 @@ QWidget* AppControllerPage::buildAnkiTab()
     connLay->addWidget(lbl);
     connLay->addWidget(m_ankiHostEdit);
     connLay->addWidget(pingBtn);
-    auto* ankiHelpBtn = new QPushButton("\xf0\x9f\x9b\x9f  Aiuto", connRow);
+    auto* ankiHelpBtn = new QPushButton(tr("\xf0\x9f\x9b\x9f  Aiuto"), connRow);
     ankiHelpBtn->setToolTip(tr("Apri la documentazione AnkiConnect e guida AI per flashcard"));
     ankiHelpBtn->setObjectName("actionBtn");
     ankiHelpBtn->setFixedWidth(dpiScale(80));
@@ -508,11 +508,11 @@ QWidget* AppControllerPage::buildAnkiTab()
 
     m_ankiModel = new ModelComboBox(m_ai, toolRow);
 
-    toolLay->addWidget(new QLabel("Tipo:", toolRow));
+    toolLay->addWidget(new QLabel(tr("Tipo:"), toolRow));
     toolLay->addWidget(m_ankiAction, 1);
-    toolLay->addWidget(new QLabel("Deck:", toolRow));
+    toolLay->addWidget(new QLabel(tr("Deck:"), toolRow));
     toolLay->addWidget(deckEdit);
-    toolLay->addWidget(new QLabel("Modello AI:", toolRow));
+    toolLay->addWidget(new QLabel(tr("Modello AI:"), toolRow));
     toolLay->addWidget(m_ankiModel, 1);
     lay->addWidget(toolRow);
 
@@ -531,9 +531,9 @@ QWidget* AppControllerPage::buildAnkiTab()
     btnLay->setContentsMargins(0, 0, 0, 0);
     btnLay->setSpacing(8);
 
-    m_ankiRunBtn  = new QPushButton("\xf0\x9f\xa4\x96  Genera carte", btnRow);
+    m_ankiRunBtn  = new QPushButton(tr("\xf0\x9f\xa4\x96  Genera carte"), btnRow);
     m_ankiRunBtn->setObjectName("actionBtn");
-    m_ankiStopBtn = new QPushButton("\xe2\x8f\xb9  Stop", btnRow);
+    m_ankiStopBtn = new QPushButton(tr("\xe2\x8f\xb9  Stop"), btnRow);
     m_ankiStopBtn->setObjectName("actionBtn");
     m_ankiStopBtn->setEnabled(false);
     btnLay->addWidget(m_ankiRunBtn);
@@ -702,7 +702,7 @@ void AppControllerPage::onAnkiHelpClicked()
         "Non chiudere Anki durante l'uso.</p>"
         "<h4>4. Collega</h4>"
         "<p>Torna qui \xe2\x86\x92 clicca <b>\xf0\x9f\x94\x97 Verifica</b>.</p>");
-    auto* btnClose = new QPushButton("\xe2\x9c\x95  Chiudi", dlg);
+    auto* btnClose = new QPushButton(tr("\xe2\x9c\x95  Chiudi"), dlg);
     btnClose->setObjectName("actionBtn");
     connect(btnClose, &QPushButton::clicked, dlg, &QDialog::accept);
     dlay->addWidget(browser);
@@ -723,7 +723,7 @@ void AppControllerPage::onAnkiAddNotesReply()
         m_ankiOutput->append(
             QString("\n\xe2\x9c\x85  Inviate %1 carte nel deck.").arg(count));
     } else {
-        m_ankiStatusLbl->setText("\xe2\x9d\x8c  " + reply->errorString());
+        m_ankiStatusLbl->setText(tr("\xe2\x9d\x8c  ") + reply->errorString());
         m_ankiOutput->append("\n\xe2\x9d\x8c  Errore invio: " + reply->errorString());
     }
 }

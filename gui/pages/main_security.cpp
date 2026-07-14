@@ -126,7 +126,7 @@ SecurityAnalyzerPage::SecurityAnalyzerPage(AiClient* ai, QWidget* parent)
             this, &SecurityAnalyzerPage::onAnalyzeClicked);
     topLay->addWidget(m_btnAnalyze);
 
-    m_btnStop = new QPushButton("\xe2\x96\xa0  Stop", topBar);  /* ■ */
+    m_btnStop = new QPushButton(tr("\xe2\x96\xa0  Stop"), topBar);  /* ■ */
     m_btnStop->setObjectName("stopBtn");
     m_btnStop->setEnabled(false);
     connect(m_btnStop, &QPushButton::clicked,
@@ -159,7 +159,7 @@ SecurityAnalyzerPage::SecurityAnalyzerPage(AiClient* ai, QWidget* parent)
     leftLay->addWidget(m_codeInput, 1);
 
     /* ── GroupBox Scanner dipendenze OSV ── */
-    auto* osvBox = new QGroupBox("Scanner dipendenze", leftWidget);
+    auto* osvBox = new QGroupBox(tr("Scanner dipendenze"), leftWidget);
     auto* osvLay = new QVBoxLayout(osvBox);
     osvLay->setSpacing(4);
 
@@ -199,20 +199,20 @@ SecurityAnalyzerPage::SecurityAnalyzerPage(AiClient* ai, QWidget* parent)
     m_reportOutput->setReadOnly(true);
     m_reportOutput->setPlaceholderText(
         "Il report di sicurezza apparir\xc3\xa0 qui dopo l'analisi...");  /* à */
-    m_outputTabs->addTab(m_reportOutput, "Report");
+    m_outputTabs->addTab(m_reportOutput, tr("Report"));
 
     m_rawOutput = new QPlainTextEdit(m_outputTabs);
     m_rawOutput->setObjectName("chatLog");
     m_rawOutput->setReadOnly(true);
     m_rawOutput->setPlaceholderText(
         "Output grezzo di ciascun agente...");
-    m_outputTabs->addTab(m_rawOutput, "Dettagli");
+    m_outputTabs->addTab(m_rawOutput, tr("Dettagli"));
 
     m_osvOutput = new QTextBrowser(m_outputTabs);
     m_osvOutput->setOpenExternalLinks(false);
     m_osvOutput->setPlaceholderText(
         "I risultati OSV appariranno qui dopo la scansione...");
-    m_outputTabs->addTab(m_osvOutput, "Dipendenze");
+    m_outputTabs->addTab(m_osvOutput, tr("Dipendenze"));
 
     /* Network manager dedicato allo scanner OSV */
     m_osvNam = new QNetworkAccessManager(this);
@@ -273,7 +273,7 @@ void SecurityAnalyzerPage::onAnalyzeClicked()
     if (!m_ai) return;
     const QString code = m_codeInput->toPlainText().trimmed();
     if (code.isEmpty()) {
-        setStatus("\xe2\x9a\xa0\xef\xb8\x8f  Incolla del codice prima di avviare l'analisi.");  /* ⚠️ */
+        setStatus(tr("\xe2\x9a\xa0\xef\xb8\x8f  Incolla del codice prima di avviare l'analisi."));  /* ⚠️ */
         return;
     }
 
@@ -309,7 +309,7 @@ void SecurityAnalyzerPage::onStopClicked()
     m_btnAnalyze->setEnabled(true);
     m_btnStop->setEnabled(false);
     m_progress->setVisible(false);
-    setStatus("\xe2\x96\xa0  Analisi interrotta.");  /* ■ */
+    setStatus(tr("\xe2\x96\xa0  Analisi interrotta."));  /* ■ */
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -318,8 +318,8 @@ void SecurityAnalyzerPage::onStopClicked()
 void SecurityAnalyzerPage::runAgents(const QString& code)
 {
     m_pendingCount = kNumAgents;
-    setStatus("\xf0\x9f\x94\x84  "
-              "Analisi in corso: 4 agenti in parallelo...");  /* 🔄 */
+    setStatus(tr("\xf0\x9f\x94\x84  "
+              "Analisi in corso: 4 agenti in parallelo..."));  /* 🔄 */
 
     for (int i = 0; i < kNumAgents; ++i)
         runAgent(i, m_pool[i], code);
@@ -406,7 +406,7 @@ void SecurityAnalyzerPage::onAgentError(int idx, const QString& msg)
    ══════════════════════════════════════════════════════════════ */
 void SecurityAnalyzerPage::synthesize()
 {
-    setStatus("\xf0\x9f\x93\x9d  Sintesi report in corso...");  /* 📝 */
+    setStatus(tr("\xf0\x9f\x93\x9d  Sintesi report in corso..."));  /* 📝 */
 
     const QString sys =
         "Sei un esperto di security review. Ricevi i risultati di 4 agenti specializzati"
@@ -451,7 +451,7 @@ void SecurityAnalyzerPage::synthesize()
                 m_btnAnalyze->setEnabled(true);
                 m_btnStop->setEnabled(false);
                 m_progress->setVisible(false);
-                setStatus("\xe2\x9c\x85  Analisi completata.");  /* ✅ */
+                setStatus(tr("\xe2\x9c\x85  Analisi completata."));  /* ✅ */
             });
 
     connect(m_ai, &AiClient::error, holder,
@@ -460,7 +460,7 @@ void SecurityAnalyzerPage::synthesize()
                 m_btnAnalyze->setEnabled(true);
                 m_btnStop->setEnabled(false);
                 m_progress->setVisible(false);
-                setStatus("\xe2\x9d\x8c  Errore sintesi: " + msg.left(80));  /* ❌ */
+                setStatus(tr("\xe2\x9d\x8c  Errore sintesi: ") + msg.left(80));  /* ❌ */
                 LogBus::post("\xe2\x9d\x8c Sicurezza: Errore sintesi: " + msg.left(80));
                 m_reportOutput->appendPlainText(
                     "\n[Errore durante la sintesi: " + msg + "]");

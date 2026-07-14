@@ -52,7 +52,7 @@ void MainWindow::showServerDialog()
     const QStringList modelPaths = P::scanGgufFiles();
 
     auto* dlg = new QDialog(this);
-    dlg->setWindowTitle("\xf0\x9f\xa6\x99\xe2\x9a\xa1\xef\xb8\x8f  Avvia llama-server");
+    dlg->setWindowTitle(tr("\xf0\x9f\xa6\x99\xe2\x9a\xa1\xef\xb8\x8f  Avvia llama-server"));
     dlg->setFixedWidth(dpiScale(460));
     auto* lay = new QVBoxLayout(dlg);
     lay->setSpacing(10);
@@ -86,7 +86,7 @@ void MainWindow::showServerDialog()
 
     auto* bb = new QDialogButtonBox(
         QDialogButtonBox::Ok | QDialogButtonBox::Cancel, dlg);
-    bb->button(QDialogButtonBox::Ok)->setText("\xe2\x96\xb6  Avvia");
+    bb->button(QDialogButtonBox::Ok)->setText(tr("\xe2\x96\xb6  Avvia"));
     bb->button(QDialogButtonBox::Ok)->setEnabled(!modelPaths.isEmpty());
     lay->addWidget(bb);
     connect(bb, &QDialogButtonBox::accepted, dlg, &QDialog::accept);
@@ -111,7 +111,7 @@ void MainWindow::showDwarfStarDialog()
     const bool binExists = QFileInfo::exists(bin);
 
     auto* dlg = new QDialog(this);
-    dlg->setWindowTitle("\xe2\xad\x90  Avvia DwarfStar (ds4-server)");
+    dlg->setWindowTitle(tr("\xe2\xad\x90  Avvia DwarfStar (ds4-server)"));
     dlg->setFixedWidth(dpiScale(480));
     auto* lay = new QVBoxLayout(dlg);
     lay->setSpacing(10);
@@ -131,9 +131,9 @@ void MainWindow::showDwarfStarDialog()
 
     /* Modello .gguf */
     auto* rowMdl = new QHBoxLayout;
-    rowMdl->addWidget(new QLabel("Modello (.gguf):", dlg));
+    rowMdl->addWidget(new QLabel(tr("Modello (.gguf):"), dlg));
     auto* edModel = new QLineEdit(dlg);
-    edModel->setPlaceholderText("(opzionale — lascia vuoto se non richiesto)");
+    edModel->setPlaceholderText(tr("(opzionale — lascia vuoto se non richiesto)"));
     rowMdl->addWidget(edModel, 1);
     auto* btnBrowse = new QPushButton("\xe2\x80\xa6", dlg);
     btnBrowse->setFixedWidth(dpiScale(30));
@@ -149,7 +149,7 @@ void MainWindow::showDwarfStarDialog()
 
     /* Porta */
     auto* rowPort = new QHBoxLayout;
-    rowPort->addWidget(new QLabel("Porta:", dlg));
+    rowPort->addWidget(new QLabel(tr("Porta:"), dlg));
     auto* spPort = new QSpinBox(dlg);
     spPort->setRange(1024, 65535);
     spPort->setValue(P::kDwarfStarPort);
@@ -159,7 +159,7 @@ void MainWindow::showDwarfStarDialog()
 
     auto* bb = new QDialogButtonBox(
         QDialogButtonBox::Ok | QDialogButtonBox::Cancel, dlg);
-    bb->button(QDialogButtonBox::Ok)->setText("\xe2\x96\xb6  Avvia");
+    bb->button(QDialogButtonBox::Ok)->setText(tr("\xe2\x96\xb6  Avvia"));
     bb->button(QDialogButtonBox::Ok)->setEnabled(binExists);
     lay->addWidget(bb);
     connect(bb, &QDialogButtonBox::accepted, dlg, &QDialog::accept);
@@ -221,7 +221,7 @@ void MainWindow::startDs4Server(const QString& modelPath, int port)
     connect(m_healthTimer, &QTimer::timeout, this, &MainWindow::onHealthTick);
     m_healthTimer->start();
     if (m_btnBackend) {
-        m_btnBackend->setText("\xe2\x8f\xb3  ds4 avvio...");
+        m_btnBackend->setText(tr("\xe2\x8f\xb3  ds4 avvio..."));
         P::repolish(m_btnBackend);
     }
 }
@@ -287,7 +287,7 @@ QWidget* MainWindow::buildServerModelSection(QWidget* parent,
     vlay->addWidget(cmbModel);
 
     auto* rowPort = new QHBoxLayout;
-    rowPort->addWidget(new QLabel("Porta:", container));
+    rowPort->addWidget(new QLabel(tr("Porta:"), container));
     auto* spPort = new QSpinBox(container);
     spPort->setRange(1024, 65535);
     spPort->setValue(P::kLlamaServerPort);
@@ -310,7 +310,7 @@ QWidget* MainWindow::buildServerMathSection(QWidget* parent,
     vlay->setContentsMargins(0, 0, 0, 0);
     vlay->setSpacing(4);
 
-    auto* chkMath = new QCheckBox("\xf0\x9f\x93\x90  Profilo matematico (Xeon 64 GB)", container);
+    auto* chkMath = new QCheckBox(tr("\xf0\x9f\x93\x90  Profilo matematico (Xeon 64 GB)"), container);
     chkMath->setToolTip(
         "Abilita flag ottimali per calcolo scientifico:\n"
         "  --ctx-size 8192  (dimostrazioni lunghe)\n"
@@ -389,7 +389,7 @@ void MainWindow::applyBackend(AiClient::Backend b, const QString& host, int port
     }
     m_lblBackend->setText(bkIcon + "  \xe2\x86\x92  " + host + ":" + QString::number(port));
     /* Lo stato viene mostrato nel testo di m_btnBackend — nessun widget extra. */
-    m_lblModel->setText("(caricamento modelli...)");
+    m_lblModel->setText(tr("(caricamento modelli...)"));
 
     appendLog(QString("\xf0\x9f\x94\x84 Backend: <b>%1</b> @ %2:%3 — recupero modelli...")
               .arg(bkName, host, QString::number(port)));
@@ -452,7 +452,7 @@ static void showMathDownloadDialog(QWidget* parent, const QString& modelsDir) {
     const auto catalog = mathModelCatalog();
 
     auto* dlg = new QDialog(parent);
-    dlg->setWindowTitle("📐  Scarica modello matematico da Hugging Face");
+    dlg->setWindowTitle(QObject::tr("📐  Scarica modello matematico da Hugging Face"));
     dlg->setMinimumWidth(dpiScale(620));
     auto* lay = new QVBoxLayout(dlg);
     lay->setSpacing(12);
@@ -493,7 +493,7 @@ static void showMathDownloadDialog(QWidget* parent, const QString& modelsDir) {
 
     auto* bb = new QDialogButtonBox(
         QDialogButtonBox::Ok | QDialogButtonBox::Cancel, dlg);
-    bb->button(QDialogButtonBox::Ok)->setText("⬇  Scarica");
+    bb->button(QDialogButtonBox::Ok)->setText(QObject::tr("⬇  Scarica"));
     lay->addWidget(bb);
     QObject::connect(bb, &QDialogButtonBox::accepted, dlg, &QDialog::accept);
     QObject::connect(bb, &QDialogButtonBox::rejected, dlg, &QDialog::reject);
@@ -520,7 +520,7 @@ static void showMathDownloadDialog(QWidget* parent, const QString& modelsDir) {
     QProcess::startDetached("wget", {"-c", "--progress=bar:force", url, "-O", dest});
 
     QMessageBox info(parent);
-    info.setWindowTitle("Download avviato");
+    info.setWindowTitle(QObject::tr("Download avviato"));
     info.setIcon(QMessageBox::Information);
     info.setText(QString("<b>Download avviato in background:</b><br><code>%1</code>").arg(fname));
     info.setInformativeText(
@@ -667,7 +667,7 @@ void MainWindow::startLlamaServer(const QString& modelPath, int port, bool mathP
         QString("⏳  llama-server avviato — attendo che sia pronto (porta %1)...").arg(port));
 
     /* Mostra stato caricamento direttamente nel pulsante backend */
-    if (m_btnBackend) m_btnBackend->setText("\xe2\x8f\xb3  Caricamento...");
+    if (m_btnBackend) m_btnBackend->setText(tr("\xe2\x8f\xb3  Caricamento..."));
 
     /*
      * Polling /health ogni 1s, max 180 tentativi (3 minuti).
@@ -694,15 +694,15 @@ void MainWindow::refreshBackendBtn() {
     if (!m_btnBackend) return;
     switch (m_ai->backend()) {
     case AiClient::Ds4Server:
-        m_btnBackend->setText("\xe2\xad\x90  DwarfStar");
+        m_btnBackend->setText(tr("\xe2\xad\x90  DwarfStar"));
         m_btnBackend->setProperty("backendActive", "llama");
         break;
     case AiClient::Ollama:
-        m_btnBackend->setText("\xf0\x9f\xa6\x99  Ollama");
+        m_btnBackend->setText(tr("\xf0\x9f\xa6\x99  Ollama"));
         m_btnBackend->setProperty("backendActive", "ollama");
         break;
     default:
-        m_btnBackend->setText("\xf0\x9f\xa6\x99\xe2\x9a\xa1\xef\xb8\x8f  llama-server");
+        m_btnBackend->setText(tr("\xf0\x9f\xa6\x99\xe2\x9a\xa1\xef\xb8\x8f  llama-server"));
         m_btnBackend->setProperty("backendActive", "llama");
         break;
     }

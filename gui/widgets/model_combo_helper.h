@@ -90,7 +90,7 @@ public:
         /* Aggiorna label opzionale */
         if (lbl) {
             const QString raw = combo->currentData(Qt::UserRole).toString();
-            lbl->setText("\xf0\x9f\xa4\x96 " + (raw.isEmpty() ? combo->currentText() : raw));
+            lbl->setText(QObject::tr("\xf0\x9f\xa4\x96 ") + (raw.isEmpty() ? combo->currentText() : raw));
         }
     }
 

@@ -98,7 +98,7 @@ QWidget* ImpostazioniPage::buildTemaTab() {
     leftCol->setSpacing(16);
 
     /* Titolo in cima alla colonna sinistra */
-    auto* title = new QLabel("\xf0\x9f\x8e\xa8  Aspetto e Tema", leftColW);
+    auto* title = new QLabel(tr("\xf0\x9f\x8e\xa8  Aspetto e Tema"), leftColW);
     title->setStyleSheet("font-size:16px; font-weight:700; color:#e5e7eb;");
     title->setToolTip(
         "Copia file .qss nella cartella themes/ accanto "
@@ -153,7 +153,7 @@ QWidget* ImpostazioniPage::buildTemaTab() {
         radiusLay->setContentsMargins(0, 0, 0, 0);
         radiusLay->setSpacing(10);
 
-        auto* radiusLbl = new QLabel("Raggio bordi (px):", secBolle);
+        auto* radiusLbl = new QLabel(tr("Raggio bordi (px):"), secBolle);
         radiusLbl->setObjectName("cardDesc");
 
         auto* radiusSpin = new QSpinBox(secBolle);
@@ -206,7 +206,7 @@ QWidget* ImpostazioniPage::buildTemaTab() {
             "\xf0\x9f\x8f\xb7\xef\xb8\x8f  <b>Modalit\xc3\xa0 etichette tab</b>", secNav);
         navTitle->setObjectName("cardTitle");
         navTitle->setTextFormat(Qt::RichText);
-        navTitle->setToolTip("Scegli come visualizzare le etichette dei tab principali.");
+        navTitle->setToolTip(tr("Scegli come visualizzare le etichette dei tab principali."));
         navLay->addWidget(navTitle);
 
         struct NavMode { const char* label; const char* value; };
@@ -298,7 +298,7 @@ QWidget* ImpostazioniPage::buildTemaTab() {
             "\xe2\x96\xb6  <b>Pulsanti di esecuzione</b>", secExec);
         eTitle->setObjectName("cardTitle");
         eTitle->setTextFormat(Qt::RichText);
-        eTitle->setToolTip("Avvia, Stop, Esegui, Calcola e simili \xe2\x80\x94 in tutte le schede.");
+        eTitle->setToolTip(tr("Avvia, Stop, Esegui, Calcola e simili \xe2\x80\x94 in tutte le schede."));
         eLay->addWidget(eTitle);
 
         struct ExecMode { const char* label; const char* value; };
@@ -343,7 +343,7 @@ QWidget* ImpostazioniPage::buildTemaTab() {
             "\xf0\x9f\x8e\xad  <b>Icone modalit\xc3\xa0 AI</b>", secEmoji);
         emTitle->setObjectName("cardTitle");
         emTitle->setTextFormat(Qt::RichText);
-        emTitle->setToolTip("Stile emoji nel pulsante TriMode (Chat / Agentico / Conversa).");
+        emTitle->setToolTip(tr("Stile emoji nel pulsante TriMode (Chat / Agentico / Conversa)."));
         emLay->addWidget(emTitle);
 
         auto* emDesc = new QLabel(

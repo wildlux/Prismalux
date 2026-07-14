@@ -103,7 +103,7 @@ void BikeWidget::buildUi()
     selLay->setContentsMargins(10, 6, 10, 4);
     selLay->setSpacing(10);
 
-    auto* tipoLbl = new QLabel("Tipo bici:", selRow);
+    auto* tipoLbl = new QLabel(tr("Tipo bici:"), selRow);
     tipoLbl->setObjectName("formLabel");
     m_tipoCombo = new QComboBox(selRow);
     /* UTF-8 reali — QComboBox non interpreta HTML entities */
@@ -114,7 +114,7 @@ void BikeWidget::buildUi()
     m_tipoCombo->addItem("\xf0\x9f\x8f\x99  City / Trekking",     4);
     m_tipoCombo->setMinimumWidth(dpiScale(220));
 
-    auto* catLbl = new QLabel("Sezione:", selRow);
+    auto* catLbl = new QLabel(tr("Sezione:"), selRow);
     catLbl->setObjectName("formLabel");
     m_catCombo = new QComboBox(selRow);
     m_catCombo->addItem("\xf0\x9f\x94\xa7  Problemi comuni",       0);

@@ -46,7 +46,7 @@ void MainWindow::buildHamburgerSection(QHBoxLayout* lay)
     auto* btnHamburger = new QPushButton("\xe2\x98\xb0", hdr);
     btnHamburger->setObjectName("hamburgerBtn");
     btnHamburger->setFixedSize(dpiSize(36, 36));
-    btnHamburger->setToolTip("Mostra / Nascondi la colonna sinistra");
+    btnHamburger->setToolTip(tr("Mostra / Nascondi la colonna sinistra"));
     connect(btnHamburger, &QPushButton::clicked, this, &MainWindow::onHamburgerClicked);
     lay->addWidget(btnHamburger);
 
@@ -57,8 +57,8 @@ void MainWindow::buildHamburgerSection(QHBoxLayout* lay)
     m_logBtn = new QPushButton("\xf0\x9f\x93\x8b", logWrap);
     m_logBtn->setObjectName("hamburgerBtn");
     m_logBtn->setFixedSize(dpiSize(36, 36));
-    m_logBtn->setToolTip("Messaggi \xe2\x80\x94 log eventi, errori AI, backend, pipeline");
-    m_logBtn->setAccessibleName("Apri log messaggi");
+    m_logBtn->setToolTip(tr("Messaggi \xe2\x80\x94 log eventi, errori AI, backend, pipeline"));
+    m_logBtn->setAccessibleName(tr("Apri log messaggi"));
     m_logBtn->move(0, 0);
     m_logBadge = new QLabel("", logWrap);
     m_logBadge->setAlignment(Qt::AlignCenter);
@@ -75,8 +75,8 @@ void MainWindow::buildHamburgerSection(QHBoxLayout* lay)
     m_settingsBtn = new QPushButton("\xe2\x9a\x99\xef\xb8\x8f", hdr);
     m_settingsBtn->setObjectName("hamburgerBtn");
     m_settingsBtn->setFixedSize(dpiSize(36, 36));
-    m_settingsBtn->setToolTip("Impostazioni \xe2\x80\x94 Backend, Hardware, Monitor AI, llama.cpp");
-    m_settingsBtn->setAccessibleName("Apri impostazioni");
+    m_settingsBtn->setToolTip(tr("Impostazioni \xe2\x80\x94 Backend, Hardware, Monitor AI, llama.cpp"));
+    m_settingsBtn->setAccessibleName(tr("Apri impostazioni"));
     connect(m_settingsBtn, &QPushButton::clicked, this, &MainWindow::openSettingsDialog);
     lay->addWidget(m_settingsBtn);
 
@@ -92,7 +92,7 @@ void MainWindow::buildLogoSection(QHBoxLayout* lay)
     beer->setObjectName("headerBeer");
     lay->addWidget(beer);
 
-    auto* title = new QLabel("PRISMALUX", hdr);
+    auto* title = new QLabel(tr("PRISMALUX"), hdr);
     title->setObjectName("headerTitle");
     lay->addWidget(title);
 
@@ -163,10 +163,10 @@ void MainWindow::buildActionButtons(QHBoxLayout* lay)
     lay->addWidget(m_emergencyBtn);
 
     /* 🦙 Backend toggle — reparentato in buildContent come corner widget */
-    m_btnBackend = new QPushButton("\xf0\x9f\xa6\x99  Ollama", hdr);
+    m_btnBackend = new QPushButton(tr("\xf0\x9f\xa6\x99  Ollama"), hdr);
     m_btnBackend->setObjectName("backendBtn");
-    m_btnBackend->setToolTip("Cambia backend AI — un click per passare da Ollama a llama-server e viceversa");
-    m_btnBackend->setAccessibleName("Backend AI attivo");
+    m_btnBackend->setToolTip(tr("Cambia backend AI — un click per passare da Ollama a llama-server e viceversa"));
+    m_btnBackend->setAccessibleName(tr("Backend AI attivo"));
     m_btnBackend->setAccessibleDescription("Seleziona il backend: Ollama o llama-server");
     m_btnBackend->setFixedHeight(dpiScale(36));
     m_btnBackend->setMinimumWidth(dpiScale(130));

@@ -177,8 +177,8 @@ OracoloPage::OracoloPage(AiClient* ai, QWidget* parent)
     m_btnRag->setObjectName("actionBtn");
     m_btnRag->setCheckable(true);
     m_btnRag->setFixedSize(32, 32);
-    m_btnRag->setToolTip("Attiva/disattiva RAG (Retrieval-Augmented Generation)\n"
-                          "Inietta automaticamente i chunk pi\xc3\xb9 rilevanti dalla base di conoscenza.");
+    m_btnRag->setToolTip(tr("Attiva/disattiva RAG (Retrieval-Augmented Generation)\n"
+                          "Inietta automaticamente i chunk pi\xc3\xb9 rilevanti dalla base di conoscenza."));
 
     /* Label conteggio chunk RAG */
     m_ragLbl = new QLabel("", inputRow);
@@ -644,15 +644,15 @@ ChatBubble* OracoloPage::addAIBubble(const QString& senderName) {
    ══════════════════════════════════════════════════════════════ */
 static bool _oracoloAskChartDest(QWidget* parent) {
     QMessageBox dlg(parent);
-    dlg.setWindowTitle("Dove mostrare il grafico?");
+    dlg.setWindowTitle(QObject::tr("Dove mostrare il grafico?"));
     dlg.setText(
         "\xf0\x9f\x93\x88  \xc3\x88 stata rilevata una formula o un insieme di punti.\n\n"
         "Vuoi mostrare il grafico <b>qui</b> nella bolla oppure aprire la sezione "
         "<b>Grafico</b> dove puoi zoomare, esportare e personalizzarlo?");
     dlg.setTextFormat(Qt::RichText);
     dlg.setIcon(QMessageBox::Question);
-    auto* btnQui  = dlg.addButton("  \xf0\x9f\x96\xbc  Questa scheda  ", QMessageBox::AcceptRole);
-    auto* btnGraf = dlg.addButton("  \xf0\x9f\x93\x88  Sezione Grafico  ", QMessageBox::RejectRole);
+    auto* btnQui  = dlg.addButton(QObject::tr("  \xf0\x9f\x96\xbc  Questa scheda  "), QMessageBox::AcceptRole);
+    auto* btnGraf = dlg.addButton(QObject::tr("  \xf0\x9f\x93\x88  Sezione Grafico  "), QMessageBox::RejectRole);
     dlg.setDefaultButton(btnQui);
     Q_UNUSED(btnGraf)
     dlg.exec();

@@ -43,10 +43,10 @@ QWidget* AppControllerPage::buildCloudCompareTab()
     lay->addWidget(descLbl);
 
     /* Rilevamento installazione + percorso manuale */
-    auto* pathGroup = new QGroupBox("\xe2\x9a\x99  Percorso CloudCompare", w);
+    auto* pathGroup = new QGroupBox(tr("\xe2\x9a\x99  Percorso CloudCompare"), w);
     auto* pathLay   = new QHBoxLayout(pathGroup);
     m_ccPathEdit = new QLineEdit(pathGroup);
-    m_ccPathEdit->setPlaceholderText("cloudcompare  (auto-rilevato se in PATH)");
+    m_ccPathEdit->setPlaceholderText(tr("cloudcompare  (auto-rilevato se in PATH)"));
     const QString detected = QStandardPaths::findExecutable("cloudcompare");
     if (!detected.isEmpty()) m_ccPathEdit->setText(detected);
     m_ccStatusLbl = new QLabel(pathGroup);
@@ -67,14 +67,14 @@ QWidget* AppControllerPage::buildCloudCompareTab()
     lay->addWidget(pathGroup);
 
     /* Azioni principali */
-    auto* actGroup = new QGroupBox("\xf0\x9f\x9a\x80  Azioni", w);
+    auto* actGroup = new QGroupBox(tr("\xf0\x9f\x9a\x80  Azioni"), w);
     auto* actLay   = new QHBoxLayout(actGroup);
     actLay->setSpacing(8);
 
-    auto* btnLaunch  = new QPushButton("\xf0\x9f\x94\xb5  Avvia CloudCompare", actGroup);
-    auto* btnOpenFile = new QPushButton("\xf0\x9f\x93\x82  Apri file 3D\xe2\x80\xa6", actGroup);
-    auto* btnAiScript = new QPushButton("\xf0\x9f\xa4\x96  Genera script Open3D", actGroup);
-    auto* btnHelp    = new QPushButton("\xf0\x9f\x9b\x9f  Guida install.", actGroup);
+    auto* btnLaunch  = new QPushButton(tr("\xf0\x9f\x94\xb5  Avvia CloudCompare"), actGroup);
+    auto* btnOpenFile = new QPushButton(tr("\xf0\x9f\x93\x82  Apri file 3D\xe2\x80\xa6"), actGroup);
+    auto* btnAiScript = new QPushButton(tr("\xf0\x9f\xa4\x96  Genera script Open3D"), actGroup);
+    auto* btnHelp    = new QPushButton(tr("\xf0\x9f\x9b\x9f  Guida install."), actGroup);
 
     for (auto* b : {btnLaunch, btnOpenFile, btnAiScript, btnHelp})
         b->setObjectName("actionBtn");
@@ -130,7 +130,7 @@ void AppControllerPage::onCcHelpClicked()
         "<h4>Stato attuale</h4>"
         "<p>\xe2\x8f\xb3 Il bridge \xc3\xa8 in fase di integrazione in Prismalux. "
         "Questa scheda sar\xc3\xa0 abilitata in una versione futura.</p>");
-    auto* btnClose = new QPushButton("\xe2\x9c\x95  Chiudi", dlg);
+    auto* btnClose = new QPushButton(tr("\xe2\x9c\x95  Chiudi"), dlg);
     btnClose->setObjectName("actionBtn");
     connect(btnClose, &QPushButton::clicked, dlg, &QDialog::accept);
     dlay->addWidget(browser);

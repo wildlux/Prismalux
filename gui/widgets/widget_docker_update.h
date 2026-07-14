@@ -49,12 +49,12 @@ public:
         title->setTextFormat(Qt::RichText);
         headerLay->addWidget(title, 1);
 
-        m_btnRefresh = new QPushButton("\xf0\x9f\x94\x84  Elenca container", header);
+        m_btnRefresh = new QPushButton(tr("\xf0\x9f\x94\x84  Elenca container"), header);
         m_btnRefresh->setObjectName("actionBtn");
         m_btnRefresh->setFixedHeight(dpiScale(28));
         headerLay->addWidget(m_btnRefresh);
 
-        m_btnUpdateAll = new QPushButton("\xe2\xac\x87  Aggiorna tutte le immagini", header);
+        m_btnUpdateAll = new QPushButton(tr("\xe2\xac\x87  Aggiorna tutte le immagini"), header);
         m_btnUpdateAll->setObjectName("dangerBtn");
         m_btnUpdateAll->setFixedHeight(dpiScale(28));
         m_btnUpdateAll->setEnabled(false);
@@ -90,7 +90,7 @@ public:
                 "(binario assente o daemon non raggiungibile).");
             m_btnRefresh->setEnabled(false);
         } else {
-            m_statusLbl->setText("Premi \xe2\x80\x9c" "Elenca container\xe2\x80\x9d per vedere lo stato.");
+            m_statusLbl->setText(tr("Premi \xe2\x80\x9c" "Elenca container\xe2\x80\x9d per vedere lo stato."));
         }
     }
 
@@ -111,7 +111,7 @@ private slots:
         m_rows.clear();
         m_containers.clear();
         m_btnUpdateAll->setEnabled(false);
-        m_statusLbl->setText("\xe2\x8f\xb3  Elenco container in corso...");
+        m_statusLbl->setText(tr("\xe2\x8f\xb3  Elenco container in corso..."));
 
         auto* proc = new QProcess(this);
         connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
@@ -128,7 +128,7 @@ private slots:
         proc->deleteLater();
 
         if (code != 0) {
-            m_statusLbl->setText("\xe2\x9d\x8c  Impossibile interrogare Docker.");
+            m_statusLbl->setText(tr("\xe2\x9d\x8c  Impossibile interrogare Docker."));
             return;
         }
 
@@ -145,7 +145,7 @@ private slots:
         }
 
         if (m_containers.isEmpty()) {
-            m_statusLbl->setText("Nessun container trovato (docker ps -a vuoto).");
+            m_statusLbl->setText(tr("Nessun container trovato (docker ps -a vuoto)."));
             return;
         }
 
@@ -316,7 +316,7 @@ private:
 
             auto* pullBtn = new QPushButton("\xe2\xac\x87", topLine);
             pullBtn->setFixedSize(dpiScale(28), dpiScale(24));
-            pullBtn->setToolTip("docker pull " + c.image);
+            pullBtn->setToolTip(tr("docker pull ") + c.image);
             pullBtn->setProperty("dockerImage", c.image);
             topLay->addWidget(pullBtn);
             connect(pullBtn, &QPushButton::clicked, this, &DockerUpdatePanel::onPullSingleClicked);
@@ -374,7 +374,7 @@ private slots:
         const QString dir = labelValue(labels, "com.docker.compose.project.working_dir");
         const QString svc = labelValue(labels, "com.docker.compose.service");
 
-        note->setText("\xe2\x9c\x85  Immagine <code>" + image.toHtmlEscaped() + "</code> aggiornata.");
+        note->setText(tr("\xe2\x9c\x85  Immagine <code>") + image.toHtmlEscaped() + "</code> aggiornata.");
         note->show();
 
         if (!dir.isEmpty()) {

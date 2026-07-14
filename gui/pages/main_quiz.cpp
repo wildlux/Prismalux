@@ -45,7 +45,7 @@ QWidget* buildGeneraTab(QuizPage* self,
     /* ── Argomento ── */
     auto* topicRow = new QHBoxLayout;
     topicRow->setSpacing(8);
-    auto* topicLbl = new QLabel("Argomento:", w);
+    auto* topicLbl = new QLabel(QObject::tr("Argomento:"), w);
     topicLbl->setObjectName("cardDesc");
     topicLbl->setFixedWidth(dpiScale(90));
     topicEdit = new QLineEdit(w);
@@ -63,21 +63,21 @@ QWidget* buildGeneraTab(QuizPage* self,
     optLay->setContentsMargins(14, 10, 14, 10);
     optLay->setSpacing(10);
 
-    optLay->addWidget(new QLabel("Domande:", optCard), 0, 0);
+    optLay->addWidget(new QLabel(QObject::tr("Domande:"), optCard), 0, 0);
     nDomande = new QSpinBox(optCard);
     nDomande->setRange(3, 20);
     nDomande->setValue(5);
     nDomande->setSuffix("  domande");
     optLay->addWidget(nDomande, 0, 1);
 
-    optLay->addWidget(new QLabel("Tipo:", optCard), 0, 2);
+    optLay->addWidget(new QLabel(QObject::tr("Tipo:"), optCard), 0, 2);
     cmbTipo = new QComboBox(optCard);
     cmbTipo->addItem("Risposta aperta");
     cmbTipo->addItem("Scelta multipla  (A/B/C/D)");
     cmbTipo->addItem("Misto  (aperta + multipla)");
     optLay->addWidget(cmbTipo, 0, 3);
 
-    optLay->addWidget(new QLabel("Difficolt\xc3\xa0:", optCard), 1, 0);
+    optLay->addWidget(new QLabel(QObject::tr("Difficolt\xc3\xa0:"), optCard), 1, 0);
     cmbDiff = new QComboBox(optCard);
     cmbDiff->addItem("Facile  \xe2\x80\x94 concetti base");
     cmbDiff->addItem("Medio  \xe2\x80\x94 applicazione");
@@ -93,14 +93,14 @@ QWidget* buildGeneraTab(QuizPage* self,
     auto* btnRow = new QHBoxLayout;
     btnRow->setSpacing(8);
 
-    btnGenera = new QPushButton("\xf0\x9f\x8e\xaf  Genera Quiz", w);
+    btnGenera = new QPushButton(QObject::tr("\xf0\x9f\x8e\xaf  Genera Quiz"), w);
     btnGenera->setObjectName("actionBtn");
 
-    btnCopy = new QPushButton("\xf0\x9f\x93\x8b  Copia", w);
+    btnCopy = new QPushButton(QObject::tr("\xf0\x9f\x93\x8b  Copia"), w);
     btnCopy->setObjectName("actionBtn");
     btnCopy->setEnabled(false);
 
-    btnGioca = new QPushButton("\xf0\x9f\x8e\xae  Gioca!", w);
+    btnGioca = new QPushButton(QObject::tr("\xf0\x9f\x8e\xae  Gioca!"), w);
     btnGioca->setObjectName("actionBtn");
     btnGioca->setEnabled(false);
     btnGioca->setVisible(false);
@@ -154,7 +154,7 @@ QWidget* buildGiocaTab(QuizPage* self,
     qLay->setContentsMargins(0, 0, 0, 0);
     qLay->setSpacing(14);
 
-    progressLbl = new QLabel("Domanda 1 / ?", giocaPanel);
+    progressLbl = new QLabel(QObject::tr("Domanda 1 / ?"), giocaPanel);
     progressLbl->setObjectName("cardDesc");
     progressLbl->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
     qLay->addWidget(progressLbl);
@@ -193,12 +193,12 @@ QWidget* buildGiocaTab(QuizPage* self,
     auto* openLay = new QVBoxLayout(openWidget);
     openLay->setContentsMargins(0, 0, 0, 0);
     openLay->setSpacing(6);
-    auto* openHint = new QLabel("\xf0\x9f\x93\x9d  Domanda aperta \xe2\x80\x94 scrivi la tua risposta:", openWidget);
+    auto* openHint = new QLabel(QObject::tr("\xf0\x9f\x93\x9d  Domanda aperta \xe2\x80\x94 scrivi la tua risposta:"), openWidget);
     openHint->setObjectName("cardDesc");
     openAnswer = new QTextEdit(openWidget);
     openAnswer->setObjectName("chatInput");
     openAnswer->setFixedHeight(dpiScale(80));
-    openAnswer->setPlaceholderText("Scrivi qui la tua risposta...");
+    openAnswer->setPlaceholderText(QObject::tr("Scrivi qui la tua risposta..."));
     openLay->addWidget(openHint);
     openLay->addWidget(openAnswer);
     qLay->addWidget(openWidget);
@@ -214,7 +214,7 @@ QWidget* buildGiocaTab(QuizPage* self,
 
     /* pulsante avanti */
     auto* nextRow = new QHBoxLayout;
-    btnNext = new QPushButton("Avanti \xe2\x86\x92", giocaPanel);
+    btnNext = new QPushButton(QObject::tr("Avanti \xe2\x86\x92"), giocaPanel);
     btnNext->setObjectName("actionBtn");
     btnNext->setVisible(false);
     QObject::connect(btnNext, &QPushButton::clicked, self, &QuizPage::onNextQuestion);
@@ -343,14 +343,14 @@ static QWidget* buildCcnaTab(QuizPage* /*self*/,
     cLay->setContentsMargins(16, 12, 16, 12);
     cLay->setSpacing(10);
 
-    cLay->addWidget(new QLabel("Tema:", card), 0, 0);
+    cLay->addWidget(new QLabel(QObject::tr("Tema:"), card), 0, 0);
     temaCombo = new QComboBox(card);
     temaCombo->addItem("Tutti i temi", QVariant(QString()));
     for (const QString& t : db->temi())
         temaCombo->addItem(t, t);
     cLay->addWidget(temaCombo, 0, 1);
 
-    cLay->addWidget(new QLabel("Domande:", card), 1, 0);
+    cLay->addWidget(new QLabel(QObject::tr("Domande:"), card), 1, 0);
     nSpin = new QSpinBox(card);
     nSpin->setRange(5, 50);
     nSpin->setValue(10);
@@ -362,7 +362,7 @@ static QWidget* buildCcnaTab(QuizPage* /*self*/,
 
     /* ── Pulsante ── */
     auto* row = new QHBoxLayout;
-    startBtn = new QPushButton("\xf0\x9f\x9a\x80  Inizia Quiz CCNA", w);
+    startBtn = new QPushButton(QObject::tr("\xf0\x9f\x9a\x80  Inizia Quiz CCNA"), w);
     startBtn->setObjectName("actionBtn");
     row->addStretch(1);
     row->addWidget(startBtn);
@@ -389,7 +389,7 @@ QuizPage::QuizPage(AiClient* ai, QWidget* parent)
     QWidget* generaTab = buildGeneraTab(this,
         m_topicEdit, m_nDomande, m_cmbTipo, m_cmbDiff,
         m_btnGenera, m_btnCopy, m_btnGioca, m_output);
-    m_tabs->addTab(generaTab, "\xf0\x9f\x8e\xaf  Genera");
+    m_tabs->addTab(generaTab, tr("\xf0\x9f\x8e\xaf  Genera"));
 
     /* Tab 1 — Gioca */
     QWidget* giocaTab = buildGiocaTab(this,
@@ -399,18 +399,18 @@ QuizPage::QuizPage(AiClient* ai, QWidget* parent)
         m_feedbackLbl, m_btnNext,
         m_openWidget, m_openAnswer,
         m_riepilogoLbl, m_btnRivedi);
-    m_giocaTabIdx = m_tabs->addTab(giocaTab, "\xf0\x9f\x8e\xae  Gioca");
+    m_giocaTabIdx = m_tabs->addTab(giocaTab, tr("\xf0\x9f\x8e\xae  Gioca"));
 
     /* Tab 2 — CCNA */
     m_ccnaDb = new QuizCcnaDb(this);
     QWidget* ccnaTab = buildCcnaTab(this, m_ccnaDb,
                                     m_ccnaTemaCombo, m_ccnaNSpin,
                                     m_ccnaStartBtn, m_ccnaStatusLbl);
-    m_tabs->addTab(ccnaTab, "\xf0\x9f\x8e\x93  CCNA");
+    m_tabs->addTab(ccnaTab, tr("\xf0\x9f\x8e\x93  CCNA"));
 
     /* Tab 3 — Storico */
     QWidget* storicoTab = buildStoricoTab(m_dashContent);
-    m_tabs->addTab(storicoTab, "\xf0\x9f\x93\x8a  Storico");
+    m_tabs->addTab(storicoTab, tr("\xf0\x9f\x93\x8a  Storico"));
 
     lay->addWidget(m_tabs);
 
@@ -919,7 +919,7 @@ void QuizPage::loadDashboard() {
     }
     double globPct = totQ > 0 ? totC * 100.0 / totQ : 0.0;
 
-    auto* globBox = new QGroupBox("\xf0\x9f\x93\x88  Statistiche globali", m_dashContent);
+    auto* globBox = new QGroupBox(tr("\xf0\x9f\x93\x88  Statistiche globali"), m_dashContent);
     auto* globL   = new QHBoxLayout(globBox);
 
     /* statistica inline con widget locali */
@@ -941,7 +941,7 @@ void QuizPage::loadDashboard() {
     vlay->addWidget(globBox);
 
     /* ── Per materia ── */
-    auto* subjBox = new QGroupBox("\xf0\x9f\x93\x9a  Per materia", m_dashContent);
+    auto* subjBox = new QGroupBox(tr("\xf0\x9f\x93\x9a  Per materia"), m_dashContent);
     auto* subjL   = new QVBoxLayout(subjBox);
     for (auto it = bySubject.constBegin(); it != bySubject.constEnd(); ++it) {
         int cor = it.value().first; int tot = it.value().second;
@@ -961,7 +961,7 @@ void QuizPage::loadDashboard() {
     vlay->addWidget(subjBox);
 
     /* ── Sessioni recenti ── */
-    auto* recBox = new QGroupBox("\xf0\x9f\x95\x90  Ultime 10 sessioni", m_dashContent);
+    auto* recBox = new QGroupBox(tr("\xf0\x9f\x95\x90  Ultime 10 sessioni"), m_dashContent);
     auto* recL   = new QVBoxLayout(recBox);
     int count = qMin((int)sessions.size(), 10);
     for (int i = 0; i < count; i++) {

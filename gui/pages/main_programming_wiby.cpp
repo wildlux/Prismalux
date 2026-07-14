@@ -60,7 +60,7 @@ void ProgrammazionePage::wibySend(const QJsonObject& cmd)
 void ProgrammazionePage::onWibyDiscoverClicked()
 {
     if (m_wibyStatusLbl)
-        m_wibyStatusLbl->setText("Ricerca WIBY in LAN (8s)...");
+        m_wibyStatusLbl->setText(tr("Ricerca WIBY in LAN (8s)..."));
 
     // Avvia il controller se non attivo, poi invia discover
     if (!m_wibyProc || m_wibyProc->state() == QProcess::NotRunning) {
@@ -102,7 +102,7 @@ void ProgrammazionePage::onWibyConnectClicked()
     m_wibyReady = false;
     m_wibyProc->start(P::findPython(), {kWibyScript});
     if (m_wibyStatusLbl)
-        m_wibyStatusLbl->setText("Avvio controller...");
+        m_wibyStatusLbl->setText(tr("Avvio controller..."));
 }
 
 void ProgrammazionePage::onWibyDisconnectClicked()
@@ -131,7 +131,7 @@ void ProgrammazionePage::onWibyCmdOutput()
                 dc["timeout"] = 8.0;
                 wibySend(dc);
                 if (m_wibyStatusLbl)
-                    m_wibyStatusLbl->setText("Ricerca WIBY in LAN (8s)...");
+                    m_wibyStatusLbl->setText(tr("Ricerca WIBY in LAN (8s)..."));
             }
         } else if (obj.contains("ok")) {
             bool ok = obj.value("ok").toBool();
@@ -294,7 +294,7 @@ void ProgrammazionePage::onWibyStartStream()
             QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
             this, [this](int, QProcess::ExitStatus) {
         if (m_camPreviewLbl && m_camPreviewLbl->pixmap().isNull())
-            m_camPreviewLbl->setText("Stream terminato.");
+            m_camPreviewLbl->setText(tr("Stream terminato."));
         m_wibyFfmpegProc = nullptr;
     });
 
@@ -314,7 +314,7 @@ void ProgrammazionePage::onWibyStartStream()
     });
 
     if (m_camPreviewLbl)
-        m_camPreviewLbl->setText("Connessione stream WIBY...");
+        m_camPreviewLbl->setText(tr("Connessione stream WIBY..."));
     if (m_usbOutput)
         m_usbOutput->append("<span style='color:#4ade80;'>Stream WIBY avviato (ffmpeg diretto).</span>");
 }
@@ -328,7 +328,7 @@ void ProgrammazionePage::onWibyStopStream()
     m_wibyFfmpegProc = nullptr;
     m_wibyFfmpegBuf.clear();
     if (m_camPreviewLbl)
-        m_camPreviewLbl->setText("Stream fermato.");
+        m_camPreviewLbl->setText(tr("Stream fermato."));
 }
 
 void ProgrammazionePage::onWibyFfmpegFrame()
@@ -384,7 +384,7 @@ void ProgrammazionePage::onWibyMitmStartClicked()
                 QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
                 this, [this](int, QProcess::ExitStatus){
             if (m_wibyMitmStatus)
-                m_wibyMitmStatus->setText("\xe2\x97\x8f  Fermato");
+                m_wibyMitmStatus->setText(tr("\xe2\x97\x8f  Fermato"));
             m_wibyMitmProc = nullptr;
         });
     }
@@ -410,7 +410,7 @@ void ProgrammazionePage::onWibyMitmStopClicked()
         m_wibyMitmProc->state() != QProcess::NotRunning)
         m_wibyMitmProc->terminate();
     if (m_wibyMitmStatus)
-        m_wibyMitmStatus->setText("\xe2\x97\x8f  Inattivo");
+        m_wibyMitmStatus->setText(tr("\xe2\x97\x8f  Inattivo"));
 }
 
 void ProgrammazionePage::onWibyMitmOutput()

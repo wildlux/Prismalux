@@ -113,36 +113,36 @@ QWidget* ManutenzioneePage::buildBackendPage()
 /* ── Livello 2a: colonna sinistra — Connessione & Modello ─────── */
 QGroupBox* ManutenzioneePage::buildConnectionModelGroup(QWidget* parent)
 {
-    auto* grp = new QGroupBox("\xf0\x9f\x94\x8c  Connessione & Modello", parent);
+    auto* grp = new QGroupBox(tr("\xf0\x9f\x94\x8c  Connessione & Modello"), parent);
     grp->setObjectName("cardGroup");
     grp->setFixedWidth(dpiScale(270));
     auto* lay = new QVBoxLayout(grp);
     lay->setSpacing(6);
 
-    lay->addWidget(new QLabel("Backend:", grp));
+    lay->addWidget(new QLabel(tr("Backend:"), grp));
     m_cmbBackend = new QComboBox(grp);
     m_cmbBackend->addItem(QString("\xf0\x9f\x90\xb3  Ollama  (:%1)").arg(P::kOllamaPort));
     m_cmbBackend->addItem(QString("\xf0\x9f\xa6\x99  llama-server  (:%1)").arg(P::kLlamaServerPort));
-    m_cmbBackend->setAccessibleName("Selettore backend AI");
+    m_cmbBackend->setAccessibleName(tr("Selettore backend AI"));
     lay->addWidget(m_cmbBackend);
 
     m_hostEdit = new QLineEdit("127.0.0.1", grp);
     m_hostEdit->setObjectName("chatInput");
     m_hostEdit->setPlaceholderText(tr("Host"));
-    m_hostEdit->setAccessibleName("Indirizzo host del backend AI");
-    lay->addWidget(new QLabel("Host:", grp));
+    m_hostEdit->setAccessibleName(tr("Indirizzo host del backend AI"));
+    lay->addWidget(new QLabel(tr("Host:"), grp));
     lay->addWidget(m_hostEdit);
 
     m_portEdit = new QLineEdit(QString::number(P::kOllamaPort), grp);
     m_portEdit->setObjectName("chatInput");
     m_portEdit->setPlaceholderText(tr("Porta"));
-    m_portEdit->setAccessibleName("Porta del backend AI");
-    lay->addWidget(new QLabel("Porta:", grp));
+    m_portEdit->setAccessibleName(tr("Porta del backend AI"));
+    lay->addWidget(new QLabel(tr("Porta:"), grp));
     lay->addWidget(m_portEdit);
 
-    auto* applyBtn = new QPushButton("Applica \xe2\x96\xb6", grp);
+    auto* applyBtn = new QPushButton(tr("Applica \xe2\x96\xb6"), grp);
     applyBtn->setObjectName("actionBtn");
-    applyBtn->setAccessibleName("Applica configurazione backend");
+    applyBtn->setAccessibleName(tr("Applica configurazione backend"));
     lay->addWidget(applyBtn);
 
     auto* sep = new QFrame(grp);
@@ -150,10 +150,10 @@ QGroupBox* ManutenzioneePage::buildConnectionModelGroup(QWidget* parent)
     sep->setObjectName("sidebarSep");
     lay->addWidget(sep);
 
-    lay->addWidget(new QLabel("Modello:", grp));
+    lay->addWidget(new QLabel(tr("Modello:"), grp));
     m_cmbModel = new QComboBox(grp);
     m_cmbModel->addItem("(nessun modello \xe2\x80\x94 backend non raggiungibile)");
-    m_cmbModel->setAccessibleName("Lista modelli AI disponibili");
+    m_cmbModel->setAccessibleName(tr("Lista modelli AI disponibili"));
     lay->addWidget(m_cmbModel);
 
     lay->addWidget(buildModelButtonRow(grp));
@@ -180,10 +180,10 @@ QWidget* ManutenzioneePage::buildModelButtonRow(QGroupBox* parent)
     refreshBtn->setObjectName("actionBtn");
     refreshBtn->setFixedWidth(dpiScale(36));
     refreshBtn->setToolTip(tr("Aggiorna lista modelli"));
-    refreshBtn->setAccessibleName("Aggiorna lista modelli AI");
-    auto* setModelBtn = new QPushButton("\xe2\x9c\x93  Usa questo", parent);
+    refreshBtn->setAccessibleName(tr("Aggiorna lista modelli AI"));
+    auto* setModelBtn = new QPushButton(tr("\xe2\x9c\x93  Usa questo"), parent);
     setModelBtn->setObjectName("actionBtn");
-    setModelBtn->setAccessibleName("Attiva il modello selezionato");
+    setModelBtn->setAccessibleName(tr("Attiva il modello selezionato"));
     lay->addWidget(refreshBtn);
     lay->addWidget(setModelBtn, 1);
 
@@ -196,7 +196,7 @@ QWidget* ManutenzioneePage::buildModelButtonRow(QGroupBox* parent)
 /* ── Livello 2b: colonna destra — Configurazione Avanzata ─────── */
 QGroupBox* ManutenzioneePage::buildAdvancedConfigGroup(QWidget* parent)
 {
-    auto* grp = new QGroupBox("\xe2\x9a\x99\xef\xb8\x8f  Configurazione Avanzata", parent);
+    auto* grp = new QGroupBox(tr("\xe2\x9a\x99\xef\xb8\x8f  Configurazione Avanzata"), parent);
     grp->setObjectName("cardGroup");
     auto* lay = new QVBoxLayout(grp);
     lay->setSpacing(8);
@@ -235,7 +235,7 @@ void ManutenzioneePage::buildConfigFmtSection(QGroupBox* grp, QVBoxLayout* lay)
     auto* fmtRowL = new QHBoxLayout(fmtRow);
     fmtRowL->setContentsMargins(0, 0, 0, 0);
     fmtRowL->setSpacing(8);
-    fmtRowL->addWidget(new QLabel("Formato:", fmtRow));
+    fmtRowL->addWidget(new QLabel(tr("Formato:"), fmtRow));
 
     m_cmbFmt = new QComboBox(fmtRow);
     m_cmbFmt->addItem("JSON  (.prismalux_config.json)", QString("json"));
@@ -245,7 +245,7 @@ void ManutenzioneePage::buildConfigFmtSection(QGroupBox* grp, QVBoxLayout* lay)
         const int idx = m_cmbFmt->findData(cur);
         if (idx >= 0) m_cmbFmt->setCurrentIndex(idx);
     }
-    auto* fmtApply = new QPushButton("Converti \xe2\x96\xb6", fmtRow);
+    auto* fmtApply = new QPushButton(tr("Converti \xe2\x96\xb6"), fmtRow);
     fmtApply->setObjectName("actionBtn");
     m_fmtStatus = new QLabel("", fmtRow);
     m_fmtStatus->setObjectName("cardDesc");
@@ -279,7 +279,7 @@ void ManutenzioneePage::buildLlamaServerSection(QGroupBox* grp, QVBoxLayout* lay
     srvBrowse->setObjectName("actionBtn");
     srvBrowse->setFixedWidth(dpiScale(32));
     srvBrowse->setToolTip(tr("Scegli file modello .gguf per llama-server"));
-    srvModelL->addWidget(new QLabel("Modello:", srvModelRow));
+    srvModelL->addWidget(new QLabel(tr("Modello:"), srvModelRow));
     srvModelL->addWidget(m_srvModelPath, 1);
     srvModelL->addWidget(srvBrowse);
     srvLay->addWidget(srvModelRow);
@@ -292,13 +292,13 @@ void ManutenzioneePage::buildLlamaServerSection(QGroupBox* grp, QVBoxLayout* lay
     m_srvPort = new QLineEdit(QString::number(P::kLlamaServerPort), m_grpServ);
     m_srvPort->setObjectName("chatInput");
     m_srvPort->setFixedWidth(dpiScale(70));
-    m_srvStartBtn = new QPushButton("\xe2\x96\xb6  Avvia", m_grpServ);
+    m_srvStartBtn = new QPushButton(tr("\xe2\x96\xb6  Avvia"), m_grpServ);
     m_srvStartBtn->setObjectName("actionBtn");
-    m_srvStopBtn = new QPushButton("\xe2\x96\xa0  Stop", m_grpServ);
+    m_srvStopBtn = new QPushButton(tr("\xe2\x96\xa0  Stop"), m_grpServ);
     m_srvStopBtn->setObjectName("actionBtn");
     m_srvStopBtn->setProperty("danger", "true");
     m_srvStopBtn->setEnabled(false);
-    srvCtrlL->addWidget(new QLabel("Porta:", srvCtrlRow));
+    srvCtrlL->addWidget(new QLabel(tr("Porta:"), srvCtrlRow));
     srvCtrlL->addWidget(m_srvPort);
     srvCtrlL->addSpacing(12);
     srvCtrlL->addWidget(m_srvStartBtn);
@@ -341,7 +341,7 @@ QGroupBox* ManutenzioneePage::buildUpdateGroup(QWidget* parent)
     m_verLbl->setObjectName("cardDesc");
     m_verLbl->setTextFormat(Qt::RichText);
     verLay->addWidget(m_verLbl, 1);
-    auto* verBtn = new QPushButton("\xf0\x9f\x94\x8d  Verifica", verRow);
+    auto* verBtn = new QPushButton(tr("\xf0\x9f\x94\x8d  Verifica"), verRow);
     verBtn->setObjectName("actionBtn");
     verBtn->setFixedWidth(dpiScale(90));
     verLay->addWidget(verBtn);
@@ -389,13 +389,13 @@ QGroupBox* ManutenzioneePage::buildUpdateGroup(QWidget* parent)
     auto* dlRow  = new QWidget(grp);
     auto* dlRowL = new QHBoxLayout(dlRow);
     dlRowL->setContentsMargins(0,0,0,0); dlRowL->setSpacing(8);
-    dlRowL->addWidget(new QLabel("\xe2\xac\x87  Scarica nuovo modello Ollama:", dlRow));
+    dlRowL->addWidget(new QLabel(tr("\xe2\xac\x87  Scarica nuovo modello Ollama:"), dlRow));
     m_downloadModelEdit = new QLineEdit(dlRow);
     m_downloadModelEdit->setPlaceholderText(tr("es. llama3.2:3b  \xe2\x80\xa2  qwen2.5-coder:7b"));
-    m_downloadModelEdit->setAccessibleName("Nome modello Ollama da scaricare");
-    m_btnDownloadModel = new QPushButton("\xe2\xac\x87  Scarica", dlRow);
+    m_downloadModelEdit->setAccessibleName(tr("Nome modello Ollama da scaricare"));
+    m_btnDownloadModel = new QPushButton(tr("\xe2\xac\x87  Scarica"), dlRow);
     m_btnDownloadModel->setObjectName("actionBtn");
-    m_btnDownloadModel->setAccessibleName("Avvia download modello Ollama");
+    m_btnDownloadModel->setAccessibleName(tr("Avvia download modello Ollama"));
     m_downloadStatusLbl = new QLabel("", dlRow);
     m_downloadStatusLbl->setObjectName("cardDesc");
     dlRowL->addWidget(m_downloadModelEdit, 1);
@@ -414,7 +414,7 @@ QGroupBox* ManutenzioneePage::buildUpdateGroup(QWidget* parent)
         "\xf0\x9f\x94\x92  Verifica integrit\xc3\xa0 GGUF", ggufRow);
     m_btnVerifyGguf->setObjectName("actionBtn");
     m_btnVerifyGguf->setToolTip(tr("Calcola SHA-256 dei file .gguf in models/ e confronta con le firme salvate"));
-    m_btnVerifyGguf->setAccessibleName("Verifica integrità file modelli GGUF tramite SHA-256");
+    m_btnVerifyGguf->setAccessibleName(tr("Verifica integrità file modelli GGUF tramite SHA-256"));
     m_ggufStatusLbl = new QLabel("", ggufRow);
     m_ggufStatusLbl->setObjectName("cardDesc");
     m_ggufStatusLbl->setWordWrap(true);
@@ -432,8 +432,8 @@ QGroupBox* ManutenzioneePage::buildUpdateGroup(QWidget* parent)
     auto* bkBtn = new QPushButton(
         "\xf0\x9f\x92\xbe  Backup conoscenza ora", bkRow);
     bkBtn->setObjectName("actionBtn");
-    bkBtn->setAccessibleName("Esegui backup manuale della cartella KNOWLEDGE_USER");
-    m_backupStatusLbl = new QLabel("Backup automatico ogni 24h.", bkRow);
+    bkBtn->setAccessibleName(tr("Esegui backup manuale della cartella KNOWLEDGE_USER"));
+    m_backupStatusLbl = new QLabel(tr("Backup automatico ogni 24h."), bkRow);
     m_backupStatusLbl->setObjectName("cardDesc");
     bkRowL->addWidget(bkBtn);
     bkRowL->addWidget(m_backupStatusLbl, 1);
@@ -459,7 +459,7 @@ QWidget* ManutenzioneePage::buildConfigFmt()
     cfgLay->setContentsMargins(16, 14, 16, 14);
     cfgLay->setSpacing(14);
 
-    auto* grpFmt = new QGroupBox("\xf0\x9f\x93\x84  Formato Config", page);
+    auto* grpFmt = new QGroupBox(tr("\xf0\x9f\x93\x84  Formato Config"), page);
     grpFmt->setStyleSheet(GRP_STYLE);
     auto* fmtLay = new QVBoxLayout(grpFmt);
     fmtLay->setSpacing(8);
@@ -477,7 +477,7 @@ QWidget* ManutenzioneePage::buildConfigFmt()
     auto* fmtRowL = new QHBoxLayout(fmtRow);
     fmtRowL->setContentsMargins(0,0,0,0); fmtRowL->setSpacing(10);
 
-    fmtRowL->addWidget(new QLabel("Formato:", fmtRow));
+    fmtRowL->addWidget(new QLabel(tr("Formato:"), fmtRow));
     m_cmbFmt = new QComboBox(fmtRow);
     m_cmbFmt->addItem("JSON  (.prismalux_config.json)", QString("json"));
     m_cmbFmt->addItem("TOON  (.prismalux_config.toon)", QString("toon"));
@@ -487,7 +487,7 @@ QWidget* ManutenzioneePage::buildConfigFmt()
         if (idx >= 0) m_cmbFmt->setCurrentIndex(idx);
     }
 
-    auto* fmtApply = new QPushButton("Converti e salva \xe2\x96\xb6", fmtRow);
+    auto* fmtApply = new QPushButton(tr("Converti e salva \xe2\x96\xb6"), fmtRow);
     fmtApply->setObjectName("actionBtn");
 
     m_fmtStatus = new QLabel("", fmtRow);
@@ -572,12 +572,12 @@ QLabel* ManutenzioneePage::buildZramWarningBanner(QWidget* parent)
 /* ── Livello 2b: colonna sinistra — Info Hardware ─────────────── */
 QGroupBox* ManutenzioneePage::buildInfoHardwareGroup(QWidget* parent)
 {
-    auto* grp = new QGroupBox("\xf0\x9f\x96\xa5  Info Hardware", parent);
+    auto* grp = new QGroupBox(tr("\xf0\x9f\x96\xa5  Info Hardware"), parent);
     grp->setObjectName("cardGroup");
     grp->setFixedWidth(dpiScale(220));
     auto* lay = new QVBoxLayout(grp);
 
-    m_hwLabel = new QLabel("\xe2\x8f\xb3  Rilevamento hardware in corso...", grp);
+    m_hwLabel = new QLabel(tr("\xe2\x8f\xb3  Rilevamento hardware in corso..."), grp);
     m_hwLabel->setObjectName("cardDesc");
     m_hwLabel->setWordWrap(true);
     m_hwLabel->setStyleSheet(
@@ -592,7 +592,7 @@ QGroupBox* ManutenzioneePage::buildInfoHardwareGroup(QWidget* parent)
 /* ── Livello 2c: colonna destra — Ottimizzazione RAM ──────────── */
 QGroupBox* ManutenzioneePage::buildRamOptGroup(QWidget* parent)
 {
-    auto* grp = new QGroupBox("\xf0\x9f\x92\xbe  Ottimizzazione RAM", parent);
+    auto* grp = new QGroupBox(tr("\xf0\x9f\x92\xbe  Ottimizzazione RAM"), parent);
     grp->setObjectName("cardGroup");
     auto* lay = new QVBoxLayout(grp);
     lay->setSpacing(8);
@@ -659,25 +659,25 @@ QWidget* ManutenzioneePage::buildRamButtonRow(QGroupBox* grp)
     lay->setContentsMargins(0, 0, 0, 0);
     lay->setSpacing(8);
 
-    auto* detectBtn = new QPushButton("\xf0\x9f\x94\x8d  Rileva stato", grp);
+    auto* detectBtn = new QPushButton(tr("\xf0\x9f\x94\x8d  Rileva stato"), grp);
     detectBtn->setObjectName("actionBtn");
     lay->addWidget(detectBtn);
 
 #ifdef Q_OS_WIN
-    auto* compBtn    = new QPushButton("\xf0\x9f\x92\xbe  Attiva compressione", grp);
+    auto* compBtn    = new QPushButton(tr("\xf0\x9f\x92\xbe  Attiva compressione"), grp);
     compBtn->setObjectName("actionBtn");
-    auto* disableBtn = new QPushButton("\xe2\x8f\xb9  Disattiva", grp);
+    auto* disableBtn = new QPushButton(tr("\xe2\x8f\xb9  Disattiva"), grp);
     disableBtn->setObjectName("actionBtn");
     lay->addWidget(compBtn);
     lay->addWidget(disableBtn);
     connect(compBtn,    &QPushButton::clicked, this, &ManutenzioneePage::onCompBtnClicked);
     connect(disableBtn, &QPushButton::clicked, this, &ManutenzioneePage::onDisableRamBtnClicked);
 #else
-    auto* singBtn   = new QPushButton("\xf0\x9f\x92\xbe  Singola (lz4)", grp);
+    auto* singBtn   = new QPushButton(tr("\xf0\x9f\x92\xbe  Singola (lz4)"), grp);
     singBtn->setObjectName("actionBtn");
-    auto* doppiaBtn = new QPushButton("\xf0\x9f\x92\xbe\xf0\x9f\x92\xbe  Doppia (zstd)", grp);
+    auto* doppiaBtn = new QPushButton(tr("\xf0\x9f\x92\xbe\xf0\x9f\x92\xbe  Doppia (zstd)"), grp);
     doppiaBtn->setObjectName("actionBtn");
-    auto* disableBtn = new QPushButton("\xe2\x8f\xb9  Disattiva zRAM", grp);
+    auto* disableBtn = new QPushButton(tr("\xe2\x8f\xb9  Disattiva zRAM"), grp);
     disableBtn->setObjectName("actionBtn");
     lay->addWidget(singBtn);
     lay->addWidget(doppiaBtn);
@@ -715,10 +715,10 @@ QGroupBox* ManutenzioneePage::buildComputeModeGroup(QWidget* parent)
     btnLay->setContentsMargins(0, 0, 0, 0);
     btnLay->setSpacing(10);
 
-    m_btnGpu    = new QPushButton("\xf0\x9f\x9a\x80  GPU  (VRAM)", grp);
-    m_btnCpu    = new QPushButton("\xf0\x9f\x96\xa5  CPU  (RAM)",  grp);
-    m_btnMisto  = new QPushButton("\xe2\x9a\x96\xef\xb8\x8f  Misto GPU+CPU", grp);
-    m_btnDoppia = new QPushButton("\xf0\x9f\x94\x97  Doppia GPU", grp);
+    m_btnGpu    = new QPushButton(tr("\xf0\x9f\x9a\x80  GPU  (VRAM)"), grp);
+    m_btnCpu    = new QPushButton(tr("\xf0\x9f\x96\xa5  CPU  (RAM)"),  grp);
+    m_btnMisto  = new QPushButton(tr("\xe2\x9a\x96\xef\xb8\x8f  Misto GPU+CPU"), grp);
+    m_btnDoppia = new QPushButton(tr("\xf0\x9f\x94\x97  Doppia GPU"), grp);
     for (auto* b : {m_btnGpu, m_btnCpu, m_btnMisto, m_btnDoppia}) {
         b->setObjectName("actionBtn");
         b->setMinimumWidth(140);
@@ -797,7 +797,7 @@ QGroupBox* ManutenzioneePage::buildNpuGroup(QWidget* parent)
     npuDesc->setObjectName("hintLabel");
     lay->addWidget(npuDesc);
 
-    auto* npuStatusLbl = new QLabel("\xe2\x8f\xb3  Rilevamento in corso...", grp);
+    auto* npuStatusLbl = new QLabel(tr("\xe2\x8f\xb3  Rilevamento in corso..."), grp);
     npuStatusLbl->setObjectName("cardDesc");
     npuStatusLbl->setWordWrap(true);
     lay->addWidget(npuStatusLbl);
@@ -1463,7 +1463,7 @@ void ManutenzioneePage::onBackendCmbChanged(int idx)
    ══════════════════════════════════════════════════════════════ */
 void ManutenzioneePage::onVerifyOllamaVersion()
 {
-    if (m_verLbl) m_verLbl->setText("\xf0\x9f\x90\xb3  Ollama: <i>verifica...</i>");
+    if (m_verLbl) m_verLbl->setText(tr("\xf0\x9f\x90\xb3  Ollama: <i>verifica...</i>"));
     if (m_ollamaVerProc) {
         m_ollamaVerProc->kill();
         m_ollamaVerProc->deleteLater();
@@ -1502,7 +1502,7 @@ void ManutenzioneePage::onOllamaVerProcFinished(int code, QProcess::ExitStatus)
             m_verLbl->setText(QString("\xf0\x9f\x90\xb3  Ollama: <b>%1</b>")
                 .arg(out.toHtmlEscaped()));
         } else {
-            m_verLbl->setText("\xf0\x9f\x90\xb3  Ollama: <span style='color:#ef4444;'>non trovato</span>");
+            m_verLbl->setText(tr("\xf0\x9f\x90\xb3  Ollama: <span style='color:#ef4444;'>non trovato</span>"));
         }
     }
     if (m_updLog && code == 0 && !out.isEmpty())
@@ -1516,7 +1516,7 @@ void ManutenzioneePage::onOllamaVerProcError(QProcess::ProcessError)
         m_ollamaVerProc = nullptr;
     }
     if (m_verLbl)
-        m_verLbl->setText("\xf0\x9f\x90\xb3  Ollama: <span style='color:#ef4444;'>non trovato nel PATH</span>");
+        m_verLbl->setText(tr("\xf0\x9f\x90\xb3  Ollama: <span style='color:#ef4444;'>non trovato nel PATH</span>"));
 }
 
 /* ══════════════════════════════════════════════════════════════

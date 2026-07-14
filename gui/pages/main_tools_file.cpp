@@ -73,7 +73,7 @@ QWidget* StrumentiFilePage::buildFileSearchTab()
     auto* dirLay = new QHBoxLayout(dirRow);
     dirLay->setContentsMargins(0, 0, 0, 0);
     dirLay->setSpacing(6);
-    auto* dirLbl = new QLabel("\xf0\x9f\x93\x81  Cartella:", dirRow);
+    auto* dirLbl = new QLabel(tr("\xf0\x9f\x93\x81  Cartella:"), dirRow);
     dirLbl->setObjectName("cardDesc");
     dirLay->addWidget(dirLbl);
     m_fileSearchDir = new QLineEdit(dirRow);
@@ -92,7 +92,7 @@ QWidget* StrumentiFilePage::buildFileSearchTab()
     auto* qLay = new QHBoxLayout(qRow);
     qLay->setContentsMargins(0, 0, 0, 0);
     qLay->setSpacing(6);
-    auto* qLbl = new QLabel("\xf0\x9f\x94\x8d  Cerca:", qRow);
+    auto* qLbl = new QLabel(tr("\xf0\x9f\x94\x8d  Cerca:"), qRow);
     qLbl->setObjectName("cardDesc");
     qLay->addWidget(qLbl);
     m_fileSearchQuery = new QLineEdit(qRow);
@@ -268,7 +268,7 @@ QWidget* StrumentiFilePage::buildDatiTab()
         "\xf0\x9f\x93\x82  Carica dati", fileRow);
     fileBtn->setObjectName("actionBtn");
     fileBtn->setFixedWidth(dpiScale(140));
-    m_datiFileLbl = new QLabel("Nessun file caricato", fileRow);
+    m_datiFileLbl = new QLabel(tr("Nessun file caricato"), fileRow);
     m_datiFileLbl->setObjectName("hintLabel");
     fileLay->addWidget(fileBtn);
     fileLay->addWidget(m_datiFileLbl, 1);
@@ -298,7 +298,7 @@ QWidget* StrumentiFilePage::buildDatiTab()
     auto* actionLay = new QHBoxLayout(actionRow);
     actionLay->setContentsMargins(0, 0, 0, 0);
     actionLay->setSpacing(8);
-    auto* actionLbl = new QLabel("Analisi:", actionRow);
+    auto* actionLbl = new QLabel(tr("Analisi:"), actionRow);
     m_datiActionCombo = new QComboBox(actionRow);
     m_datiActionCombo->addItems({
         "\xf0\x9f\x93\x8a  Analisi generale",
@@ -397,7 +397,7 @@ QWidget* StrumentiFilePage::buildPdfTab()
         "\xf0\x9f\x93\x84  Carica PDF", fileRow);
     fileBtn->setObjectName("actionBtn");
     fileBtn->setFixedWidth(dpiScale(130));
-    m_pdfFileLbl = new QLabel("Nessun PDF caricato", fileRow);
+    m_pdfFileLbl = new QLabel(tr("Nessun PDF caricato"), fileRow);
     m_pdfFileLbl->setObjectName("hintLabel");
     fileLay->addWidget(fileBtn);
     fileLay->addWidget(m_pdfFileLbl, 1);
@@ -429,7 +429,7 @@ QWidget* StrumentiFilePage::buildPdfTab()
     auto* actionLay = new QHBoxLayout(actionRow);
     actionLay->setContentsMargins(0, 0, 0, 0);
     actionLay->setSpacing(8);
-    auto* actionLbl = new QLabel("Azione:", actionRow);
+    auto* actionLbl = new QLabel(tr("Azione:"), actionRow);
     m_pdfActionCombo = new QComboBox(actionRow);
     m_pdfActionCombo->addItems({
         "\xf0\x9f\x93\x9d  Riassumi",
@@ -490,7 +490,7 @@ QWidget* StrumentiFilePage::buildWordTab()
         "\xf0\x9f\x93\x82  Carica file", fileRow);
     fileBtn->setObjectName("actionBtn");
     fileBtn->setFixedWidth(dpiScale(130));
-    m_wordFileLbl = new QLabel("Nessun file caricato", fileRow);
+    m_wordFileLbl = new QLabel(tr("Nessun file caricato"), fileRow);
     m_wordFileLbl->setObjectName("hintLabel");
     fileLay->addWidget(fileBtn);
     fileLay->addWidget(m_wordFileLbl, 1);
@@ -521,7 +521,7 @@ QWidget* StrumentiFilePage::buildWordTab()
     auto* actionLay = new QHBoxLayout(actionRow);
     actionLay->setContentsMargins(0, 0, 0, 0);
     actionLay->setSpacing(8);
-    auto* actionLbl = new QLabel("Azione:", actionRow);
+    auto* actionLbl = new QLabel(tr("Azione:"), actionRow);
     m_wordActionCombo = new QComboBox(actionRow);
     m_wordActionCombo->addItems({
         "\xf0\x9f\x93\x9d  Riassumi",

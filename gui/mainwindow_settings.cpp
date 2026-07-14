@@ -53,7 +53,7 @@ void MainWindow::ensureSettingsDialog()
 {
     if (m_impDlg) return;
     m_impDlg = new QDialog(this);
-    m_impDlg->setWindowTitle("\xe2\x9a\x99\xef\xb8\x8f  Impostazioni \xe2\x80\x94 Prismalux");
+    m_impDlg->setWindowTitle(tr("\xe2\x9a\x99\xef\xb8\x8f  Impostazioni \xe2\x80\x94 Prismalux"));
     /* NO Qt::Window flag — QDialog default flags funzionano correttamente
        su tutte le piattaforme senza scatenare bug Windows API parent-child */
     m_impDlg->setAttribute(Qt::WA_DeleteOnClose, false);
@@ -112,20 +112,20 @@ void MainWindow::ensureSettingsDialog()
             clean.remove('\r');
             clean = clean.trimmed().left(60);
             if (!clean.isEmpty())
-                m_dlStatusLbl->setText("\xe2\xac\x87 " + clean + "  \xe2\x8f\xb3");
+                m_dlStatusLbl->setText(tr("\xe2\xac\x87 ") + clean + "  \xe2\x8f\xb3");
         }, Qt::QueuedConnection);
 
         connect(man, &ManutenzioneePage::downloadFinished,
                 this, [this](bool ok, const QString& model) {
             if (!m_dlStatusLbl) return;
             if (ok) {
-                m_dlStatusLbl->setText("\xe2\x9c\x85 " + model + " scaricato");
+                m_dlStatusLbl->setText(tr("\xe2\x9c\x85 ") + model + " scaricato");
                 /* Nasconde la label dopo 5 secondi */
                 QTimer::singleShot(5000, m_dlStatusLbl, [this]{
                     if (m_dlStatusLbl) m_dlStatusLbl->setVisible(false);
                 });
             } else {
-                m_dlStatusLbl->setText("\xe2\x9d\x8c Download " + model + " fallito");
+                m_dlStatusLbl->setText(tr("\xe2\x9d\x8c Download ") + model + " fallito");
                 QTimer::singleShot(8000, m_dlStatusLbl, [this]{
                     if (m_dlStatusLbl) m_dlStatusLbl->setVisible(false);
                 });
@@ -153,7 +153,7 @@ void MainWindow::ensureLogDialog()
     if (m_logDlg) return;
 
     m_logDlg = new QDialog(this);
-    m_logDlg->setWindowTitle("\xf0\x9f\x93\x8b  Messaggi \xe2\x80\x94 Prismalux");
+    m_logDlg->setWindowTitle(tr("\xf0\x9f\x93\x8b  Messaggi \xe2\x80\x94 Prismalux"));
     m_logDlg->setAttribute(Qt::WA_DeleteOnClose, false);
     m_logDlg->resize(dpiScale(720), dpiScale(480));
 
@@ -184,9 +184,9 @@ void MainWindow::ensureLogDialog()
     m_logViewAI  = makeView("Nessun evento AI. Pipeline, inferenza, RAG, embedding.");
     m_logView3D  = makeView("Nessun evento Vision3D. Server, scatti ricevuti, ricostruzione.");
 
-    m_logTabs->addTab(m_logViewSis, "\xf0\x9f\x96\xa5  Sistema");   /* 🖥 */
-    m_logTabs->addTab(m_logViewAI,  "\xf0\x9f\xa4\x96  AI");         /* 🤖 */
-    m_logTabs->addTab(m_logView3D,  "\xf0\x9f\xa7\xa9  3D");         /* 🧩 */
+    m_logTabs->addTab(m_logViewSis, tr("\xf0\x9f\x96\xa5  Sistema"));   /* 🖥 */
+    m_logTabs->addTab(m_logViewAI,  tr("\xf0\x9f\xa4\x96  AI"));         /* 🤖 */
+    m_logTabs->addTab(m_logView3D,  tr("\xf0\x9f\xa7\xa9  3D"));         /* 🧩 */
     lay->addWidget(m_logTabs, 1);
 
     /* Pulsanti */
@@ -195,12 +195,12 @@ void MainWindow::ensureLogDialog()
     btnLay->setContentsMargins(0, 0, 0, 0);
     btnLay->setSpacing(8);
 
-    auto* clearBtn = new QPushButton("\xf0\x9f\x97\x91  Pulisci log", btnRow);
+    auto* clearBtn = new QPushButton(tr("\xf0\x9f\x97\x91  Pulisci log"), btnRow);
     clearBtn->setObjectName("actionBtn");
     clearBtn->setFixedHeight(dpiScale(32));
     connect(clearBtn, &QPushButton::clicked, this, &MainWindow::onClearLogClicked);
 
-    auto* closeBtn = new QPushButton("Chiudi", btnRow);
+    auto* closeBtn = new QPushButton(tr("Chiudi"), btnRow);
     closeBtn->setObjectName("actionBtn");
     closeBtn->setFixedHeight(dpiScale(32));
     connect(closeBtn, &QPushButton::clicked, m_logDlg, &QDialog::hide);

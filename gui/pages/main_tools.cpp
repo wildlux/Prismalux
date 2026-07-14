@@ -89,7 +89,7 @@ void StrumentiPage::buildLayout()
         int col = 0, row = 0;
         for (int act = 0; kSubActions[cat][act] != nullptr; act++) {
             auto* abtn = new QPushButton(
-                QString::fromUtf8(kSubActions[cat][act]), page);
+                P::trTab(kSubActions[cat][act]), page);
             abtn->setCheckable(true);
             abtn->setChecked(act == 0);
             abtn->setObjectName("strActBtn");
@@ -107,7 +107,7 @@ void StrumentiPage::buildLayout()
 
     /* ── Tab 6: Cron (lazy-init via cronPanelFirstOpen) ── */
     buildCronPanel();
-    m_tabs->addTab(m_cronPanel, "\xe2\x8f\xb1 Cron");
+    m_tabs->addTab(m_cronPanel, tr("\xe2\x8f\xb1 Cron"));
 
     /* Finanza spostato in tab Utility */
     /* Fotovoltaico/Idroponica spostati in tab Utility */
@@ -143,8 +143,8 @@ void StrumentiPage::buildLayout()
 
     m_lblSel = new QLabel(m_sharedIoArea);
     m_lblSel->setObjectName("cardDesc");
-    m_lblSel->setText("\xe2\x9c\x85  <b>" +
-        QString::fromUtf8(kSubActions[0][0]) + "</b>");
+    m_lblSel->setText(tr("\xe2\x9c\x85  <b>") +
+        P::trTab(kSubActions[0][0]) + "</b>");
     m_lblSel->setTextFormat(Qt::RichText);
     ioLay->addWidget(m_lblSel);
 
@@ -235,7 +235,7 @@ QStackedWidget* StrumentiPage::buildActionStack()
         int col = 0, row = 0;
         for (int act = 0; kSubActions[cat][act] != nullptr; act++) {
             auto* abtn = new QPushButton(
-                QString::fromUtf8(kSubActions[cat][act]), page);
+                P::trTab(kSubActions[cat][act]), page);
             abtn->setCheckable(true);
             abtn->setChecked(act == 0);
             abtn->setObjectName("strActBtn");
@@ -298,7 +298,7 @@ QWidget* StrumentiPage::buildCatScrollArea()
     catLay->addSpacing(12);
 
     /* Pulsante Cron — stored as member */
-    m_cronBtn = new QPushButton("\xe2\x8f\xb1 Cron", catBar);
+    m_cronBtn = new QPushButton(tr("\xe2\x8f\xb1 Cron"), catBar);
     m_cronBtn->setCheckable(true);
     m_cronBtn->setObjectName("strCatBtn");
     m_cronBtn->setToolTip(
@@ -367,7 +367,7 @@ QWidget* StrumentiPage::buildCodeModelRow()
     lay->setContentsMargins(0, 2, 0, 2);
     lay->setSpacing(8);
 
-    auto* lbl = new QLabel("\xf0\x9f\xa4\x96  Modello:", m_codeModelRow);
+    auto* lbl = new QLabel(tr("\xf0\x9f\xa4\x96  Modello:"), m_codeModelRow);
     lbl->setObjectName("hintLabel");
     lay->addWidget(lbl);
 
@@ -412,7 +412,7 @@ QWidget* StrumentiPage::buildInputRow()
 
     m_inputArea = new QTextEdit(m_inputRow);
     m_inputArea->setObjectName("chatInput");
-    m_inputArea->setPlaceholderText(QString::fromUtf8(kPlaceholders[0]));
+    m_inputArea->setPlaceholderText(P::trTab(kPlaceholders[0]));
     m_inputArea->setMaximumHeight(90);
     m_inputArea->setMinimumHeight(60);
     lay->addWidget(m_inputArea, 1);
@@ -420,10 +420,10 @@ QWidget* StrumentiPage::buildInputRow()
     auto* btnCol = new QVBoxLayout;
     btnCol->setSpacing(6);
 
-    m_btnRun = new QPushButton("\xe2\x96\xb6  Esegui", m_inputRow);
+    m_btnRun = new QPushButton(tr("\xe2\x96\xb6  Esegui"), m_inputRow);
     m_btnRun->setObjectName("actionBtn");
     m_btnRun->setToolTip(tr("Invia la richiesta al modello AI (Invio+Ctrl)"));
-    m_btnRun->setAccessibleName("Esegui richiesta AI");
+    m_btnRun->setAccessibleName(tr("Esegui richiesta AI"));
     m_btnRun->setFixedWidth(dpiScale(110));
 
     m_waitLbl = new QLabel(m_inputRow);
@@ -494,24 +494,24 @@ QWidget* StrumentiPage::buildRagRow()
     lay->setContentsMargins(8, 4, 8, 4);
     lay->setSpacing(8);
 
-    m_ragCheck = new QCheckBox("\xf0\x9f\x93\x9a  RAG documenti", row);
+    m_ragCheck = new QCheckBox(tr("\xf0\x9f\x93\x9a  RAG documenti"), row);
     m_ragCheck->setToolTip(
         "Se attivo, i documenti caricati vengono usati come contesto\n"
         "per ogni richiesta AI in questa sezione.\n"
         "Puoi anche trascinare PDF/TXT/MD direttamente sulla finestra.");
     lay->addWidget(m_ragCheck);
 
-    auto* ragAddBtn = new QPushButton("\xf0\x9f\x93\x82  Aggiungi", row);
+    auto* ragAddBtn = new QPushButton(tr("\xf0\x9f\x93\x82  Aggiungi"), row);
     ragAddBtn->setObjectName("actionBtn");
     ragAddBtn->setFixedWidth(dpiScale(100));
     ragAddBtn->setToolTip(tr("Aggiungi PDF, TXT o Markdown all'indice RAG"));
     lay->addWidget(ragAddBtn);
 
-    m_ragInfoLbl = new QLabel("Nessun documento caricato", row);
+    m_ragInfoLbl = new QLabel(tr("Nessun documento caricato"), row);
     m_ragInfoLbl->setObjectName("hintLabel");
     lay->addWidget(m_ragInfoLbl, 1);
 
-    auto* ragClearBtn = new QPushButton("\xf0\x9f\x97\x91  Svuota", row);
+    auto* ragClearBtn = new QPushButton(tr("\xf0\x9f\x97\x91  Svuota"), row);
     ragClearBtn->setObjectName("actionBtn");
     ragClearBtn->setToolTip(tr("Rimuove tutti i documenti dall'indice RAG in-page"));
     ragClearBtn->setFixedWidth(dpiScale(80));
@@ -536,13 +536,13 @@ QWidget* StrumentiPage::buildPdfRow()
     lay->setContentsMargins(0, 4, 0, 0);
     lay->setSpacing(8);
 
-    auto* pdfBtn = new QPushButton("\xf0\x9f\x93\x84  Carica PDF", row);
+    auto* pdfBtn = new QPushButton(tr("\xf0\x9f\x93\x84  Carica PDF"), row);
     pdfBtn->setObjectName("actionBtn");
     pdfBtn->setToolTip(
         "Seleziona un file PDF da usare come contesto per la generazione AI");
     pdfBtn->setFixedWidth(dpiScale(130));
 
-    m_pdfPathLbl = new QLabel("Nessun PDF caricato", row);
+    m_pdfPathLbl = new QLabel(tr("Nessun PDF caricato"), row);
     m_pdfPathLbl->setObjectName("hintLabel");
     m_pdfPathLbl->setWordWrap(false);
 

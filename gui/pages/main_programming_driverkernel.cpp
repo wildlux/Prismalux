@@ -113,7 +113,7 @@ void ProgrammazionePage::buildDriverNvidiaSubTab(QTabWidget* tabs)
     connect(btnDkms,     &QPushButton::clicked,
             this, &ProgrammazionePage::onNvidiaDkmsClicked);
 
-    tabs->addTab(w, "\xf0\x9f\x9f\xa2  Driver NVIDIA");
+    tabs->addTab(w, tr("\xf0\x9f\x9f\xa2  Driver NVIDIA"));
 }
 
 void ProgrammazionePage::buildDriverAmdSubTab(QTabWidget* tabs)
@@ -171,7 +171,7 @@ void ProgrammazionePage::buildDriverAmdSubTab(QTabWidget* tabs)
     connect(btnDownload, &QPushButton::clicked,
             this, &ProgrammazionePage::onAmdDownloadClicked);
 
-    tabs->addTab(w, "\xf0\x9f\x94\xb4  Driver AMD");
+    tabs->addTab(w, tr("\xf0\x9f\x94\xb4  Driver AMD"));
 }
 
 void ProgrammazionePage::buildDriverKernelSubTab(QTabWidget* tabs)
@@ -234,7 +234,7 @@ void ProgrammazionePage::buildDriverKernelSubTab(QTabWidget* tabs)
     connect(btnSafety, &QPushButton::clicked,
             this, &ProgrammazionePage::onKernelSafetyClicked);
 
-    tabs->addTab(w, "\xf0\x9f\x90\xa7  Kernel Linux");
+    tabs->addTab(w, tr("\xf0\x9f\x90\xa7  Kernel Linux"));
 }
 
 void ProgrammazionePage::buildDriverUsbSubTab(QTabWidget* tabs)
@@ -275,7 +275,7 @@ void ProgrammazionePage::buildDriverUsbSubTab(QTabWidget* tabs)
         sep->setFrameShadow(QFrame::Sunken);
         vl->addWidget(sep);
 
-        auto* lbl = new QLabel("\xf0\x9f\x94\x97  URL stream:", leftWidget);
+        auto* lbl = new QLabel(tr("\xf0\x9f\x94\x97  URL stream:"), leftWidget);
         vl->addWidget(lbl);
 
         auto* row = new QWidget(leftWidget);
@@ -287,9 +287,9 @@ void ProgrammazionePage::buildDriverUsbSubTab(QTabWidget* tabs)
         m_camPreviewUrl->setPlaceholderText("http://10.42.0.1:8090/");
         m_camPreviewUrl->setText("http://10.42.0.1:8090/");
 
-        auto* btnConn = new QPushButton("\xf0\x9f\x94\x97  Connetti", row);
+        auto* btnConn = new QPushButton(tr("\xf0\x9f\x94\x97  Connetti"), row);
         btnConn->setObjectName("primaryButton");
-        auto* btnDisc = new QPushButton("\xe2\x9c\x96  Disco.", row);
+        auto* btnDisc = new QPushButton(tr("\xe2\x9c\x96  Disco."), row);
 
         rl->addWidget(m_camPreviewUrl, 1);
         rl->addWidget(btnConn);
@@ -315,7 +315,7 @@ void ProgrammazionePage::buildDriverUsbSubTab(QTabWidget* tabs)
         sep->setFrameShadow(QFrame::Sunken);
         vl->addWidget(sep);
 
-        auto* grpUsb = new QGroupBox("USB / V4L2", leftWidget);
+        auto* grpUsb = new QGroupBox(tr("USB / V4L2"), leftWidget);
         auto* gvl    = new QVBoxLayout(grpUsb);
         gvl->setSpacing(4);
 
@@ -323,9 +323,9 @@ void ProgrammazionePage::buildDriverUsbSubTab(QTabWidget* tabs)
         auto* rl1  = new QHBoxLayout(row1);
         rl1->setContentsMargins(0, 0, 0, 0);
         rl1->setSpacing(4);
-        auto* vidLbl = new QLabel("VID:PID:", row1);
+        auto* vidLbl = new QLabel(tr("VID:PID:"), row1);
         m_usbVidPidEdit = new QLineEdit(row1);
-        m_usbVidPidEdit->setPlaceholderText("es. 05c8:03ab");
+        m_usbVidPidEdit->setPlaceholderText(tr("es. 05c8:03ab"));
         rl1->addWidget(vidLbl);
         rl1->addWidget(m_usbVidPidEdit, 1);
         gvl->addWidget(row1);
@@ -334,10 +334,10 @@ void ProgrammazionePage::buildDriverUsbSubTab(QTabWidget* tabs)
         auto* rl2  = new QHBoxLayout(row2);
         rl2->setContentsMargins(0, 0, 0, 0);
         rl2->setSpacing(4);
-        auto* btnList   = new QPushButton("\xf0\x9f\x94\x8d Elenca USB", row2);
-        auto* btnV4l2   = new QPushButton("\xf0\x9f\x93\xb9 V4L2",       row2);
-        auto* btnDetail = new QPushButton("\xf0\x9f\x93\x8b Dettagli",    row2);
-        auto* btnUdev   = new QPushButton("\xf0\x9f\x94\xa7 udevadm",     row2);
+        auto* btnList   = new QPushButton(tr("\xf0\x9f\x94\x8d Elenca USB"), row2);
+        auto* btnV4l2   = new QPushButton(tr("\xf0\x9f\x93\xb9 V4L2"),       row2);
+        auto* btnDetail = new QPushButton(tr("\xf0\x9f\x93\x8b Dettagli"),    row2);
+        auto* btnUdev   = new QPushButton(tr("\xf0\x9f\x94\xa7 udevadm"),     row2);
         btnList->setToolTip(tr("Elenca dispositivi USB collegati (lsusb)"));
         btnV4l2->setToolTip(tr("Elenca dispositivi Video4Linux: webcam, TV tuner (v4l2-ctl)"));
         btnDetail->setToolTip(tr("Dettagli completi del dispositivo USB selezionato"));
@@ -361,7 +361,7 @@ void ProgrammazionePage::buildDriverUsbSubTab(QTabWidget* tabs)
 
     /* ── DFU + Server MJPEG ── */
     {
-        auto* grpDfu = new QGroupBox("DFU / Server MJPEG", leftWidget);
+        auto* grpDfu = new QGroupBox(tr("DFU / Server MJPEG"), leftWidget);
         auto* gvl    = new QVBoxLayout(grpDfu);
         gvl->setSpacing(4);
 
@@ -369,10 +369,10 @@ void ProgrammazionePage::buildDriverUsbSubTab(QTabWidget* tabs)
         auto* rl1  = new QHBoxLayout(row1);
         rl1->setContentsMargins(0, 0, 0, 0);
         rl1->setSpacing(4);
-        auto* btnDfuList  = new QPushButton("\xf0\x9f\x93\xa6 Lista",    row1);
-        auto* btnDfuDump  = new QPushButton("\xf0\x9f\x92\xbe Dump",     row1);
-        auto* btnDfuFlash = new QPushButton("\xe2\x9a\xa1 Flash",        row1);
-        auto* btnAiGuide  = new QPushButton("\xf0\x9f\x92\xa1 Guida AI", row1);
+        auto* btnDfuList  = new QPushButton(tr("\xf0\x9f\x93\xa6 Lista"),    row1);
+        auto* btnDfuDump  = new QPushButton(tr("\xf0\x9f\x92\xbe Dump"),     row1);
+        auto* btnDfuFlash = new QPushButton(tr("\xe2\x9a\xa1 Flash"),        row1);
+        auto* btnAiGuide  = new QPushButton(tr("\xf0\x9f\x92\xa1 Guida AI"), row1);
         btnDfuList->setToolTip(tr("Elenca dispositivi DFU collegati (dfu-util -l)"));
         btnDfuDump->setToolTip(tr("Scarica firmware dal dispositivo DFU in un file (dfu-util -U)"));
         btnDfuFlash->setToolTip(tr("Carica file firmware sul dispositivo DFU (dfu-util -D)"));
@@ -397,12 +397,12 @@ void ProgrammazionePage::buildDriverUsbSubTab(QTabWidget* tabs)
         m_camPortSpin->setFixedWidth(dpiScale(70));
         m_camPortSpin->setPrefix(":");
         auto* btnRefresh = new QPushButton("\xf0\x9f\x94\x84", row2);
-        btnRefresh->setToolTip("Aggiorna V4L2");
+        btnRefresh->setToolTip(tr("Aggiorna V4L2"));
         btnRefresh->setFixedWidth(dpiScale(30));
-        auto* btnStart = new QPushButton("\xe2\x96\xb6 Avvia", row2);
+        auto* btnStart = new QPushButton(tr("\xe2\x96\xb6 Avvia"), row2);
         btnStart->setObjectName("primaryButton");
         btnStart->setToolTip(tr("Avvia server MJPEG sulla porta specificata"));
-        auto* btnStop = new QPushButton("\xe2\x96\xa0 Ferma", row2);
+        auto* btnStop = new QPushButton(tr("\xe2\x96\xa0 Ferma"), row2);
         btnStop->setToolTip(tr("Ferma il server MJPEG"));
         rl2->addWidget(m_camDeviceCombo, 1);
         rl2->addWidget(btnRefresh);
@@ -478,7 +478,7 @@ void ProgrammazionePage::buildDriverUsbSubTab(QTabWidget* tabs)
         brl->setSpacing(8);
 
         /* Griglia PTZ 3x3 */
-        auto* ptzGroup = new QGroupBox("PTZ", bodyRow);
+        auto* ptzGroup = new QGroupBox(tr("PTZ"), bodyRow);
         auto* grid = new QGridLayout(ptzGroup);
         grid->setSpacing(2);
 
@@ -500,7 +500,7 @@ void ProgrammazionePage::buildDriverUsbSubTab(QTabWidget* tabs)
 
         auto* btnStopPtz = new QPushButton("\xe2\x8f\xb9", ptzGroup);
         btnStopPtz->setFixedSize(dpiScale(40), dpiScale(32));
-        btnStopPtz->setToolTip("Stop PTZ");
+        btnStopPtz->setToolTip(tr("Stop PTZ"));
         grid->addWidget(btnStopPtz, 1, 1);
         connect(btnStopPtz, &QPushButton::clicked,
                 this, &ProgrammazionePage::onWibyPtzStop);
@@ -513,7 +513,7 @@ void ProgrammazionePage::buildDriverUsbSubTab(QTabWidget* tabs)
         brl->addWidget(ptzGroup);
 
         /* Impostazioni camera */
-        auto* toggleGroup = new QGroupBox("Camera", bodyRow);
+        auto* toggleGroup = new QGroupBox(tr("Camera"), bodyRow);
         auto* tgl = new QVBoxLayout(toggleGroup);
         tgl->setSpacing(2);
 
@@ -606,7 +606,7 @@ void ProgrammazionePage::buildDriverUsbSubTab(QTabWidget* tabs)
             auto* btnGetUrl = new QPushButton(
                 "\xf0\x9f\x93\xa1 Ottieni URL", streamRow);
             m_wibyStreamUrl = new QLineEdit(streamRow);
-            m_wibyStreamUrl->setPlaceholderText("URL HLS o RTSP...");
+            m_wibyStreamUrl->setPlaceholderText(tr("URL HLS o RTSP..."));
             auto* btnStartStream = new QPushButton(
                 "\xe2\x96\xb6 Avvia viewer", streamRow);
             btnStartStream->setObjectName("primaryButton");
@@ -707,7 +707,7 @@ void ProgrammazionePage::buildDriverUsbSubTab(QTabWidget* tabs)
     hl->addWidget(leftScroll);
     hl->addWidget(rightWidget, 1);
 
-    tabs->addTab(w, "\xf0\x9f\x93\xb9  USB & Videocam LAN");
+    tabs->addTab(w, tr("\xf0\x9f\x93\xb9  USB & Videocam LAN"));
 }
 
 void ProgrammazionePage::buildDriverReKernelSubTab(QTabWidget* tabs)
@@ -736,11 +736,11 @@ void ProgrammazionePage::buildDriverReKernelSubTab(QTabWidget* tabs)
         rl->setContentsMargins(0, 0, 0, 0);
         rl->setSpacing(6);
 
-        rl->addWidget(new QLabel("\xf0\x9f\x93\x81  Target:", row));
+        rl->addWidget(new QLabel(tr("\xf0\x9f\x93\x81  Target:"), row));
         m_reTargetEdit = new QLineEdit(row);
         m_reTargetEdit->setPlaceholderText(
             "/path/to/module.ko   oppure   nome-simbolo-da-cercare");
-        auto* btnBrowse = new QPushButton("\xf0\x9f\x93\x82  Sfoglia", row);
+        auto* btnBrowse = new QPushButton(tr("\xf0\x9f\x93\x82  Sfoglia"), row);
         btnBrowse->setFixedWidth(dpiScale(90));
         rl->addWidget(m_reTargetEdit, 1);
         rl->addWidget(btnBrowse);
@@ -757,16 +757,16 @@ void ProgrammazionePage::buildDriverReKernelSubTab(QTabWidget* tabs)
 
     /* ── Strumenti ELF / Binario ── */
     {
-        auto* grp = new QGroupBox("Analisi ELF / Binario", w);
+        auto* grp = new QGroupBox(tr("Analisi ELF / Binario"), w);
         auto* gl  = new QHBoxLayout(grp);
         gl->setSpacing(5);
 
-        auto* btnFile    = new QPushButton("\xf0\x9f\x93\x84  file",        grp);
-        auto* btnReadelf = new QPushButton("\xf0\x9f\x93\x96  readelf",     grp);
-        auto* btnObjdump = new QPushButton("\xf0\x9f\x92\xbb  objdump -d",  grp);
-        auto* btnNm      = new QPushButton("\xf0\x9f\x94\xa4  nm",          grp);
-        auto* btnStrings = new QPushButton("\xf0\x9f\x94\xa1  strings",     grp);
-        auto* btnLdd     = new QPushButton("\xf0\x9f\x94\x97  ldd",         grp);
+        auto* btnFile    = new QPushButton(tr("\xf0\x9f\x93\x84  file"),        grp);
+        auto* btnReadelf = new QPushButton(tr("\xf0\x9f\x93\x96  readelf"),     grp);
+        auto* btnObjdump = new QPushButton(tr("\xf0\x9f\x92\xbb  objdump -d"),  grp);
+        auto* btnNm      = new QPushButton(tr("\xf0\x9f\x94\xa4  nm"),          grp);
+        auto* btnStrings = new QPushButton(tr("\xf0\x9f\x94\xa1  strings"),     grp);
+        auto* btnLdd     = new QPushButton(tr("\xf0\x9f\x94\x97  ldd"),         grp);
         btnFile->setToolTip(tr("Identifica tipo e formato del file binario (file <nome>)"));
         btnReadelf->setToolTip(tr("Analizza struttura ELF: sezioni, simboli, note, dipendenze (readelf -a)"));
         btnObjdump->setToolTip(tr("Disassembla le sezioni .text dell'eseguibile (objdump -d)"));
@@ -799,16 +799,16 @@ void ProgrammazionePage::buildDriverReKernelSubTab(QTabWidget* tabs)
 
     /* ── Strumenti Kernel / Moduli ── */
     {
-        auto* grp = new QGroupBox("Kernel / Moduli / Tracing", w);
+        auto* grp = new QGroupBox(tr("Kernel / Moduli / Tracing"), w);
         auto* gl  = new QHBoxLayout(grp);
         gl->setSpacing(5);
 
-        auto* btnModinfo  = new QPushButton("\xf0\x9f\x94\x8e  modinfo",      grp);
-        auto* btnLsmod    = new QPushButton("\xf0\x9f\x93\x8b  lsmod",        grp);
-        auto* btnKallsyms = new QPushButton("\xf0\x9f\x94\x8d  kallsyms",     grp);
-        auto* btnDmesgDrv = new QPushButton("\xf0\x9f\x93\x9d  dmesg driver", grp);
-        auto* btnStrace   = new QPushButton("\xf0\x9f\x95\xb5  strace -c",    grp);
-        auto* btnKprobes  = new QPushButton("\xe2\x9a\xa1  kprobes",          grp);
+        auto* btnModinfo  = new QPushButton(tr("\xf0\x9f\x94\x8e  modinfo"),      grp);
+        auto* btnLsmod    = new QPushButton(tr("\xf0\x9f\x93\x8b  lsmod"),        grp);
+        auto* btnKallsyms = new QPushButton(tr("\xf0\x9f\x94\x8d  kallsyms"),     grp);
+        auto* btnDmesgDrv = new QPushButton(tr("\xf0\x9f\x93\x9d  dmesg driver"), grp);
+        auto* btnStrace   = new QPushButton(tr("\xf0\x9f\x95\xb5  strace -c"),    grp);
+        auto* btnKprobes  = new QPushButton(tr("\xe2\x9a\xa1  kprobes"),          grp);
         btnModinfo->setToolTip(tr("Informazioni dettagliate sul modulo kernel (modinfo <nome>)"));
         btnLsmod->setToolTip(tr("Elenca i moduli kernel caricati attualmente (lsmod)"));
         btnKallsyms->setToolTip(tr("Cerca simbolo nei simboli del kernel live (/proc/kallsyms)"));
@@ -849,7 +849,7 @@ void ProgrammazionePage::buildDriverReKernelSubTab(QTabWidget* tabs)
         auto* btnAiAnalyze = new QPushButton(
             "\xf0\x9f\xa4\x96  Analisi AI \xe2\x80\x94 spiega output", row);
         btnAiAnalyze->setObjectName("primaryButton");
-        auto* btnClear = new QPushButton("\xf0\x9f\x97\x91  Pulisci", row);
+        auto* btnClear = new QPushButton(tr("\xf0\x9f\x97\x91  Pulisci"), row);
         btnClear->setToolTip(tr("Pulisce l'output del reverse engineering"));
 
         rl->addWidget(btnAiAnalyze);
@@ -879,7 +879,7 @@ void ProgrammazionePage::buildDriverReKernelSubTab(QTabWidget* tabs)
     );
     vl->addWidget(m_reKernelOutput, 1);
 
-    tabs->addTab(w, "\xf0\x9f\x94\x8d  RE Kernel");
+    tabs->addTab(w, tr("\xf0\x9f\x94\x8d  RE Kernel"));
 }
 
 /* ── helper: esegue un comando read-only e mostra l'output in out ── */

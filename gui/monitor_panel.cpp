@@ -40,7 +40,7 @@ static const char* COL_HEADERS[] = {
 MonitorPanel::MonitorPanel(AiClient* ai, HardwareMonitor* hw, QWidget* parent)
     : QDialog(parent)
 {
-    setWindowTitle("\xf0\x9f\x93\x8a  Monitor Attivit\xc3\xa0 AI — Diagnostica");
+    setWindowTitle(tr("\xf0\x9f\x93\x8a  Monitor Attivit\xc3\xa0 AI — Diagnostica"));
     setMinimumSize(980, 600);
     setWindowFlags(windowFlags() | Qt::WindowMaximizeButtonHint);
 
@@ -61,16 +61,16 @@ MonitorPanel::MonitorPanel(AiClient* ai, HardwareMonitor* hw, QWidget* parent)
         topBar);
     topLay->addWidget(title, 1);
 
-    m_liveInfo = new QLabel("In attesa...", topBar);
+    m_liveInfo = new QLabel(tr("In attesa..."), topBar);
     m_liveInfo->setStyleSheet("color:#aaa; font-size:11px;");
     topLay->addWidget(m_liveInfo);
 
-    auto* clearBtn = new QPushButton("\xf0\x9f\x97\x91  Pulisci", topBar);
+    auto* clearBtn = new QPushButton(tr("\xf0\x9f\x97\x91  Pulisci"), topBar);
     clearBtn->setFixedWidth(dpiScale(90));
     connect(clearBtn, &QPushButton::clicked, this, &MonitorPanel::onClearClicked);
     topLay->addWidget(clearBtn);
 
-    auto* exportBtn = new QPushButton("\xf0\x9f\x93\x8b  Copia log", topBar);
+    auto* exportBtn = new QPushButton(tr("\xf0\x9f\x93\x8b  Copia log"), topBar);
     exportBtn->setFixedWidth(dpiScale(100));
     connect(exportBtn, &QPushButton::clicked, this, &MonitorPanel::onExportClicked);
     topLay->addWidget(exportBtn);
@@ -237,7 +237,7 @@ void MonitorPanel::onFinished(const QString& full) {
     appendLog("     ─────────────────────────────────────────");
 
     flushSession();
-    m_liveInfo->setText("In attesa della prossima richiesta...");
+    m_liveInfo->setText(tr("In attesa della prossima richiesta..."));
 }
 
 void MonitorPanel::onError(const QString& msg) {
@@ -250,7 +250,7 @@ void MonitorPanel::onError(const QString& msg) {
     appendLog("     ─────────────────────────────────────────");
 
     flushSession();
-    m_liveInfo->setText("Errore nell'ultima richiesta.");
+    m_liveInfo->setText(tr("Errore nell'ultima richiesta."));
 }
 
 void MonitorPanel::onAborted() {
@@ -263,7 +263,7 @@ void MonitorPanel::onAborted() {
     appendLog("     ─────────────────────────────────────────");
 
     flushSession();
-    m_liveInfo->setText("Richiesta annullata.");
+    m_liveInfo->setText(tr("Richiesta annullata."));
 }
 
 /* ══════════════════════════════════════════════════════════════

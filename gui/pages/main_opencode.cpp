@@ -27,8 +27,8 @@ OpenCodePage::OpenCodePage(QWidget* parent) : QWidget(parent) {
 
     /* ── Top bar: stato + avvia/ferma ── */
     auto* topBar = new QHBoxLayout;
-    m_startBtn  = new QPushButton("\xf0\x9f\x9f\xa2  Avvia OpenCode", this);
-    m_statusLbl = new QLabel("\xe2\x97\x8f  Offline", this);
+    m_startBtn  = new QPushButton(tr("\xf0\x9f\x9f\xa2  Avvia OpenCode"), this);
+    m_statusLbl = new QLabel(tr("\xe2\x97\x8f  Offline"), this);
     m_statusLbl->setStyleSheet("color:#ef4444; font-weight:bold;");
     topBar->addWidget(m_startBtn);
     topBar->addWidget(m_statusLbl);
@@ -38,7 +38,7 @@ OpenCodePage::OpenCodePage(QWidget* parent) : QWidget(parent) {
     auto* cfgRow = new QHBoxLayout;
 
     /* Modello: combo con default dal config opencode, editabile */
-    cfgRow->addWidget(new QLabel("Modello:", this));
+    cfgRow->addWidget(new QLabel(tr("Modello:"), this));
     m_modelCombo = new QComboBox(this);
     m_modelCombo->setEditable(true);
     m_modelCombo->setMinimumWidth(200);
@@ -56,7 +56,7 @@ OpenCodePage::OpenCodePage(QWidget* parent) : QWidget(parent) {
     cfgRow->addWidget(m_modelCombo);
 
     /* Directory di lavoro */
-    cfgRow->addWidget(new QLabel("  Dir:", this));
+    cfgRow->addWidget(new QLabel(tr("  Dir:"), this));
     m_cwdEdit = new QLineEdit(P::root(), this);
     m_cwdEdit->setMinimumWidth(260);
     cfgRow->addWidget(m_cwdEdit, 1);
@@ -78,11 +78,11 @@ OpenCodePage::OpenCodePage(QWidget* parent) : QWidget(parent) {
     auto* sessPanel = new QWidget(this);
     auto* sessLay   = new QVBoxLayout(sessPanel);
     sessLay->setContentsMargins(4, 0, 0, 0);
-    sessLay->addWidget(new QLabel("<b>Sessioni recenti</b>", this));
+    sessLay->addWidget(new QLabel(tr("<b>Sessioni recenti</b>"), this));
     m_sessList = new QListWidget(this);
     m_sessList->setMaximumWidth(220);
     sessLay->addWidget(m_sessList, 1);
-    auto* refreshBtn = new QPushButton("\xf0\x9f\x94\x84  Aggiorna", this);
+    auto* refreshBtn = new QPushButton(tr("\xf0\x9f\x94\x84  Aggiorna"), this);
     sessLay->addWidget(refreshBtn);
     splitter->addWidget(sessPanel);
 
@@ -96,8 +96,8 @@ OpenCodePage::OpenCodePage(QWidget* parent) : QWidget(parent) {
     m_input->setFixedHeight(dpiScale(90));
 
     auto* btnRow = new QHBoxLayout;
-    m_sendBtn  = new QPushButton("\xe2\x96\xb6  Invia", this);
-    m_abortBtn = new QPushButton("\xe2\x8f\xb9  Ferma", this);
+    m_sendBtn  = new QPushButton(tr("\xe2\x96\xb6  Invia"), this);
+    m_abortBtn = new QPushButton(tr("\xe2\x8f\xb9  Ferma"), this);
     m_sendBtn->setEnabled(false);
     m_abortBtn->setEnabled(false);
     m_sendBtn->setDefault(true);

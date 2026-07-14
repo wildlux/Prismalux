@@ -89,7 +89,7 @@ NatalChartWidget::NatalChartWidget(QWidget* parent) : QWidget(parent)
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     setCursor(Qt::OpenHandCursor);
     setMouseTracking(false);
-    setToolTip("Rotella: zoom  |  Trascina: pan  |  Doppio clic: reset");
+    setToolTip(tr("Rotella: zoom  |  Trascina: pan  |  Doppio clic: reset"));
 
     const QString btnStyle =
         "QToolButton { border:none; background:transparent; font-size:14px; font-weight:bold; }"
@@ -109,7 +109,7 @@ NatalChartWidget::NatalChartWidget(QWidget* parent) : QWidget(parent)
     m_btnZoomOut->setText("\xe2\x88\x92");
     m_btnZoomOut->setStyleSheet(btnStyle);
     m_btnZoomOut->setCursor(Qt::ArrowCursor);
-    m_btnZoomOut->setToolTip("Zoom out");
+    m_btnZoomOut->setToolTip(tr("Zoom out"));
 
     m_zoomLbl = new QLabel("100%", m_zoomBar);
     m_zoomLbl->setStyleSheet("font-size:11px; color:#333; min-width:36px;");
@@ -119,13 +119,13 @@ NatalChartWidget::NatalChartWidget(QWidget* parent) : QWidget(parent)
     m_btnZoomIn->setText("+");
     m_btnZoomIn->setStyleSheet(btnStyle);
     m_btnZoomIn->setCursor(Qt::ArrowCursor);
-    m_btnZoomIn->setToolTip("Zoom in");
+    m_btnZoomIn->setToolTip(tr("Zoom in"));
 
     m_btnReset = new QToolButton(m_zoomBar);
     m_btnReset->setText("\xe2\x8c\x82");
     m_btnReset->setStyleSheet(btnStyle);
     m_btnReset->setCursor(Qt::ArrowCursor);
-    m_btnReset->setToolTip("Reimposta vista");
+    m_btnReset->setToolTip(tr("Reimposta vista"));
 
     lay->addWidget(m_btnZoomOut);
     lay->addWidget(m_zoomLbl);

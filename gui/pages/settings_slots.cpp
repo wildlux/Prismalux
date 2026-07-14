@@ -987,7 +987,7 @@ void ImpostazioniPage::onRpcCheckClicked()
     AppConfig::s().setValue(P::SK::kRpcNodes, raw);
 
     if (raw.isEmpty()) {
-        m_rpcStatusLbl->setText("\xe2\x84\xb9  Nessun nodo configurato.");  /* ℹ */
+        m_rpcStatusLbl->setText(tr("\xe2\x84\xb9  Nessun nodo configurato."));  /* ℹ */
         return;
     }
 
@@ -1032,7 +1032,7 @@ void ImpostazioniPage::onRpcStartNodesClicked()
                             : m_rpcPathEdit->text().trimmed();
 
     if (nodes.isEmpty()) {
-        m_rpcStatusLbl->setText("\xe2\x84\xb9  Nessun nodo configurato.");
+        m_rpcStatusLbl->setText(tr("\xe2\x84\xb9  Nessun nodo configurato."));
         return;
     }
     AppConfig::s().setValue(P::SK::kRpcSshUser, sshUser);
@@ -1059,7 +1059,7 @@ void ImpostazioniPage::onRpcStopNodesClicked()
     const QString nodes   = m_rpcNodesEdit->text().trimmed();
     const QString sshUser = m_rpcSshUserEdit->text().trimmed();
     if (nodes.isEmpty()) {
-        m_rpcStatusLbl->setText("\xe2\x84\xb9  Nessun nodo configurato.");
+        m_rpcStatusLbl->setText(tr("\xe2\x84\xb9  Nessun nodo configurato."));
         return;
     }
     const QString userPrefix = sshUser.isEmpty() ? "" : sshUser + "@";
@@ -1093,7 +1093,7 @@ void ImpostazioniPage::onAiParamsSave()
     AiChatParams::save(p);
     if (m_ai) m_ai->setChatParams(p);
     if (m_saveStatus) {
-        m_saveStatus->setText("\xe2\x9c\x85  Salvato in " + AiChatParams::filePath());
+        m_saveStatus->setText(tr("\xe2\x9c\x85  Salvato in ") + AiChatParams::filePath());
         QTimer::singleShot(3000, this,
                            &ImpostazioniPage::onAiParamsSaveStatusClear);
     }
@@ -1241,7 +1241,7 @@ void ImpostazioniPage::refreshDockerStatusCard()
             "Il binario c'\xc3\xa8 ma il servizio/socket non risponde (spesso "
             "\xe2\x80\x9cmascherato\xe2\x80\x9d dopo un'installazione manuale).<br>"
             "Il codice sar\xc3\xa0 eseguito con Python locale (permessi utente) finch\xc3\xa9 non lo sblocchi.");
-        m_dockerUnlockBtn->setText("\xf0\x9f\x94\x93  Sblocca e avvia Docker");
+        m_dockerUnlockBtn->setText(tr("\xf0\x9f\x94\x93  Sblocca e avvia Docker"));
         m_dockerUnlockBtn->setEnabled(true);
         m_dockerUnlockBtn->show();
     } else {

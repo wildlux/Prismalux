@@ -111,10 +111,10 @@ Vision3DSceneCanvas::Vision3DSceneCanvas(QWidget* parent)
 {
     setMinimumSize(dpiScale(220), dpiScale(220));
     setMouseTracking(false);
-    setToolTip("Posizione stimata delle camere intorno all'oggetto.\n"
+    setToolTip(tr("Posizione stimata delle camere intorno all'oggetto.\n"
                "Trascina per ruotare la vista, rotella per lo zoom.\n"
                "Cono tratteggiato = scatto senza sensori (posizione indicativa).\n"
-               "Pallino tratteggiato = punto ancora da coprire; pieno = già coperto.");
+               "Pallino tratteggiato = punto ancora da coprire; pieno = già coperto."));
 }
 
 void Vision3DSceneCanvas::addShot(const V3dShotInfo& s)
@@ -539,7 +539,7 @@ bool Vision3DWidget::start(quint16 port, const QString& certPath, const QString&
     m_urlLabel->setText(url);
     if (m_prepQr) m_prepQr->setText(url);
     m_statusDot->setStyleSheet("color:#3fb950;font-size:18px;");
-    m_toggleBtn->setText("Ferma server");
+    m_toggleBtn->setText(tr("Ferma server"));
     appendLog("Server attivo: " + url + "  — connetti i client iOS, Android o Desktop (browser).");
     emit serverStarted(url);
     fetchVlmModels();   // riempi il combo VLM coi modelli Ollama installati
@@ -555,8 +555,8 @@ void Vision3DWidget::stop()
 #endif
     m_running = false;
     if (m_statusDot) m_statusDot->setStyleSheet("color:#8b949e;font-size:18px;");
-    if (m_toggleBtn) m_toggleBtn->setText("Avvia server");
-    if (m_urlLabel) m_urlLabel->setText("(server fermo)");
+    if (m_toggleBtn) m_toggleBtn->setText(tr("Avvia server"));
+    if (m_urlLabel) m_urlLabel->setText(tr("(server fermo)"));
     if (m_prepQr) m_prepQr->setText(QString());
     appendLog("Server fermato.");
 }
@@ -573,15 +573,15 @@ void Vision3DWidget::onToggleServerClicked()
     const int already = curSession.isEmpty() ? 0 : countSessionPhotos(curSession);
     if (already == 0 && m_qualityCombo) {
         QMessageBox box(this);
-        box.setWindowTitle("Vision3D \xe2\x80\x94 quante foto?");
-        box.setText("Quante foto vuoi scattare per la fotogrammetria?");
+        box.setWindowTitle(tr("Vision3D \xe2\x80\x94 quante foto?"));
+        box.setText(tr("Quante foto vuoi scattare per la fotogrammetria?"));
         box.setInformativeText(
             "Il minimo copre l'oggetto con meno dettaglio; pi\xc3\xb9 foto "
             "danno un modello pi\xc3\xb9 preciso ma richiedono pi\xc3\xb9 scatti/tempo. "
             "Puoi comunque cambiare la qualit\xc3\xa0 in seguito dal menu accanto.");
-        auto* minBtn  = box.addButton("\xf0\x9f\x93\xb7 Il minimo (~10 foto)", QMessageBox::AcceptRole);
-        auto* moreBtn = box.addButton("\xf0\x9f\x93\xb8 Pi\xc3\xb9 foto (qualit\xc3\xa0 migliore, ~40)", QMessageBox::AcceptRole);
-        box.addButton("Decido dopo", QMessageBox::RejectRole);
+        auto* minBtn  = box.addButton(tr("\xf0\x9f\x93\xb7 Il minimo (~10 foto)"), QMessageBox::AcceptRole);
+        auto* moreBtn = box.addButton(tr("\xf0\x9f\x93\xb8 Pi\xc3\xb9 foto (qualit\xc3\xa0 migliore, ~40)"), QMessageBox::AcceptRole);
+        box.addButton(tr("Decido dopo"), QMessageBox::RejectRole);
         box.exec();
         if (box.clickedButton() == minBtn) {
             const int idx = m_qualityCombo->findText("low");
@@ -608,7 +608,7 @@ void Vision3DWidget::onHelpClicked()
         : QStringLiteral("(avvia il server per vedere qui l'URL reale)");
 
     QDialog dlg(this);
-    dlg.setWindowTitle("Vision3D — guida rapida");
+    dlg.setWindowTitle(tr("Vision3D — guida rapida"));
     dlg.resize(dpiScale(560), dpiScale(600));
     auto* dlgLay = new QVBoxLayout(&dlg);
 
@@ -665,7 +665,7 @@ void Vision3DWidget::onHelpClicked()
     if (hasUrl) {
         auto* qr = new QrCodeWidget(url, &dlg);
         qr->setFixedSize(dpiScale(120), dpiScale(120));
-        qr->setToolTip("Inquadra con la fotocamera del telefono per aprire l'URL del server.");
+        qr->setToolTip(tr("Inquadra con la fotocamera del telefono per aprire l'URL del server."));
         bottomRow->addWidget(qr);
     } else {
         auto* noQr = new QLabel(tr("Avvia il server\nper generare\nil QR"), &dlg);
@@ -680,16 +680,16 @@ void Vision3DWidget::onHelpClicked()
     }
 
     auto* printCol = new QVBoxLayout();
-    printCol->addWidget(new QLabel("\xf0\x9f\x96\xa8 Bersagli ArUco (apri e stampa al 100%):", &dlg));
+    printCol->addWidget(new QLabel(tr("\xf0\x9f\x96\xa8 Bersagli ArUco (apri e stampa al 100%):"), &dlg));
 
-    auto* printArucoBtn = new QPushButton("Marker singoli (PDF)", &dlg);
+    auto* printArucoBtn = new QPushButton(tr("Marker singoli (PDF)"), &dlg);
     printArucoBtn->setObjectName("actionBtn");
     connect(printArucoBtn, &QPushButton::clicked, &dlg, [] {
         QDesktopServices::openUrl(QUrl::fromLocalFile(P::root() + "/Tools/aruco/aruco_markers_A4.pdf"));
     });
     printCol->addWidget(printArucoBtn);
 
-    auto* printBoardBtn = new QPushButton("Board CharUco (PDF)", &dlg);
+    auto* printBoardBtn = new QPushButton(tr("Board CharUco (PDF)"), &dlg);
     printBoardBtn->setObjectName("actionBtn");
     connect(printBoardBtn, &QPushButton::clicked, &dlg, [] {
         QDesktopServices::openUrl(QUrl::fromLocalFile(P::root() + "/Tools/aruco/charuco_board_A4.pdf"));
@@ -2022,7 +2022,7 @@ Vision3DResult Vision3DWidget::analyze(const QString& session, const QString& de
                                             Qt::KeepAspectRatio, Qt::SmoothTransformation));
         } else if (wants.boxes) {
             m_lastBoxes->setPixmap(QPixmap());
-            m_lastBoxes->setText("Box non disponibili:\nserve OpenCV\ndi sistema\n(libopencv-dev)");
+            m_lastBoxes->setText(tr("Box non disponibili:\nserve OpenCV\ndi sistema\n(libopencv-dev)"));
         }
     }
     if (m_lastDepth) {
@@ -2032,7 +2032,7 @@ Vision3DResult Vision3DWidget::analyze(const QString& session, const QString& de
                                              Qt::KeepAspectRatio, Qt::SmoothTransformation));
         } else if (wants.depth) {
             m_lastDepth->setPixmap(QPixmap());
-            m_lastDepth->setText("Depth non riuscita\n(vedi Log:\ndi solito manca\ntorch/timm)");
+            m_lastDepth->setText(tr("Depth non riuscita\n(vedi Log:\ndi solito manca\ntorch/timm)"));
         }
     }
     if (m_lastEdges) {
@@ -2042,7 +2042,7 @@ Vision3DResult Vision3DWidget::analyze(const QString& session, const QString& de
                                             Qt::KeepAspectRatio, Qt::SmoothTransformation));
         } else if (wants.edges) {
             m_lastEdges->setPixmap(QPixmap());
-            m_lastEdges->setText("Bordi non disponibili:\nserve OpenCV\ndi sistema\n(libopencv-dev)");
+            m_lastEdges->setText(tr("Bordi non disponibili:\nserve OpenCV\ndi sistema\n(libopencv-dev)"));
         }
     }
     if (m_lastBump) {
@@ -2052,7 +2052,7 @@ Vision3DResult Vision3DWidget::analyze(const QString& session, const QString& de
                                             Qt::KeepAspectRatio, Qt::SmoothTransformation));
         } else if (wants.bump) {
             m_lastBump->setPixmap(QPixmap());
-            m_lastBump->setText("Bump non disponibile:\nserve OpenCV\ndi sistema\n(libopencv-dev)");
+            m_lastBump->setText(tr("Bump non disponibile:\nserve OpenCV\ndi sistema\n(libopencv-dev)"));
         }
     }
     if (m_lastNormal) {
@@ -2062,7 +2062,7 @@ Vision3DResult Vision3DWidget::analyze(const QString& session, const QString& de
                                               Qt::KeepAspectRatio, Qt::SmoothTransformation));
         } else if (wants.normal) {
             m_lastNormal->setPixmap(QPixmap());
-            m_lastNormal->setText("Normal non disponibile:\nserve OpenCV\ndi sistema\n(libopencv-dev)");
+            m_lastNormal->setText(tr("Normal non disponibile:\nserve OpenCV\ndi sistema\n(libopencv-dev)"));
         }
     }
 
@@ -2637,52 +2637,52 @@ void Vision3DWidget::buildUi()
 
     auto* head = new QHBoxLayout;
     m_statusDot = new QLabel("●"); m_statusDot->setStyleSheet("color:#8b949e;font-size:18px;");
-    auto* title = new QLabel("<b>Prismalux Vision3D</b> — client iOS, Android e Desktop");
-    m_urlLabel = new QLabel("(server fermo)");
+    auto* title = new QLabel(tr("<b>Prismalux Vision3D</b> — client iOS, Android e Desktop"));
+    m_urlLabel = new QLabel(tr("(server fermo)"));
     m_urlLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
     m_urlLabel->setStyleSheet("color:#3fb0ff;");
     head->addWidget(m_statusDot); head->addWidget(title); head->addStretch();
-    head->addWidget(new QLabel("URL:")); head->addWidget(m_urlLabel);
+    head->addWidget(new QLabel(tr("URL:"))); head->addWidget(m_urlLabel);
     auto* helpBtn = new QPushButton("?");
     helpBtn->setObjectName("v3dHelpBtn");
     helpBtn->setFixedSize(dpiScale(28), dpiScale(28));
-    helpBtn->setToolTip("Guida rapida: installazione COLMAP e collegamento dei client");
+    helpBtn->setToolTip(tr("Guida rapida: installazione COLMAP e collegamento dei client"));
     connect(helpBtn, &QPushButton::clicked, this, &Vision3DWidget::onHelpClicked);
     head->addWidget(helpBtn);
     root->addLayout(head);
 
     auto* ctrl = new QHBoxLayout;
-    ctrl->addWidget(new QLabel("Interfaccia:"));
+    ctrl->addWidget(new QLabel(tr("Interfaccia:")));
     m_ifaceCombo = new QComboBox;
     m_ifaceCombo->setObjectName("v3dIfaceCombo");
     m_ifaceCombo->addItems(listLocalIps());
-    m_ifaceCombo->setToolTip("Il server ascolta SOLO su questo indirizzo.\n"
-                             "Scegli la tua LAN (192.168.x) — mai il bridge hotspot.");
+    m_ifaceCombo->setToolTip(tr("Il server ascolta SOLO su questo indirizzo.\n"
+                             "Scegli la tua LAN (192.168.x) — mai il bridge hotspot."));
     ctrl->addWidget(m_ifaceCombo);
     auto* ifaceRefreshBtn = new QPushButton("\xe2\x9f\xb3");   /* ⟳ */
     ifaceRefreshBtn->setFixedWidth(dpiScale(28));
-    ifaceRefreshBtn->setToolTip("Aggiorna elenco interfacce di rete");
+    ifaceRefreshBtn->setToolTip(tr("Aggiorna elenco interfacce di rete"));
     connect(ifaceRefreshBtn, &QPushButton::clicked, this, &Vision3DWidget::onRefreshIfacesClicked);
     ctrl->addWidget(ifaceRefreshBtn);
     ctrl->addSpacing(dpiScale(12));
-    ctrl->addWidget(new QLabel("Porta:"));
+    ctrl->addWidget(new QLabel(tr("Porta:")));
     m_portEdit = new QLineEdit(QString::number(m_port));
     m_portEdit->setFixedWidth(dpiScale(70));
     ctrl->addWidget(m_portEdit);
-    m_toggleBtn = new QPushButton("Avvia server");
+    m_toggleBtn = new QPushButton(tr("Avvia server"));
     connect(m_toggleBtn, &QPushButton::clicked, this, &Vision3DWidget::onToggleServerClicked);
     ctrl->addWidget(m_toggleBtn);
     ctrl->addSpacing(dpiScale(12));
-    ctrl->addWidget(new QLabel("VLM:"));
+    ctrl->addWidget(new QLabel(tr("VLM:")));
     m_vlmCombo = new QComboBox;
     m_vlmCombo->setObjectName("v3dVlmCombo");
     m_vlmCombo->setEditable(true);
     m_vlmCombo->addItem(m_vlmModel);
     m_vlmCombo->setMinimumWidth(dpiScale(180));
-    m_vlmCombo->setToolTip("Modello Ollama per la descrizione delle foto.\n"
+    m_vlmCombo->setToolTip(tr("Modello Ollama per la descrizione delle foto.\n"
                            "Serve un modello VISION (moondream, llava, qwen2.5-vl, minicpm-v...):\n"
                            "i modelli solo-testo rispondono ma ignorano l'immagine.\n"
-                           "All'avvio del server l'elenco si riempie con i modelli installati.");
+                           "All'avvio del server l'elenco si riempie con i modelli installati."));
     connect(m_vlmCombo, &QComboBox::currentTextChanged,
             this, &Vision3DWidget::onVlmModelChanged);
     ctrl->addWidget(m_vlmCombo);
@@ -2715,11 +2715,11 @@ void Vision3DWidget::buildUi()
     colBLay->setContentsMargins(0, 0, 0, 0);
 
     // Connessione dal telefono: QR (aggiornato da start()/stop()) + istruzioni
-    auto* connBox = new QGroupBox("Connessione dal telefono");
+    auto* connBox = new QGroupBox(tr("Connessione dal telefono"));
     auto* connLay = new QHBoxLayout(connBox);
     m_prepQr = new QrCodeWidget(QString());
     m_prepQr->setFixedSize(dpiScale(110), dpiScale(110));
-    m_prepQr->setToolTip("Inquadra con la fotocamera del telefono per aprire l'URL del server.");
+    m_prepQr->setToolTip(tr("Inquadra con la fotocamera del telefono per aprire l'URL del server."));
     m_prepQr->setEmptyHint("Non è possibile mostrare il QR code perché il server non è avviato");
     connLay->addWidget(m_prepQr);
     // Testo con tag HTML (<b>/<i>) → Qt lo rende in rich text, dove "\n"
@@ -2734,17 +2734,17 @@ void Vision3DWidget::buildUi()
     colALay->addWidget(connBox);
 
     // Bersagli ArUco: scala reale del modello — vanno stampati PRIMA di scattare
-    auto* arucoBox = new QGroupBox("Bersagli ArUco \xe2\x80\x94 scala reale");
+    auto* arucoBox = new QGroupBox(tr("Bersagli ArUco \xe2\x80\x94 scala reale"));
     auto* arucoLay = new QVBoxLayout(arucoBox);
     arucoLay->addWidget(new QLabel(
         "Stampa sempre al 100% / \"dimensione reale\" (MAI \"adatta alla pagina\"):"));
     auto* arucoBtnRow = new QHBoxLayout;
-    auto* printArucoBtn = new QPushButton("\xf0\x9f\x96\xa8 Marker singoli (PDF)");
+    auto* printArucoBtn = new QPushButton(tr("\xf0\x9f\x96\xa8 Marker singoli (PDF)"));
     printArucoBtn->setObjectName("actionBtn");
     connect(printArucoBtn, &QPushButton::clicked, this, [] {
         QDesktopServices::openUrl(QUrl::fromLocalFile(P::root() + "/Tools/aruco/aruco_markers_A4.pdf"));
     });
-    auto* printBoardBtn = new QPushButton("\xf0\x9f\x96\xa8 Board CharUco (PDF)");
+    auto* printBoardBtn = new QPushButton(tr("\xf0\x9f\x96\xa8 Board CharUco (PDF)"));
     printBoardBtn->setObjectName("actionBtn");
     connect(printBoardBtn, &QPushButton::clicked, this, [] {
         QDesktopServices::openUrl(QUrl::fromLocalFile(P::root() + "/Tools/aruco/charuco_board_A4.pdf"));
@@ -2757,17 +2757,17 @@ void Vision3DWidget::buildUi()
     // Sessione: più sessioni nominabili (notturno, villa, oggettistico,
     // natura...) — crea qui il nome PRIMA di andare a scattare, poi usa
     // lo stesso nome nel campo "Nome sessione" sul telefono per unirle.
-    auto* sessBox = new QGroupBox("Sessione");
+    auto* sessBox = new QGroupBox(tr("Sessione"));
     auto* sessLay = new QHBoxLayout(sessBox);
     m_prepSessionCombo = new QComboBox;
     m_prepSessionCombo->setToolTip(kPrepSessionComboTip);
     connect(m_prepSessionCombo, &QComboBox::currentTextChanged,
             this, &Vision3DWidget::onPrepSessionComboChanged);
     sessLay->addWidget(m_prepSessionCombo, 1);
-    auto* newSessBtn = new QPushButton("\xe2\x9e\x95 Nuova");
+    auto* newSessBtn = new QPushButton(tr("\xe2\x9e\x95 Nuova"));
     newSessBtn->setObjectName("actionBtn");
-    newSessBtn->setToolTip("Crea una sessione vuota con un nome a scelta "
-                           "(es. notturno, villa, oggettistico, natura...)");
+    newSessBtn->setToolTip(tr("Crea una sessione vuota con un nome a scelta "
+                           "(es. notturno, villa, oggettistico, natura...)"));
     connect(newSessBtn, &QPushButton::clicked, this, &Vision3DWidget::onNewSessionClicked);
     sessLay->addWidget(newSessBtn);
     auto* editSessDescBtn = new QPushButton("\xe2\x9c\x8f\xef\xb8\x8f");   /* ✏️ */
@@ -2781,7 +2781,7 @@ void Vision3DWidget::buildUi()
     colALay->addWidget(sessBox);
 
     // pannello device attivi
-    auto* devBox = new QGroupBox("Device attivi");
+    auto* devBox = new QGroupBox(tr("Device attivi"));
     auto* devLay = new QVBoxLayout(devBox);
     m_deviceTable = new QTableWidget(0, 4);
     m_deviceTable->setHorizontalHeaderLabels({"Device", "Foto", "Ultimo", "Dispositivo"});
@@ -2798,7 +2798,7 @@ void Vision3DWidget::buildUi()
     colALay->addStretch();
 
     // galleria scatti: si ACCODANO tutti qui, un clic li rivede nei pannelli sotto
-    auto* galBox = new QGroupBox("Scatti ricevuti (clic per rivedere)");
+    auto* galBox = new QGroupBox(tr("Scatti ricevuti (clic per rivedere)"));
     auto* galLay = new QVBoxLayout(galBox);
     m_gallery = new QListWidget;
     m_gallery->setObjectName("v3dGallery");
@@ -2824,30 +2824,30 @@ void Vision3DWidget::buildUi()
     connect(deleteShortcut, &QShortcut::activated, this, &Vision3DWidget::onDeletePhotoClicked);
 
     auto* galBtnRow = new QHBoxLayout;
-    auto* importBtn = new QPushButton("\xf0\x9f\x93\xa5 Importa foto");
+    auto* importBtn = new QPushButton(tr("\xf0\x9f\x93\xa5 Importa foto"));
     importBtn->setObjectName("actionBtn");
-    importBtn->setToolTip("Aggiungi foto già esistenti su disco alla sessione corrente "
-                          "(senza dati bussola: poi \"Distribuisci sul cerchio\").");
+    importBtn->setToolTip(tr("Aggiungi foto già esistenti su disco alla sessione corrente "
+                          "(senza dati bussola: poi \"Distribuisci sul cerchio\")."));
     connect(importBtn, &QPushButton::clicked, this, &Vision3DWidget::onImportPhotosClicked);
     galBtnRow->addWidget(importBtn);
-    auto* deletePhotoBtn = new QPushButton("\xf0\x9f\x97\x91 Elimina selezionate");
+    auto* deletePhotoBtn = new QPushButton(tr("\xf0\x9f\x97\x91 Elimina selezionate"));
     deletePhotoBtn->setObjectName("actionBtn");
     deletePhotoBtn->setProperty("danger", true);
-    deletePhotoBtn->setToolTip("Elimina definitivamente le foto selezionate in galleria "
-                               "(Ctrl/Shift+click per selezionarne più di una, oppure tasto Canc).");
+    deletePhotoBtn->setToolTip(tr("Elimina definitivamente le foto selezionate in galleria "
+                               "(Ctrl/Shift+click per selezionarne più di una, oppure tasto Canc)."));
     connect(deletePhotoBtn, &QPushButton::clicked, this, &Vision3DWidget::onDeletePhotoClicked);
     galBtnRow->addWidget(deletePhotoBtn);
-    auto* deleteAllBtn = new QPushButton("\xf0\x9f\x97\x91\xf0\x9f\x97\x91 Elimina tutte");
+    auto* deleteAllBtn = new QPushButton(tr("\xf0\x9f\x97\x91\xf0\x9f\x97\x91 Elimina tutte"));
     deleteAllBtn->setObjectName("actionBtn");
     deleteAllBtn->setProperty("danger", true);
-    deleteAllBtn->setToolTip("Elimina definitivamente TUTTE le foto di questa sessione.");
+    deleteAllBtn->setToolTip(tr("Elimina definitivamente TUTTE le foto di questa sessione."));
     connect(deleteAllBtn, &QPushButton::clicked, this, &Vision3DWidget::onDeleteAllPhotosClicked);
     galBtnRow->addWidget(deleteAllBtn);
     galLay->addLayout(galBtnRow);
 
     colBLay->addWidget(galBox);
 
-    auto* prevBox = new QGroupBox("Ultimo scatto analizzato");
+    auto* prevBox = new QGroupBox(tr("Ultimo scatto analizzato"));
     auto* grid = new QGridLayout(prevBox);
     m_lastThumb  = makeVision3dThumb(); m_lastThumb->setObjectName("v3dThumbOriginal");
     m_lastBoxes  = makeVision3dThumb(); m_lastBoxes->setObjectName("v3dThumbBoxes");
@@ -2855,12 +2855,12 @@ void Vision3DWidget::buildUi()
     m_lastEdges  = makeVision3dThumb(); m_lastEdges->setObjectName("v3dThumbEdges");
     m_lastBump   = makeVision3dThumb(); m_lastBump->setObjectName("v3dThumbBump");
     m_lastNormal = makeVision3dThumb(); m_lastNormal->setObjectName("v3dThumbNormal");
-    grid->addWidget(new QLabel("Originale"), 0,0);    grid->addWidget(m_lastThumb, 1,0);
-    grid->addWidget(new QLabel("Box (OpenCV)"), 0,1); grid->addWidget(m_lastBoxes, 1,1);
-    grid->addWidget(new QLabel("Depth"), 0,2);        grid->addWidget(m_lastDepth, 1,2);
-    grid->addWidget(new QLabel("Bordi"), 2,0);        grid->addWidget(m_lastEdges, 3,0);
-    grid->addWidget(new QLabel("Bump"), 2,1);         grid->addWidget(m_lastBump, 3,1);
-    grid->addWidget(new QLabel("Normal"), 2,2);       grid->addWidget(m_lastNormal, 3,2);
+    grid->addWidget(new QLabel(tr("Originale")), 0,0);    grid->addWidget(m_lastThumb, 1,0);
+    grid->addWidget(new QLabel(tr("Box (OpenCV)")), 0,1); grid->addWidget(m_lastBoxes, 1,1);
+    grid->addWidget(new QLabel(tr("Depth")), 0,2);        grid->addWidget(m_lastDepth, 1,2);
+    grid->addWidget(new QLabel(tr("Bordi")), 2,0);        grid->addWidget(m_lastEdges, 3,0);
+    grid->addWidget(new QLabel(tr("Bump")), 2,1);         grid->addWidget(m_lastBump, 3,1);
+    grid->addWidget(new QLabel(tr("Normal")), 2,2);       grid->addWidget(m_lastNormal, 3,2);
 
     // tasto destro su una miniatura = salva quella singola immagine
     for (QLabel* thumb : {m_lastThumb, m_lastBoxes, m_lastDepth,
@@ -2877,17 +2877,17 @@ void Vision3DWidget::buildUi()
                              "(per lo scatto selezionato in galleria)."));
     }
 
-    auto* saveAllMapsBtn = new QPushButton("\xf0\x9f\x92\xbe Salva tutte le mappe...");
+    auto* saveAllMapsBtn = new QPushButton(tr("\xf0\x9f\x92\xbe Salva tutte le mappe..."));
     saveAllMapsBtn->setObjectName("actionBtn");
-    saveAllMapsBtn->setToolTip("Copia originale, box, depth, bordi, bump e normal di questo "
-                               "scatto (quelli calcolati) in una cartella a scelta.");
+    saveAllMapsBtn->setToolTip(tr("Copia originale, box, depth, bordi, bump e normal di questo "
+                               "scatto (quelli calcolati) in una cartella a scelta."));
     connect(saveAllMapsBtn, &QPushButton::clicked, this, &Vision3DWidget::onSaveAllMapsClicked);
     grid->addWidget(saveAllMapsBtn, 4,0,1,3);
 
     auto* descRow = new QWidget;
     auto* descRowLay = new QHBoxLayout(descRow);
     descRowLay->setContentsMargins(0, 0, 0, 0);
-    m_lastDesc = new QLabel("La descrizione VLM apparirà qui.");
+    m_lastDesc = new QLabel(tr("La descrizione VLM apparirà qui."));
     m_lastDesc->setWordWrap(true);
     m_lastDesc->setStyleSheet("background:palette(base);border:1px solid palette(mid);"
                               "border-radius:8px;padding:10px;");
@@ -2913,14 +2913,14 @@ void Vision3DWidget::buildUi()
 
     /* colonna scrollabile: con finestre basse niente sovrapposizioni */
     prepScroll->setWidget(leftCol);
-    tabs->addTab(prepScroll, "\xf0\x9f\x93\xb7 Preparazione");
+    tabs->addTab(prepScroll, tr("\xf0\x9f\x93\xb7 Preparazione"));
 
     /* ═══ Tab 2: Assembla punti e texture (scena 3D + ricostruzione) ═══ */
     auto* rightCol = new QWidget;
     auto* rightLay = new QVBoxLayout(rightCol);
     rightLay->setContentsMargins(dpiScale(8), dpiScale(8), dpiScale(8), dpiScale(8));
 
-    auto* sceneBox = new QGroupBox("Scena 3D — posizione delle camere");
+    auto* sceneBox = new QGroupBox(tr("Scena 3D — posizione delle camere"));
     auto* sceneLay = new QVBoxLayout(sceneBox);
     m_scene = new Vision3DSceneCanvas;
     m_scene->setObjectName("v3dScene");
@@ -2930,73 +2930,73 @@ void Vision3DWidget::buildUi()
        l'angolo/inclinazione dello scatto selezionato si impostano a mano.
        Persistite nel sidecar .json → rieditabili anche dopo un riavvio. */
     auto* poseRow = new QHBoxLayout;
-    poseRow->addWidget(new QLabel("Posa manuale \xe2\x80\x94 Angolo:"));
+    poseRow->addWidget(new QLabel(tr("Posa manuale \xe2\x80\x94 Angolo:")));
     m_poseHeadSpin = new QSpinBox;
     m_poseHeadSpin->setObjectName("v3dPoseHead");
     m_poseHeadSpin->setRange(0, 359);
     m_poseHeadSpin->setWrapping(true);              // 359° + 1 = 0°
     m_poseHeadSpin->setSuffix("\xc2\xb0");
     m_poseHeadSpin->setEnabled(false);              // finché nessuno scatto è selezionato
-    m_poseHeadSpin->setToolTip("Posizione sul cerchio (bussola) dello scatto selezionato.\n"
-                               "Seleziona uno scatto in galleria, poi regola qui.");
+    m_poseHeadSpin->setToolTip(tr("Posizione sul cerchio (bussola) dello scatto selezionato.\n"
+                               "Seleziona uno scatto in galleria, poi regola qui."));
     connect(m_poseHeadSpin, QOverload<int>::of(&QSpinBox::valueChanged),
             this, &Vision3DWidget::onPoseSpinChanged);
     poseRow->addWidget(m_poseHeadSpin);
-    poseRow->addWidget(new QLabel("Inclin.:"));
+    poseRow->addWidget(new QLabel(tr("Inclin.:")));
     m_posePitchSpin = new QSpinBox;
     m_posePitchSpin->setObjectName("v3dPosePitch");
     m_posePitchSpin->setRange(-90, 90);
     m_posePitchSpin->setSuffix("\xc2\xb0");
     m_posePitchSpin->setEnabled(false);
-    m_posePitchSpin->setToolTip("Inclinazione del telefono (quota della camera nella scena).");
+    m_posePitchSpin->setToolTip(tr("Inclinazione del telefono (quota della camera nella scena)."));
     connect(m_posePitchSpin, QOverload<int>::of(&QSpinBox::valueChanged),
             this, &Vision3DWidget::onPoseSpinChanged);
     poseRow->addWidget(m_posePitchSpin);
-    m_distribBtn = new QPushButton("\xe2\x86\x94 Distribuisci sul cerchio");   /* ↔ */
+    m_distribBtn = new QPushButton(tr("\xe2\x86\x94 Distribuisci sul cerchio"));   /* ↔ */
     m_distribBtn->setObjectName("v3dDistribBtn");
-    m_distribBtn->setToolTip("Assegna a TUTTI gli scatti della sessione angoli equidistanti\n"
+    m_distribBtn->setToolTip(tr("Assegna a TUTTI gli scatti della sessione angoli equidistanti\n"
                              "(utile quando la bussola ha registrato sempre lo stesso valore).\n"
-                             "Poi puoi correggere i singoli scatti con le caselle qui accanto.");
+                             "Poi puoi correggere i singoli scatti con le caselle qui accanto."));
     connect(m_distribBtn, &QPushButton::clicked, this, &Vision3DWidget::onDistributeClicked);
     poseRow->addWidget(m_distribBtn);
     poseRow->addStretch();
     sceneLay->addLayout(poseRow);
     rightLay->addWidget(sceneBox, 1);
 
-    auto* reconBox = new QGroupBox("Ricostruzione 3D (fotogrammetria)");
+    auto* reconBox = new QGroupBox(tr("Ricostruzione 3D (fotogrammetria)"));
     auto* reconLay = new QVBoxLayout(reconBox);
     auto* sesRow = new QHBoxLayout;
-    sesRow->addWidget(new QLabel("Sessione:"));
+    sesRow->addWidget(new QLabel(tr("Sessione:")));
     m_sessionCombo = new QComboBox;
     m_sessionCombo->setObjectName("v3dSessionCombo");
     m_sessionCombo->setToolTip(kSessionComboTip);
     connect(m_sessionCombo, &QComboBox::currentTextChanged,
             this, &Vision3DWidget::onSessionComboChanged);
     sesRow->addWidget(m_sessionCombo, 1);
-    sesRow->addWidget(new QLabel("Qualit\xc3\xa0:"));
+    sesRow->addWidget(new QLabel(tr("Qualit\xc3\xa0:")));
     m_qualityCombo = new QComboBox;
     m_qualityCombo->addItems({"low", "medium", "high"});
     m_qualityCombo->setCurrentIndex(1);
-    m_qualityCombo->setToolTip("Foto minime consigliate: low \xe2\x89\xa5 10, medium \xe2\x89\xa5 20, "
+    m_qualityCombo->setToolTip(tr("Foto minime consigliate: low \xe2\x89\xa5 10, medium \xe2\x89\xa5 20, "
                                "high \xe2\x89\xa5 40.\nPi\xc3\xb9 foto (con sovrapposizione) = "
-                               "nuvola pi\xc3\xb9 densa e completa.");
+                               "nuvola pi\xc3\xb9 densa e completa."));
     connect(m_qualityCombo, &QComboBox::currentTextChanged,
             this, &Vision3DWidget::onQualityComboChanged);
     sesRow->addWidget(m_qualityCombo);
     m_photoReqLabel = new QLabel;
     m_photoReqLabel->setObjectName("v3dPhotoReq");
-    m_photoReqLabel->setToolTip("Foto nella sessione / minimo consigliato per la qualit\xc3\xa0 scelta");
+    m_photoReqLabel->setToolTip(tr("Foto nella sessione / minimo consigliato per la qualit\xc3\xa0 scelta"));
     sesRow->addWidget(m_photoReqLabel);
     reconLay->addLayout(sesRow);
     auto* reconBtnRow = new QHBoxLayout;
-    m_reconBtn = new QPushButton("\xf0\x9f\xa7\x8a Crea nuvola di punti (COLMAP)");  /* 🧊 */
+    m_reconBtn = new QPushButton(tr("\xf0\x9f\xa7\x8a Crea nuvola di punti (COLMAP)"));  /* 🧊 */
     m_reconBtn->setObjectName("v3dReconBtn");
     connect(m_reconBtn, &QPushButton::clicked, this, &Vision3DWidget::onReconStartClicked);
     reconBtnRow->addWidget(m_reconBtn, 1);
-    auto* recheckBtn = new QPushButton("\xe2\x9f\xb3 Ricontrolla");   /* ⟳ */
+    auto* recheckBtn = new QPushButton(tr("\xe2\x9f\xb3 Ricontrolla"));   /* ⟳ */
     recheckBtn->setObjectName("v3dRecheckBtn");
-    recheckBtn->setToolTip("Riverifica COLMAP a caldo (eseguibile + librerie), senza\n"
-                           "riavviare Prismalux: premilo dopo un 'sudo apt install'.");
+    recheckBtn->setToolTip(tr("Riverifica COLMAP a caldo (eseguibile + librerie), senza\n"
+                           "riavviare Prismalux: premilo dopo un 'sudo apt install'."));
     connect(recheckBtn, &QPushButton::clicked, this, &Vision3DWidget::onReconRecheckClicked);
     reconBtnRow->addWidget(recheckBtn);
     reconLay->addLayout(reconBtnRow);
@@ -3006,7 +3006,7 @@ void Vision3DWidget::buildUi()
     reconLay->addWidget(m_reconHint);
     updateReconHint();          // sonda subito exe + librerie (aggiornabile a caldo)
     rightLay->addWidget(reconBox);
-    tabs->addTab(rightCol, "\xf0\x9f\xa7\xb1 Assembla punti e texture");
+    tabs->addTab(rightCol, tr("\xf0\x9f\xa7\xb1 Assembla punti e texture"));
 
     root->addWidget(tabs, 1);   // stretch: lo spazio extra va alle tab
 

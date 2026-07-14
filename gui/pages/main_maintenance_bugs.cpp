@@ -65,7 +65,7 @@ QWidget* ManutenzioneePage::buildBugTracker()
     searchLay->setContentsMargins(0, 0, 0, 0);
     searchLay->setSpacing(8);
 
-    searchLay->addWidget(new QLabel("\xf0\x9f\xa4\x96  Modello:", searchRow));
+    searchLay->addWidget(new QLabel(tr("\xf0\x9f\xa4\x96  Modello:"), searchRow));
 
     m_bugModelCombo = new QComboBox(searchRow);
     m_bugModelCombo->setMinimumWidth(220);
@@ -80,14 +80,14 @@ QWidget* ManutenzioneePage::buildBugTracker()
     btnRefMod->setToolTip(tr("Aggiorna lista modelli"));
     searchLay->addWidget(btnRefMod);
 
-    m_btnSearchBug = new QPushButton("\xf0\x9f\x94\x8d  Cerca bug", searchRow);
+    m_btnSearchBug = new QPushButton(tr("\xf0\x9f\x94\x8d  Cerca bug"), searchRow);
     m_btnSearchBug->setObjectName("actionBtn");
     searchLay->addWidget(m_btnSearchBug);
 
     lay->addWidget(searchRow);
 
     /* Log risultati + analisi */
-    auto* logGroup = new QGroupBox("\xf0\x9f\x93\x8b  Risultati e Analisi AI", w);
+    auto* logGroup = new QGroupBox(tr("\xf0\x9f\x93\x8b  Risultati e Analisi AI"), w);
     logGroup->setObjectName("cardGroup");
     auto* logLay = new QVBoxLayout(logGroup);
     logLay->setContentsMargins(4, 8, 4, 4);

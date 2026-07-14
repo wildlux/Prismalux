@@ -65,16 +65,16 @@ CytoscapeWidget::CytoscapeWidget(AiClient* ai, QWidget* parent)
     auto* connLay = new QHBoxLayout(connRow);
     connLay->setContentsMargins(0, 0, 0, 0);
     connLay->setSpacing(8);
-    auto* lbl = new QLabel("CyREST:", connRow);
+    auto* lbl = new QLabel(tr("CyREST:"), connRow);
     lbl->setObjectName("hintLabel");
     m_hostEdit = new QLineEdit("localhost:1234", connRow);
     m_hostEdit->setFixedWidth(dpiScale(150));
-    auto* pingBtn = new QPushButton("\xf0\x9f\x94\x97  Verifica", connRow);
+    auto* pingBtn = new QPushButton(tr("\xf0\x9f\x94\x97  Verifica"), connRow);
     pingBtn->setObjectName("actionBtn");
     pingBtn->setFixedWidth(dpiScale(100));
-    m_statusLbl = new QLabel("\xe2\x9a\xaa  Non connesso", connRow);
+    m_statusLbl = new QLabel(tr("\xe2\x9a\xaa  Non connesso"), connRow);
     m_statusLbl->setObjectName("hintLabel");
-    m_execBtn = new QPushButton("\xf0\x9f\x94\xac  Esegui su Cytoscape", connRow);
+    m_execBtn = new QPushButton(tr("\xf0\x9f\x94\xac  Esegui su Cytoscape"), connRow);
     m_execBtn->setObjectName("actionBtn");
     m_execBtn->setFixedWidth(dpiScale(180));
     m_execBtn->setEnabled(false);
@@ -102,9 +102,9 @@ CytoscapeWidget::CytoscapeWidget(AiClient* ai, QWidget* parent)
     for (int i = 0; kActions[i]; i++)
         m_action->addItem(QString::fromUtf8(kActions[i]));
     m_model = new ModelComboBox(m_ai, toolRow);
-    toolLay->addWidget(new QLabel("Analisi:", toolRow));
+    toolLay->addWidget(new QLabel(tr("Analisi:"), toolRow));
     toolLay->addWidget(m_action, 1);
-    toolLay->addWidget(new QLabel("Modello:", toolRow));
+    toolLay->addWidget(new QLabel(tr("Modello:"), toolRow));
     toolLay->addWidget(m_model, 1);
     lay->addWidget(toolRow);
 
@@ -118,9 +118,9 @@ CytoscapeWidget::CytoscapeWidget(AiClient* ai, QWidget* parent)
     auto* btnRow = new QWidget(this);
     auto* btnLay = new QHBoxLayout(btnRow);
     btnLay->setContentsMargins(0, 0, 0, 0);
-    m_runBtn  = new QPushButton("\xf0\x9f\xa4\x96  Genera script Cytoscape", btnRow);
+    m_runBtn  = new QPushButton(tr("\xf0\x9f\xa4\x96  Genera script Cytoscape"), btnRow);
     m_runBtn->setObjectName("actionBtn");
-    m_stopBtn = new QPushButton("\xe2\x8f\xb9  Stop", btnRow);
+    m_stopBtn = new QPushButton(tr("\xe2\x8f\xb9  Stop"), btnRow);
     m_stopBtn->setObjectName("actionBtn");
     m_stopBtn->setProperty("danger", true);
     m_stopBtn->setEnabled(false);
@@ -167,7 +167,7 @@ void CytoscapeWidget::onSockConnected()
 void CytoscapeWidget::onSockError(QAbstractSocket::SocketError)
 {
     auto* sock = qobject_cast<QTcpSocket*>(sender());
-    m_statusLbl->setText("\xe2\x9d\x8c  " + (sock ? sock->errorString() : QString()));
+    m_statusLbl->setText(tr("\xe2\x9d\x8c  ") + (sock ? sock->errorString() : QString()));
     if (sock) sock->deleteLater();
     if (m_sock == sock) m_sock = nullptr;
 }

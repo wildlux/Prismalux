@@ -47,9 +47,9 @@ SshManagerWidget::SshManagerWidget(QWidget* parent)
     discLay->setSpacing(6);
 
     auto* scanRow = new QHBoxLayout;
-    m_arpBtn  = new QPushButton("\xf0\x9f\x93\xa1  Tabella ARP",  discBox);  /* 📡 */
-    m_nmapBtn = new QPushButton("\xf0\x9f\x94\x8d  Scan completo", discBox); /* 🔍 */
-    m_stopBtn = new QPushButton("\xe2\x9c\x96  Stop",              discBox); /* ✖  */
+    m_arpBtn  = new QPushButton(tr("\xf0\x9f\x93\xa1  Tabella ARP"),  discBox);  /* 📡 */
+    m_nmapBtn = new QPushButton(tr("\xf0\x9f\x94\x8d  Scan completo"), discBox); /* 🔍 */
+    m_stopBtn = new QPushButton(tr("\xe2\x9c\x96  Stop"),              discBox); /* ✖  */
     m_arpBtn->setToolTip(tr(
         "Legge istantaneamente la tabella ARP del kernel.\n"
         "Mostra solo host con cui hai gia comunicato di recente."));
@@ -90,7 +90,7 @@ SshManagerWidget::SshManagerWidget(QWidget* parent)
     discLay->addWidget(m_hostTable);
 
     auto* useRow = new QHBoxLayout;
-    auto* useBtn = new QPushButton("\xe2\xac\x86  Usa selezionato", discBox);
+    auto* useBtn = new QPushButton(tr("\xe2\xac\x86  Usa selezionato"), discBox);
     useBtn->setObjectName("actionBtn");
     useRow->addWidget(useBtn);
     useRow->addStretch();
@@ -178,8 +178,8 @@ SshManagerWidget::SshManagerWidget(QWidget* parent)
     connLay->addWidget(m_preview);
 
     auto* btnRow = new QHBoxLayout;
-    m_connBtn = new QPushButton("\xf0\x9f\x94\x97  Connetti", connBox);  /* 🔗 */
-    m_copyBtn = new QPushButton("\xf0\x9f\x93\x8b  Copia comando", connBox); /* 📋 */
+    m_connBtn = new QPushButton(tr("\xf0\x9f\x94\x97  Connetti"), connBox);  /* 🔗 */
+    m_copyBtn = new QPushButton(tr("\xf0\x9f\x93\x8b  Copia comando"), connBox); /* 📋 */
     m_connBtn->setObjectName("actionBtn");
     btnRow->addWidget(m_connBtn);
     btnRow->addWidget(m_copyBtn);
@@ -393,10 +393,10 @@ void SshManagerWidget::onNmapClicked()
     });
 
     if (hasExe("nmap")) {
-        m_scanLbl->setText("nmap -sn " + subnet + "  ...");
+        m_scanLbl->setText(tr("nmap -sn ") + subnet + "  ...");
         m_scanProc->start("nmap", {"-sn", subnet});
     } else if (hasExe("fping")) {
-        m_scanLbl->setText("fping -a -g " + subnet + "  ...");
+        m_scanLbl->setText(tr("fping -a -g ") + subnet + "  ...");
         m_scanProc->setProcessChannelMode(QProcess::MergedChannels);
         m_scanProc->start("fping", {"-a", "-g", subnet});
     } else {
@@ -602,7 +602,7 @@ void SshManagerWidget::onConnectClicked()
 
     const QString fieldErr = invalidFieldError();
     if (!fieldErr.isEmpty()) {
-        m_scanLbl->setText("\xe2\x9d\x8c  " + fieldErr);
+        m_scanLbl->setText(tr("\xe2\x9d\x8c  ") + fieldErr);
         return;
     }
 
@@ -645,13 +645,13 @@ void SshManagerWidget::onCopyClicked()
        incollato in un terminale, la superficie è identica. */
     const QString fieldErr = invalidFieldError();
     if (!fieldErr.isEmpty()) {
-        m_scanLbl->setText("\xe2\x9d\x8c  " + fieldErr);
+        m_scanLbl->setText(tr("\xe2\x9d\x8c  ") + fieldErr);
         return;
     }
     QApplication::clipboard()->setText(buildCmd());
-    m_copyBtn->setText("\xe2\x9c\x85  Copiato!");
+    m_copyBtn->setText(tr("\xe2\x9c\x85  Copiato!"));
     QTimer::singleShot(2000, m_copyBtn,
-        [this]{ if (m_copyBtn) m_copyBtn->setText("\xf0\x9f\x93\x8b  Copia comando"); });
+        [this]{ if (m_copyBtn) m_copyBtn->setText(tr("\xf0\x9f\x93\x8b  Copia comando")); });
 }
 
 /* ── onKeyBrowseClicked ───────────────────────────────────────────────── */

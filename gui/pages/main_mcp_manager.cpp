@@ -471,14 +471,14 @@ void McpManagerPage::onInstallClicked()
     if (!e) return;
 
     if (!venvExists()) {
-        QMessageBox::information(this, QString::fromUtf8("Ambiente mancante"),
+        QMessageBox::information(this, tr("Ambiente mancante"),
             QString::fromUtf8("Prepara prima l'ambiente isolato (pulsante \"Prepara ambiente\")."));
         return;
     }
     if (!e->hasReq) return;
 
     const QString req = e->dir + "/requirements.txt";
-    const auto ret = QMessageBox::question(this, QString::fromUtf8("Installa dipendenze"),
+    const auto ret = QMessageBox::question(this, tr("Installa dipendenze"),
         QString::fromUtf8("Installare le dipendenze di <b>%1</b> nel venv?<br><br>"
                           "Verr\xc3\xa0 eseguito:<br><code>pip install -r %2</code>")
             .arg(name, req));

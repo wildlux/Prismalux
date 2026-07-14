@@ -62,7 +62,7 @@ QWidget* ManutenzioneePage::buildLanServer()
 
     /* Riga: ON/OFF + porta */
     auto* ctrlRow = new QHBoxLayout;
-    m_lanToggleBtn = new QPushButton("\xe2\x97\x8b" "  Server OFF", group);  // ○
+    m_lanToggleBtn = new QPushButton(tr("\xe2\x97\x8b" "  Server OFF"), group);  // ○
     m_lanToggleBtn->setCheckable(true);
     m_lanToggleBtn->setObjectName("LanToggleBtn");
 
@@ -77,12 +77,12 @@ QWidget* ManutenzioneePage::buildLanServer()
     gl->addLayout(ctrlRow);
 
     /* Stato */
-    m_lanStatusLbl = new QLabel("\xe2\x97\x8b" "  Fermo", group);  // ○
+    m_lanStatusLbl = new QLabel(tr("\xe2\x97\x8b" "  Fermo"), group);  // ○
     m_lanStatusLbl->setStyleSheet("color: #9e9e9e;");
     gl->addWidget(m_lanStatusLbl);
 
     /* Client connessi */
-    m_lanClientsLbl = new QLabel("Client connessi: 0", group);
+    m_lanClientsLbl = new QLabel(tr("Client connessi: 0"), group);
     gl->addWidget(m_lanClientsLbl);
 
     /* IP locale */
@@ -179,7 +179,7 @@ QWidget* ManutenzioneePage::buildLanServer()
         const QString masked = tok.isEmpty()
             ? tr("(auto-generato all\xe2\x80\x99" "avvio server)")
             : tok.left(4) + "\xe2\x80\xa6" + tok.right(4);
-        m_tokenLbl = new QLabel("<code>" + masked + "</code>", tokenGroup);
+        m_tokenLbl = new QLabel(tr("<code>") + masked + "</code>", tokenGroup);
         m_tokenLbl->setTextFormat(Qt::RichText);
         tokenLay->addWidget(m_tokenLbl);
     }
@@ -259,7 +259,7 @@ void ManutenzioneePage::onQrBtnClicked()
     urlLbl->setTextInteractionFlags(Qt::TextSelectableByMouse);
     vl->addWidget(urlLbl);
 
-    auto* copyBtn = new QPushButton("\xf0\x9f\x93\x8b" "  Copia URL", dlg);  // 📋
+    auto* copyBtn = new QPushButton(tr("\xf0\x9f\x93\x8b" "  Copia URL"), dlg);  // 📋
     connect(copyBtn, &QPushButton::clicked, this, &ManutenzioneePage::onCopyApkUrlClicked);
     vl->addWidget(copyBtn);
 
@@ -284,7 +284,7 @@ void ManutenzioneePage::onQrBtnClicked()
 void ManutenzioneePage::onCopyApkUrlClicked()
 {
     QApplication::clipboard()->setText(m_apkUrl);
-    if (m_copyBtn) m_copyBtn->setText("\xe2\x9c\x85" "  Copiato!");  // ✅
+    if (m_copyBtn) m_copyBtn->setText(tr("\xe2\x9c\x85" "  Copiato!"));  // ✅
 }
 
 /* ──────────────────────────────────────────────────────────────
@@ -311,7 +311,7 @@ void ManutenzioneePage::onLanToggleBtnToggled(bool on)
         }
         const quint16 port = static_cast<quint16>(m_lanPortSpin->value());
         if (m_lanServer->start(port)) {
-            m_lanToggleBtn->setText("\xe2\x97\x8f" "  Server ON");  // ●
+            m_lanToggleBtn->setText(tr("\xe2\x97\x8f" "  Server ON"));  // ●
             m_lanPortSpin->setEnabled(false);
         } else {
             m_lanToggleBtn->blockSignals(true);
@@ -322,7 +322,7 @@ void ManutenzioneePage::onLanToggleBtnToggled(bool on)
         }
     } else {
         if (m_lanServer) m_lanServer->stop();
-        m_lanToggleBtn->setText("\xe2\x97\x8b" "  Server OFF");  // ○
+        m_lanToggleBtn->setText(tr("\xe2\x97\x8b" "  Server OFF"));  // ○
         m_lanPortSpin->setEnabled(true);
     }
 }
@@ -339,7 +339,7 @@ void ManutenzioneePage::onLanServerStatusChanged(bool running)
             ":" + QString::number(m_lanServer->port()));  // ●
         m_lanStatusLbl->setStyleSheet("color: #4caf50; font-weight: bold;");
     } else {
-        m_lanStatusLbl->setText("\xe2\x97\x8b" "  Fermo");  // ○
+        m_lanStatusLbl->setText(tr("\xe2\x97\x8b" "  Fermo"));  // ○
         m_lanStatusLbl->setStyleSheet("color: #9e9e9e;");
         m_lanClientsLbl->setText(tr("Client connessi: 0"));
     }
@@ -444,13 +444,13 @@ void ManutenzioneePage::onRegenTokenClicked()
 
     if (m_tokenLbl) {
         const QString masked = newToken.left(4) + "\xe2\x80\xa6" + newToken.right(4);
-        m_tokenLbl->setText("<code>" + masked + "</code>");
+        m_tokenLbl->setText(tr("<code>") + masked + "</code>");
     }
     QApplication::clipboard()->setText(newToken);
 
     if (m_regenBtn) {
-        m_regenBtn->setText("\xe2\x9c\x85  Rigenerato (copiato negli appunti)");
+        m_regenBtn->setText(tr("\xe2\x9c\x85  Rigenerato (copiato negli appunti)"));
         QTimer::singleShot(2500, m_regenBtn,
-            [this]{ if (m_regenBtn) m_regenBtn->setText("\xf0\x9f\x94\x84  Rigenera Token"); });
+            [this]{ if (m_regenBtn) m_regenBtn->setText(tr("\xf0\x9f\x94\x84  Rigenera Token")); });
     }
 }

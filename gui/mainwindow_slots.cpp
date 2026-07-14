@@ -184,7 +184,7 @@ void MainWindow::onApplyBackendModelsReady(const QStringList& list)
             .arg(m_pendingBkName, list.first(), QString::number(list.size())));
         if (m_btnBackend) m_btnBackend->setStyleSheet("color:#10a37f;");
     } else {
-        m_lblModel->setText("(server non raggiungibile)");
+        m_lblModel->setText(tr("(server non raggiungibile)"));
         appendLog(
             QString("\xe2\x9a\xa0\xef\xb8\x8f <b>%1</b> non risponde \xe2\x80\x94 nessun modelli disponibile")
             .arg(m_pendingBkName));
@@ -390,7 +390,7 @@ void MainWindow::onServerProcFinished(int code, QProcess::ExitStatus)
                     "Riprova o usa Ollama.")
             .arg(srvN).arg(code));
         if (m_btnBackend) {
-            m_btnBackend->setText("\xe2\x9d\x8c  Crash startup");
+            m_btnBackend->setText(tr("\xe2\x9d\x8c  Crash startup"));
             QTimer::singleShot(4000, this, &MainWindow::refreshBackendBtn);
         }
         if (m_serverProc) { m_serverProc->deleteLater(); m_serverProc = nullptr; }
@@ -413,7 +413,7 @@ void MainWindow::onServerProcessError(QProcess::ProcessError err)
 {
     if (err == QProcess::FailedToStart) {
         if (m_btnBackend) {
-            m_btnBackend->setText("\xe2\x9d\x8c  Errore avvio");
+            m_btnBackend->setText(tr("\xe2\x9d\x8c  Errore avvio"));
             QTimer::singleShot(3000, this, &MainWindow::refreshBackendBtn);
         }
         const QString srvLabel = m_serverIsDs4 ? "ds4-server" : "llama-server";
@@ -444,7 +444,7 @@ void MainWindow::onHealthTick()
         }
         if (m_healthNam) { m_healthNam->deleteLater(); m_healthNam = nullptr; }
         if (m_btnBackend) {
-            m_btnBackend->setText("\xe2\x9d\x8c  Timeout");
+            m_btnBackend->setText(tr("\xe2\x9d\x8c  Timeout"));
             QTimer::singleShot(3000, this, &MainWindow::refreshBackendBtn);
         }
         if (m_serverProc)
@@ -477,7 +477,7 @@ void MainWindow::onHealthReply()
     }
     if (m_healthNam) { m_healthNam->deleteLater(); m_healthNam = nullptr; }
     if (m_btnBackend) {
-        m_btnBackend->setText("\xe2\x9c\x85  Pronto");
+        m_btnBackend->setText(tr("\xe2\x9c\x85  Pronto"));
         QTimer::singleShot(2000, this, &MainWindow::refreshBackendBtn);
     }
     if (m_serverIsDs4) {
@@ -509,15 +509,15 @@ void MainWindow::onNewChatClicked()
 
     if (hasContent) {
         QMessageBox dlg(this);
-        dlg.setWindowTitle("\xf0\x9f\x93\xbc  Salva chat");
+        dlg.setWindowTitle(tr("\xf0\x9f\x93\xbc  Salva chat"));
         dlg.setText(
             "<b>\xf0\x9f\x93\xbc  Vuoi salvare questa chat?</b><br><br>"
             "La conversazione attuale verr\xc3\xa0 persa se non la salvi.");
         dlg.setIcon(QMessageBox::Question);
         QPushButton* btnSalva  = dlg.addButton(
             "\xf0\x9f\x93\xbc  Salva", QMessageBox::AcceptRole);
-        QPushButton* btnScarta = dlg.addButton("Scarta", QMessageBox::DestructiveRole);
-        dlg.addButton("Annulla", QMessageBox::RejectRole);
+        QPushButton* btnScarta = dlg.addButton(tr("Scarta"), QMessageBox::DestructiveRole);
+        dlg.addButton(tr("Annulla"), QMessageBox::RejectRole);
         dlg.setDefaultButton(btnSalva);
         dlg.exec();
 
@@ -558,12 +558,12 @@ void MainWindow::onChatContextMenuRequested(const QPoint& pos)
 
     auto* menu = new QMenu(m_chatList);
 
-    auto* actPdf = menu->addAction("\xf0\x9f\x93\x84  Salva come PDF");
+    auto* actPdf = menu->addAction(tr("\xf0\x9f\x93\x84  Salva come PDF"));
     connect(actPdf, &QAction::triggered, this, &MainWindow::onChatActionPdf);
 
     menu->addSeparator();
 
-    auto* actDel = menu->addAction("\xf0\x9f\x97\x91  Elimina");
+    auto* actDel = menu->addAction(tr("\xf0\x9f\x97\x91  Elimina"));
     connect(actDel, &QAction::triggered, this, &MainWindow::onChatActionDelete);
 
     menu->exec(m_chatList->viewport()->mapToGlobal(pos));
@@ -598,7 +598,7 @@ void MainWindow::onChatActionPdf()
 
 void MainWindow::onChatActionDelete()
 {
-    const auto btn = QMessageBox::question(this, "Elimina chat",
+    const auto btn = QMessageBox::question(this, tr("Elimina chat"),
         QString("Eliminare la chat \"%1\"?").arg(m_ctxChatTitle),
         QMessageBox::Yes | QMessageBox::No);
     if (btn != QMessageBox::Yes) return;
@@ -620,7 +620,7 @@ void MainWindow::onDeleteSelectedChatsClicked()
         ? QString("Eliminare la chat \"%1\"?").arg(items.first()->text())
         : QString("Eliminare %1 chat selezionate?").arg(n);
 
-    const auto ans = QMessageBox::question(this, "Elimina chat",
+    const auto ans = QMessageBox::question(this, tr("Elimina chat"),
         msg, QMessageBox::Yes | QMessageBox::No);
     if (ans != QMessageBox::Yes) return;
 
@@ -725,7 +725,7 @@ void MainWindow::onChatDeleteConfirm()
     const QString title = item->text();
     if (id.isEmpty()) return;
 
-    const auto btn = QMessageBox::question(this, "Elimina chat",
+    const auto btn = QMessageBox::question(this, tr("Elimina chat"),
         QString("Vuoi eliminare questa chat?\n\"%1\"").arg(title),
         QMessageBox::Yes | QMessageBox::No);
     if (btn != QMessageBox::Yes) return;
@@ -850,14 +850,14 @@ void MainWindow::onMainTabChanged(int idx)
         auto* progPage = qobject_cast<ProgrammazionePage*>(m_mainTabs->widget(prevIdx));
         if (progPage && progPage->hasUnsavedWork()) {
             QMessageBox dlg(this);
-            dlg.setWindowTitle("\xf0\x9f\x92\xbe  Lavoro non salvato");
+            dlg.setWindowTitle(tr("\xf0\x9f\x92\xbe  Lavoro non salvato"));
             dlg.setText(
                 "<b>Hai modifiche non salvate nella scheda Programmazione.</b><br>"
                 "Vuoi salvarle prima di continuare?");
             dlg.setIcon(QMessageBox::Question);
-            auto* btnSave = dlg.addButton("Salva", QMessageBox::AcceptRole);
-            dlg.addButton("Continua senza salvare", QMessageBox::DestructiveRole);
-            dlg.addButton("Torna indietro", QMessageBox::RejectRole);
+            auto* btnSave = dlg.addButton(tr("Salva"), QMessageBox::AcceptRole);
+            dlg.addButton(tr("Continua senza salvare"), QMessageBox::DestructiveRole);
+            dlg.addButton(tr("Torna indietro"), QMessageBox::RejectRole);
             dlg.setDefaultButton(btnSave);
             dlg.exec();
             if (dlg.clickedButton() == btnSave) {

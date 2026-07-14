@@ -279,16 +279,16 @@ QGridLayout* SintetizzatoreWidget::buildParametriGrid(QWidget* parent)
     m_ondaCombo->addItem("Triangolare",   "triangle");
     m_ondaCombo->addItem("Dente di sega", "sawtooth");
 
-    m_volLbl    = new QLabel("Volume: 70%", parent);
+    m_volLbl    = new QLabel(tr("Volume: 70%"), parent);
     m_volSlider = new QSlider(Qt::Horizontal, parent);
     m_volSlider->setRange(0, 100);
     m_volSlider->setValue(70);
 
-    grid->addWidget(new QLabel("Frequenza (Hz):"),           0, 0);
+    grid->addWidget(new QLabel(tr("Frequenza (Hz):")),           0, 0);
     grid->addWidget(m_freqSpin,                              0, 1);
-    grid->addWidget(new QLabel("Durata (ms):"),              0, 2);
+    grid->addWidget(new QLabel(tr("Durata (ms):")),              0, 2);
     grid->addWidget(m_durSpin,                               0, 3);
-    grid->addWidget(new QLabel("Forma d\xe2\x80\x99" "onda:"), 1, 0);
+    grid->addWidget(new QLabel(tr("Forma d\xe2\x80\x99" "onda:")), 1, 0);
     grid->addWidget(m_ondaCombo,                             1, 1);
     grid->addWidget(m_volLbl,                                1, 2);
     grid->addWidget(m_volSlider,                             1, 3);
@@ -298,7 +298,7 @@ QGridLayout* SintetizzatoreWidget::buildParametriGrid(QWidget* parent)
 QHBoxLayout* SintetizzatoreWidget::buildAzioniRow(QWidget* parent)
 {
     auto* row     = new QHBoxLayout();
-    auto* addBtn  = new QPushButton("+ Aggiungi", parent);
+    auto* addBtn  = new QPushButton(tr("+ Aggiungi"), parent);
     addBtn->setObjectName("actionBtn");
     auto* prevBtn = new QPushButton(
         "\xf0\x9f\x94\x8a  Ascolta", parent);
@@ -338,12 +338,12 @@ QHBoxLayout* SintetizzatoreWidget::buildControlRow(QWidget* parent)
     m_playBtn = new QPushButton(
         "\xe2\x96\xb6  Riproduci sequenza", parent);
     m_playBtn->setObjectName("actionBtn");
-    m_stopBtn = new QPushButton("\xe2\x8f\xb9  Stop", parent);
+    m_stopBtn = new QPushButton(tr("\xe2\x8f\xb9  Stop"), parent);
     m_stopBtn->setEnabled(false);
     auto* saveWavBtn = new QPushButton(
         "\xf0\x9f\x92\xbe  Salva WAV", parent);
     saveWavBtn->setObjectName("actionBtn");
-    m_statusLbl = new QLabel("Aggiungi toni e premi Riproduci", parent);
+    m_statusLbl = new QLabel(tr("Aggiungi toni e premi Riproduci"), parent);
     m_statusLbl->setObjectName("hintLabel");
     row->addWidget(m_playBtn);
     row->addWidget(m_stopBtn);
@@ -475,7 +475,7 @@ void SintetizzatoreWidget::playWav(const QVector<Tono>& toni, const QString& lab
         return;
     }
 
-    m_statusLbl->setText("\xe2\x96\xb6  " + label + "...");
+    m_statusLbl->setText(tr("\xe2\x96\xb6  ") + label + "...");
     m_playBtn->setEnabled(false);
     m_stopBtn->setEnabled(true);
     m_canvas->setAnimating(true);
@@ -527,7 +527,7 @@ void SintetizzatoreWidget::onSalvaSeq()
         return;
     }
     f.write(QJsonDocument(arr).toJson());
-    m_statusLbl->setText("\xe2\x9c\x85  Sequenza salvata: "
+    m_statusLbl->setText(tr("\xe2\x9c\x85  Sequenza salvata: ")
                          + QFileInfo(path).fileName());
 }
 
@@ -582,6 +582,6 @@ void SintetizzatoreWidget::onSalvaWav()
         return;
     }
     f.write(makeWav(m_seq));
-    m_statusLbl->setText("\xe2\x9c\x85  WAV salvato: "
+    m_statusLbl->setText(tr("\xe2\x9c\x85  WAV salvato: ")
                          + QFileInfo(path).fileName());
 }

@@ -1865,8 +1865,8 @@ void SciComputePage::onWuContextMenu(const QPoint& pos)
                              || status.contains('%'));
 
     QMenu menu(this);
-    auto* actDelete  = menu.addAction("\xf0\x9f\x97\x91  Elimina WU");
-    auto* actRestart = menu.addAction("\xf0\x9f\x94\x84  Riavvia WU");
+    auto* actDelete  = menu.addAction(tr("\xf0\x9f\x97\x91  Elimina WU"));
+    auto* actRestart = menu.addAction(tr("\xf0\x9f\x94\x84  Riavvia WU"));
     actDelete->setEnabled(canDelete);
     actRestart->setEnabled(canRestart);
 
@@ -1906,8 +1906,8 @@ void SciComputePage::onNodeContextMenu(const QPoint& pos)
     if (nodeId.isEmpty()) return;
 
     QMenu menu(this);
-    auto* actDisconn = menu.addAction("\xf0\x9f\x94\x8c  Disconnetti nodo");
-    auto* actRemove  = menu.addAction("\xf0\x9f\x97\x91  Rimuovi nodo dal DB");
+    auto* actDisconn = menu.addAction(tr("\xf0\x9f\x94\x8c  Disconnetti nodo"));
+    auto* actRemove  = menu.addAction(tr("\xf0\x9f\x97\x91  Rimuovi nodo dal DB"));
 
     /* Col 1 contiene testo "Nome  [status]" */
     const QString col1 = m_nodeTable->item(row, 1)
@@ -2036,16 +2036,16 @@ void SciComputePage::onGenerateFromFileClicked()
     auto* fileRow  = new QHBoxLayout;
     auto* fileEdit = new QLineEdit(dlg);
     fileEdit->setPlaceholderText(tr("File FASTA (.fa/.fasta), CSV (.csv) o TXT (.txt)..."));
-    auto* browseBtn = new QPushButton("\xf0\x9f\x93\x81  Sfoglia", dlg);
+    auto* browseBtn = new QPushButton(tr("\xf0\x9f\x93\x81  Sfoglia"), dlg);
     browseBtn->setObjectName("actionBtn");
-    fileRow->addWidget(new QLabel("File:", dlg));
+    fileRow->addWidget(new QLabel(tr("File:"), dlg));
     fileRow->addWidget(fileEdit, 1);
     fileRow->addWidget(browseBtn);
     lay->addLayout(fileRow);
 
     /* Tipo task */
     auto* typeRow = new QHBoxLayout;
-    typeRow->addWidget(new QLabel("Tipo task:", dlg));
+    typeRow->addWidget(new QLabel(tr("Tipo task:"), dlg));
     auto* typeCombo = new QComboBox(dlg);
     typeCombo->setObjectName("settingCombo");
     for (const auto& t : taskTypes())
@@ -2073,14 +2073,14 @@ void SciComputePage::onGenerateFromFileClicked()
 
     /* Opzioni */
     auto* optRow = new QHBoxLayout;
-    optRow->addWidget(new QLabel("Label prefix:", dlg));
+    optRow->addWidget(new QLabel(tr("Label prefix:"), dlg));
     auto* lblEdit = new QLineEdit(dlg);
     lblEdit->setPlaceholderText(tr("WU da file"));
     lblEdit->setFixedWidth(dpiScale(150));
     optRow->addWidget(lblEdit);
     optRow->addSpacing(dpiScale(10));
 
-    optRow->addWidget(new QLabel("Priorit\xc3\xa0:", dlg));
+    optRow->addWidget(new QLabel(tr("Priorit\xc3\xa0:"), dlg));
     auto* prioCmb = new QComboBox(dlg);
     prioCmb->setObjectName("settingCombo");
     prioCmb->addItem("1 \xe2\x80\x94 Normale", 1);
@@ -2089,7 +2089,7 @@ void SciComputePage::onGenerateFromFileClicked()
     optRow->addWidget(prioCmb);
     optRow->addSpacing(dpiScale(10));
 
-    optRow->addWidget(new QLabel("Max WU:", dlg));
+    optRow->addWidget(new QLabel(tr("Max WU:"), dlg));
     auto* maxSpin = new QSpinBox(dlg);
     maxSpin->setRange(1, 500); maxSpin->setValue(100);
     optRow->addWidget(maxSpin);
@@ -2152,18 +2152,18 @@ void SciComputePage::onGenerateFromFileClicked()
     QObject::connect(btnBox, &QDialogButtonBox::accepted, dlg, [=] {
         const QString filePath = fileEdit->text().trimmed();
         if (filePath.isEmpty()) {
-            QMessageBox::warning(dlg, "File mancante", "Seleziona un file dataset.");
+            QMessageBox::warning(dlg, tr("File mancante"), tr("Seleziona un file dataset."));
             return;
         }
         const auto items = parseBatchFile(filePath);
         if (items.isEmpty()) {
-            QMessageBox::warning(dlg, "File vuoto",
+            QMessageBox::warning(dlg, tr("File vuoto"),
                 "Nessun elemento trovato nel file.");
             return;
         }
         const QString tmplStr = tmplEdit->toPlainText();
         if (!tmplStr.contains("{{INPUT}}")) {
-            QMessageBox::warning(dlg, "Template incompleto",
+            QMessageBox::warning(dlg, tr("Template incompleto"),
                 "Inserisci {{INPUT}} nel template dove vuoi i dati di ogni elemento.");
             return;
         }
@@ -2278,7 +2278,7 @@ void SciComputePage::onAggregateResultsClicked()
 #endif
 
     if (allWus.isEmpty()) {
-        QMessageBox::information(this, "Nessun risultato",
+        QMessageBox::information(this, tr("Nessun risultato"),
             "Nessuna WU completata trovata.");
         return;
     }
@@ -2355,7 +2355,7 @@ void SciComputePage::onAggregateResultsClicked()
 
     QFile outFile(path);
     if (!outFile.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-        QMessageBox::warning(this, "Errore",
+        QMessageBox::warning(this, tr("Errore"),
             "Impossibile scrivere: " + path);
         return;
     }
@@ -2364,7 +2364,7 @@ void SciComputePage::onAggregateResultsClicked()
 
     appendLog(QString("\xf0\x9f\x93\x8a  Aggregati %1 WU \xe2\x86\x92 %2")
               .arg(allWus.size()).arg(path));
-    QMessageBox::information(this, "Esportazione completata",
+    QMessageBox::information(this, tr("Esportazione completata"),
         QString("Esportati %1 WU in:\n%2").arg(allWus.size()).arg(path));
 }
 

@@ -112,7 +112,7 @@ QWidget* ImparaPage::buildModelBar(QWidget* parent) {
     auto* lay  = new QHBoxLayout(bar);
     lay->setContentsMargins(0, 0, 0, 0); lay->setSpacing(8);
 
-    auto* lbl1 = new QLabel("\xf0\x9f\x94\x8c Backend:", bar); lbl1->setObjectName("cardDesc");
+    auto* lbl1 = new QLabel(tr("\xf0\x9f\x94\x8c Backend:"), bar); lbl1->setObjectName("cardDesc");
     /* Variabili LOCALI al posto dei puntatori membro m_cmbBackend/m_cmbModel.
      * buildModelBar() viene chiamata due volte (da buildTutor + buildQuiz): se si
      * usassero i puntatori membro, la seconda chiamata sovrascrive i puntatori e
@@ -120,7 +120,7 @@ QWidget* ImparaPage::buildModelBar(QWidget* parent) {
     auto* cmbBackend = new QComboBox(bar);
     cmbBackend->addItems({"Ollama (HTTP)", "llama-server (HTTP)", "llama.cpp locale"});
 
-    auto* lbl2 = new QLabel("\xf0\x9f\xa4\x96 Modello:", bar); lbl2->setObjectName("cardDesc");
+    auto* lbl2 = new QLabel(tr("\xf0\x9f\xa4\x96 Modello:"), bar); lbl2->setObjectName("cardDesc");
     auto* cmbModel = new QComboBox(bar);
     cmbModel->setMinimumWidth(dpiScale(180));
 
@@ -232,8 +232,8 @@ QWidget* ImparaPage::buildMenu() {
         auto* ld = new QLabel(it.desc,  txt); ld->setObjectName("cardDesc"); ld->setWordWrap(true);
         txtL->addWidget(lt); txtL->addWidget(ld);
 
-        auto* btn = new QPushButton("Apri →", card); btn->setObjectName("actionBtn"); btn->setFixedWidth(dpiScale(80));
-        btn->setToolTip("Apri " + it.title);
+        auto* btn = new QPushButton(tr("Apri →"), card); btn->setObjectName("actionBtn"); btn->setFixedWidth(dpiScale(80));
+        btn->setToolTip(tr("Apri ") + it.title);
         btn->setProperty("pageIndex", it.page);
         connect(btn, &QPushButton::clicked, this, &ImparaPage::onMenuCardClicked);
         cl->addWidget(ico); cl->addWidget(txt, 1); cl->addWidget(btn);
@@ -255,8 +255,8 @@ QWidget* ImparaPage::buildTutor() {
     /* Header */
     auto* hdrW = new QWidget(w);
     auto* hdrL = new QHBoxLayout(hdrW); hdrL->setContentsMargins(0,0,0,0);
-    auto* back = new QPushButton("← Torna", hdrW); back->setObjectName("actionBtn");
-    auto* lbl  = new QLabel("🎓  Tutor AI", hdrW); lbl->setObjectName("pageTitle");
+    auto* back = new QPushButton(tr("← Torna"), hdrW); back->setObjectName("actionBtn");
+    auto* lbl  = new QLabel(tr("🎓  Tutor AI"), hdrW); lbl->setObjectName("pageTitle");
     hdrL->addWidget(back); hdrL->addWidget(lbl, 1);
     lay->addWidget(hdrW);
 
@@ -269,10 +269,10 @@ QWidget* ImparaPage::buildTutor() {
     /* Materia */
     auto* topRow = new QWidget(w);
     auto* topL   = new QHBoxLayout(topRow); topL->setContentsMargins(0,0,0,0); topL->setSpacing(10);
-    topL->addWidget(new QLabel("📚 Materia:", topRow));
+    topL->addWidget(new QLabel(tr("📚 Materia:"), topRow));
     m_tutorSubj = new QComboBox(topRow);
     m_tutorSubj->addItems({"Matematica","Informatica","Fisica","Chimica","Storia","Letteratura","Inglese","Libero"});
-    auto* clrBtn = new QPushButton("🗑 Pulisci", topRow); clrBtn->setObjectName("actionBtn");
+    auto* clrBtn = new QPushButton(tr("🗑 Pulisci"), topRow); clrBtn->setObjectName("actionBtn");
     clrBtn->setToolTip(tr("Cancella la conversazione corrente con il tutor"));
     topL->addWidget(m_tutorSubj, 1); topL->addWidget(clrBtn);
     lay->addWidget(topRow);
@@ -288,7 +288,7 @@ QWidget* ImparaPage::buildTutor() {
     connect(m_tutorLog, &QTextEdit::customContextMenuRequested, this, &ImparaPage::onTutorContextMenu);
 
     /* Input */
-    m_tutorWaitLbl = new QLabel("\xe2\x8f\xb3  Elaborazione in corso...", w);
+    m_tutorWaitLbl = new QLabel(tr("\xe2\x8f\xb3  Elaborazione in corso..."), w);
     m_tutorWaitLbl->setStyleSheet("color:#E5C400; font-style:italic; padding:2px 0;");
     m_tutorWaitLbl->setVisible(false);
     lay->addWidget(m_tutorWaitLbl);
@@ -297,7 +297,7 @@ QWidget* ImparaPage::buildTutor() {
     auto* inL   = new QHBoxLayout(inRow); inL->setContentsMargins(0,0,0,0); inL->setSpacing(8);
     m_tutorInp  = new QLineEdit(inRow); m_tutorInp->setObjectName("chatInput");
     m_tutorInp->setPlaceholderText(tr("Fai una domanda al Tutor AI...")); m_tutorInp->setFixedHeight(dpiScale(38));
-    m_tutorSend = new QPushButton("Chiedi \xe2\x96\xb6", inRow); m_tutorSend->setObjectName("actionBtn");
+    m_tutorSend = new QPushButton(tr("Chiedi \xe2\x96\xb6"), inRow); m_tutorSend->setObjectName("actionBtn");
     m_tutorSend->setToolTip(tr("Invia la domanda al tutor AI (Invio)"));
     m_tutorStop = new QPushButton("\xe2\x8f\xb9", inRow);
     m_tutorStop->setObjectName("actionBtn"); m_tutorStop->setProperty("danger", true);
@@ -405,8 +405,8 @@ QWidget* ImparaPage::buildQuiz() {
     /* Header */
     auto* hdrW = new QWidget(w);
     auto* hdrL = new QHBoxLayout(hdrW); hdrL->setContentsMargins(0,0,0,0);
-    auto* back = new QPushButton("← Torna", hdrW); back->setObjectName("actionBtn");
-    auto* lbl  = new QLabel("📝  Quiz Interattivi", hdrW); lbl->setObjectName("pageTitle");
+    auto* back = new QPushButton(tr("← Torna"), hdrW); back->setObjectName("actionBtn");
+    auto* lbl  = new QLabel(tr("📝  Quiz Interattivi"), hdrW); lbl->setObjectName("pageTitle");
     hdrL->addWidget(back); hdrL->addWidget(lbl, 1);
 
     m_quizProgress = new QLabel("", hdrW); m_quizProgress->setObjectName("cardDesc");
@@ -424,24 +424,24 @@ QWidget* ImparaPage::buildQuiz() {
     auto* cfgW = new QWidget(w);
     auto* cfgL = new QHBoxLayout(cfgW); cfgL->setContentsMargins(0,0,0,0); cfgL->setSpacing(12);
 
-    cfgL->addWidget(new QLabel("📚 Materia:"));
+    cfgL->addWidget(new QLabel(tr("📚 Materia:")));
     m_quizSubj = new QComboBox(w);
     m_quizSubj->addItems({"Matematica","Informatica","Fisica","Chimica","Storia","Letteratura","Inglese"});
     cfgL->addWidget(m_quizSubj);
 
-    cfgL->addWidget(new QLabel("🎯 Difficoltà:"));
+    cfgL->addWidget(new QLabel(tr("🎯 Difficoltà:")));
     m_quizDiff = new QComboBox(w);
     m_quizDiff->addItems({"Facile","Medio","Difficile"});
     m_quizDiff->setCurrentIndex(1);
     cfgL->addWidget(m_quizDiff);
 
-    cfgL->addWidget(new QLabel("🔢 Domande:"));
+    cfgL->addWidget(new QLabel(tr("🔢 Domande:")));
     m_quizNum = new QComboBox(w);
     m_quizNum->addItems({"3","5","10"});
     m_quizNum->setCurrentIndex(1);
     cfgL->addWidget(m_quizNum);
 
-    m_quizGen = new QPushButton("▶  Inizia Quiz", w);
+    m_quizGen = new QPushButton(tr("▶  Inizia Quiz"), w);
     m_quizGen->setObjectName("actionBtn");
     m_quizGen->setToolTip(tr("Genera un quiz AI sull'argomento selezionato"));
     cfgL->addWidget(m_quizGen);
@@ -449,7 +449,7 @@ QWidget* ImparaPage::buildQuiz() {
     lay->addWidget(cfgW);
 
     /* Domanda */
-    m_quizQuestion = new QLabel("Premi \"Inizia Quiz\" per cominciare.", w);
+    m_quizQuestion = new QLabel(tr("Premi \"Inizia Quiz\" per cominciare."), w);
     m_quizQuestion->setObjectName("cardTitle");
     m_quizQuestion->setWordWrap(true);
     m_quizQuestion->setAlignment(Qt::AlignLeft | Qt::AlignTop);
@@ -481,14 +481,14 @@ QWidget* ImparaPage::buildQuiz() {
     lay->addWidget(m_quizFeedback);
 
     /* Prossima domanda */
-    m_quizNext = new QPushButton("Prossima domanda →", w);
+    m_quizNext = new QPushButton(tr("Prossima domanda →"), w);
     m_quizNext->setObjectName("actionBtn");
     m_quizNext->setToolTip(tr("Passa alla domanda successiva del quiz"));
     m_quizNext->setVisible(false);
     lay->addWidget(m_quizNext);
 
     /* Rivedi errori (visibile solo a fine sessione se ci sono sbagli) */
-    m_reviewBtn = new QPushButton("\xf0\x9f\x94\x8d  Rivedi domande sbagliate", w);
+    m_reviewBtn = new QPushButton(tr("\xf0\x9f\x94\x8d  Rivedi domande sbagliate"), w);
     m_reviewBtn->setObjectName("actionBtn");
     m_reviewBtn->setToolTip(tr("Mostra le domande che hai risposto in modo errato con la spiegazione"));
     m_reviewBtn->setVisible(false);
@@ -834,9 +834,9 @@ QWidget* ImparaPage::buildDashboard() {
 
     auto* hdrW = new QWidget(w);
     auto* hdrL = new QHBoxLayout(hdrW); hdrL->setContentsMargins(0,0,0,0);
-    auto* back = new QPushButton("← Torna", hdrW); back->setObjectName("actionBtn");
-    auto* lbl  = new QLabel("📊  Dashboard Statistica", hdrW); lbl->setObjectName("pageTitle");
-    auto* refr = new QPushButton("🔄 Aggiorna", hdrW); refr->setObjectName("actionBtn");
+    auto* back = new QPushButton(tr("← Torna"), hdrW); back->setObjectName("actionBtn");
+    auto* lbl  = new QLabel(tr("📊  Dashboard Statistica"), hdrW); lbl->setObjectName("pageTitle");
+    auto* refr = new QPushButton(tr("🔄 Aggiorna"), hdrW); refr->setObjectName("actionBtn");
     hdrL->addWidget(back); hdrL->addWidget(lbl, 1); hdrL->addWidget(refr);
     lay->addWidget(hdrW);
 
@@ -871,8 +871,8 @@ void ImparaPage::loadDashboard() {
     /* Leggi storia */
     QFile f(historyPath());
     if (!f.exists() || !f.open(QIODevice::ReadOnly)) {
-        auto* msg = new QLabel("📭  Nessun quiz ancora completato.\n\n"
-                               "Completa almeno un quiz per vedere le statistiche qui.", m_dashContent);
+        auto* msg = new QLabel(tr("📭  Nessun quiz ancora completato.\n\n"
+                               "Completa almeno un quiz per vedere le statistiche qui."), m_dashContent);
         msg->setObjectName("cardDesc"); msg->setWordWrap(true); msg->setAlignment(Qt::AlignCenter);
         vlay->addWidget(msg); vlay->addStretch(1);
         return;
@@ -881,7 +881,7 @@ void ImparaPage::loadDashboard() {
     f.close();
 
     if (sessions.isEmpty()) {
-        auto* msg = new QLabel("📭  Nessun quiz ancora completato.", m_dashContent);
+        auto* msg = new QLabel(tr("📭  Nessun quiz ancora completato."), m_dashContent);
         msg->setObjectName("cardDesc"); msg->setAlignment(Qt::AlignCenter);
         vlay->addWidget(msg); vlay->addStretch(1);
         return;
@@ -899,7 +899,7 @@ void ImparaPage::loadDashboard() {
     }
     double globPct = totQ > 0 ? totC * 100.0 / totQ : 0.0;
 
-    auto* globBox = new QGroupBox("📈  Statistiche globali", m_dashContent);
+    auto* globBox = new QGroupBox(tr("📈  Statistiche globali"), m_dashContent);
     auto* globL   = new QHBoxLayout(globBox);
     auto addStat = [&](const QString& lbl, const QString& val){
         auto* col = new QWidget(globBox);
@@ -916,7 +916,7 @@ void ImparaPage::loadDashboard() {
     vlay->addWidget(globBox);
 
     /* ── Per materia ── */
-    auto* subjBox = new QGroupBox("📚  Per materia", m_dashContent);
+    auto* subjBox = new QGroupBox(tr("📚  Per materia"), m_dashContent);
     auto* subjL   = new QVBoxLayout(subjBox);
     for (auto it = bySubject.constBegin(); it != bySubject.constEnd(); ++it) {
         int cor = it.value().first; int tot = it.value().second;
@@ -936,7 +936,7 @@ void ImparaPage::loadDashboard() {
     vlay->addWidget(subjBox);
 
     /* ── Sessioni recenti ── */
-    auto* recBox = new QGroupBox("🕐  Ultime 10 sessioni", m_dashContent);
+    auto* recBox = new QGroupBox(tr("🕐  Ultime 10 sessioni"), m_dashContent);
     auto* recL   = new QVBoxLayout(recBox);
     int count = qMin((int)sessions.size(), 10);
     for (int i = 0; i < count; i++) {
@@ -1008,8 +1008,8 @@ void ImparaPage::onTutorContextMenu(const QPoint& pos)
     const bool hasSel   = !sel.isEmpty();
     const QString label = hasSel ? "selezione" : "tutto";
     QMenu menu(m_tutorLog);
-    QAction* actCopy = menu.addAction("\xf0\x9f\x97\x82  Copia " + label);
-    QAction* actRead = menu.addAction("\xf0\x9f\x8e\x99  Leggi " + label);
+    QAction* actCopy = menu.addAction(tr("\xf0\x9f\x97\x82  Copia ") + label);
+    QAction* actRead = menu.addAction(tr("\xf0\x9f\x8e\x99  Leggi ") + label);
     QAction* chosen  = menu.exec(m_tutorLog->mapToGlobal(pos));
     const QString txt = hasSel ? sel : m_tutorLog->toPlainText();
     if (chosen == actCopy) {

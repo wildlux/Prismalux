@@ -1242,4 +1242,13 @@ inline int mcpTimeoutMs(const QString& plugin) {
     return kMcpDefaultTimeoutMs;
 }
 
+/* Traduce le stringhe delle tabelle statiche (const char* a scope di file,
+   dove tr() non è disponibile). Le voci vanno marcate nella tabella con
+   QT_TRANSLATE_NOOP("Tabelle", "...") perché lupdate le raccolga nello
+   stesso contesto usato qui. Senza traduzione attiva ritorna il testo
+   sorgente (equivale a QString::fromUtf8). */
+inline QString trTab(const char* s) {
+    return QCoreApplication::translate("Tabelle", s);
+}
+
 } // namespace PrismaluxPaths

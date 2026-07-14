@@ -70,7 +70,7 @@ QWidget* ProgrammazionePage::buildAgenticaToolbar(QWidget* parent)
     toolLay->setContentsMargins(0, 0, 0, 0);
     toolLay->setSpacing(8);
 
-    toolLay->addWidget(new QLabel("Tipo agente:", toolRow));
+    toolLay->addWidget(new QLabel(tr("Tipo agente:"), toolRow));
     m_agentType = new QComboBox(toolRow);
     m_agentType->setObjectName("settingCombo");
     m_agentType->addItem(
@@ -93,7 +93,7 @@ QWidget* ProgrammazionePage::buildAgenticaToolbar(QWidget* parent)
 
     /* ── Selettore modello AI (a sinistra di "Linguaggio") ── */
     toolLay->addSpacing(12);
-    auto* lblModel = new QLabel("\xf0\x9f\xa4\x96  Modello AI:", toolRow);
+    auto* lblModel = new QLabel(tr("\xf0\x9f\xa4\x96  Modello AI:"), toolRow);
     lblModel->setObjectName("cardDesc");
     toolLay->addWidget(lblModel);
 
@@ -117,7 +117,7 @@ QWidget* ProgrammazionePage::buildAgenticaToolbar(QWidget* parent)
 
     /* ── Linguaggio ── */
     toolLay->addSpacing(12);
-    toolLay->addWidget(new QLabel("Linguaggio:", toolRow));
+    toolLay->addWidget(new QLabel(tr("Linguaggio:"), toolRow));
     m_agentLang = new QComboBox(toolRow);
     m_agentLang->setObjectName("settingCombo");
     m_agentLang->addItems({"Python", "C", "C++", "JavaScript", "Bash"});
@@ -125,13 +125,13 @@ QWidget* ProgrammazionePage::buildAgenticaToolbar(QWidget* parent)
     toolLay->addWidget(m_agentLang);
     toolLay->addStretch(1);
 
-    m_btnAgentRun = new QPushButton("\xe2\x96\xb6  Genera", toolRow);
+    m_btnAgentRun = new QPushButton(tr("\xe2\x96\xb6  Genera"), toolRow);
     m_btnAgentRun->setObjectName("actionBtn");
     m_btnAgentRun->setProperty("highlight", "true");
     m_btnAgentRun->setToolTip(tr("Genera il codice agente (F5)"));
     toolLay->addWidget(m_btnAgentRun);
 
-    m_btnAgentStop = new QPushButton("\xe2\x96\xa0  Stop", toolRow);
+    m_btnAgentStop = new QPushButton(tr("\xe2\x96\xa0  Stop"), toolRow);
     m_btnAgentStop->setObjectName("actionBtn");
     m_btnAgentStop->setProperty("danger", "true");
     m_btnAgentStop->setEnabled(false);
@@ -178,7 +178,7 @@ QWidget* ProgrammazionePage::buildAgenticaModelRow(QWidget* parent)
     modelLay->setContentsMargins(0, 0, 0, 0);
     modelLay->setSpacing(8);
 
-    auto* lblModel = new QLabel("\xf0\x9f\xa4\x96  Modello AI:", modelRow);
+    auto* lblModel = new QLabel(tr("\xf0\x9f\xa4\x96  Modello AI:"), modelRow);
     lblModel->setObjectName("cardDesc");
     modelLay->addWidget(lblModel);
 

@@ -283,9 +283,9 @@ IdroWidget::IdroWidget(QWidget* parent)
     m_pompaOffSpin->setRange(1, 240);
     m_pompaOffSpin->setValue(45);
     m_pompaOffSpin->setSuffix(" min");
-    pompaLay->addWidget(new QLabel("ON:", m_pompaRow));
+    pompaLay->addWidget(new QLabel(tr("ON:"), m_pompaRow));
     pompaLay->addWidget(m_pompaOnSpin);
-    pompaLay->addWidget(new QLabel("OFF:", m_pompaRow));
+    pompaLay->addWidget(new QLabel(tr("OFF:"), m_pompaRow));
     pompaLay->addWidget(m_pompaOffSpin);
     pompaLay->addStretch();
     sysFrm->addRow(tr("Ciclo pompa:"), m_pompaRow);
@@ -419,9 +419,9 @@ IdroWidget::IdroWidget(QWidget* parent)
     logLay->setSpacing(6);
 
     auto* logBtnRow = new QHBoxLayout;
-    auto* addBtn = new QPushButton("\xe2\x9e\x95  Aggiungi", logBox);  /* ➕ */
-    auto* remBtn = new QPushButton("\xe2\x9e\x96  Rimuovi",  logBox);  /* ➖ */
-    auto* expBtn = new QPushButton("\xf0\x9f\x93\x8b  Esporta CSV", logBox);  /* 📋 */
+    auto* addBtn = new QPushButton(tr("\xe2\x9e\x95  Aggiungi"), logBox);  /* ➕ */
+    auto* remBtn = new QPushButton(tr("\xe2\x9e\x96  Rimuovi"),  logBox);  /* ➖ */
+    auto* expBtn = new QPushButton(tr("\xf0\x9f\x93\x8b  Esporta CSV"), logBox);  /* 📋 */
     addBtn->setObjectName("actionBtn");
     expBtn->setObjectName("actionBtn");
     logBtnRow->addWidget(addBtn);

@@ -62,7 +62,7 @@ public:
         auto* closeBtn = new QPushButton("\xe2\x9c\x95", this);   // ✕
         closeBtn->setFixedSize(20, 20);
         closeBtn->setFlat(true);
-        closeBtn->setToolTip("Chiudi");
+        closeBtn->setToolTip(tr("Chiudi"));
         closeBtn->setStyleSheet("QPushButton{ color:#6b7280; border:none; font-weight:bold; }"
                                 "QPushButton:hover{ color:#111827; }");
         connect(closeBtn, &QPushButton::clicked, this, &QWidget::hide);
@@ -82,7 +82,7 @@ public:
         btnRow->setContentsMargins(0, 4, 0, 0);
         btnRow->setSpacing(8);
 
-        m_retryBtn = new QPushButton("\xf0\x9f\x94\x84  Riprova", this);   // 🔄
+        m_retryBtn = new QPushButton(tr("\xf0\x9f\x94\x84  Riprova"), this);   // 🔄
         m_retryBtn->setFixedHeight(26);
         m_retryBtn->hide();
         connect(m_retryBtn, &QPushButton::clicked, this, [this]{
@@ -92,9 +92,9 @@ public:
         });
         btnRow->addWidget(m_retryBtn);
 
-        auto* settBtn = new QPushButton("\xe2\x9a\x99  Impostazioni AI", this);   // ⚙
+        auto* settBtn = new QPushButton(tr("\xe2\x9a\x99  Impostazioni AI"), this);   // ⚙
         settBtn->setFixedHeight(26);
-        settBtn->setToolTip("Apri Impostazioni → AI Locale → Parametri AI");
+        settBtn->setToolTip(tr("Apri Impostazioni → AI Locale → Parametri AI"));
         connect(settBtn, &QPushButton::clicked, this, [this]{
             /* Trova la MainWindow risalendo la catena dei parent */
             QWidget* win = window();

@@ -94,7 +94,7 @@ static void sysDoBackup(const QStringList& files, QLabel* statusLbl)
             QString("\xe2\x9a\xa0\xef\xb8\x8f  %1 copiati, errori: %2")
                 .arg(copied).arg(failed.join(", ")));
     else
-        statusLbl->setText("\xe2\x9a\xa0\xef\xb8\x8f  Nessun file trovato da copiare.");
+        statusLbl->setText(QObject::tr("\xe2\x9a\xa0\xef\xb8\x8f  Nessun file trovato da copiare."));
 }
 
 static void sysDoAudit(QTextEdit* auditLog)
@@ -280,7 +280,7 @@ QWidget* ImpostazioniPage::buildLinguaTab()
     vlay->addWidget(title);
 
     auto* row = new QHBoxLayout;
-    row->addWidget(new QLabel("\xf0\x9f\x97\xa3\xef\xb8\x8f  Lingua:"));
+    row->addWidget(new QLabel(tr("\xf0\x9f\x97\xa3\xef\xb8\x8f  Lingua:")));
 
     m_langCombo = new QComboBox;
     m_langCombo->addItem("\xf0\x9f\x87\xae\xf0\x9f\x87\xb9  Italiano", "it");
@@ -328,7 +328,7 @@ QWidget* ImpostazioniPage::buildPuliziaTab()
     lay->setContentsMargins(16, 16, 16, 16);
     lay->setSpacing(10);
 
-    auto* ttl = new QLabel("\xf0\x9f\xa7\xb9  Pulizia spazio su disco", w);
+    auto* ttl = new QLabel(tr("\xf0\x9f\xa7\xb9  Pulizia spazio su disco"), w);
     ttl->setObjectName("cardTitle");
     lay->addWidget(ttl);
 
@@ -429,7 +429,7 @@ QWidget* ImpostazioniPage::buildPuliziaTab()
         statusLbl->setObjectName("hintLabel");
         rl->addWidget(statusLbl, 1);
 
-        auto* btn = new QPushButton("\xf0\x9f\x97\x91  Pulisci", row);
+        auto* btn = new QPushButton(tr("\xf0\x9f\x97\x91  Pulisci"), row);
         btn->setObjectName("actionBtn");
         btn->setProperty("danger", "true");
         btn->setFixedWidth(dpiScale(110));
@@ -647,7 +647,7 @@ QWidget* ImpostazioniPage::buildPuliziaTab()
             gl->addWidget(lbl);
         }
         if (!anyFound) {
-            auto* lbl = new QLabel("\xe2\x9c\x85  Nessuna cartella llama_cpp_studio trovata.", grp);
+            auto* lbl = new QLabel(tr("\xe2\x9c\x85  Nessuna cartella llama_cpp_studio trovata."), grp);
             lbl->setObjectName("hintLabel");
             gl->addWidget(lbl);
         }
@@ -871,7 +871,7 @@ QWidget* ImpostazioniPage::buildSistemaConsigliTab()
             cmdLbl->setWordWrap(true);
             cmdRow->addWidget(cmdLbl, 1);
 
-            auto* btnCopy = new QPushButton("\xf0\x9f\x93\x8b Copia");
+            auto* btnCopy = new QPushButton(tr("\xf0\x9f\x93\x8b Copia"));
             btnCopy->setFixedWidth(dpiScale(90));
             const QString cmdStr = tip.cmd;
             connect(btnCopy, &QPushButton::clicked, btnCopy, [cmdStr] {

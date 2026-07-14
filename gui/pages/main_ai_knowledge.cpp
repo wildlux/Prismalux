@@ -136,7 +136,7 @@ void AgentiPage::onSaveKnowledge()
 
     /* Riga: Sezione + Modalità */
     auto* row = new QHBoxLayout;
-    auto* secLbl = new QLabel("Sezione:", dlg);
+    auto* secLbl = new QLabel(tr("Sezione:"), dlg);
     auto* secCmb = new QComboBox(dlg);
     secCmb->addItems({
         "contesto",
@@ -148,7 +148,7 @@ void AgentiPage::onSaveKnowledge()
     });
     secCmb->setCurrentIndex(0);  /* default: contesto */
 
-    auto* modLbl = new QLabel("Modalit\xc3\xa0:", dlg);  /* Modalità */
+    auto* modLbl = new QLabel(tr("Modalit\xc3\xa0:"), dlg);  /* Modalità */
     auto* modCmb = new QComboBox(dlg);
     modCmb->addItems({ "append", "replace_section" });
 
@@ -173,7 +173,7 @@ void AgentiPage::onSaveKnowledge()
     hintLbl->setObjectName("hintLabel");
     hintLbl->setWordWrap(true);
     m_saveDlgHint = hintLbl;
-    hintLbl->setText("<small>" + kSaveHints.value(secCmb->currentText(), "") + "</small>");
+    hintLbl->setText(tr("<small>") + kSaveHints.value(secCmb->currentText(), "") + "</small>");
     connect(secCmb, &QComboBox::currentTextChanged,
             this, &AgentiPage::onKnowledgeSaveDlgSectionChanged);
     lay->addWidget(hintLbl);
@@ -181,8 +181,8 @@ void AgentiPage::onSaveKnowledge()
     /* Bottoni */
     auto* btnRow = new QHBoxLayout;
     btnRow->addStretch(1);
-    auto* btnCancel = new QPushButton("Annulla", dlg);
-    auto* btnSave   = new QPushButton("\xf0\x9f\x92\xbe  Salva", dlg);  /* 💾 */
+    auto* btnCancel = new QPushButton(tr("Annulla"), dlg);
+    auto* btnSave   = new QPushButton(tr("\xf0\x9f\x92\xbe  Salva"), dlg);  /* 💾 */
     btnSave->setObjectName("actionBtn");
     btnRow->addWidget(btnCancel);
     btnRow->addWidget(btnSave);
@@ -268,7 +268,7 @@ void AgentiPage::onKnowledgeProcFinished(int, QProcess::ExitStatus)
 void AgentiPage::onKnowledgeSaveDlgSectionChanged(const QString& sec)
 {
     if (m_saveDlgHint)
-        m_saveDlgHint->setText("<small>" + kSaveHints.value(sec, "") + "</small>");
+        m_saveDlgHint->setText(tr("<small>") + kSaveHints.value(sec, "") + "</small>");
 }
 
 void AgentiPage::onKnowledgeSaveBtnClicked()

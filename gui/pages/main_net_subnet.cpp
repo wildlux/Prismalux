@@ -152,7 +152,7 @@ QWidget* ProgrammazionePage::buildSubnetTab(QWidget* parent)
     inputHL->setContentsMargins(0, 0, 0, 0);
     inputHL->setSpacing(8);
 
-    auto* cidrLbl = new QLabel("CIDR:", inputRow);
+    auto* cidrLbl = new QLabel(tr("CIDR:"), inputRow);
     m_subnetInput = new QLineEdit(inputRow);
     m_subnetInput->setPlaceholderText("192.168.0.0/24");
     m_subnetInput->setFixedWidth(dpiScale(180));
@@ -165,9 +165,9 @@ QWidget* ProgrammazionePage::buildSubnetTab(QWidget* parent)
     m_subnetCount->setValue(4);
     m_subnetCount->setFixedWidth(dpiScale(70));
 
-    auto* btnCalc = new QPushButton("\xf0\x9f\x94\xa2  Calcola", inputRow);
+    auto* btnCalc = new QPushButton(tr("\xf0\x9f\x94\xa2  Calcola"), inputRow);
     btnCalc->setObjectName("actionBtn");
-    auto* btnDot  = new QPushButton("\xf0\x9f\x95\xb8  Aggiorna grafo", inputRow);
+    auto* btnDot  = new QPushButton(tr("\xf0\x9f\x95\xb8  Aggiorna grafo"), inputRow);
 
     m_subnetStatusLbl = new QLabel(inputRow);
     m_subnetStatusLbl->setObjectName("hintLabel");
@@ -405,7 +405,7 @@ void ProgrammazionePage::onSubnetDotFinished(int code, QProcess::ExitStatus)
 
     const QPixmap px(m_subnetTmpPng);
     if (px.isNull()) {
-        m_subnetGraphImg->setText("\xe2\x9d\x8c  PNG non valido");
+        m_subnetGraphImg->setText(tr("\xe2\x9d\x8c  PNG non valido"));
         return;
     }
 

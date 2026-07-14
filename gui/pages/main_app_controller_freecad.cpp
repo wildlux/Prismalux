@@ -253,18 +253,18 @@ QWidget* AppControllerPage::buildFreeCADTab()
     connLay->setContentsMargins(0, 0, 0, 0);
     connLay->setSpacing(8);
 
-    auto* lbl = new QLabel("FreeCAD:", connRow);
+    auto* lbl = new QLabel(tr("FreeCAD:"), connRow);
     lbl->setObjectName("hintLabel");
 
     m_freecadHostEdit = new QLineEdit("localhost:9876", connRow);
     m_freecadHostEdit->setFixedWidth(dpiScale(150));
 
-    auto* pingBtn = new QPushButton("\xf0\x9f\x94\x97  Verifica", connRow);
+    auto* pingBtn = new QPushButton(tr("\xf0\x9f\x94\x97  Verifica"), connRow);
     pingBtn->setToolTip(tr("Verifica che FreeCAD sia in ascolto sulla porta specificata"));
     pingBtn->setObjectName("actionBtn");
     pingBtn->setFixedWidth(dpiScale(100));
 
-    m_freecadStatusLbl = new QLabel("\xe2\x9a\xaa  Non connesso", connRow);
+    m_freecadStatusLbl = new QLabel(tr("\xe2\x9a\xaa  Non connesso"), connRow);
     m_freecadStatusLbl->setObjectName("hintLabel");
 
     m_freecadExecBtn = new QPushButton(
@@ -276,7 +276,7 @@ QWidget* AppControllerPage::buildFreeCADTab()
     connLay->addWidget(lbl);
     connLay->addWidget(m_freecadHostEdit);
     connLay->addWidget(pingBtn);
-    auto* freecadHelpBtn = new QPushButton("\xf0\x9f\x9b\x9f  Aiuto", connRow);
+    auto* freecadHelpBtn = new QPushButton(tr("\xf0\x9f\x9b\x9f  Aiuto"), connRow);
     freecadHelpBtn->setToolTip(tr("Apri la documentazione e i comandi AI disponibili per FreeCAD"));
     freecadHelpBtn->setObjectName("actionBtn");
     freecadHelpBtn->setFixedWidth(dpiScale(80));
@@ -307,9 +307,9 @@ QWidget* AppControllerPage::buildFreeCADTab()
 
     m_freecadModel = new ModelComboBox(m_ai, toolRow);
 
-    toolLay->addWidget(new QLabel("Azione:", toolRow));
+    toolLay->addWidget(new QLabel(tr("Azione:"), toolRow));
     toolLay->addWidget(m_freecadAction, 1);
-    toolLay->addWidget(new QLabel("Modello:", toolRow));
+    toolLay->addWidget(new QLabel(tr("Modello:"), toolRow));
     toolLay->addWidget(m_freecadModel, 1);
     lay->addWidget(toolRow);
 
@@ -332,9 +332,9 @@ QWidget* AppControllerPage::buildFreeCADTab()
     auto* btnLay = new QHBoxLayout(btnRow);
     btnLay->setContentsMargins(0, 0, 0, 0);
     btnLay->setSpacing(8);
-    m_freecadRunBtn  = new QPushButton("\xe2\x96\xb6  Genera codice AI", btnRow);
+    m_freecadRunBtn  = new QPushButton(tr("\xe2\x96\xb6  Genera codice AI"), btnRow);
     m_freecadRunBtn->setObjectName("actionBtn");
-    m_freecadStopBtn = new QPushButton("\xe2\x8f\xb9  Stop", btnRow);
+    m_freecadStopBtn = new QPushButton(tr("\xe2\x8f\xb9  Stop"), btnRow);
     m_freecadStopBtn->setObjectName("actionBtn");
     m_freecadStopBtn->setProperty("danger", true);
     m_freecadStopBtn->setEnabled(false);
@@ -399,7 +399,7 @@ void AppControllerPage::onFreecadPingError(QAbstractSocket::SocketError)
 {
     if (!m_freecadPingSock) return;
     const QString freecadPingErr = m_freecadPingSock->errorString();
-    m_freecadStatusLbl->setText("\xe2\x9d\x8c  " + freecadPingErr);
+    m_freecadStatusLbl->setText(tr("\xe2\x9d\x8c  ") + freecadPingErr);
     LogBus::post("\xe2\x9d\x8c FreeCAD: Ping errore: " + freecadPingErr);
     m_freecadPingSock->deleteLater();
     m_freecadPingSock = nullptr;
@@ -445,7 +445,7 @@ void AppControllerPage::onFreecadExecError(QAbstractSocket::SocketError)
 {
     if (!m_freecadExecSock) return;
     const QString freecadExecErr = m_freecadExecSock->errorString();
-    m_freecadStatusLbl->setText("\xe2\x9d\x8c  " + freecadExecErr);
+    m_freecadStatusLbl->setText(tr("\xe2\x9d\x8c  ") + freecadExecErr);
     LogBus::post("\xe2\x9d\x8c FreeCAD: Exec errore: " + freecadExecErr);
     m_freecadExecBtn->setEnabled(true);
     m_freecadExecSock->deleteLater();
@@ -475,7 +475,7 @@ void AppControllerPage::onFreecadExecReadyRead()
             + res["result"].toString("OK"));
     } else {
         const QString freecadResErr = res["message"].toString();
-        m_freecadStatusLbl->setText("\xe2\x9d\x8c  " + freecadResErr);
+        m_freecadStatusLbl->setText(tr("\xe2\x9d\x8c  ") + freecadResErr);
         m_freecadOutput->append("\n\xe2\x9d\x8c  FreeCAD errore: " + freecadResErr);
         LogBus::post("\xe2\x9d\x8c FreeCAD: Errore risposta: " + freecadResErr);
     }
@@ -521,7 +521,7 @@ void AppControllerPage::onFreecadHelpClicked()
         "(porta <b>9876</b>)</p>"
         "<h4>4. Collega</h4>"
         "<p>Torna qui \xe2\x86\x92 clicca <b>\xf0\x9f\x94\x97 Verifica</b>.</p>");
-    auto* btnClose = new QPushButton("\xe2\x9c\x95  Chiudi", dlg);
+    auto* btnClose = new QPushButton(tr("\xe2\x9c\x95  Chiudi"), dlg);
     btnClose->setObjectName("actionBtn");
     connect(btnClose, &QPushButton::clicked, dlg, &QDialog::accept);
     dlay->addWidget(browser);

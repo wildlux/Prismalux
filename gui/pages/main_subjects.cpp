@@ -33,7 +33,7 @@ SubjectTutorWidget::SubjectTutorWidget(AiClient* ai, const QString& subject,
     treeTitle->setObjectName("cardTitle");
     leftL->addWidget(treeTitle);
 
-    auto* treeHint = new QLabel("Doppio clic per spiegazione AI", leftW);
+    auto* treeHint = new QLabel(tr("Doppio clic per spiegazione AI"), leftW);
     treeHint->setObjectName("pageSubtitle");
     leftL->addWidget(treeHint);
 
@@ -79,7 +79,7 @@ SubjectTutorWidget::SubjectTutorWidget(AiClient* ai, const QString& subject,
     m_inp->setPlaceholderText(tr("Domanda libera..."));
     m_inp->setFixedHeight(dpiScale(38));
 
-    m_send = new QPushButton("Chiedi ▶", inputRow);
+    m_send = new QPushButton(tr("Chiedi ▶"), inputRow);
     m_send->setObjectName("actionBtn");
 
     m_stop = new QPushButton("⏹", inputRow);
@@ -266,7 +266,7 @@ MateriePage::MateriePage(AiClient* ai, QWidget* parent)
         auto* hl = new QHBoxLayout(hdr);
         hl->setContentsMargins(16, 8, 16, 8); hl->setSpacing(12);
 
-        auto* back = new QPushButton("← Materie", hdr);
+        auto* back = new QPushButton(tr("← Materie"), hdr);
         back->setObjectName("actionBtn");
         connect(back, &QPushButton::clicked, this, [this]{ m_stack->setCurrentIndex(0); });
 
@@ -302,9 +302,9 @@ QWidget* MateriePage::buildMenu()
     auto* lay = new QVBoxLayout(w);
     lay->setContentsMargins(24, 20, 24, 16); lay->setSpacing(12);
 
-    auto* title = new QLabel("\xf0\x9f\x93\x96  Materie \xe2\x80\x94 Tutor per argomento", w);
+    auto* title = new QLabel(tr("\xf0\x9f\x93\x96  Materie \xe2\x80\x94 Tutor per argomento"), w);
     title->setObjectName("pageTitle");
-    auto* sub = new QLabel("Scegli una materia e seleziona un argomento dall'albero per ottenere una spiegazione guidata.", w);
+    auto* sub = new QLabel(tr("Scegli una materia e seleziona un argomento dall'albero per ottenere una spiegazione guidata."), w);
     sub->setObjectName("pageSubtitle"); sub->setWordWrap(true);
     lay->addWidget(title); lay->addWidget(sub);
 
@@ -340,7 +340,7 @@ QWidget* MateriePage::buildMenu()
         auto* ld = new QLabel(c.desc, txt); ld->setObjectName("cardDesc"); ld->setWordWrap(true);
         txtL->addWidget(lt); txtL->addWidget(ld);
 
-        auto* btn = new QPushButton("Studia →", card);
+        auto* btn = new QPushButton(tr("Studia →"), card);
         btn->setObjectName("subjectBtn");
         btn->setFixedWidth(dpiScale(88));
 

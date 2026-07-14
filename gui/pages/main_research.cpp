@@ -69,10 +69,10 @@ static QWidget* makeOutputBar(QTextEdit* editor, const QString& titolo,
     blay->setContentsMargins(0, 0, 0, 0);
     blay->setSpacing(6);
 
-    auto* lblTit = new QLabel("<b>" + titolo + "</b>");
-    auto* btnPdf = new QPushButton("\xf0\x9f\x96\xa8  Esporta PDF");
-    auto* btnMd  = new QPushButton("\xf0\x9f\x92\xbe  Salva .md");
-    auto* btnClr = new QPushButton("\xf0\x9f\x97\x91  Svuota");
+    auto* lblTit = new QLabel(QObject::tr("<b>") + titolo + "</b>");
+    auto* btnPdf = new QPushButton(QObject::tr("\xf0\x9f\x96\xa8  Esporta PDF"));
+    auto* btnMd  = new QPushButton(QObject::tr("\xf0\x9f\x92\xbe  Salva .md"));
+    auto* btnClr = new QPushButton(QObject::tr("\xf0\x9f\x97\x91  Svuota"));
     btnPdf->setObjectName("actionBtn");
     btnMd->setObjectName("actionBtn");
     btnClr->setObjectName("actionBtn");
@@ -271,8 +271,8 @@ QWidget* RicercaPage::buildPaperTab()
     auto* btnRow  = new QWidget;
     auto* btnLay  = new QHBoxLayout(btnRow);
     btnLay->setContentsMargins(0, 4, 0, 0);
-    auto* btnGen  = new QPushButton("\xf0\x9f\x9a\x80  Genera Paper");
-    auto* btnStop = new QPushButton("\xe2\x96\xa0  Stop");
+    auto* btnGen  = new QPushButton(tr("\xf0\x9f\x9a\x80  Genera Paper"));
+    auto* btnStop = new QPushButton(tr("\xe2\x96\xa0  Stop"));
     btnGen->setObjectName("actionBtn");
     btnStop->setObjectName("actionBtn");
     btnStop->setEnabled(false);
@@ -405,8 +405,8 @@ QWidget* RicercaPage::buildBrevettoTab()
     auto* btnRow  = new QWidget;
     auto* btnLay  = new QHBoxLayout(btnRow);
     btnLay->setContentsMargins(0, 4, 0, 0);
-    auto* btnGen  = new QPushButton("\xf0\x9f\x94\x8f  Genera Brevetto");
-    auto* btnStop = new QPushButton("\xe2\x96\xa0  Stop");
+    auto* btnGen  = new QPushButton(tr("\xf0\x9f\x94\x8f  Genera Brevetto"));
+    auto* btnStop = new QPushButton(tr("\xe2\x96\xa0  Stop"));
     btnGen->setObjectName("actionBtn");
     btnStop->setObjectName("actionBtn");
     btnStop->setEnabled(false);
@@ -534,7 +534,7 @@ QWidget* RicercaPage::buildDocTecnicoTab()
     btnLay->setContentsMargins(0, 4, 0, 0);
     auto* btnGen  = new QPushButton(
         "\xf0\x9f\x93\x8b  Genera Documento");
-    auto* btnStop = new QPushButton("\xe2\x96\xa0  Stop");
+    auto* btnStop = new QPushButton(tr("\xe2\x96\xa0  Stop"));
     btnGen->setObjectName("actionBtn");
     btnStop->setObjectName("actionBtn");
     btnStop->setEnabled(false);
@@ -826,7 +826,7 @@ static void runSciScript(const QString& code, bool isBash,
     const QString tmpPath = P::safeTempPath() + "/prismalux_bio_script" + suffix;
     QFile f(tmpPath);
     if (!f.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        statusLbl->setText("\xe2\x9d\x8c  Impossibile creare script temporaneo");
+        statusLbl->setText(QObject::tr("\xe2\x9d\x8c  Impossibile creare script temporaneo"));
         LogBus::post("\xe2\x9d\x8c Ricerca: Impossibile creare script temporaneo.");
         return;
     }
@@ -854,7 +854,7 @@ static void runSciScript(const QString& code, bool isBash,
         });
     }
     execBtn->setEnabled(false);
-    statusLbl->setText("\xf0\x9f\x94\x84  Esecuzione...");
+    statusLbl->setText(QObject::tr("\xf0\x9f\x94\x84  Esecuzione..."));
     if (isBash) {
         const QString bash = QStandardPaths::findExecutable("bash");
         procRef->start(bash.isEmpty() ? "bash" : bash, {tmpPath});
@@ -862,7 +862,7 @@ static void runSciScript(const QString& code, bool isBash,
         procRef->start(P::findPython(), {tmpPath});
     }
     if (procRef->state() == QProcess::NotRunning) {
-        statusLbl->setText("\xe2\x9d\x8c  Interprete non trovato");
+        statusLbl->setText(QObject::tr("\xe2\x9d\x8c  Interprete non trovato"));
         LogBus::post("\xe2\x9d\x8c Ricerca: Interprete non trovato.");
     }
 }
@@ -903,7 +903,7 @@ QWidget* RicercaPage::buildCercaLetteraturaTab()
     m_litSource->addItem("\xf0\x9f\x94\x8f  USPTO Brevetti",   "uspto");
     m_litSource->setFixedWidth(dpiScale(180));
 
-    m_litSearchBtn = new QPushButton("\xf0\x9f\x94\x8d  Cerca", w);
+    m_litSearchBtn = new QPushButton(tr("\xf0\x9f\x94\x8d  Cerca"), w);
     m_litSearchBtn->setObjectName("actionBtn");
     m_litSearchBtn->setFixedWidth(dpiScale(90));
 
@@ -1241,7 +1241,7 @@ void RicercaPage::onLitAiError(const QString& e)
     disconnect(m_litAiFinishedConn); m_litAiFinishedConn = {};
     disconnect(m_litAiErrorConn);    m_litAiErrorConn    = {};
     m_litAiBtn->setEnabled(true);
-    m_litStatus->setText("\xe2\x9d\x8c  " + e);
+    m_litStatus->setText(tr("\xe2\x9d\x8c  ") + e);
     LogBus::post("\xe2\x9d\x8c Ricerca: Errore AI letteratura: " + e);
 }
 
@@ -1267,7 +1267,7 @@ QWidget* RicercaPage::buildAnalisiPage()
     root->addWidget(introLbl);
 
     /* ── Categoria ── */
-    auto* catBox  = new QGroupBox("Categoria evento");
+    auto* catBox  = new QGroupBox(tr("Categoria evento"));
     auto* catLay  = new QHBoxLayout(catBox);
     catLay->setSpacing(16);
 
@@ -1293,7 +1293,7 @@ QWidget* RicercaPage::buildAnalisiPage()
     auto* midSplit = new QSplitter(Qt::Horizontal);
     midSplit->setHandleWidth(6);
 
-    auto* evtGroup = new QGroupBox("Descrizione dell\xe2\x80\x99" "evento");
+    auto* evtGroup = new QGroupBox(tr("Descrizione dell\xe2\x80\x99" "evento"));
     auto* evtLay   = new QVBoxLayout(evtGroup);
     m_analisiEventEdit = new QTextEdit;
     m_analisiEventEdit->setPlaceholderText(
@@ -1304,7 +1304,7 @@ QWidget* RicercaPage::buildAnalisiPage()
     m_analisiEventEdit->setMinimumHeight(120);
     evtLay->addWidget(m_analisiEventEdit);
 
-    auto* srcGroup = new QGroupBox("Fonti (URL, citazioni, testo grezzo)");
+    auto* srcGroup = new QGroupBox(tr("Fonti (URL, citazioni, testo grezzo)"));
     auto* srcLay   = new QVBoxLayout(srcGroup);
     m_analisiSrcEdit = new QTextEdit;
     m_analisiSrcEdit->setPlaceholderText(
@@ -1323,14 +1323,14 @@ QWidget* RicercaPage::buildAnalisiPage()
     root->addWidget(midSplit);
 
     /* ── Allegati (file) ── */
-    auto* fileBox = new QGroupBox("\xf0\x9f\x93\x82  File allegati (PDF, TXT, MD, CSV, JSON)");
+    auto* fileBox = new QGroupBox(tr("\xf0\x9f\x93\x82  File allegati (PDF, TXT, MD, CSV, JSON)"));
     auto* fileLay = new QVBoxLayout(fileBox);
     auto* fileBtnRow = new QWidget;
     auto* fileBtnLay = new QHBoxLayout(fileBtnRow);
     fileBtnLay->setContentsMargins(0,0,0,0); fileBtnLay->setSpacing(8);
-    auto* addFileBtn  = new QPushButton("\xe2\x9e\x95  Aggiungi file\xe2\x80\xa6");
+    auto* addFileBtn  = new QPushButton(tr("\xe2\x9e\x95  Aggiungi file\xe2\x80\xa6"));
     addFileBtn->setObjectName("actionBtn");
-    auto* remFileBtn  = new QPushButton("\xe2\x9c\x96  Rimuovi selezionato");
+    auto* remFileBtn  = new QPushButton(tr("\xe2\x9c\x96  Rimuovi selezionato"));
     auto* fileHintLbl = new QLabel(
         "<span style='color:gray;font-size:11px;'>"
         "I file vengono letti e inclusi nel prompt AI. "
@@ -1357,11 +1357,11 @@ QWidget* RicercaPage::buildAnalisiPage()
     ctrlLay->setContentsMargins(0, 0, 0, 0);
     ctrlLay->setSpacing(8);
 
-    auto* modelLbl = new QLabel("Modello:");
+    auto* modelLbl = new QLabel(tr("Modello:"));
     m_analisiModelCombo = new ModelComboBox(m_ai, this);
 
-    m_analisiRunBtn  = new QPushButton("\xf0\x9f\x94\x8d  Analizza AI");
-    m_analisiStopBtn = new QPushButton("\xe2\x96\xa0  Stop");
+    m_analisiRunBtn  = new QPushButton(tr("\xf0\x9f\x94\x8d  Analizza AI"));
+    m_analisiStopBtn = new QPushButton(tr("\xe2\x96\xa0  Stop"));
     m_analisiRunBtn->setObjectName("actionBtn");
     m_analisiStopBtn->setObjectName("actionBtn");
     m_analisiStopBtn->setEnabled(false);
@@ -1378,7 +1378,7 @@ QWidget* RicercaPage::buildAnalisiPage()
     auto* probLay = new QHBoxLayout(probRow);
     probLay->setContentsMargins(0, 0, 0, 0);
     probLay->setSpacing(8);
-    m_analisiProbLbl = new QLabel("\xf0\x9f\x93\x8a  Probabilit\xc3\xa0:");
+    m_analisiProbLbl = new QLabel(tr("\xf0\x9f\x93\x8a  Probabilit\xc3\xa0:"));
     m_analisiProbBar = new QProgressBar;
     m_analisiProbBar->setRange(0, 100);
     m_analisiProbBar->setValue(0);
@@ -1747,25 +1747,25 @@ QWidget* RicercaPage::buildRagGrafoTab()
     connect(m_ragRunBtn, &QPushButton::clicked, this, &RicercaPage::onRagRunClicked);
     ctrlLay->addWidget(m_ragRunBtn);
 
-    m_ragPauseBtn = new QPushButton("\xe2\x8f\xb8  Pausa", w);  /* ⏸ */
+    m_ragPauseBtn = new QPushButton(tr("\xe2\x8f\xb8  Pausa"), w);  /* ⏸ */
     m_ragPauseBtn->setObjectName("navBtn");
     m_ragPauseBtn->setEnabled(false);
     m_ragPauseBtn->setToolTip(tr("Sospendi l'indicizzazione RAG tra un file e l'altro; riprendi senza ripartire da zero"));
     connect(m_ragPauseBtn, &QPushButton::clicked, this, &RicercaPage::onRagPauseClicked);
     ctrlLay->addWidget(m_ragPauseBtn);
 
-    m_ragStopBtn = new QPushButton("\xe2\x96\xa0  Stop", w);  /* ■ */
+    m_ragStopBtn = new QPushButton(tr("\xe2\x96\xa0  Stop"), w);  /* ■ */
     m_ragStopBtn->setObjectName("stopBtn");
     m_ragStopBtn->setEnabled(false);
     connect(m_ragStopBtn, &QPushButton::clicked, this, &RicercaPage::onRagStopClicked);
     ctrlLay->addWidget(m_ragStopBtn);
 
-    m_ragClearBtn = new QPushButton("\xf0\x9f\x97\x91  Svuota", w);  /* 🗑 */
+    m_ragClearBtn = new QPushButton(tr("\xf0\x9f\x97\x91  Svuota"), w);  /* 🗑 */
     m_ragClearBtn->setObjectName("navBtn");
     connect(m_ragClearBtn, &QPushButton::clicked, this, &RicercaPage::onRagClearClicked);
     ctrlLay->addWidget(m_ragClearBtn);
 
-    auto* btnRefreshDot = new QPushButton("\xf0\x9f\x8c\xbf  Rigenera Grafo", w);
+    auto* btnRefreshDot = new QPushButton(tr("\xf0\x9f\x8c\xbf  Rigenera Grafo"), w);
     btnRefreshDot->setObjectName("navBtn");
     btnRefreshDot->setToolTip(tr("Rigenera la visualizzazione Graphviz dal grafo corrente"));
     connect(btnRefreshDot, &QPushButton::clicked, this, &RicercaPage::onRagRefreshDot);
@@ -1773,7 +1773,7 @@ QWidget* RicercaPage::buildRagGrafoTab()
 
     ctrlLay->addStretch(1);
 
-    m_ragStatus = new QLabel("\xf0\x9f\x95\xb8  Pronto.", ctrlBar);
+    m_ragStatus = new QLabel(tr("\xf0\x9f\x95\xb8  Pronto."), ctrlBar);
     m_ragStatus->setObjectName("statusLabel");
     ctrlLay->addWidget(m_ragStatus, 2);
 
@@ -1820,7 +1820,7 @@ QWidget* RicercaPage::buildRagGrafoTab()
     searchRow->addWidget(m_ragSearchEdit, 1);
     leftLay->addLayout(searchRow);
 
-    auto* nodeLbl = new QLabel("<b>Nodi del grafo</b>", leftPanel);
+    auto* nodeLbl = new QLabel(tr("<b>Nodi del grafo</b>"), leftPanel);
     nodeLbl->setTextFormat(Qt::RichText);
     nodeLbl->setObjectName("cardDesc");
     leftLay->addWidget(nodeLbl);
@@ -1862,7 +1862,7 @@ QWidget* RicercaPage::buildRagGrafoTab()
         "Richiede <b>graphviz</b> installato: <code>sudo apt install graphviz</code></p>");
     m_ragImgLbl->setTextFormat(Qt::RichText);
     imgScroll->setWidget(m_ragImgLbl);
-    vizTabs->addTab(imgScroll, "\xf0\x9f\x96\xbc  Grafo");  /* 🖼 */
+    vizTabs->addTab(imgScroll, tr("\xf0\x9f\x96\xbc  Grafo"));  /* 🖼 */
 
     /* Tab 2: DOT sorgente */
     m_ragDotView = new QTextEdit(vizTabs);
@@ -1870,7 +1870,7 @@ QWidget* RicercaPage::buildRagGrafoTab()
     m_ragDotView->setReadOnly(true);
     m_ragDotView->setLineWrapMode(QTextEdit::NoWrap);
     m_ragDotView->setPlaceholderText(tr("Graphviz DOT del grafo..."));
-    vizTabs->addTab(m_ragDotView, "\xf0\x9f\x93\x9d  DOT");  /* 📝 */
+    vizTabs->addTab(m_ragDotView, tr("\xf0\x9f\x93\x9d  DOT"));  /* 📝 */
 
     rightLay->addWidget(vizTabs, 1);
     splitter->addWidget(rightPanel);
@@ -1901,8 +1901,8 @@ void RicercaPage::onRagRunClicked()
 
     if (!QDir(ragDocs).exists() && !QDir(ragLocal).exists()) {
         if (m_ragStatus)
-            m_ragStatus->setText("\xe2\x9a\xa0\xef\xb8\x8f  Nessuna cartella RAG trovata. "
-                                 "Aggiungi documenti in ~/prismalux_rag_docs/");
+            m_ragStatus->setText(tr("\xe2\x9a\xa0\xef\xb8\x8f  Nessuna cartella RAG trovata. "
+                                 "Aggiungi documenti in ~/prismalux_rag_docs/"));
         return;
     }
 
@@ -1916,7 +1916,7 @@ void RicercaPage::onRagRunClicked()
     connect(m_ragGraph, &RagGraph::fileError,
             this, [this](const QString& f, const QString& e) {
                 if (m_ragStatus)
-                    m_ragStatus->setText("\xe2\x9a\xa0\xef\xb8\x8f  " + f + ": " + e.left(60));
+                    m_ragStatus->setText(tr("\xe2\x9a\xa0\xef\xb8\x8f  ") + f + ": " + e.left(60));
             });
 
     if (QDir(ragDocs).exists()) m_ragGraph->addDirectory(ragDocs);
@@ -1950,11 +1950,11 @@ void RicercaPage::onRagPauseClicked()
     if (!m_ragGraph) return;
     if (m_ragGraph->isPaused()) {
         m_ragGraph->resumeIngest();
-        if (m_ragPauseBtn) m_ragPauseBtn->setText("\xe2\x8f\xb8  Pausa");  /* ⏸ */
+        if (m_ragPauseBtn) m_ragPauseBtn->setText(tr("\xe2\x8f\xb8  Pausa"));  /* ⏸ */
         if (m_ragStatus) m_ragStatus->setText(tr("\xf0\x9f\x94\x84  Analisi ripresa..."));
     } else {
         m_ragGraph->pauseIngest();
-        if (m_ragPauseBtn) m_ragPauseBtn->setText("\xe2\x8f\xb5  Riprendi");  /* ⏵ */
+        if (m_ragPauseBtn) m_ragPauseBtn->setText(tr("\xe2\x8f\xb5  Riprendi"));  /* ⏵ */
         if (m_ragStatus) m_ragStatus->setText(tr("\xe2\x8f\xb8  Analisi in pausa dopo il file corrente."));
     }
 }
@@ -1963,7 +1963,7 @@ void RicercaPage::onRagStopClicked()
 {
     if (m_ragGraph) m_ragGraph->stopIngest();
     if (m_ragRunBtn)   m_ragRunBtn->setEnabled(true);
-    if (m_ragPauseBtn) { m_ragPauseBtn->setEnabled(false); m_ragPauseBtn->setText("\xe2\x8f\xb8  Pausa"); }
+    if (m_ragPauseBtn) { m_ragPauseBtn->setEnabled(false); m_ragPauseBtn->setText(tr("\xe2\x8f\xb8  Pausa")); }
     if (m_ragStopBtn)  m_ragStopBtn->setEnabled(false);
     if (m_ragProgress) m_ragProgress->setVisible(false);
     if (m_ragStatus)   m_ragStatus->setText(tr("\xe2\x96\xa0  Analisi interrotta."));
@@ -2000,7 +2000,7 @@ void RicercaPage::onThermalUpdate(double cpuTempC, double gpuTempC)
         QStringList parts;
         if (cpuTempC > 0) parts << QString("CPU %1\xc2\xb0" "C").arg((int)cpuTempC);
         if (gpuTempC > 0) parts << QString("GPU %1\xc2\xb0" "C").arg((int)gpuTempC);
-        m_ragTempLbl->setText("\xf0\x9f\x8c\xa1  " + parts.join(" | "));
+        m_ragTempLbl->setText(tr("\xf0\x9f\x8c\xa1  ") + parts.join(" | "));
         const QString col = maxTemp >= 90 ? "#f87171" : maxTemp >= 75 ? "#f59e0b" : "#94a3b8";
         m_ragTempLbl->setStyleSheet(
             QString("QLabel#ragTempLabel{color:%1;font-size:11px;padding:0 6px;}").arg(col));
@@ -2012,7 +2012,7 @@ void RicercaPage::onThermalUpdate(double cpuTempC, double gpuTempC)
 
     if (maxTemp >= 80.0 && !m_ragGraph->isPaused()) {
         m_ragGraph->pauseIngest();
-        if (m_ragPauseBtn) m_ragPauseBtn->setText("\xe2\x8f\xb5  Riprendi");
+        if (m_ragPauseBtn) m_ragPauseBtn->setText(tr("\xe2\x8f\xb5  Riprendi"));
         if (m_ragStatus)
             m_ragStatus->setText(
                 tr("\xf0\x9f\x8c\xa1  Temperatura elevata (%1\xc2\xb0" "C) — "
@@ -2021,7 +2021,7 @@ void RicercaPage::onThermalUpdate(double cpuTempC, double gpuTempC)
     } else if (maxTemp < 75.0 && m_ragGraph->isPaused()) {
         /* Auto-riprende solo se la pausa era termica (non manuale) */
         m_ragGraph->resumeIngest();
-        if (m_ragPauseBtn) m_ragPauseBtn->setText("\xe2\x8f\xb8  Pausa");
+        if (m_ragPauseBtn) m_ragPauseBtn->setText(tr("\xe2\x8f\xb8  Pausa"));
         if (m_ragStatus) m_ragStatus->setText(tr("\xf0\x9f\x94\x84  Temperatura ok — analisi ripresa."));
     }
 }
@@ -2039,7 +2039,7 @@ void RicercaPage::onRagGraphProgress(int cur, int tot, const QString& file)
 void RicercaPage::onRagGraphFinished(const RagGraphStats& stats)
 {
     if (m_ragRunBtn)   m_ragRunBtn->setEnabled(true);
-    if (m_ragPauseBtn) { m_ragPauseBtn->setEnabled(false); m_ragPauseBtn->setText("\xe2\x8f\xb8  Pausa"); }
+    if (m_ragPauseBtn) { m_ragPauseBtn->setEnabled(false); m_ragPauseBtn->setText(tr("\xe2\x8f\xb8  Pausa")); }
     if (m_ragStopBtn)  m_ragStopBtn->setEnabled(false);
     if (m_ragProgress) m_ragProgress->setVisible(false);
 
@@ -2246,8 +2246,8 @@ QWidget* RicercaPage::buildSdsEditingTab()
     root->addWidget(warn);
 
     auto* ctrl = new QHBoxLayout;
-    m_sdsRunBtn = new QPushButton("\xe2\x96\xb6  Esegui run_all.py");
-    m_sdsStopBtn = new QPushButton("\xe2\x8f\xb9  Stop");
+    m_sdsRunBtn = new QPushButton(tr("\xe2\x96\xb6  Esegui run_all.py"));
+    m_sdsStopBtn = new QPushButton(tr("\xe2\x8f\xb9  Stop"));
     m_sdsStopBtn->setEnabled(false);
     m_sdsStatus = new QLabel(QString());
     m_sdsStatus->setStyleSheet("color:gray;");
@@ -2282,7 +2282,7 @@ void RicercaPage::onSdsRunClicked()
     }
 
     m_sdsOut->clear();
-    m_sdsStatus->setText("\xe2\x8f\xb3  In esecuzione\xe2\x80\xa6");
+    m_sdsStatus->setText(tr("\xe2\x8f\xb3  In esecuzione\xe2\x80\xa6"));
     m_sdsRunBtn->setEnabled(false);
     m_sdsStopBtn->setEnabled(true);
 
@@ -2312,7 +2312,7 @@ void RicercaPage::onSdsStopClicked()
 {
     if (m_sdsProc && m_sdsProc->state() != QProcess::NotRunning) {
         m_sdsProc->kill();
-        m_sdsStatus->setText("\xe2\x8f\xb9  Interrotto");
+        m_sdsStatus->setText(tr("\xe2\x8f\xb9  Interrotto"));
     }
 }
 

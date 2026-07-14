@@ -958,7 +958,7 @@ void LanWanPage::onWanCliSockDisconnected()
 void LanWanPage::onWanCliSockError(QAbstractSocket::SocketError)
 {
     const QString msg = m_wanCliSock ? m_wanCliSock->errorString() : "errore sconosciuto";
-    m_wanCliStatusLbl->setText("\xe2\x9d\x8c  " + msg);
+    m_wanCliStatusLbl->setText(tr("\xe2\x9d\x8c  ") + msg);
     LogBus::post("\xe2\x9d\x8c LAN WAN: WAN client errore socket: " + msg);
     m_wanCliStatusLbl->setStyleSheet("color:#f44336;");
     m_wanCliConBtn->setEnabled(true);
@@ -1244,7 +1244,7 @@ void LanWanPage::onWanWorkerError(QAbstractSocket::SocketError)
 
     if (idx == 0) {
         /* Solo il worker 0 aggiorna la UI di stato */
-        m_wanCliStatusLbl->setText("\xe2\x9d\x8c  " + errMsg);
+        m_wanCliStatusLbl->setText(tr("\xe2\x9d\x8c  ") + errMsg);
         LogBus::post("\xe2\x9d\x8c LAN WAN: WAN worker errore socket: " + errMsg);
         m_wanCliStatusLbl->setStyleSheet("color:#f44336;");
         m_wanCliConBtn->setEnabled(true);

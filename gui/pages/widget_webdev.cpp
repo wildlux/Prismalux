@@ -77,18 +77,18 @@ QWidget* WebDevWidget::buildProjectRow(QWidget* parent)
     hl->setContentsMargins(0, 0, 0, 0);
     hl->setSpacing(dpiScale(6));
 
-    hl->addWidget(new QLabel("Cartella progetto:", row));
+    hl->addWidget(new QLabel(tr("Cartella progetto:"), row));
     m_projectPath = new QLineEdit(row);
-    m_projectPath->setPlaceholderText("/home/user/mio_progetto_django  …");
+    m_projectPath->setPlaceholderText(tr("/home/user/mio_progetto_django  …"));
     hl->addWidget(m_projectPath, 1);
 
-    auto* btnBrowse = new QPushButton("\xf0\x9f\x93\x82  Sfoglia", row);
+    auto* btnBrowse = new QPushButton(tr("\xf0\x9f\x93\x82  Sfoglia"), row);
     btnBrowse->setFixedWidth(dpiScale(100));
     hl->addWidget(btnBrowse);
 
     lay->addWidget(row);
 
-    m_detectLbl = new QLabel("Nessun progetto selezionato.", box);
+    m_detectLbl = new QLabel(tr("Nessun progetto selezionato."), box);
     m_detectLbl->setStyleSheet("color:#94a3b8; font-style:italic;");
     lay->addWidget(m_detectLbl);
 
@@ -113,7 +113,7 @@ QWidget* WebDevWidget::buildControlSplitter(QWidget* parent)
 
 QGroupBox* WebDevWidget::buildServerGroup(QWidget* parent)
 {
-    auto* grp = new QGroupBox("\xf0\x9f\x8c\x90  Server di sviluppo", parent);
+    auto* grp = new QGroupBox(tr("\xf0\x9f\x8c\x90  Server di sviluppo"), parent);
     auto* lay = new QVBoxLayout(grp);
     lay->setSpacing(dpiScale(6));
 
@@ -134,7 +134,7 @@ QGroupBox* WebDevWidget::buildServerGroup(QWidget* parent)
     form->addRow("Porta:", m_portEdit);
 
     m_argsEdit = new QLineEdit(grp);
-    m_argsEdit->setPlaceholderText("es. --settings=config.dev");
+    m_argsEdit->setPlaceholderText(tr("es. --settings=config.dev"));
     form->addRow("Args extra:", m_argsEdit);
 
     lay->addLayout(form);
@@ -144,22 +144,22 @@ QGroupBox* WebDevWidget::buildServerGroup(QWidget* parent)
     auto* btnLay = new QHBoxLayout(btnRow);
     btnLay->setContentsMargins(0, 0, 0, 0);
     btnLay->setSpacing(dpiScale(6));
-    m_btnStart = new QPushButton("\xe2\x96\xb6  Avvia", btnRow);
+    m_btnStart = new QPushButton(tr("\xe2\x96\xb6  Avvia"), btnRow);
     m_btnStart->setStyleSheet("QPushButton{background:#16a34a;color:#fff;font-weight:bold;border-radius:4px;padding:4px 10px;}"
                               "QPushButton:hover{background:#15803d;}");
-    m_btnStop  = new QPushButton("\xe2\x96\xa0  Ferma", btnRow);
+    m_btnStop  = new QPushButton(tr("\xe2\x96\xa0  Ferma"), btnRow);
     m_btnStop->setEnabled(false);
     m_btnStop->setStyleSheet("QPushButton{background:#dc2626;color:#fff;font-weight:bold;border-radius:4px;padding:4px 10px;}"
                              "QPushButton:disabled{background:#6b7280;}");
-    m_btnOpen = new QPushButton("\xf0\x9f\x8c\x90  Apri", btnRow);
+    m_btnOpen = new QPushButton(tr("\xf0\x9f\x8c\x90  Apri"), btnRow);
     m_btnOpen->setEnabled(false);
-    m_btnOpen->setToolTip("Apri nel browser");
+    m_btnOpen->setToolTip(tr("Apri nel browser"));
     m_btnOpen->setStyleSheet("QPushButton{background:#0891b2;color:#fff;font-weight:bold;border-radius:4px;padding:4px 10px;}"
                              "QPushButton:hover{background:#0e7490;}"
                              "QPushButton:disabled{background:#6b7280;}");
-    m_chkDebug = new QCheckBox("DEBUG", btnRow);
+    m_chkDebug = new QCheckBox(tr("DEBUG"), btnRow);
     m_chkDebug->setChecked(true);
-    m_chkDebug->setToolTip("Imposta DEBUG=True — abilita la gestione dei file statici e il reloader");
+    m_chkDebug->setToolTip(tr("Imposta DEBUG=True — abilita la gestione dei file statici e il reloader"));
 
     m_debugBadge = new QLabel(btnRow);
     m_debugBadge->setFixedHeight(dpiScale(22));
@@ -177,7 +177,7 @@ QGroupBox* WebDevWidget::buildServerGroup(QWidget* parent)
     onDebugToggled(true);  // inizializza il badge
     lay->addWidget(btnRow);
 
-    m_serverStatus = new QLabel("\xe2\x9a\xab Fermo", grp);
+    m_serverStatus = new QLabel(tr("\xe2\x9a\xab Fermo"), grp);
     m_serverStatus->setStyleSheet("color:#94a3b8; font-size:11px;");
     lay->addWidget(m_serverStatus);
 
@@ -187,7 +187,7 @@ QGroupBox* WebDevWidget::buildServerGroup(QWidget* parent)
 
 QGroupBox* WebDevWidget::buildAiGroup(QWidget* parent)
 {
-    auto* grp = new QGroupBox("\xf0\x9f\xa4\x96  Analisi AI del progetto", parent);
+    auto* grp = new QGroupBox(tr("\xf0\x9f\xa4\x96  Analisi AI del progetto"), parent);
     auto* lay = new QVBoxLayout(grp);
     lay->setSpacing(dpiScale(6));
 
@@ -195,7 +195,7 @@ QGroupBox* WebDevWidget::buildAiGroup(QWidget* parent)
     form->setSpacing(dpiScale(5));
 
     m_modelCombo = new QComboBox(grp);
-    m_modelCombo->setPlaceholderText("Carico modelli…");
+    m_modelCombo->setPlaceholderText(tr("Carico modelli…"));
     form->addRow("Modello:", m_modelCombo);
 
     m_focusCombo = new QComboBox(grp);
@@ -215,12 +215,12 @@ QGroupBox* WebDevWidget::buildAiGroup(QWidget* parent)
     btnLay->setContentsMargins(0, 0, 0, 0);
     btnLay->setSpacing(dpiScale(6));
 
-    m_btnAnalyze  = new QPushButton("\xf0\x9f\x94\x8d  Analizza", btnRow);
+    m_btnAnalyze  = new QPushButton(tr("\xf0\x9f\x94\x8d  Analizza"), btnRow);
     m_btnAnalyze->setStyleSheet("QPushButton{background:#2563eb;color:#fff;font-weight:bold;border-radius:4px;padding:4px 10px;}"
                                 "QPushButton:hover{background:#1d4ed8;}"
                                 "QPushButton:disabled{background:#6b7280;}");
-    m_btnWhatToDo = new QPushButton("\xe2\x9d\x93  Cosa fare?", btnRow);
-    m_btnWhatToDo->setToolTip("L'AI esamina il progetto e propone una lista di possibili azioni/miglioramenti");
+    m_btnWhatToDo = new QPushButton(tr("\xe2\x9d\x93  Cosa fare?"), btnRow);
+    m_btnWhatToDo->setToolTip(tr("L'AI esamina il progetto e propone una lista di possibili azioni/miglioramenti"));
     m_btnWhatToDo->setStyleSheet("QPushButton{background:#7c3aed;color:#fff;font-weight:bold;border-radius:4px;padding:4px 10px;}"
                                  "QPushButton:hover{background:#6d28d9;}"
                                  "QPushButton:disabled{background:#6b7280;}");
@@ -230,13 +230,13 @@ QGroupBox* WebDevWidget::buildAiGroup(QWidget* parent)
     lay->addWidget(btnRow);
 
     /* pannello selezione moduli (visibile solo per progetto grande) */
-    m_moduleBox  = new QGroupBox("Seleziona cosa analizzare:", grp);
+    m_moduleBox  = new QGroupBox(tr("Seleziona cosa analizzare:"), grp);
     auto* mbLay  = new QVBoxLayout(m_moduleBox);
     m_moduleList = new QListWidget(m_moduleBox);
     m_moduleList->setSelectionMode(QAbstractItemView::MultiSelection);
     m_moduleList->setMaximumHeight(dpiScale(120));
     mbLay->addWidget(m_moduleList);
-    m_btnAnalyzeSel = new QPushButton("\xf0\x9f\x94\x8d  Analizza selezione", m_moduleBox);
+    m_btnAnalyzeSel = new QPushButton(tr("\xf0\x9f\x94\x8d  Analizza selezione"), m_moduleBox);
     m_btnAnalyzeSel->setStyleSheet("QPushButton{background:#0891b2;color:#fff;border-radius:4px;padding:4px 8px;}"
                                    "QPushButton:hover{background:#0e7490;}");
     mbLay->addWidget(m_btnAnalyzeSel);
@@ -257,12 +257,12 @@ QWidget* WebDevWidget::buildOutputArea(QWidget* parent)
     m_serverLog->setMaximumBlockCount(2000);
     const QFont mono = QFontDatabase::systemFont(QFontDatabase::FixedFont);
     m_serverLog->setFont(mono);
-    m_outTabs->addTab(m_serverLog, "\xf0\x9f\x96\xa5  Server");
+    m_outTabs->addTab(m_serverLog, tr("\xf0\x9f\x96\xa5  Server"));
 
     /* Tab AI */
     m_aiOutput = new QTextEdit(m_outTabs);
     m_aiOutput->setReadOnly(true);
-    m_outTabs->addTab(m_aiOutput, "\xf0\x9f\xa4\x96  AI");
+    m_outTabs->addTab(m_aiOutput, tr("\xf0\x9f\xa4\x96  AI"));
 
     return m_outTabs;
 }
@@ -308,19 +308,19 @@ void WebDevWidget::onDebugToggled(bool checked)
 {
     if (!m_debugBadge) return;
     if (checked) {
-        m_debugBadge->setText("DEBUG=True");
+        m_debugBadge->setText(tr("DEBUG=True"));
         m_debugBadge->setStyleSheet(
             "QLabel{background:#166534;color:#bbf7d0;border:1px solid #16a34a;"
             "border-radius:4px;font-size:11px;font-weight:bold;}");
-        m_debugBadge->setToolTip("Il server parte con DEBUG=True\n"
-                                 "File statici serviti automaticamente, reloader attivo");
+        m_debugBadge->setToolTip(tr("Il server parte con DEBUG=True\n"
+                                 "File statici serviti automaticamente, reloader attivo"));
     } else {
-        m_debugBadge->setText("DEBUG=False");
+        m_debugBadge->setText(tr("DEBUG=False"));
         m_debugBadge->setStyleSheet(
             "QLabel{background:#7c2d12;color:#fed7aa;border:1px solid #c2410c;"
             "border-radius:4px;font-size:11px;font-weight:bold;}");
-        m_debugBadge->setToolTip("Il server parte con DEBUG=False\n"
-                                 "File statici NON serviti — esegui collectstatic");
+        m_debugBadge->setToolTip(tr("Il server parte con DEBUG=False\n"
+                                 "File statici NON serviti — esegui collectstatic"));
     }
 }
 
@@ -333,7 +333,7 @@ void WebDevWidget::onPopulateModels()
 void WebDevWidget::detectFramework(const QString& path)
 {
     if (path.isEmpty() || !QDir(path).exists()) {
-        m_detectLbl->setText("\xe2\x9d\x8c Cartella non trovata.");
+        m_detectLbl->setText(tr("\xe2\x9d\x8c Cartella non trovata."));
         m_detectLbl->setStyleSheet("color:#ef4444; font-style:italic;");
         return;
     }
@@ -358,29 +358,29 @@ void WebDevWidget::detectFramework(const QString& path)
         m_detectedFw = "django";
         m_fwCombo->setCurrentIndex(0);
         m_portEdit->setText("8000");
-        m_detectLbl->setText("\xf0\x9f\x90\x8d  Django rilevato \xe2\x80\x94 manage.py trovato");
+        m_detectLbl->setText(tr("\xf0\x9f\x90\x8d  Django rilevato \xe2\x80\x94 manage.py trovato"));
     } else if (combo.contains("fastapi") || (hasFastapi && combo.contains("uvicorn"))) {
         m_detectedFw = "fastapi";
         m_fwCombo->setCurrentIndex(2);
         m_portEdit->setText("8000");
-        m_detectLbl->setText("\xe2\x9a\xa1  FastAPI rilevato");
+        m_detectLbl->setText(tr("\xe2\x9a\xa1  FastAPI rilevato"));
     } else if (hasFlask || combo.contains("flask")) {
         m_detectedFw = "flask";
         m_fwCombo->setCurrentIndex(1);
         m_portEdit->setText("5000");
-        m_detectLbl->setText("\xf0\x9f\xa7\xaa  Flask rilevato");
+        m_detectLbl->setText(tr("\xf0\x9f\xa7\xaa  Flask rilevato"));
     } else if (combo.contains("bottle")) {
         m_detectedFw = "bottle";
         m_fwCombo->setCurrentIndex(5);
         m_portEdit->setText("5000");
-        m_detectLbl->setText("\xf0\x9f\x8d\xbe  Bottle rilevato");
+        m_detectLbl->setText(tr("\xf0\x9f\x8d\xbe  Bottle rilevato"));
     } else if (hasWsgi || combo.contains("gunicorn")) {
         m_detectedFw = "gunicorn";
         m_fwCombo->setCurrentIndex(4);
-        m_detectLbl->setText("\xf0\x9f\x9f\xa2  Gunicorn/WSGI rilevato");
+        m_detectLbl->setText(tr("\xf0\x9f\x9f\xa2  Gunicorn/WSGI rilevato"));
     } else {
         m_detectedFw = "generic";
-        m_detectLbl->setText("\xe2\x9d\x93  Framework non riconosciuto — seleziona manualmente");
+        m_detectLbl->setText(tr("\xe2\x9d\x93  Framework non riconosciuto — seleziona manualmente"));
     }
     m_detectLbl->setStyleSheet("color:#22c55e; font-style:normal;");
 }
@@ -528,10 +528,10 @@ void WebDevWidget::setServerRunning(bool running)
     m_btnOpen->setEnabled(running);
     const QString port = m_portEdit->text().trimmed();
     if (running)
-        m_serverStatus->setText("\xf0\x9f\x9f\xa2 Avviato su :" + port
+        m_serverStatus->setText(tr("\xf0\x9f\x9f\xa2 Avviato su :") + port
                                 + "  \xe2\x80\x94  http://localhost:" + port);
     else
-        m_serverStatus->setText("\xe2\x9a\xab Fermo");
+        m_serverStatus->setText(tr("\xe2\x9a\xab Fermo"));
     m_serverStatus->setStyleSheet(running ? "color:#22c55e; font-size:11px;"
                                            : "color:#94a3b8; font-size:11px;");
 }

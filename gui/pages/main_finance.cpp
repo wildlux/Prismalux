@@ -43,7 +43,7 @@ QWidget* PraticoPage::buildChat(const QString& title,
     auto* hdr = new QWidget(w);
     auto* hdrL = new QHBoxLayout(hdr);
     hdrL->setContentsMargins(0,0,0,0);
-    auto* back = new QPushButton("\xe2\x86\x90 Torna", hdr);
+    auto* back = new QPushButton(tr("\xe2\x86\x90 Torna"), hdr);
     back->setObjectName("actionBtn");
     auto* lbl  = new QLabel(title, hdr);
     lbl->setObjectName("pageTitle");
@@ -67,8 +67,8 @@ QWidget* PraticoPage::buildChat(const QString& title,
         const bool hasSel   = !sel.isEmpty();
         const QString label = hasSel ? "selezione" : "tutto";
         QMenu menu(log);
-        QAction* actCopy = menu.addAction("\xf0\x9f\x97\x82  Copia " + label);
-        QAction* actRead = menu.addAction("\xf0\x9f\x8e\x99  Leggi " + label);
+        QAction* actCopy = menu.addAction(tr("\xf0\x9f\x97\x82  Copia ") + label);
+        QAction* actRead = menu.addAction(tr("\xf0\x9f\x8e\x99  Leggi ") + label);
         QAction* chosen  = menu.exec(log->mapToGlobal(pos));
         const QString txt = hasSel ? sel : log->toPlainText();
         if (chosen == actCopy) {
@@ -80,7 +80,7 @@ QWidget* PraticoPage::buildChat(const QString& title,
         }
     });
 
-    auto* waitLbl = new QLabel("\xe2\x8f\xb3  Elaborazione in corso...", w);
+    auto* waitLbl = new QLabel(tr("\xe2\x8f\xb3  Elaborazione in corso..."), w);
     waitLbl->setStyleSheet("color:#E5C400; font-style:italic; padding:2px 0;");
     waitLbl->setVisible(false);
     lay->addWidget(waitLbl);
@@ -92,14 +92,14 @@ QWidget* PraticoPage::buildChat(const QString& title,
     inp->setObjectName("chatInput");
     inp->setPlaceholderText(tr("Scrivi la tua domanda..."));
     inp->setFixedHeight(dpiScale(38));
-    auto* send = new QPushButton("Invia \xe2\x96\xb6", inputRow);
+    auto* send = new QPushButton(tr("Invia \xe2\x96\xb6"), inputRow);
     send->setObjectName("actionBtn");
-    send->setToolTip("Invia la domanda all'assistente finanziario AI");
+    send->setToolTip(tr("Invia la domanda all'assistente finanziario AI"));
     auto* stop = new QPushButton("\xe2\x8f\xb9", inputRow);
     stop->setObjectName("actionBtn");
     stop->setProperty("danger", true);
     stop->setFixedWidth(dpiScale(40));
-    stop->setToolTip("Interrompi la risposta AI");
+    stop->setToolTip(tr("Interrompi la risposta AI"));
     stop->setEnabled(false);
     inL->addWidget(inp, 1);
     inL->addWidget(send);
@@ -217,7 +217,7 @@ QWidget* PraticoPage::buildMenu() {
         ld->setWordWrap(true);
         txtL->addWidget(lt); txtL->addWidget(ld);
 
-        auto* goBtn = new QPushButton("Apri \xe2\x86\x92", card);
+        auto* goBtn = new QPushButton(tr("Apri \xe2\x86\x92"), card);
         goBtn->setObjectName("actionBtn"); goBtn->setFixedWidth(dpiScale(80));
         goBtn->setProperty("pageIndex", it.page);
         connect(goBtn, &QPushButton::clicked, this, &PraticoPage::onMenuCardClicked);
@@ -398,10 +398,10 @@ static QWidget* buildFinanza(QStackedWidget* inner, AiClient* ai) {
     auto* hdrW = new QWidget(w);
     auto* hdrL = new QHBoxLayout(hdrW);
     hdrL->setContentsMargins(0,0,0,0);
-    auto* back = new QPushButton("\xe2\x86\x90 Torna", hdrW);
+    auto* back = new QPushButton(QObject::tr("\xe2\x86\x90 Torna"), hdrW);
     back->setObjectName("actionBtn");
     QObject::connect(back, &QPushButton::clicked, w, [inner]{ inner->setCurrentIndex(0); });
-    auto* titleLbl = new QLabel("\xf0\x9f\x92\xb0  Calcolatori Finanziari", hdrW);
+    auto* titleLbl = new QLabel(QObject::tr("\xf0\x9f\x92\xb0  Calcolatori Finanziari"), hdrW);
     titleLbl->setObjectName("pageTitle");
     hdrL->addWidget(back); hdrL->addWidget(titleLbl, 1);
     lay->addWidget(hdrW);
@@ -411,13 +411,13 @@ static QWidget* buildFinanza(QStackedWidget* inner, AiClient* ai) {
 
     auto* outLbl = new QTextBrowser(w);
     outLbl->setObjectName("chatLog");
-    outLbl->setPlaceholderText("I risultati dei calcoli appariranno qui...");
+    outLbl->setPlaceholderText(QObject::tr("I risultati dei calcoli appariranno qui..."));
     outLbl->setMinimumHeight(110);
 
     auto* chart = new FinChart(w);
 
     /* ══ Mutuo ══ */
-    auto* mutGroup = new QGroupBox("\xf0\x9f\x8f\xa0  Calcolatore Mutuo", w);
+    auto* mutGroup = new QGroupBox(QObject::tr("\xf0\x9f\x8f\xa0  Calcolatore Mutuo"), w);
     auto* mutLay   = new QHBoxLayout(mutGroup);
     mutLay->setSpacing(10);
 
@@ -432,12 +432,12 @@ static QWidget* buildFinanza(QStackedWidget* inner, AiClient* ai) {
     auto* tassoSpin = mkSpin(0.01, 30.0,    3.5,    2, " %");
     auto* anniSpin  = new QSpinBox; anniSpin->setRange(1, 40); anniSpin->setValue(20);
     anniSpin->setSuffix(" anni"); anniSpin->setFixedWidth(dpiScale(110));
-    auto* calcMut   = new QPushButton("Calcola", mutGroup);
+    auto* calcMut   = new QPushButton(QObject::tr("Calcola"), mutGroup);
     calcMut->setObjectName("actionBtn");
 
-    mutLay->addWidget(new QLabel("Capitale:")); mutLay->addWidget(capSpin);
-    mutLay->addWidget(new QLabel("Tasso annuo:")); mutLay->addWidget(tassoSpin);
-    mutLay->addWidget(new QLabel("Durata:")); mutLay->addWidget(anniSpin);
+    mutLay->addWidget(new QLabel(QObject::tr("Capitale:"))); mutLay->addWidget(capSpin);
+    mutLay->addWidget(new QLabel(QObject::tr("Tasso annuo:"))); mutLay->addWidget(tassoSpin);
+    mutLay->addWidget(new QLabel(QObject::tr("Durata:"))); mutLay->addWidget(anniSpin);
     mutLay->addWidget(calcMut); mutLay->addStretch(1);
 
     QObject::connect(calcMut, &QPushButton::clicked, w, [=]{
@@ -483,7 +483,7 @@ static QWidget* buildFinanza(QStackedWidget* inner, AiClient* ai) {
     });
 
     /* ══ PAC ══ */
-    auto* pacGroup = new QGroupBox("\xf0\x9f\x93\x88  Piano Accumulo Capitale (PAC)", w);
+    auto* pacGroup = new QGroupBox(QObject::tr("\xf0\x9f\x93\x88  Piano Accumulo Capitale (PAC)"), w);
     auto* pacLay   = new QHBoxLayout(pacGroup);
     pacLay->setSpacing(10);
 
@@ -491,12 +491,12 @@ static QWidget* buildFinanza(QStackedWidget* inner, AiClient* ai) {
     auto* rendSpin = mkSpin(0,  30,    5,   2, " %/anno");
     auto* anniPac  = new QSpinBox; anniPac->setRange(1, 50); anniPac->setValue(20);
     anniPac->setSuffix(" anni"); anniPac->setFixedWidth(dpiScale(110));
-    auto* calcPac  = new QPushButton("Calcola", pacGroup);
+    auto* calcPac  = new QPushButton(QObject::tr("Calcola"), pacGroup);
     calcPac->setObjectName("actionBtn");
 
-    pacLay->addWidget(new QLabel("Rata mensile:")); pacLay->addWidget(rataPac);
-    pacLay->addWidget(new QLabel("Rendimento:")); pacLay->addWidget(rendSpin);
-    pacLay->addWidget(new QLabel("Durata:")); pacLay->addWidget(anniPac);
+    pacLay->addWidget(new QLabel(QObject::tr("Rata mensile:"))); pacLay->addWidget(rataPac);
+    pacLay->addWidget(new QLabel(QObject::tr("Rendimento:"))); pacLay->addWidget(rendSpin);
+    pacLay->addWidget(new QLabel(QObject::tr("Durata:"))); pacLay->addWidget(anniPac);
     pacLay->addWidget(calcPac); pacLay->addStretch(1);
 
     QObject::connect(calcPac, &QPushButton::clicked, w, [=]{
@@ -528,7 +528,7 @@ static QWidget* buildFinanza(QStackedWidget* inner, AiClient* ai) {
     });
 
     /* ══ Pensione INPS ══ */
-    auto* penGroup = new QGroupBox("\xf0\x9f\x91\xb4  Stima Pensione INPS (Metodo Contributivo)", w);
+    auto* penGroup = new QGroupBox(QObject::tr("\xf0\x9f\x91\xb4  Stima Pensione INPS (Metodo Contributivo)"), w);
     auto* penLay   = new QHBoxLayout(penGroup);
     penLay->setSpacing(10);
 
@@ -536,12 +536,12 @@ static QWidget* buildFinanza(QStackedWidget* inner, AiClient* ai) {
     auto* anniLav  = new QSpinBox; anniLav->setRange(1, 50); anniLav->setValue(35);
     anniLav->setSuffix(" anni"); anniLav->setFixedWidth(dpiScale(110));
     auto* aliqSpin = mkSpin(1, 50, 33, 1, " %");
-    auto* calcPen  = new QPushButton("Calcola", penGroup);
+    auto* calcPen  = new QPushButton(QObject::tr("Calcola"), penGroup);
     calcPen->setObjectName("actionBtn");
 
-    penLay->addWidget(new QLabel("Stipendio lordo:")); penLay->addWidget(stipSpin);
-    penLay->addWidget(new QLabel("Anni lavoro:")); penLay->addWidget(anniLav);
-    penLay->addWidget(new QLabel("Aliquota:")); penLay->addWidget(aliqSpin);
+    penLay->addWidget(new QLabel(QObject::tr("Stipendio lordo:"))); penLay->addWidget(stipSpin);
+    penLay->addWidget(new QLabel(QObject::tr("Anni lavoro:"))); penLay->addWidget(anniLav);
+    penLay->addWidget(new QLabel(QObject::tr("Aliquota:"))); penLay->addWidget(aliqSpin);
     penLay->addWidget(calcPen); penLay->addStretch(1);
 
     QObject::connect(calcPen, &QPushButton::clicked, w, [=]{
@@ -599,10 +599,10 @@ static QWidget* buildSchedaTFR(QStackedWidget* inner, AiClient* ai)
     auto* hdrW = new QWidget(w);
     auto* hdrL = new QHBoxLayout(hdrW);
     hdrL->setContentsMargins(0,0,0,0);
-    auto* back = new QPushButton("\xe2\x86\x90 Torna", hdrW);
+    auto* back = new QPushButton(QObject::tr("\xe2\x86\x90 Torna"), hdrW);
     back->setObjectName("actionBtn");
     QObject::connect(back, &QPushButton::clicked, w, [inner]{ inner->setCurrentIndex(0); });
-    auto* titleLbl = new QLabel("\xf0\x9f\x92\xbc  Scheda TFR \xe2\x80\x94 Trattamento di Fine Rapporto", hdrW);
+    auto* titleLbl = new QLabel(QObject::tr("\xf0\x9f\x92\xbc  Scheda TFR \xe2\x80\x94 Trattamento di Fine Rapporto"), hdrW);
     titleLbl->setObjectName("pageTitle");
     hdrL->addWidget(back); hdrL->addWidget(titleLbl, 1);
     lay->addWidget(hdrW);
@@ -617,17 +617,17 @@ static QWidget* buildSchedaTFR(QStackedWidget* inner, AiClient* ai)
     };
 
     /* ── Dati anagrafici + C.F. calcolato ── */
-    auto* anagrGroup = new QGroupBox("\xf0\x9f\x91\xa4  Dati personali");
+    auto* anagrGroup = new QGroupBox(QObject::tr("\xf0\x9f\x91\xa4  Dati personali"));
     auto* anagrVLay  = new QVBoxLayout(anagrGroup);
     anagrVLay->setSpacing(6);
 
     /* Riga 1: Nome | Cognome */
     auto* ar1 = new QWidget; auto* arl1 = new QHBoxLayout(ar1);
     arl1->setContentsMargins(0,0,0,0); arl1->setSpacing(8);
-    auto* nomeEdit = new QLineEdit; nomeEdit->setPlaceholderText("Nome");
-    auto* cognEdit = new QLineEdit; cognEdit->setPlaceholderText("Cognome");
-    arl1->addWidget(new QLabel("Nome:"));    arl1->addWidget(nomeEdit, 2);
-    arl1->addWidget(new QLabel("Cognome:")); arl1->addWidget(cognEdit, 2);
+    auto* nomeEdit = new QLineEdit; nomeEdit->setPlaceholderText(QObject::tr("Nome"));
+    auto* cognEdit = new QLineEdit; cognEdit->setPlaceholderText(QObject::tr("Cognome"));
+    arl1->addWidget(new QLabel(QObject::tr("Nome:")));    arl1->addWidget(nomeEdit, 2);
+    arl1->addWidget(new QLabel(QObject::tr("Cognome:"))); arl1->addWidget(cognEdit, 2);
     anagrVLay->addWidget(ar1);
 
     /* Riga 2: Data nascita | Sesso | Comune | Belfiore */
@@ -641,13 +641,13 @@ static QWidget* buildSchedaTFR(QStackedWidget* inner, AiClient* ai)
     sessoCombo->addItem("M \xe2\x80\x94 Maschio", false);
     sessoCombo->addItem("F \xe2\x80\x94 Femmina", true);
     sessoCombo->setFixedWidth(dpiScale(130));
-    auto* comuneEdit  = new QLineEdit; comuneEdit->setPlaceholderText("Comune di nascita");
-    auto* belfioreEdit = new QLineEdit; belfioreEdit->setPlaceholderText("Belfiore");
+    auto* comuneEdit  = new QLineEdit; comuneEdit->setPlaceholderText(QObject::tr("Comune di nascita"));
+    auto* belfioreEdit = new QLineEdit; belfioreEdit->setPlaceholderText(QObject::tr("Belfiore"));
     belfioreEdit->setMaximumWidth(70);
-    belfioreEdit->setToolTip("Codice Belfiore (4 char) — compilato automaticamente dal comune");
-    arl2->addWidget(new QLabel("Nascita:")); arl2->addWidget(dataNascitaEdit);
+    belfioreEdit->setToolTip(QObject::tr("Codice Belfiore (4 char) — compilato automaticamente dal comune"));
+    arl2->addWidget(new QLabel(QObject::tr("Nascita:"))); arl2->addWidget(dataNascitaEdit);
     arl2->addWidget(sessoCombo);
-    arl2->addWidget(new QLabel("Comune:")); arl2->addWidget(comuneEdit, 2);
+    arl2->addWidget(new QLabel(QObject::tr("Comune:"))); arl2->addWidget(comuneEdit, 2);
     arl2->addWidget(belfioreEdit);
     anagrVLay->addWidget(ar2);
 
@@ -655,17 +655,17 @@ static QWidget* buildSchedaTFR(QStackedWidget* inner, AiClient* ai)
     auto* ar3 = new QWidget; auto* arl3 = new QHBoxLayout(ar3);
     arl3->setContentsMargins(0,0,0,0); arl3->setSpacing(8);
     auto* cfEdit = new QLineEdit;
-    cfEdit->setPlaceholderText("Codice Fiscale calcolato automaticamente");
+    cfEdit->setPlaceholderText(QObject::tr("Codice Fiscale calcolato automaticamente"));
     cfEdit->setReadOnly(true);
     cfEdit->setStyleSheet("QLineEdit { font-family: monospace; letter-spacing: 1px; }");
     cfEdit->setMaximumWidth(200);
     auto* cfEditBtn = new QPushButton("\xf0\x9f\x94\x93");  /* 🔓 */
-    cfEditBtn->setToolTip("Sblocca per modifica manuale");
+    cfEditBtn->setToolTip(QObject::tr("Sblocca per modifica manuale"));
     cfEditBtn->setCheckable(true);
     cfEditBtn->setFixedWidth(dpiScale(32));
     auto* cfStatusLbl = new QLabel;
     cfStatusLbl->setStyleSheet("font-size:11px;");
-    arl3->addWidget(new QLabel("C.F.:"));
+    arl3->addWidget(new QLabel(QObject::tr("C.F.:")));
     arl3->addWidget(cfEdit, 1);
     arl3->addWidget(cfEditBtn);
     arl3->addWidget(cfStatusLbl, 1);
@@ -687,7 +687,7 @@ static QWidget* buildSchedaTFR(QStackedWidget* inner, AiClient* ai)
                 : "<span style='color:gray;'>inserisci comune o codice Belfiore</span>");
         } else {
             cfEdit->setText(cf);
-            cfStatusLbl->setText("<span style='color:#4caf50;'>\xe2\x9c\x94 calcolato</span>");
+            cfStatusLbl->setText(QObject::tr("<span style='color:#4caf50;'>\xe2\x9c\x94 calcolato</span>"));
         }
     };
 
@@ -725,31 +725,31 @@ static QWidget* buildSchedaTFR(QStackedWidget* inner, AiClient* ai)
     lay->addWidget(anagrGroup);
 
     /* ── Dati lavorativi ── */
-    auto* lavGroup = new QGroupBox("\xf0\x9f\x8f\xa2  Rapporto di lavoro");
+    auto* lavGroup = new QGroupBox(QObject::tr("\xf0\x9f\x8f\xa2  Rapporto di lavoro"));
     auto* lavLay = new QVBoxLayout(lavGroup);
     lavLay->setSpacing(6);
     auto* lavRow1 = new QWidget; auto* lavLay1 = new QHBoxLayout(lavRow1);
     lavLay1->setContentsMargins(0,0,0,0); lavLay1->setSpacing(8);
-    auto* datoreEdit = new QLineEdit; datoreEdit->setPlaceholderText("Datore di lavoro / Azienda");
-    auto* ccnlEdit   = new QLineEdit; ccnlEdit->setPlaceholderText("CCNL / Tipo contratto");
-    lavLay1->addWidget(new QLabel("Datore:")); lavLay1->addWidget(datoreEdit, 2);
-    lavLay1->addWidget(new QLabel("CCNL:")); lavLay1->addWidget(ccnlEdit, 2);
+    auto* datoreEdit = new QLineEdit; datoreEdit->setPlaceholderText(QObject::tr("Datore di lavoro / Azienda"));
+    auto* ccnlEdit   = new QLineEdit; ccnlEdit->setPlaceholderText(QObject::tr("CCNL / Tipo contratto"));
+    lavLay1->addWidget(new QLabel(QObject::tr("Datore:"))); lavLay1->addWidget(datoreEdit, 2);
+    lavLay1->addWidget(new QLabel(QObject::tr("CCNL:"))); lavLay1->addWidget(ccnlEdit, 2);
     auto* lavRow2 = new QWidget; auto* lavLay2 = new QHBoxLayout(lavRow2);
     lavLay2->setContentsMargins(0,0,0,0); lavLay2->setSpacing(8);
     auto* dataIniEdit  = new QDateEdit(QDate::currentDate().addYears(-10));
     dataIniEdit->setDisplayFormat("dd/MM/yyyy"); dataIniEdit->setCalendarPopup(true);
     auto* dataFineEdit = new QDateEdit(QDate::currentDate());
     dataFineEdit->setDisplayFormat("dd/MM/yyyy"); dataFineEdit->setCalendarPopup(true);
-    auto* inCorsoChk = new QCheckBox("Ancora in corso");
-    lavLay2->addWidget(new QLabel("Data assunzione:")); lavLay2->addWidget(dataIniEdit);
-    lavLay2->addWidget(new QLabel("Data cessazione:")); lavLay2->addWidget(dataFineEdit);
+    auto* inCorsoChk = new QCheckBox(QObject::tr("Ancora in corso"));
+    lavLay2->addWidget(new QLabel(QObject::tr("Data assunzione:"))); lavLay2->addWidget(dataIniEdit);
+    lavLay2->addWidget(new QLabel(QObject::tr("Data cessazione:"))); lavLay2->addWidget(dataFineEdit);
     lavLay2->addWidget(inCorsoChk); lavLay2->addStretch(1);
     lavLay->addWidget(lavRow1);
     lavLay->addWidget(lavRow2);
     lay->addWidget(lavGroup);
 
     /* ── Parametri calcolo ── */
-    auto* paramGroup = new QGroupBox("\xe2\x9a\x99  Parametri calcolo");
+    auto* paramGroup = new QGroupBox(QObject::tr("\xe2\x9a\x99  Parametri calcolo"));
     auto* paramLay = new QHBoxLayout(paramGroup);
     paramLay->setSpacing(8);
     auto* tfrStipSpin = mkSpin(5000, 500000, 30000, 0, " \xe2\x82\xac/anno");
@@ -757,25 +757,25 @@ static QWidget* buildSchedaTFR(QStackedWidget* inner, AiClient* ai)
     auto* destCombo   = new QComboBox;
     destCombo->addItem("In azienda (art. 2120 c.c.)");
     destCombo->addItem("Fondo pensione complementare");
-    paramLay->addWidget(new QLabel("Stipendio lordo:")); paramLay->addWidget(tfrStipSpin);
-    paramLay->addWidget(new QLabel("Inflazione ISTAT:")); paramLay->addWidget(tfrInflSpin);
-    paramLay->addWidget(new QLabel("Destinazione:")); paramLay->addWidget(destCombo, 1);
+    paramLay->addWidget(new QLabel(QObject::tr("Stipendio lordo:"))); paramLay->addWidget(tfrStipSpin);
+    paramLay->addWidget(new QLabel(QObject::tr("Inflazione ISTAT:"))); paramLay->addWidget(tfrInflSpin);
+    paramLay->addWidget(new QLabel(QObject::tr("Destinazione:"))); paramLay->addWidget(destCombo, 1);
     lay->addWidget(paramGroup);
 
     /* ── Bottoni ── */
     auto* btnRow = new QWidget;
     auto* btnLay = new QHBoxLayout(btnRow);
     btnLay->setContentsMargins(0,0,0,0); btnLay->setSpacing(8);
-    auto* calcBtn    = new QPushButton("\xf0\x9f\x94\xa2  Calcola TFR"); calcBtn->setObjectName("actionBtn");
-    calcBtn->setToolTip("Calcola il TFR spettante con i dati inseriti");
-    auto* ragBtn     = new QPushButton("\xe2\x9a\xa1  Compila da RAG"); ragBtn->setObjectName("actionBtn");
-    ragBtn->setToolTip("Estrae i dati dal RAG per pre-compilare automaticamente il form TFR");
+    auto* calcBtn    = new QPushButton(QObject::tr("\xf0\x9f\x94\xa2  Calcola TFR")); calcBtn->setObjectName("actionBtn");
+    calcBtn->setToolTip(QObject::tr("Calcola il TFR spettante con i dati inseriti"));
+    auto* ragBtn     = new QPushButton(QObject::tr("\xe2\x9a\xa1  Compila da RAG")); ragBtn->setObjectName("actionBtn");
+    ragBtn->setToolTip(QObject::tr("Estrae i dati dal RAG per pre-compilare automaticamente il form TFR"));
     auto* stopRagBtn = new QPushButton("\xe2\x8f\xb9"); stopRagBtn->setObjectName("actionBtn");
     stopRagBtn->setProperty("danger", true); stopRagBtn->setFixedWidth(dpiScale(40)); stopRagBtn->setEnabled(false);
-    stopRagBtn->setToolTip("Interrompi la lettura del RAG");
-    auto* copyBtn    = new QPushButton("\xf0\x9f\x93\x8b  Copia");
-    copyBtn->setToolTip("Copia il risultato TFR negli appunti");
-    auto* waitLbl    = new QLabel("\xe2\x8f\xb3  Lettura RAG...");
+    stopRagBtn->setToolTip(QObject::tr("Interrompi la lettura del RAG"));
+    auto* copyBtn    = new QPushButton(QObject::tr("\xf0\x9f\x93\x8b  Copia"));
+    copyBtn->setToolTip(QObject::tr("Copia il risultato TFR negli appunti"));
+    auto* waitLbl    = new QLabel(QObject::tr("\xe2\x8f\xb3  Lettura RAG..."));
     waitLbl->setStyleSheet("color:#E5C400;font-style:italic;"); waitLbl->setVisible(false);
     btnLay->addWidget(calcBtn); btnLay->addWidget(ragBtn);
     btnLay->addWidget(stopRagBtn); btnLay->addWidget(waitLbl);
