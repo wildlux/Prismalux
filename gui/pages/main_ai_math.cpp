@@ -116,7 +116,23 @@ static QString _gp_fmt(double v) {
     if (std::isnan(v))  return "errore (dominio non valido)";
     if (std::isinf(v))  return v>0?"infinito":"-infinito";
     if (v==(long long)v && std::fabs(v)<1e15) return QString::number((long long)v);
-    return QString::number(v,'g',10);
+    QString s = QString::number(v,'g',10);
+    /* Precisione piena ma niente notazione scientifica: quando %g emette un
+       esponente (numeri molto grandi o molto piccoli) riscrive in notazione
+       fissa, togliendo gli zeri finali inutili. Per i numeri molto piccoli
+       aumenta i decimali così il valore non collassa a "0". */
+    if (s.contains('e') || s.contains('E')) {
+        int decimals = 10;
+        if (std::fabs(v) < 1.0 && v != 0.0)
+            decimals = 10 - static_cast<int>(std::floor(std::log10(std::fabs(v))));
+        decimals = qBound(1, decimals, 30);
+        s = QString::number(v, 'f', decimals);
+        if (s.contains('.')) {
+            while (s.endsWith('0')) s.chop(1);
+            if (s.endsWith('.'))    s.chop(1);
+        }
+    }
+    return s;
 }
 static bool _gp_try(const QByteArray& ba, double& out) {
     _gp_err=false; _gp_ptr=ba.constData();
