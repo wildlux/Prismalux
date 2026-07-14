@@ -1,0 +1,9 @@
+pandas
+matplotlib
+seaborn
+openpyxl
+reportlab
+PyPDF2
+tqdm
+# opzionale, per i controlli termodinamici di safe_margins.py:
+# ViennaRNA

@@ -1,0 +1,13 @@
+{
+    "blood_csv": "esami_sangue.csv",
+    "vcf_file": "variants.vcf",
+    "target_sequence": "GTAAGTGACAGTGCTACGTATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGC",
+    "window_size": 30,
+    "checkpoint_file": "checkpoint.json",
+    "results_file": "best_guides.csv",
+    "output_pdf": "SDS_Report.pdf",
+    "llm_model": "mistral",
+    "max_iterations": 100,
+    "save_interval": 100,
+    "memory_limit_mb": 8000
+}

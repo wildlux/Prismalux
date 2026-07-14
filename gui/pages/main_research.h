@@ -80,6 +80,7 @@ private:
     QWidget* buildAstraleTab();
     QWidget* buildRagGrafoTab();    ///< 🕸️ Grafo Conoscenza RAG
     QWidget* buildRagTesterTab();   ///< 🧪 Test comprensione documenti RAG
+    QWidget* buildSdsEditingTab();  ///< 🧬 SDS Editing (strumenti di studio, non clinici)
 
     /* ── Grafo RAG ── */
     GraphMemory*       m_ragGm          = nullptr;
@@ -166,6 +167,13 @@ private:
     QLabel*               m_litStatus     = nullptr;
     QNetworkAccessManager* m_litNet       = nullptr;
 
+    /* ── SDS Editing (strumenti di studio, esegue Tools/sds_editing/run_all.py) ── */
+    QProcess*    m_sdsProc    = nullptr;
+    QTextEdit*   m_sdsOut     = nullptr;
+    QPushButton* m_sdsRunBtn  = nullptr;
+    QPushButton* m_sdsStopBtn = nullptr;
+    QLabel*      m_sdsStatus  = nullptr;
+
     void avvia(const QString& sys, const QString& msg,
                QTextEdit* out, QPushButton* btnGen, QPushButton* btnStop);
     void avviaSci(const QString& sys, const QString& userMsg,
@@ -241,6 +249,12 @@ private slots:
     void onRagTesterGenClicked();
     void onRagTesterRunClicked();
     void onRagTesterEvalClicked();
+
+    /* SDS Editing */
+    void onSdsRunClicked();
+    void onSdsStopClicked();
+    void onSdsReadyRead();
+    void onSdsProcFinished(int code, QProcess::ExitStatus status);
 
 public:
     static void esportaPdf(QTextEdit* editor,

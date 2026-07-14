@@ -88,6 +88,8 @@ private:
                      const QString& dependsOn = {}, const QString& pipelineId = {});
     void    createPipeline(const QString& tmplId,
                            const QJsonObject& userParams = {});
+    /** Accoda una singola Work Unit SDS (tipo sds_editing) per lo script dato. */
+    void    enqueueSdsScript(const QString& label, const QString& script);
     void    setWuStatus(const QString& id, const QString& status,
                         const QString& nodeId = {}, const QString& err = {});
     void    saveResult(const QString& wuId, const QString& nodeId,

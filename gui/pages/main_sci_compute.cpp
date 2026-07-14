@@ -154,6 +154,10 @@ const QVector<SciTaskType>& SciComputePage::taskTypes()
         "  \"label\": \"MyProtein\",\n"
         "  \"output_pdb\": \"/tmp/folded.pdb\"\n}" },
 
+      { "sds_editing", "Shwachman-Diamond (studio)", "python3",
+        "medicina",
+        "{\n  \"script\": \"run_all.py\"\n}" },
+
       { "custom",      "Binario custom installato", "",
         "generale",
         "{\n  \"program\": \"nome_binario\",\n"
@@ -469,12 +473,39 @@ void SciComputePage::createPipeline(const QString& tmplId,
         appendLog(QString("  ESMFold \xe2\x86\x92 LLM struttura (%1 \xe2\x86\x92 %2, modello: %3)")
                   .arg(wu1.left(8), wu2.left(8), m_sciLlmModel));
 
+    } else if (tmplId == "sds_research") {
+        /* Ricerca Shwachman-Diamond (pipeline di STUDIO, non clinica):
+           brute force delle guide → ciclo ibrido DNA/RNA → analisi pattern LLM.
+           I passi 2 e 3 dipendono dal brute force (che produce best_guides.csv). */
+        const QString wu1 = insertWu("sds_editing", "1. Brute force guide (studio)",
+            QJsonDocument(QJsonObject{{"script","bruteforce_sds_stable.py"}}).toJson(),
+            1, 1, "", pipId);
+        const QString wu2 = insertWu("sds_editing", "2. Ciclo ibrido DNA/RNA",
+            QJsonDocument(QJsonObject{{"script","hybrid_optimizer.py"}}).toJson(),
+            1, 1, wu1, pipId);
+        const QString wu3 = insertWu("sds_editing", "3. Analisi pattern (LLM locale)",
+            QJsonDocument(QJsonObject{{"script","llm_meta_analyst.py"}}).toJson(),
+            1, 1, wu1, pipId);
+
+        appendLog(QString("  SDS: Brute force \xe2\x86\x92 Ibrido / LLM (%1 \xe2\x86\x92 %2, %3)")
+                  .arg(wu1.left(8), wu2.left(8), wu3.left(8)));
+
     } else {
         appendLog("\xe2\x9a\xa0  Template pipeline non riconosciuto: " + tmplId);
         return;
     }
 
     appendLog(QString("\xf0\x9f\x9f\xa2  Pipeline '%1' aggiunta alla coda.").arg(pipId));
+    refreshWuTable();
+}
+
+void SciComputePage::enqueueSdsScript(const QString& label, const QString& script)
+{
+    const QString id = insertWu("sds_editing", label,
+        QJsonDocument(QJsonObject{{"script", script}}).toJson(),
+        1, 1, "", "");
+    appendLog(QString("\xf0\x9f\xa7\xac  SDS: accodata WU '%1' (%2)")
+              .arg(label, id.left(8)));
     refreshWuTable();
 }
 
@@ -1311,6 +1342,28 @@ void SciComputePage::executeLocally(const QString& wuId, const QString& type,
             needsStdin = true;
             stdinData  = script;
             proc->start(P::findPython(), {"-"});
+        }
+
+    } else if (type == "sds_editing") {
+        /* Pipeline di STUDIO (non clinica) per la Sindrome di Shwachman-Diamond.
+           Esegue uno dei moduli in Tools/sds_editing/ come Work Unit distribuibile.
+           Allowlist esplicita: il worker non deve poter eseguire path arbitrari. */
+        static const QStringList kSdsScripts = {
+            "run_all.py", "bruteforce_sds_stable.py", "hybrid_optimizer.py",
+            "llm_meta_analyst.py", "sds_analyzer.py", "safe_margins.py",
+            "sharding_master.py"
+        };
+        const QString script = params["script"].toString("run_all.py");
+        const QString dir    = P::root() + "/Tools/sds_editing";
+        if (!kSdsScripts.contains(script)) {
+            errMsg = "script SDS non consentito (usa un modulo di Tools/sds_editing)";
+            validParams = false;
+        } else if (!QFile::exists(dir + "/" + script)) {
+            errMsg = "script non trovato: " + dir + "/" + script;
+            validParams = false;
+        } else {
+            proc->setWorkingDirectory(dir);
+            proc->start(P::findPython(), {script});
         }
 
     } else if (type == "custom") {

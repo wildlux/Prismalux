@@ -138,6 +138,8 @@ RicercaPage::RicercaPage(AiClient* ai, QWidget* parent)
                  "\xf0\x9f\x95\xb8  Grafo RAG");   /* 🕸️ */
     tabs->addTab(buildRagTesterTab(),
                  "\xf0\x9f\xa7\xaa  Test RAG");    /* 🧪 */
+    tabs->addTab(buildSdsEditingTab(),
+                 "\xf0\x9f\xa7\xac  SDS Editing");  /* 🧬 */
     /* Nascosta di default — easter egg stile "developer mode" Android:
        doppio click sulla parola "conoscenza" in Impostazioni →
        Ringraziamenti la sblocca in modo persistente (vedi
@@ -159,8 +161,11 @@ RicercaPage::RicercaPage(AiClient* ai, QWidget* parent)
         " sia realmente accaduto, sulla base delle fonti fornite");
     tabs->setTabToolTip(5, "Grafo Conoscenza estratto dai documenti RAG");
     tabs->setTabToolTip(6, "Test comprensione documenti RAG \xe2\x80\x94 domande + valutazione AI");
+    tabs->setTabToolTip(7,
+        "SDS Editing: pipeline di STUDIO (non clinica) per la Sindrome di Shwachman-Diamond"
+        " \xe2\x80\x94 esegue Tools/sds_editing/run_all.py");
     if (astraleUnlocked) {
-        tabs->setTabToolTip(7,
+        tabs->setTabToolTip(8,
             "Carta Astrale / Tema Natale: inserisci data, ora e luogo di nascita"
             " per una lettura astrologica con AI");
     }
@@ -2208,4 +2213,124 @@ void RicercaPage::onRagGmBackupDone(const QString& path, bool ok)
         LogBus::post("\xf0\x9f\x92\xbe RagGraph: backup creato \xe2\x86\x92 " + path);
     else
         LogBus::post("\xe2\x9d\x8c RagGraph: backup fallito");
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SDS Editing — pipeline di STUDIO (non clinica)
+   Lancia Tools/sds_editing/run_all.py e ne mostra l'output in tempo reale.
+   ══════════════════════════════════════════════════════════════ */
+QWidget* RicercaPage::buildSdsEditingTab()
+{
+    auto* page = new QWidget;
+    auto* root = new QVBoxLayout(page);
+    root->setContentsMargins(dpiScale(10), dpiScale(10), dpiScale(10), dpiScale(10));
+
+    auto* header = new QLabel(
+        "  \xf0\x9f\xa7\xac  <b>SDS Editing</b> "
+        "<span style='color:gray;font-size:11px;'>"
+        "Sindrome di Shwachman-Diamond \xe2\x80\x94 pipeline didattica</span>");
+    header->setTextFormat(Qt::RichText);
+    root->addWidget(header);
+
+    auto* warn = new QLabel(
+        "\xe2\x9a\xa0\xef\xb8\x8f  <b>Strumento di studio, non clinico.</b> "
+        "Gli score sono euristici/segnaposto: l'output NON va usato come ipotesi "
+        "terapeutica. Per un uso reale servono strumenti validati (SpliceAI, PEGG, "
+        "GuideScan2) e un centro di ricerca (in Italia: Centro Fibrosi Cistica di "
+        "Verona / AISS).");
+    warn->setTextFormat(Qt::RichText);
+    warn->setWordWrap(true);
+    warn->setStyleSheet(
+        "QLabel{background:#3a2a00;color:#fbbf24;border:1px solid #a16207;"
+        "border-radius:6px;padding:8px;}");
+    root->addWidget(warn);
+
+    auto* ctrl = new QHBoxLayout;
+    m_sdsRunBtn = new QPushButton("\xe2\x96\xb6  Esegui run_all.py");
+    m_sdsStopBtn = new QPushButton("\xe2\x8f\xb9  Stop");
+    m_sdsStopBtn->setEnabled(false);
+    m_sdsStatus = new QLabel(QString());
+    m_sdsStatus->setStyleSheet("color:gray;");
+    ctrl->addWidget(m_sdsRunBtn);
+    ctrl->addWidget(m_sdsStopBtn);
+    ctrl->addWidget(m_sdsStatus, 1);
+    root->addLayout(ctrl);
+
+    connect(m_sdsRunBtn,  &QPushButton::clicked, this, &RicercaPage::onSdsRunClicked);
+    connect(m_sdsStopBtn, &QPushButton::clicked, this, &RicercaPage::onSdsStopClicked);
+
+    m_sdsOut = new QTextEdit;
+    m_sdsOut->setReadOnly(true);
+    m_sdsOut->setLineWrapMode(QTextEdit::NoWrap);
+    m_sdsOut->setStyleSheet(
+        "QTextEdit{font-family:monospace;background:#0b0f19;color:#c8d3e6;}");
+    root->addWidget(m_sdsOut, 1);
+
+    return page;
+}
+
+void RicercaPage::onSdsRunClicked()
+{
+    if (m_sdsProc && m_sdsProc->state() != QProcess::NotRunning) return;
+
+    const QString dir = P::root() + "/Tools/sds_editing";
+    const QString script = dir + "/run_all.py";
+    if (!QFile::exists(script)) {
+        m_sdsOut->setPlainText(
+            QString("\xe2\x9d\x8c  Script non trovato:\n%1").arg(script));
+        return;
+    }
+
+    m_sdsOut->clear();
+    m_sdsStatus->setText("\xe2\x8f\xb3  In esecuzione\xe2\x80\xa6");
+    m_sdsRunBtn->setEnabled(false);
+    m_sdsStopBtn->setEnabled(true);
+
+    m_sdsProc = new QProcess(this);
+    m_sdsProc->setWorkingDirectory(dir);
+    m_sdsProc->setProcessChannelMode(QProcess::MergedChannels);
+    connect(m_sdsProc, &QProcess::readyReadStandardOutput,
+            this, &RicercaPage::onSdsReadyRead);
+    connect(m_sdsProc,
+            QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+            this, &RicercaPage::onSdsProcFinished);
+
+    m_sdsProc->start(P::findPython(), {script});
+    if (!m_sdsProc->waitForStarted(3000)) {
+        m_sdsOut->setPlainText(
+            "\xe2\x9d\x8c  Impossibile avviare Python. "
+            "Verifica che Python e le dipendenze (requirements.txt) siano installati.");
+        m_sdsProc->deleteLater();
+        m_sdsProc = nullptr;
+        m_sdsStatus->setText(QString());
+        m_sdsRunBtn->setEnabled(true);
+        m_sdsStopBtn->setEnabled(false);
+    }
+}
+
+void RicercaPage::onSdsStopClicked()
+{
+    if (m_sdsProc && m_sdsProc->state() != QProcess::NotRunning) {
+        m_sdsProc->kill();
+        m_sdsStatus->setText("\xe2\x8f\xb9  Interrotto");
+    }
+}
+
+void RicercaPage::onSdsReadyRead()
+{
+    if (!m_sdsProc || !m_sdsOut) return;
+    const QString chunk = QString::fromLocal8Bit(m_sdsProc->readAllStandardOutput());
+    m_sdsOut->moveCursor(QTextCursor::End);
+    m_sdsOut->insertPlainText(chunk);
+    m_sdsOut->moveCursor(QTextCursor::End);
+}
+
+void RicercaPage::onSdsProcFinished(int code, QProcess::ExitStatus /*status*/)
+{
+    m_sdsStatus->setText(code == 0
+        ? "\xe2\x9c\x85  Completato"
+        : QString("\xe2\x9d\x8c  Uscito con codice %1").arg(code));
+    m_sdsRunBtn->setEnabled(true);
+    m_sdsStopBtn->setEnabled(false);
+    if (m_sdsProc) { m_sdsProc->deleteLater(); m_sdsProc = nullptr; }
 }

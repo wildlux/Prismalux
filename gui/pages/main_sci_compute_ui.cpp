@@ -759,6 +759,78 @@ QWidget* SciComputePage::buildUi()
 
     bottomTabs->addTab(pipWidget, "\xe2\x9b\x93  Pipeline");
 
+    /* ── Tab Ricerca SDS (Shwachman-Diamond, pipeline di studio distribuita) ── */
+    auto* sdsWidget = new QWidget(bottomTabs);
+    auto* sdsLay    = new QVBoxLayout(sdsWidget);
+    sdsLay->setContentsMargins(dpiScale(8), dpiScale(8), dpiScale(8), dpiScale(8));
+    sdsLay->setSpacing(dpiScale(8));
+
+    sdsLay->addWidget(new QLabel(
+        "<b>\xf0\x9f\xa7\xac  Ricerca Shwachman-Diamond</b>"
+        "  <span style='color:gray;font-size:11px;'>"
+        "pipeline distribuita di studio</span>", sdsWidget));
+
+    auto* sdsWarn = new QLabel(
+        "\xe2\x9a\xa0\xef\xb8\x8f  <b>Strumento di studio, non clinico.</b> Gli score sono "
+        "euristici/segnaposto: il Calcolo Scientifico distribuisce il calcolo, non lo "
+        "rende clinicamente valido. Servono un centro di ricerca (Verona / AISS) e "
+        "strumenti validati (SpliceAI, PEGG, GuideScan2).", sdsWidget);
+    sdsWarn->setTextFormat(Qt::RichText);
+    sdsWarn->setWordWrap(true);
+    sdsWarn->setStyleSheet(
+        "QLabel{background:#3a2a00;color:#fbbf24;border:1px solid #a16207;"
+        "border-radius:6px;padding:8px;}");
+    sdsLay->addWidget(sdsWarn);
+
+    auto* sdsPipeBtn = new QPushButton(
+        "\xe2\x9b\x93  Pipeline completa (brute force \xe2\x86\x92 ibrido \xe2\x86\x92 LLM)", sdsWidget);
+    sdsPipeBtn->setObjectName("actionBtn");
+    sdsPipeBtn->setMinimumHeight(dpiScale(42));
+    connect(sdsPipeBtn, &QPushButton::clicked, this,
+            [this] { createPipeline("sds_research"); });
+    sdsLay->addWidget(sdsPipeBtn);
+
+    auto* sdsGrid = new QGridLayout;
+    sdsGrid->setSpacing(dpiScale(6));
+
+    auto makeSdsBtn = [this, sdsWidget](const QString& icon, const QString& name,
+                                        const QString& desc, const QString& script) {
+        auto* btn = new QPushButton(icon + "  " + name, sdsWidget);
+        btn->setObjectName("actionBtn");
+        btn->setToolTip(desc);
+        btn->setMinimumHeight(dpiScale(42));
+        connect(btn, &QPushButton::clicked, this,
+                [this, name, script] { enqueueSdsScript(name, script); });
+        return btn;
+    };
+
+    sdsGrid->addWidget(makeSdsBtn("\xf0\x9f\x94\xa2", "Brute force guide",
+        "Genera e valuta le guide candidate (euristica).\n"
+        "script: bruteforce_sds_stable.py", "bruteforce_sds_stable.py"), 0, 0);
+    sdsGrid->addWidget(makeSdsBtn("\xf0\x9f\x94\x81", "Ciclo ibrido DNA/RNA",
+        "Ottimizzazione DNA<->RNA (splicing segnaposto).\n"
+        "script: hybrid_optimizer.py", "hybrid_optimizer.py"), 0, 1);
+    sdsGrid->addWidget(makeSdsBtn("\xf0\x9f\xa7\xa0", "Analisi pattern (LLM)",
+        "Commento LLM locale sui risultati.\n"
+        "script: llm_meta_analyst.py", "llm_meta_analyst.py"), 1, 0);
+    sdsGrid->addWidget(makeSdsBtn("\xe2\x96\xb6", "Tutto in sequenza (run_all)",
+        "Esegue tutti i moduli in sequenza su un nodo.\n"
+        "script: run_all.py", "run_all.py"), 1, 1);
+
+    sdsLay->addLayout(sdsGrid);
+
+    auto* sdsHint = new QLabel(
+        "<small>Ogni pulsante accoda una Work Unit di tipo <b>sds_editing</b>. Monitorale "
+        "nel tab <b>Work Units</b> e leggi l'output nel tab <b>Risultati</b>. Su pi\xc3\xb9 nodi "
+        "serve che <tt>Tools/sds_editing/</tt> sia presente su ciascuno.</small>", sdsWidget);
+    sdsHint->setWordWrap(true);
+    sdsHint->setObjectName("hintLabel");
+    sdsHint->setTextFormat(Qt::RichText);
+    sdsLay->addWidget(sdsHint);
+    sdsLay->addStretch(1);
+
+    bottomTabs->addTab(sdsWidget, "\xf0\x9f\xa7\xac  Ricerca SDS");
+
     splitter->addWidget(bottomTabs);
     splitter->setStretchFactor(0, 3);
     splitter->setStretchFactor(1, 2);
