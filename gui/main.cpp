@@ -307,16 +307,31 @@ int main(int argc, char* argv[]) {
      * La lingua predefinita è italiano (hardcoded): il traduttore è caricato
      * solo se la locale di sistema è diversa dall'italiano.             */
     static QTranslator s_translator;
-    const QLocale locale = QLocale::system();
-    const QString lang   = locale.name();          /* es. "en_US", "de_DE" */
+    /* Preferenza utente (Impostazioni → Sistema → Lingua): "it" | "en" | "system".
+     * "system" = segue la locale del sistema operativo (comportamento storico). */
+    const QString langPref = QSettings("Prismalux", "GUI")
+                             .value(P::SK::kLanguage, "system").toString();
+    const QString lang = (langPref == "system")
+                         ? QLocale::system().name()   /* es. "en_US", "de_DE" */
+                         : langPref;                  /* "it" | "en" */
+    /* L'italiano è la lingua sorgente (stringhe già in italiano): nessun
+     * traduttore da installare. Per le altre lingue carica il .qm. */
     if (!lang.startsWith("it")) {
-        const QString qmBase = QCoreApplication::applicationDirPath()
-                               + "/i18n/prismalux_";
-        /* Prova prima la locale completa (es. prismalux_en_US.qm),
-         * poi solo la lingua (es. prismalux_en.qm) */
-        if (s_translator.load(qmBase + lang + ".qm")
-            || s_translator.load(qmBase + lang.left(2) + ".qm")) {
-            app.installTranslator(&s_translator);
+        const QString appDir = QCoreApplication::applicationDirPath();
+        /* I .qm possono stare in i18n/ (pacchetti/AppImage) o accanto
+         * all'eseguibile (build cmake in build_gui/). Prova entrambi. */
+        const QStringList qmBases = {
+            appDir + "/i18n/prismalux_",
+            appDir + "/prismalux_",
+        };
+        for (const QString& qmBase : qmBases) {
+            /* Prova prima la locale completa (prismalux_en_US.qm),
+             * poi solo la lingua (prismalux_en.qm). */
+            if (s_translator.load(qmBase + lang + ".qm")
+                || s_translator.load(qmBase + lang.left(2) + ".qm")) {
+                app.installTranslator(&s_translator);
+                break;
+            }
         }
     }
 

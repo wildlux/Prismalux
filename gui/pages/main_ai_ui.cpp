@@ -148,19 +148,19 @@ void AgentiPage::buildToolbarTtsSection(QHBoxLayout* toolLay, QWidget* toolbar)
 /* ── Sezione export: Esporta + PDF + Memoria + Info ── */
 void AgentiPage::buildToolbarExportSection(QHBoxLayout* toolLay, QWidget* toolbar)
 {
-    auto* btnExport = new QPushButton("\xf0\x9f\x92\xbe  Esporta", toolbar);
+    auto* btnExport = new QPushButton(tr("\xf0\x9f\x92\xbe  Esporta"), toolbar);
     btnExport->setObjectName("actionBtn");
     btnExport->setToolTip(tr("Esporta conversazione (.md / .html / .txt)"));
     toolLay->addWidget(btnExport);
     connect(btnExport, &QPushButton::clicked, this, &AgentiPage::onBtnExportClicked);
 
-    auto* btnExportPdf = new QPushButton("\xf0\x9f\x93\x84  PDF", toolbar);
+    auto* btnExportPdf = new QPushButton(tr("\xf0\x9f\x93\x84  PDF"), toolbar);
     btnExportPdf->setObjectName("actionBtn");
     btnExportPdf->setToolTip(tr("Esporta conversazione (.pdf)"));
     toolLay->addWidget(btnExportPdf);
     connect(btnExportPdf, &QPushButton::clicked, this, &AgentiPage::onBtnExportPdfClicked);
 
-    m_btnKnowledge = new QPushButton("\xf0\x9f\x93\x96  Memoria", toolbar);  /* 📖 */
+    m_btnKnowledge = new QPushButton(tr("\xf0\x9f\x93\x96  Memoria"), toolbar);  /* 📖 */
     m_btnKnowledge->setObjectName("actionBtn");
     m_btnKnowledge->setToolTip(
         "Salva risposta in user_knowledge.md\n"
@@ -168,7 +168,7 @@ void AgentiPage::buildToolbarExportSection(QHBoxLayout* toolLay, QWidget* toolba
     toolLay->addWidget(m_btnKnowledge);
     connect(m_btnKnowledge, &QPushButton::clicked, this, &AgentiPage::onSaveKnowledge);
 
-    m_btnEtimo = new QPushButton("\xf0\x9f\x8f\x9b  Etimo", toolbar);  /* 🏛 */
+    m_btnEtimo = new QPushButton(tr("\xf0\x9f\x8f\x9b  Etimo"), toolbar);  /* 🏛 */
     m_btnEtimo->setObjectName("actionBtn");
     m_btnEtimo->setCheckable(true);
     m_btnEtimo->setToolTip(
@@ -178,7 +178,7 @@ void AgentiPage::buildToolbarExportSection(QHBoxLayout* toolLay, QWidget* toolba
     toolLay->addWidget(m_btnEtimo);
     connect(m_btnEtimo, &QPushButton::toggled, this, &AgentiPage::onEtimoToggled);
 
-    m_btnMathToggle = new QPushButton("\xe2\x88\x91  Formule", toolbar);  /* ∑ */
+    m_btnMathToggle = new QPushButton(tr("\xe2\x88\x91  Formule"), toolbar);  /* ∑ */
     m_btnMathToggle->setObjectName("actionBtn");
     m_btnMathToggle->setCheckable(true);
     m_btnMathToggle->setToolTip(
@@ -188,7 +188,7 @@ void AgentiPage::buildToolbarExportSection(QHBoxLayout* toolLay, QWidget* toolba
     toolLay->addWidget(m_btnMathToggle);
     connect(m_btnMathToggle, &QPushButton::toggled, this, &AgentiPage::onMathToggleToggled);
 
-    auto* btnInfo = new QPushButton("\xe2\x84\xb9  Informazioni", toolbar);  /* ℹ */
+    auto* btnInfo = new QPushButton(tr("\xe2\x84\xb9  Informazioni"), toolbar);  /* ℹ */
     btnInfo->setObjectName("actionBtn");
     btnInfo->setToolTip(tr("Mostra/nascondi suggerimenti"));
     toolLay->addWidget(btnInfo);

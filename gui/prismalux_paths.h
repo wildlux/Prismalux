@@ -1114,6 +1114,7 @@ constexpr const char* kTheme           = "theme";
 constexpr const char* kBubbleRadius    = "bubble_radius";
 constexpr const char* kTabsTop         = "tabs_top";
 constexpr const char* kIconsText       = "icons_text";
+constexpr const char* kLanguage        = "ui/language";  ///< "system" | "it" | "en"
 
 /* ── Navigazione ─────────────────────────────────── */
 constexpr const char* kNavStyle        = "nav/navStyle";

@@ -167,22 +167,22 @@ QWidget* MainWindow::buildSidebar() {
         btnLay->setContentsMargins(dpiScale(8), 0, dpiScale(8), 0);
         btnLay->setSpacing(dpiScale(4));
 
-        auto* newChatBtn = new QPushButton("\xe2\x9c\x8f\xef\xb8\x8f  Nuova chat", btnRow);
+        auto* newChatBtn = new QPushButton(tr("\xe2\x9c\x8f\xef\xb8\x8f  Nuova chat"), btnRow);
         newChatBtn->setObjectName("actionBtn");
         newChatBtn->setFixedHeight(dpiScale(30));
         newChatBtn->setStyleSheet("text-align: left; padding-left: 8px;");
-        newChatBtn->setToolTip("Inizia una nuova conversazione (reset log)");
+        newChatBtn->setToolTip(tr("Inizia una nuova conversazione (reset log)"));
         connect(newChatBtn, &QPushButton::clicked, this, &MainWindow::onNewChatClicked);
         btnLay->addWidget(newChatBtn);
 
-        m_btnDeleteChats = new QPushButton("\xf0\x9f\x97\x91  Cancella chat", btnRow);
+        m_btnDeleteChats = new QPushButton(tr("\xf0\x9f\x97\x91  Cancella chat"), btnRow);
         m_btnDeleteChats->setObjectName("actionBtn");
         m_btnDeleteChats->setProperty("danger", true);
         m_btnDeleteChats->setFixedHeight(dpiScale(30));
         m_btnDeleteChats->setLayoutDirection(Qt::LeftToRight);
         m_btnDeleteChats->setStyleSheet("text-align: left; padding-left: 8px;");
         m_btnDeleteChats->setEnabled(false);
-        m_btnDeleteChats->setToolTip("Elimina le chat selezionate (Canc)");
+        m_btnDeleteChats->setToolTip(tr("Elimina le chat selezionate (Canc)"));
         connect(m_btnDeleteChats, &QPushButton::clicked,
                 this, &MainWindow::onDeleteSelectedChatsClicked);
         btnLay->addWidget(m_btnDeleteChats);
@@ -205,7 +205,7 @@ QWidget* MainWindow::buildSidebar() {
         searchLay->addWidget(m_chkSelectAll);
 
         m_chatSearch = new QLineEdit(searchRow);
-        m_chatSearch->setPlaceholderText("\xf0\x9f\x94\x8d  Cerca chat...");
+        m_chatSearch->setPlaceholderText(tr("\xf0\x9f\x94\x8d  Cerca chat..."));
         m_chatSearch->setClearButtonEnabled(true);
         m_chatSearch->setObjectName("chatSearchEdit");
         searchLay->addWidget(m_chatSearch, 1);
@@ -285,18 +285,18 @@ QWidget* MainWindow::buildContent()
      * esistenti — vedi ensureTabBuilt() per il meccanismo di sostituzione. ── */
     buildAiTab();             /* 0 — primo tab visibile */
     static const struct { const char* label; } kPlaceholders[] = {
-        { "\xf0\x9f\x9b\xa0\xef\xb8\x8f  Strumenti" },      /* 1 */
-        { "\xf0\x9f\x8e\xac  Media" },                      /* 2 */
-        { "\xf0\x9f\x92\xbb  Programmazione" },             /* 3 */
-        { "\xf0\x9f\x93\x90  Matematica" },                 /* 4 */
-        { "\xf0\x9f\x94\xa7  Utilit\xc3\xa0" },             /* 5 */
-        { "\xf0\x9f\xa7\xac  Bioinformatica" },              /* 6 */
-        { "\xf0\x9f\x95\xb9\xef\xb8\x8f  TeleComanda" },     /* 7 */
+        { QT_TR_NOOP("\xf0\x9f\x9b\xa0\xef\xb8\x8f  Strumenti") },      /* 1 */
+        { QT_TR_NOOP("\xf0\x9f\x8e\xac  Media") },                      /* 2 */
+        { QT_TR_NOOP("\xf0\x9f\x92\xbb  Programmazione") },             /* 3 */
+        { QT_TR_NOOP("\xf0\x9f\x93\x90  Matematica") },                 /* 4 */
+        { QT_TR_NOOP("\xf0\x9f\x94\xa7  Utilit\xc3\xa0") },             /* 5 */
+        { QT_TR_NOOP("\xf0\x9f\xa7\xac  Bioinformatica") },             /* 6 */
+        { QT_TR_NOOP("\xf0\x9f\x95\xb9\xef\xb8\x8f  TeleComanda") },    /* 7 */
     };
     for (const auto& ph : kPlaceholders) {
         auto* w = new QWidget(m_mainTabs);
         (new QVBoxLayout(w))->setContentsMargins(0,0,0,0);
-        m_mainTabs->addTab(w, QString::fromUtf8(ph.label));
+        m_mainTabs->addTab(w, tr(ph.label));
     }
 
     /* Inizializza la mappa: solo AI[0] già costruito, tutto il resto è placeholder.
@@ -381,7 +381,7 @@ void MainWindow::buildAiTab()
             this, &MainWindow::onGraficoRequestSettings);
     connect(agentiPage, &AgentiPage::requestShowInGrafico,
             this, &MainWindow::onRequestShowInGrafico);
-    m_mainTabs->addTab(agentiPage, "\xf0\x9f\xa4\x96  Intelligenza artificiale");  /* 0 */
+    m_mainTabs->addTab(agentiPage, tr("\xf0\x9f\xa4\x96  Intelligenza artificiale"));  /* 0 */
 }
 
 /* ══════════════════════════════════════════════════════════════

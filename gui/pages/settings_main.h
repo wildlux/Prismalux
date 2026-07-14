@@ -125,6 +125,7 @@ private slots:
     /* ── buildRagTab ── */
     void onRagNoSaveToggled(bool on);
     void onRagBrowseBtnClicked();
+    void onLanguageChanged(int idx);
     void onRagDirChanged(const QString& t);
     void onRagMaxResultsChanged(int v);
     void onRagEmbedModelChanged(const QString& v);
@@ -223,6 +224,7 @@ private:
     QWidget* buildFeedbackTab();        ///< analytics 👍/👎 + export DPO dataset
     QWidget* buildAiMemoryTab();      ///< AIMemory storia preferenze (gitLog + revertFile)
     QWidget* buildSistemaConsigliTab(); ///< consigli ottimizzazione hardware/temperatura
+    QWidget* buildLinguaTab();          ///< selettore lingua interfaccia (it/en)
     QWidget* buildSicurezzaWanTab();  ///< TLS WAN cert + pin + WireGuard keys
 
     /* Gruppi lazy — costruiti solo al primo clic sulla tab esterna
@@ -304,6 +306,8 @@ private:
     QPushButton*    m_ragReindexBtn     = nullptr;
     QPushButton*    m_ragDownloadBtn    = nullptr;
     QComboBox*      m_ragEmbedCombo     = nullptr;  ///< selettore modello embedding
+    QComboBox*      m_langCombo         = nullptr;  ///< selettore lingua interfaccia (it/en)
+    QLabel*         m_langRestartHint   = nullptr;  ///< avviso "riavvia per applicare la lingua"
 
     /* ── buildAiParamsTab member state ── */
     QDoubleSpinBox* m_tempSpin          = nullptr;

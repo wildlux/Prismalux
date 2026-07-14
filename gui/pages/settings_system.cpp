@@ -248,7 +248,77 @@ QWidget* ImpostazioniPage::buildGroupSistema()
         return sc;
     });
 
+    inner->addLazy("\xf0\x9f\x8c\x90  Lingua", [this]{
+        auto* sc = new QScrollArea;
+        sc->setWidgetResizable(true);
+        sc->setFrameShape(QFrame::NoFrame);
+        sc->setWidget(buildLinguaTab());
+        return sc;
+    });
+
     return t;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   buildLinguaTab — selettore lingua interfaccia (Italiano / English).
+   La scelta è salvata in QSettings (SK::kLanguage) e applicata all'avvio
+   da main.cpp; un cambio richiede il riavvio dell'applicazione.
+   ══════════════════════════════════════════════════════════════ */
+QWidget* ImpostazioniPage::buildLinguaTab()
+{
+    auto* root = new QWidget;
+    auto* vlay = new QVBoxLayout(root);
+    vlay->setContentsMargins(dpiScale(16), dpiScale(16), dpiScale(16), dpiScale(16));
+    vlay->setSpacing(dpiScale(14));
+
+    auto* title = new QLabel(
+        "<h2>\xf0\x9f\x8c\x90 Lingua / Language</h2>"
+        "<p style='color:gray;margin-top:2px;'>"
+        "Lingua dell'interfaccia. Il cambiamento si applica al riavvio."
+        "<br><i>Interface language. Changes apply after restart.</i></p>");
+    title->setWordWrap(true);
+    vlay->addWidget(title);
+
+    auto* row = new QHBoxLayout;
+    row->addWidget(new QLabel("\xf0\x9f\x97\xa3\xef\xb8\x8f  Lingua:"));
+
+    m_langCombo = new QComboBox;
+    m_langCombo->addItem("\xf0\x9f\x87\xae\xf0\x9f\x87\xb9  Italiano", "it");
+    m_langCombo->addItem("\xf0\x9f\x87\xac\xf0\x9f\x87\xa7  English", "en");
+    m_langCombo->addItem(tr("\xf0\x9f\x96\xa5\xef\xb8\x8f  Sistema / System"), "system");
+
+    const QString cur = QSettings("Prismalux", "GUI")
+                        .value(P::SK::kLanguage, "system").toString();
+    int idx = m_langCombo->findData(cur);
+    m_langCombo->setCurrentIndex(idx >= 0 ? idx : m_langCombo->findData("system"));
+    row->addWidget(m_langCombo, 1);
+    row->addStretch(1);
+    vlay->addLayout(row);
+
+    connect(m_langCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &ImpostazioniPage::onLanguageChanged);
+
+    m_langRestartHint = new QLabel;
+    m_langRestartHint->setWordWrap(true);
+    m_langRestartHint->setStyleSheet("color:#f59e0b;");
+    m_langRestartHint->setVisible(false);
+    vlay->addWidget(m_langRestartHint);
+
+    vlay->addStretch(1);
+    return root;
+}
+
+void ImpostazioniPage::onLanguageChanged(int idx)
+{
+    if (!m_langCombo || idx < 0) return;
+    const QString lang = m_langCombo->itemData(idx).toString();
+    QSettings("Prismalux", "GUI").setValue(P::SK::kLanguage, lang);
+    if (m_langRestartHint) {
+        m_langRestartHint->setText(
+            "\xe2\x9a\xa0\xef\xb8\x8f  Riavvia Prismalux per applicare la lingua. "
+            "\xe2\x80\x94  Restart Prismalux to apply the language.");
+        m_langRestartHint->setVisible(true);
+    }
 }
 
 QWidget* ImpostazioniPage::buildPuliziaTab()
