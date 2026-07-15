@@ -410,6 +410,28 @@ void MainWindow::setupBackend()
     navigateTo(0);
 }
 
+/* ── Distruttore — spazzata centrale dei QProcess figli (D-21 residuo) ─────
+ * ~QProcess di un processo ancora attivo emette finished() SINCRONO durante
+ * deleteChildren(): i lambda connessi toccano widget già semi-distrutti →
+ * SEGV (caso reale D-20, VoiceClonerWidget). D-21 ha patchato i 5 widget a
+ * rischio più alto nel loro distruttore; per le altre ~50 tab, invece di 50
+ * distruttori identici, un'unica spazzata qui — findChildren è ricorsivo e
+ * copre tutte le pagine, le probe anonime e i dialoghi figli PRIMA che la
+ * distruzione automatica dei figli cominci. I distruttori specifici già
+ * esistenti restano validi (doppio kill innocuo su processo già morto). */
+MainWindow::~MainWindow()
+{
+    const auto procs = findChildren<QProcess*>();
+    for (QProcess* p : procs) {
+        p->disconnect();
+        p->blockSignals(true);
+        if (p->state() != QProcess::NotRunning) {
+            p->kill();
+            p->waitForFinished(1000);
+        }
+    }
+}
+
 /* ── Livello 1: scorciatoie da tastiera Alt+1…7 ──────────────────── */
 void MainWindow::setupShortcuts()
 {

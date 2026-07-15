@@ -70,6 +70,7 @@ class MainWindow : public QMainWindow {
     Q_OBJECT
 public:
     explicit MainWindow(QWidget* parent = nullptr);
+    ~MainWindow() override;   ///< spazzata QProcess figli prima di deleteChildren (D-21)
 
     /** Accessori ai servizi condivisi (usati dalle pagine figlie). */
     AiClient*        aiClient()  { return m_ai; }
