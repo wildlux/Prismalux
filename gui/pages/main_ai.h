@@ -19,6 +19,7 @@
 #include <QPointF>
 #include <QStack>
 #include <QElapsedTimer>
+#include <QSharedPointer>
 #include <QScrollArea>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
@@ -574,6 +575,21 @@ private:
     void _finishedKnowledgeExtract();
     void _finishedPipelineControl();
     void _finishedPipeline(const QString& full);
+    /* Fasi di _finishedPipeline (D-35: estrazione meccanica).
+       I bool segnalano al chiamante un'uscita anticipata da propagare
+       (return) per preservare il flusso originale. */
+    QString _fpExtractResponse(const QString& full, QString& extractedThink);
+    bool    _fpInterceptToolCall(const QString& rawResp);
+    QString _fpUncertaintyBanner(const QString& rawResp, bool& shouldAutoSearch);
+    QString _fpSourcesFooter();
+    void    _fpStartTranslationIfNeeded(const QString& rawResp);
+    void    _fpStartAutoSearch();
+    bool    _fpConfirmExecDialog(const ExecCode& ec, const QString& pyCode,
+                                 bool useSandbox);
+    void    _fpExecCompiled(const QString& pyCode, const QString& lang,
+                            QSharedPointer<QElapsedTimer> tmr);
+    void    _fpExecDocker(const QString& pyCode, QSharedPointer<QElapsedTimer> tmr);
+    bool    _fpExecPythonLocal(const QString& pyCode, QSharedPointer<QElapsedTimer> tmr);
     void _finishedMathTheory();
     void _finishedByzantine();
 

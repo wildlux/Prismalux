@@ -1339,6 +1339,103 @@ void AgentiPage::_finishedPipeline(const QString& full) {
     bool shouldAutoSearch = false;   /* TASK-2: segnala auto-ricerca web dopo il blocco */
     QString rawResp;
     if (m_currentAgent > 0 && !m_agentOutputs.isEmpty()) {
+        QString extractedThink;
+        rawResp = _fpExtractResponse(full, extractedThink);
+
+        /* Tool Use Nativo: se un TOOL_CALL è stato intercettato, runToolCall
+           rilancia l'agente col risultato — la pipeline riparte da lì */
+        if (_fpInterceptToolCall(rawResp))
+            return;
+
+        /* Aggiunge il tempo di risposta all'header della bolla */
+        {
+            const double elapsedMs = static_cast<double>(m_agentTimer.elapsed());
+            const QString elapsedStr = elapsedMs < 1000.0
+                ? QString::number(qRound(elapsedMs)) + " ms"
+                : QString::number(elapsedMs / 1000.0, 'f', 1) + " s";
+            m_currentAgentTime += "  \xc2\xb7\xc2\xb7  " + elapsedStr;
+        }
+
+        QString htmlContent = rawResp.isEmpty()
+            ? "<p style='color:#6b7280;font-style:italic;margin:0;'>Nessun output.</p>"
+            : markdownToHtml(rawResp, &m_codeBlocks, &m_codeBlockCounter);
+
+        htmlContent += _fpUncertaintyBanner(rawResp, shouldAutoSearch);
+        htmlContent += _fpSourcesFooter();
+
+        QTextCursor sel(m_log->document());
+        sel.setPosition(m_agentBlockStart);
+        sel.movePosition(QTextCursor::End, QTextCursor::KeepAnchor);
+        sel.removeSelectedText();
+        { int idx = m_bubbleIdx++; m_bubbleTexts[idx] = rawResp;
+          if (!extractedThink.isEmpty()) m_thinkTexts[idx] = extractedThink;
+          sel.insertHtml(buildAgentBubble(m_currentAgentLabel,
+                                         m_currentAgentModel,
+                                         m_currentAgentTime,
+                                         htmlContent, idx,
+                                         extractedThink)); }
+
+        _fpStartTranslationIfNeeded(rawResp);
+    }
+
+    /* ── Retry riuscito: persisti domanda + risultati + sintesi nel RAG,
+       così le domande simili future trovano i dati in locale (la bolla
+       "🌐 Ricerca Online" è già stata inserita nel log qui sopra) ── */
+    if (m_autoRetryActive && !m_autoRetrySearchResults.isEmpty() && !rawResp.isEmpty()) {
+        _saveAutoSearchToRag(rawResp);
+        m_autoRetrySearchResults.clear();
+    }
+
+    /* ── TASK-2/3: auto-ricerca web quando LLM incerto (solo single-shot) ── */
+    if (shouldAutoSearch) {
+        _fpStartAutoSearch();
+        return;  /* non avanzare la pipeline ora */
+    }
+
+    /* ── Tool Executor: estrae ed esegue codice Python/C/C++, poi avvia il Controller ── */
+    ExecCode ec = extractExecutableCode(rawResp);
+    if (ec.lang == "python") ec.code = _sanitizePyCode(ec.code);
+    if (!ec.code.isEmpty()) {
+        const QString pyCode    = ec.code;   /* alias per riuso del codice sotto */
+        const bool useSandbox = P::isSandboxReady();
+
+        if (!_fpConfirmExecDialog(ec, pyCode, useSandbox))
+            return;   /* annullato: banner Riesegui già nel log */
+
+        m_executorOutput.clear();
+        if (m_execProc) { m_execProc->kill(); m_execProc->deleteLater(); m_execProc = nullptr; }
+        m_execProc = new QProcess(this);
+        m_execProc->setProcessChannelMode(QProcess::MergedChannels);
+        auto tmr = QSharedPointer<QElapsedTimer>::create();
+        tmr->start();
+
+        if (ec.lang == "c" || ec.lang == "cpp") {
+            _fpExecCompiled(pyCode, ec.lang, tmr);
+            return;
+        }
+
+        if (useSandbox) {
+            _fpExecDocker(pyCode, tmr);
+        } else {
+            if (!_fpExecPythonLocal(pyCode, tmr))
+                return;   /* tmpfile fallito: advancePipeline già chiamata */
+        }
+
+    } else {
+        /* Nessun codice trovato: avanza direttamente */
+        advancePipeline();
+    }
+    m_autoRetryActive = false;  /* reset sempre alla fine (TASK-5) */
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Fasi di _finishedPipeline (D-35: estrazione meccanica)
+   ══════════════════════════════════════════════════════════════ */
+
+QString AgentiPage::_fpExtractResponse(const QString& full, QString& extractedThink)
+{
+    QString rawResp;
+    {
         rawResp = m_agentOutputs[m_currentAgent - 1];
         /* Fallback: modelli thinking-only (qwen3, deepseek-r1) rispondono tramite
            message.thinking invece di message.content → nessun token emesso →
@@ -1359,7 +1456,7 @@ void AgentiPage::_finishedPipeline(const QString& full) {
            Se dopo lo strip rimane vuoto (modelli piccoli che producono SOLO thinking
            senza risposta finale), si usa il contenuto del <think> come fallback.
            Il contenuto del <think> viene salvato in m_thinkTexts per il toggle collassabile. */
-        QString extractedThink;  /* contenuto <think> estratto — salvato per la bolla */
+        /* extractedThink (parametro out): contenuto <think> estratto — salvato per la bolla */
         {
             QRegularExpression reTh("<think>([\\s\\S]*?)</think>",
                                     QRegularExpression::CaseInsensitiveOption);
@@ -1446,8 +1543,12 @@ void AgentiPage::_finishedPipeline(const QString& full) {
             rawResp = ModelProcessor::instance().postProcess(rawResp, m_ai->model());
             m_agentOutputs[m_currentAgent - 1] = rawResp;
         }
+    }
+    return rawResp;
+}
 
-        /* ── Tool Use Nativo: intercetta TOOL_CALL prima di costruire la bolla ── */
+bool AgentiPage::_fpInterceptToolCall(const QString& rawResp)
+{
         if (m_toolsEnabled && m_maxShots == 1 && m_toolIteration < 2 && !rawResp.isEmpty()) {
             const QJsonObject tc = detectFirstToolCall(rawResp);
             if (!tc.isEmpty()) {
@@ -1500,23 +1601,15 @@ void AgentiPage::_finishedPipeline(const QString& full) {
                     m_currentAgent = agentIdx;
                     runAgent(agentIdx);
                 });
-                return;
+                return true;
             }
         }
+    return false;
+}
 
-        /* Aggiunge il tempo di risposta all'header della bolla */
-        {
-            const double elapsedMs = static_cast<double>(m_agentTimer.elapsed());
-            const QString elapsedStr = elapsedMs < 1000.0
-                ? QString::number(qRound(elapsedMs)) + " ms"
-                : QString::number(elapsedMs / 1000.0, 'f', 1) + " s";
-            m_currentAgentTime += "  \xc2\xb7\xc2\xb7  " + elapsedStr;
-        }
-
-        QString htmlContent = rawResp.isEmpty()
-            ? "<p style='color:#6b7280;font-style:italic;margin:0;'>Nessun output.</p>"
-            : markdownToHtml(rawResp, &m_codeBlocks, &m_codeBlockCounter);
-
+QString AgentiPage::_fpUncertaintyBanner(const QString& rawResp, bool& shouldAutoSearch)
+{
+    QString html;
         /* Banner + auto-ricerca web quando il modello dichiara incertezza.
            In single-shot (m_maxShots==1) lancia anche una ricerca automatica (TASK-2/3).
            Non si attiva durante un auto-retry (m_autoRetryActive) per evitare loop. */
@@ -1698,7 +1791,7 @@ void AgentiPage::_finishedPipeline(const QString& full) {
                             "Abbassa &rarr; pi&ugrave; deterministico")
                     + "</table>";
 
-                htmlContent +=
+                html +=
                     /* ── Banner "non lo so" adattivo al tema ── */
                     QString("<div style='border:1px solid %1;border-radius:8px;"
                     "background:%2;padding:10px 14px;margin:10px 0;'>")
@@ -1757,7 +1850,12 @@ void AgentiPage::_finishedPipeline(const QString& full) {
                 shouldAutoSearch = true;
             }
         }
+    return html;
+}
 
+QString AgentiPage::_fpSourcesFooter()
+{
+    QString html;
         /* ── Raccolta fonti: RAG + Hermes ── */
         {
             QStringList sources;
@@ -1772,7 +1870,7 @@ void AgentiPage::_finishedPipeline(const QString& full) {
                 sources << "\xf0\x9f\xa7\xa0 Memoria: " + s;  /* 🧠 */
 
             if (!sources.isEmpty()) {
-                htmlContent +=
+                html +=
                     "<div style='margin:10px 0 2px 0;border-top:1px solid #334155;"
                     "padding-top:6px;'>"
                     "<p style='margin:0;font-size:10px;color:#64748b;'>"
@@ -1781,24 +1879,16 @@ void AgentiPage::_finishedPipeline(const QString& full) {
                 for (const auto& s : std::as_const(sources)) {
                     if (seen.contains(s)) continue;
                     seen << s;
-                    htmlContent += "<br>\xe2\x80\xa2 " + s.toHtmlEscaped();
+                    html += "<br>\xe2\x80\xa2 " + s.toHtmlEscaped();
                 }
-                htmlContent += "</p></div>";
+                html += "</p></div>";
             }
         }
+    return html;
+}
 
-        QTextCursor sel(m_log->document());
-        sel.setPosition(m_agentBlockStart);
-        sel.movePosition(QTextCursor::End, QTextCursor::KeepAnchor);
-        sel.removeSelectedText();
-        { int idx = m_bubbleIdx++; m_bubbleTexts[idx] = rawResp;
-          if (!extractedThink.isEmpty()) m_thinkTexts[idx] = extractedThink;
-          sel.insertHtml(buildAgentBubble(m_currentAgentLabel,
-                                         m_currentAgentModel,
-                                         m_currentAgentTime,
-                                         htmlContent, idx,
-                                         extractedThink)); }
-
+void AgentiPage::_fpStartTranslationIfNeeded(const QString& rawResp)
+{
         /* Traduzione LLM post-processing: avvia seconda chiamata se richiesta dal profilo.
            Usa il modello dedicato configurato nel profilo (tipicamente leggero e veloce,
            es. aya:8b o qwen2.5:1.5b); fallback al modello principale se non configurato. */
@@ -1820,18 +1910,10 @@ void AgentiPage::_finishedPipeline(const QString& full) {
                   "No extra comments or notes. Return ONLY the translated text.\n\n" + rawResp;
             m_translateAi->chat("Sei un traduttore professionale, preciso e veloce.", prompt);
         }
-    }
+}
 
-    /* ── Retry riuscito: persisti domanda + risultati + sintesi nel RAG,
-       così le domande simili future trovano i dati in locale (la bolla
-       "🌐 Ricerca Online" è già stata inserita nel log qui sopra) ── */
-    if (m_autoRetryActive && !m_autoRetrySearchResults.isEmpty() && !rawResp.isEmpty()) {
-        _saveAutoSearchToRag(rawResp);
-        m_autoRetrySearchResults.clear();
-    }
-
-    /* ── TASK-2/3: auto-ricerca web quando LLM incerto (solo single-shot) ── */
-    if (shouldAutoSearch) {
+void AgentiPage::_fpStartAutoSearch()
+{
         m_autoRetryActive = true;
         /* Aggiorna label bolla per la risposta di sintesi */
         m_currentAgentLabel = "\xf0\x9f\x8c\x90  Ricerca Online";  /* 🌐 */
@@ -1877,18 +1959,11 @@ void AgentiPage::_finishedPipeline(const QString& full) {
                e poi onFinished → _finishedPipeline (seconda chiamata, m_autoRetryActive=true)
                che chiuderà la pipeline normalmente */
         });
-        return;  /* non avanzare la pipeline ora */
-    }
+}
 
-    /* ── Tool Executor: estrae ed esegue codice Python/C/C++, poi avvia il Controller ── */
-    ExecCode ec = extractExecutableCode(rawResp);
-    if (ec.lang == "python") ec.code = _sanitizePyCode(ec.code);
-    if (!ec.code.isEmpty()) {
-        const QString pyCode    = ec.code;   /* alias per riuso del codice sotto */
-        const bool useSandbox = P::isSandboxReady();
-
-        /* [C1] Dialog conferma — testo e colore variano in base alla sandbox */
-        {
+bool AgentiPage::_fpConfirmExecDialog(const ExecCode& ec, const QString& pyCode,
+                                      bool useSandbox)
+{
             auto* dlg = new QDialog(this);
             dlg->setWindowTitle(useSandbox
                 ? "\xf0\x9f\x90\xb3  Esegui codice in sandbox Docker?"
@@ -1957,21 +2032,16 @@ void AgentiPage::_finishedPipeline(const QString& full) {
                       "</a>"
                     "</p>");
                 advancePipeline();
-                return;
+                return false;
             }
-        }
+    return true;
+}
 
-        m_executorOutput.clear();
-        if (m_execProc) { m_execProc->kill(); m_execProc->deleteLater(); m_execProc = nullptr; }
-        m_execProc = new QProcess(this);
-        m_execProc->setProcessChannelMode(QProcess::MergedChannels);
-        auto tmr = QSharedPointer<QElapsedTimer>::create();
-        tmr->start();
-
-        /* ── C / C++: compilazione locale gcc/g++ ─────────────────────────── */
-        if (ec.lang == "c" || ec.lang == "cpp") {
-            const QString ext = (ec.lang == "cpp") ? ".cpp" : ".c";
-            const QString compiler = (ec.lang == "cpp") ? "g++" : "gcc";
+void AgentiPage::_fpExecCompiled(const QString& pyCode, const QString& lang,
+                                 QSharedPointer<QElapsedTimer> tmr)
+{
+            const QString ext = (lang == "cpp") ? ".cpp" : ".c";
+            const QString compiler = (lang == "cpp") ? "g++" : "gcc";
             QTemporaryFile srcTmp(PrismaluxPaths::safeTempPath() + "/prisma_src_XXXXXX" + ext);
             srcTmp.setAutoRemove(false);
             if (!srcTmp.open()) { advancePipeline(); return; }
@@ -2036,10 +2106,10 @@ void AgentiPage::_finishedPipeline(const QString& full) {
 
             m_execProc->start(compiler,
                 { "-o", binPath, srcPath, "-lm", "-Wall", "-Wextra" });
-            return;
-        }
+}
 
-        if (useSandbox) {
+void AgentiPage::_fpExecDocker(const QString& pyCode, QSharedPointer<QElapsedTimer> tmr)
+{
             /* ── Sandbox Docker: stdin piping, rete/filesystem isolati ─────── */
             const QSettings ss("Prismalux", "GUI");
             const QString img = ss.value(P::SK::kSandboxImage,   "python:3.11-slim").toString();
@@ -2093,15 +2163,17 @@ void AgentiPage::_finishedPipeline(const QString& full) {
                     else advancePipeline();
                 }
             });
+}
 
-        } else {
+bool AgentiPage::_fpExecPythonLocal(const QString& pyCode, QSharedPointer<QElapsedTimer> tmr)
+{
             /* ── Python locale: file temporaneo + pip install retry ─────────
                [B1] QSharedPointer evita memory leak se il processo viene
                distrutto prima che finished() scatti. */
             QTemporaryFile execTmp(
                 PrismaluxPaths::safeTempPath() + "/prisma_exec_XXXXXX.py");
             execTmp.setAutoRemove(false);
-            if (!execTmp.open()) { advancePipeline(); return; }
+            if (!execTmp.open()) { advancePipeline(); return false; }
             execTmp.write(pyCode.toUtf8());
             execTmp.close();
             const QString tmpPath = execTmp.fileName();
@@ -2225,13 +2297,7 @@ void AgentiPage::_finishedPipeline(const QString& full) {
                 }
             });
             m_execProc->start(PrismaluxPaths::findPython(), {tmpPath});
-        }
-
-    } else {
-        /* Nessun codice trovato: avanza direttamente */
-        advancePipeline();
-    }
-    m_autoRetryActive = false;  /* reset sempre alla fine (TASK-5) */
+    return true;
 }
 
 /* ══════════════════════════════════════════════════════════════
