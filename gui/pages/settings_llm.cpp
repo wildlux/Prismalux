@@ -110,8 +110,7 @@ QWidget* ImpostazioniPage::buildGroupLlm()
     return t;
 }
 
-QWidget* ImpostazioniPage::buildTestTab()
-{
+namespace {  /* registro suite storiche — dati, non UI (D-35) */
     /* ── Struttura dati per ogni suite di test ───────────────────────────
        details: voci separate da '\n', mostrate come lista bullet
        kpi:     metriche chiave (tempi, soglie), mostrate in evidenza
@@ -484,7 +483,10 @@ QWidget* ImpostazioniPage::buildTestTab()
             "80/80 pass \xc2\xb7 Categ. F/G/H mock in ~1s \xc2\xb7 Categ. G reale ~45s \xc2\xb7 Categ. I ~4 min con Ollama"
         },
     };
+}  // namespace
 
+QWidget* ImpostazioniPage::buildTestTab()
+{
     const int nTests = int(sizeof kTests / sizeof kTests[0]);
     int totPassed = 0, totTotal = 0;
     for (const auto& t : kTests) { totPassed += t.passed; totTotal += t.total; }
@@ -534,72 +536,7 @@ QWidget* ImpostazioniPage::buildTestTab()
     llay->addWidget(listScroll, 1);
 
     /* ── Esecuzione test via GUI ── */
-    {
-        auto* sepRun = new QFrame(leftPanel);
-        sepRun->setFrameShape(QFrame::HLine);
-        sepRun->setObjectName("cardSep");
-        llay->addWidget(sepRun);
-
-        auto* runRow = new QWidget(leftPanel);
-        auto* runLay = new QHBoxLayout(runRow);
-        runLay->setContentsMargins(0, 0, 0, 0);
-        runLay->setSpacing(6);
-
-        auto* btnBuild  = new QPushButton(
-            tr("\xf0\x9f\x94\xa8  Compila"), runRow);      /* 🔨 */
-        auto* btnRun    = new QPushButton(
-            tr("\xe2\x96\xb6  Esegui tutti"), runRow);     /* ▶ */
-        auto* btnStop   = new QPushButton(
-            tr("\xe2\x8f\xb9  Ferma"), runRow);            /* ⏹ */
-        btnBuild->setObjectName("actionBtn");
-        btnRun->setObjectName("actionBtn");
-        btnStop->setObjectName("actionBtn");
-        btnStop->setEnabled(false);
-
-        runLay->addWidget(btnBuild);
-        runLay->addWidget(btnRun);
-        runLay->addWidget(btnStop);
-        llay->addWidget(runRow);
-
-        auto* runOut = new QTextEdit(leftPanel);
-        runOut->setReadOnly(true);
-        runOut->setObjectName("outputView");
-        runOut->setMinimumHeight(80);
-        runOut->setPlaceholderText(tr("Output test appare qui..."));
-        llay->addWidget(runOut);
-
-        /* QProcess vive finché il widget esiste */
-        auto* proc = new QProcess(leftPanel);
-        proc->setProcessChannelMode(QProcess::MergedChannels);
-
-        const QString qtGuiDir = P::root() + "/gui";
-        const QString buildDir = qtGuiDir + "/build_tests";
-
-        /* Salva puntatori come member variables per i slot */
-        m_testProc      = proc;
-        m_testRunOut    = runOut;
-        m_testBtnBuild  = btnBuild;
-        m_testBtnRun    = btnRun;
-        m_testBtnStop   = btnStop;
-        m_testBuildDir  = buildDir;
-        m_testQtGuiDir  = qtGuiDir;
-
-        connect(proc,    &QProcess::readyRead,
-                this,    &ImpostazioniPage::onTestProcReadyRead);
-        connect(proc,    QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-                this,    &ImpostazioniPage::onTestProcFinished);
-        connect(proc,    &QProcess::errorOccurred,
-                this,    [this](QProcess::ProcessError err) {
-            if (err == QProcess::FailedToStart)
-                qWarning() << "[ImpostazioniPage] test runner non avviato:" << m_testProc->program();
-        });
-        connect(btnBuild, &QPushButton::clicked,
-                this,     &ImpostazioniPage::onTestBuildClicked);
-        connect(btnRun,   &QPushButton::clicked,
-                this,     &ImpostazioniPage::onTestRunClicked);
-        connect(btnStop,  &QPushButton::clicked,
-                this,     &ImpostazioniPage::onTestStopClicked);
-    }
+    buildTestRunSection(leftPanel, llay);
 
     /* ════════════════════════════════════════════════════════
        PANNELLO DESTRO — dettaglio suite selezionata
@@ -620,15 +557,108 @@ QWidget* ImpostazioniPage::buildTestTab()
     hlay->addWidget(leftPanel,  1);
     hlay->addWidget(rightPanel, 2);
 
-    /* ════════════════════════════════════════════════════════
-       Costruisce ogni voce della lista sinistra + pagina destra
-       ════════════════════════════════════════════════════════ */
+    QList<QFrame*> itemFrames;
+    QVector<bool>  pageBuilt(nTests, false);
+    for (int i = 0; i < nTests; i++) {
+        const auto& t   = kTests[i];
+        const bool allOk  = (t.passed == t.total);
+        const QString accentColor = allOk ? "#22c55e" : "#f59e0b";
+
+        /* ── Voce lista sinistra ── */
+        auto* item = new QFrame(listWidget);
+        item->setObjectName("testListItem");
+        item->setCursor(Qt::PointingHandCursor);
+        auto* irow = new QHBoxLayout(item);
+        irow->setContentsMargins(10, 8, 10, 8);
+        irow->setSpacing(8);
+
+        /* pallino colorato pass/fail */
+        auto* dot = new QLabel(item);
+        dot->setFixedSize(10, 10);
+        dot->setStyleSheet(QString(
+            "background:%1; border-radius:5px;").arg(accentColor));
+        irow->addWidget(dot);
+
+        auto* lblName = new QLabel(t.suite, item);
+        lblName->setObjectName("cardDesc");
+        lblName->setWordWrap(false);
+        irow->addWidget(lblName, 1);
+
+        auto* lblBadge = new QLabel(
+            QString("<b>%1/%2</b>").arg(t.passed).arg(t.total), item);
+        lblBadge->setTextFormat(Qt::RichText);
+        lblBadge->setStyleSheet(QString("color:%1; font-size:11px;").arg(accentColor));
+        irow->addWidget(lblBadge);
+
+        listLay->addWidget(item);
+
+        /* Placeholder vuoto — sostituito da buildDetailPage(i) alla prima selezione */
+        detailStack->addWidget(new QWidget(detailStack));
+
+        item->setProperty("testPageIdx", i);
+        item->setProperty("accentColor", accentColor);
+        itemFrames.append(item);
+    }
+
+    listLay->addStretch();
+
+    /* ── Funzione highlight: aggiorna l'aspetto della voce selezionata ── */
+    auto selectItem = [this, itemFrames, detailStack, pageBuilt](int idx) mutable {
+        if (!pageBuilt[idx]) {
+            auto* placeholder = detailStack->widget(idx);
+            detailStack->removeWidget(placeholder);
+            placeholder->deleteLater();
+            detailStack->insertWidget(idx, buildTestDetailPage(idx));
+            pageBuilt[idx] = true;
+        }
+        detailStack->setCurrentIndex(idx);
+        for (int k = 0; k < itemFrames.size(); k++) {
+            QFrame* fr = itemFrames[k];
+            if (k == idx) {
+                /* bordo sinistro colorato con l'accent del test (verde o ambra) */
+                const QString ac = fr->property("accentColor").toString();
+                fr->setStyleSheet(
+                    QString("QFrame#testListItem { border-radius:6px; border:1px solid %1;"
+                            " border-left:3px solid %1; }").arg(ac));
+            } else {
+                fr->setStyleSheet(
+                    "QFrame#testListItem { border-radius:6px;"
+                    " border:1px solid rgba(255,255,255,0.07); }");
+            }
+        }
+    };
+
+    /* ── EventFilter click ── */
+    class ClickFilter : public QObject {
+    public:
+        std::function<void(int)> fn;
+        ClickFilter(std::function<void(int)> f, QObject* p)
+            : QObject(p), fn(std::move(f)) {}
+        bool eventFilter(QObject* obj, QEvent* ev) override {
+            if (ev->type() == QEvent::MouseButtonRelease) {
+                auto* fr = qobject_cast<QFrame*>(obj);
+                if (fr) fn(fr->property("testPageIdx").toInt());
+            }
+            return false;
+        }
+    };
+    auto* clickFilter = new ClickFilter(selectItem, outer);
+    for (QFrame* fr : itemFrames)
+        fr->installEventFilter(clickFilter);
+
+    /* Seleziona la prima voce all'avvio */
+    selectItem(0);
+
+    return outer;
+}
+
     /* Pagina dettaglio costruita on-demand (lazy): con 25 suite, costruirle
      * tutte eager nel QStackedWidget costava ~450ms nel costruttore di
      * ImpostazioniPage anche se se ne vede una sola alla volta — ogni pagina
      * ha ~10 QLabel RichText con HTML da parsare/layoutare. Un placeholder
      * vuoto occupa lo slot i-esimo dello stack finché non viene selezionato. */
-    auto buildDetailPage = [detailStack](int i) {
+QWidget* ImpostazioniPage::buildTestDetailPage(int i)
+{
         const auto& t   = kTests[i];
         const bool allOk  = (t.passed == t.total);
         const QString accentColor = allOk ? "#22c55e" : "#f59e0b";
@@ -712,101 +742,74 @@ QWidget* ImpostazioniPage::buildTestTab()
 
         play->addStretch();
         return page;
-    };
+}
 
-    QList<QFrame*> itemFrames;
-    QVector<bool>  pageBuilt(nTests, false);
-    for (int i = 0; i < nTests; i++) {
-        const auto& t   = kTests[i];
-        const bool allOk  = (t.passed == t.total);
-        const QString accentColor = allOk ? "#22c55e" : "#f59e0b";
+void ImpostazioniPage::buildTestRunSection(QFrame* leftPanel, QVBoxLayout* llay)
+{
+        auto* sepRun = new QFrame(leftPanel);
+        sepRun->setFrameShape(QFrame::HLine);
+        sepRun->setObjectName("cardSep");
+        llay->addWidget(sepRun);
 
-        /* ── Voce lista sinistra ── */
-        auto* item = new QFrame(listWidget);
-        item->setObjectName("testListItem");
-        item->setCursor(Qt::PointingHandCursor);
-        auto* irow = new QHBoxLayout(item);
-        irow->setContentsMargins(10, 8, 10, 8);
-        irow->setSpacing(8);
+        auto* runRow = new QWidget(leftPanel);
+        auto* runLay = new QHBoxLayout(runRow);
+        runLay->setContentsMargins(0, 0, 0, 0);
+        runLay->setSpacing(6);
 
-        /* pallino colorato pass/fail */
-        auto* dot = new QLabel(item);
-        dot->setFixedSize(10, 10);
-        dot->setStyleSheet(QString(
-            "background:%1; border-radius:5px;").arg(accentColor));
-        irow->addWidget(dot);
+        auto* btnBuild  = new QPushButton(
+            tr("\xf0\x9f\x94\xa8  Compila"), runRow);      /* 🔨 */
+        auto* btnRun    = new QPushButton(
+            tr("\xe2\x96\xb6  Esegui tutti"), runRow);     /* ▶ */
+        auto* btnStop   = new QPushButton(
+            tr("\xe2\x8f\xb9  Ferma"), runRow);            /* ⏹ */
+        btnBuild->setObjectName("actionBtn");
+        btnRun->setObjectName("actionBtn");
+        btnStop->setObjectName("actionBtn");
+        btnStop->setEnabled(false);
 
-        auto* lblName = new QLabel(t.suite, item);
-        lblName->setObjectName("cardDesc");
-        lblName->setWordWrap(false);
-        irow->addWidget(lblName, 1);
+        runLay->addWidget(btnBuild);
+        runLay->addWidget(btnRun);
+        runLay->addWidget(btnStop);
+        llay->addWidget(runRow);
 
-        auto* lblBadge = new QLabel(
-            QString("<b>%1/%2</b>").arg(t.passed).arg(t.total), item);
-        lblBadge->setTextFormat(Qt::RichText);
-        lblBadge->setStyleSheet(QString("color:%1; font-size:11px;").arg(accentColor));
-        irow->addWidget(lblBadge);
+        auto* runOut = new QTextEdit(leftPanel);
+        runOut->setReadOnly(true);
+        runOut->setObjectName("outputView");
+        runOut->setMinimumHeight(80);
+        runOut->setPlaceholderText(tr("Output test appare qui..."));
+        llay->addWidget(runOut);
 
-        listLay->addWidget(item);
+        /* QProcess vive finché il widget esiste */
+        auto* proc = new QProcess(leftPanel);
+        proc->setProcessChannelMode(QProcess::MergedChannels);
 
-        /* Placeholder vuoto — sostituito da buildDetailPage(i) alla prima selezione */
-        detailStack->addWidget(new QWidget(detailStack));
+        const QString qtGuiDir = P::root() + "/gui";
+        const QString buildDir = qtGuiDir + "/build_tests";
 
-        item->setProperty("testPageIdx", i);
-        item->setProperty("accentColor", accentColor);
-        itemFrames.append(item);
-    }
+        /* Salva puntatori come member variables per i slot */
+        m_testProc      = proc;
+        m_testRunOut    = runOut;
+        m_testBtnBuild  = btnBuild;
+        m_testBtnRun    = btnRun;
+        m_testBtnStop   = btnStop;
+        m_testBuildDir  = buildDir;
+        m_testQtGuiDir  = qtGuiDir;
 
-    listLay->addStretch();
-
-    /* ── Funzione highlight: aggiorna l'aspetto della voce selezionata ── */
-    auto selectItem = [itemFrames, detailStack, pageBuilt, buildDetailPage](int idx) mutable {
-        if (!pageBuilt[idx]) {
-            auto* placeholder = detailStack->widget(idx);
-            detailStack->removeWidget(placeholder);
-            placeholder->deleteLater();
-            detailStack->insertWidget(idx, buildDetailPage(idx));
-            pageBuilt[idx] = true;
-        }
-        detailStack->setCurrentIndex(idx);
-        for (int k = 0; k < itemFrames.size(); k++) {
-            QFrame* fr = itemFrames[k];
-            if (k == idx) {
-                /* bordo sinistro colorato con l'accent del test (verde o ambra) */
-                const QString ac = fr->property("accentColor").toString();
-                fr->setStyleSheet(
-                    QString("QFrame#testListItem { border-radius:6px; border:1px solid %1;"
-                            " border-left:3px solid %1; }").arg(ac));
-            } else {
-                fr->setStyleSheet(
-                    "QFrame#testListItem { border-radius:6px;"
-                    " border:1px solid rgba(255,255,255,0.07); }");
-            }
-        }
-    };
-
-    /* ── EventFilter click ── */
-    class ClickFilter : public QObject {
-    public:
-        std::function<void(int)> fn;
-        ClickFilter(std::function<void(int)> f, QObject* p)
-            : QObject(p), fn(std::move(f)) {}
-        bool eventFilter(QObject* obj, QEvent* ev) override {
-            if (ev->type() == QEvent::MouseButtonRelease) {
-                auto* fr = qobject_cast<QFrame*>(obj);
-                if (fr) fn(fr->property("testPageIdx").toInt());
-            }
-            return false;
-        }
-    };
-    auto* clickFilter = new ClickFilter(selectItem, outer);
-    for (QFrame* fr : itemFrames)
-        fr->installEventFilter(clickFilter);
-
-    /* Seleziona la prima voce all'avvio */
-    selectItem(0);
-
-    return outer;
+        connect(proc,    &QProcess::readyRead,
+                this,    &ImpostazioniPage::onTestProcReadyRead);
+        connect(proc,    QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+                this,    &ImpostazioniPage::onTestProcFinished);
+        connect(proc,    &QProcess::errorOccurred,
+                this,    [this](QProcess::ProcessError err) {
+            if (err == QProcess::FailedToStart)
+                qWarning() << "[ImpostazioniPage] test runner non avviato:" << m_testProc->program();
+        });
+        connect(btnBuild, &QPushButton::clicked,
+                this,     &ImpostazioniPage::onTestBuildClicked);
+        connect(btnRun,   &QPushButton::clicked,
+                this,     &ImpostazioniPage::onTestRunClicked);
+        connect(btnStop,  &QPushButton::clicked,
+                this,     &ImpostazioniPage::onTestStopClicked);
 }
 
 void ImpostazioniPage::onHWReady(HWInfo hw) {

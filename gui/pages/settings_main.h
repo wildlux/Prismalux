@@ -40,6 +40,7 @@ class QButtonGroup;
 class QTextEdit;
 class QGroupBox;
 class QVBoxLayout;
+class QFrame;
 class ToggleSwitch;
 
 /* ══════════════════════════════════════════════════════════════
@@ -208,6 +209,9 @@ private:
 
     QWidget* buildTemaTab();
     QWidget* buildTestTab();
+    /* Sezioni di buildTestTab (D-35: estrazione meccanica) */
+    void     buildTestRunSection(QFrame* leftPanel, QVBoxLayout* llay);
+    QWidget* buildTestDetailPage(int i);
     QWidget* buildVoceTab();
     QWidget* buildTrascriviTab();
     /* Sezioni di buildTrascriviTab (D-35: estrazione meccanica, una per card) */
