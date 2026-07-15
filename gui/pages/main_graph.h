@@ -432,6 +432,41 @@ signals:
 private:
     QWidget* buildLeftPanel();
     void     plot();
+    /* Un metodo per tipo di grafico (D-35: estrazione meccanica da plot()).
+       I gruppi con più ChartType condividono il corpo e ricevono `type`. */
+    void plotCartesiano();
+    void plotTortaIstogramma(int type);
+    void plotScatterXY();
+    void plotGrafo();
+    void plotScatter3D();
+    void plotSmithPrime();
+    void plotMathConst();
+    void plotGrafo3D();
+    void plotLineaAreaStep(int type);
+    void plotPolare();
+    void plotRadar();
+    void plotBolle();
+    void plotHeatmap();
+    void plotCandlestick();
+    void plotWaterfall();
+    void plotColumnFamily(int type);
+    void plotStackedFamily(int type);
+    void plotSunburst();
+    void plotBoxPlot();
+    void plotDensity();
+    void plotOhlc();
+    void plotGauge();
+    void plotBullet();
+    void plotGantt();
+    void plotParallelCoord();
+    void plotSankey();
+    void plotTree();
+    void plotChord();
+    void plotViolin();
+    void plotWordCloud();
+    void plotAlberoRadiale();
+    void plotLineaAnimata();
+    void plotSmallMultiples();
     void     analyzeImage();          ///< Invia immagine a modello vision → riempie formula
     void     populateTypeCombo(int tab); ///< Ripopola il combo con soli tipi 2D (tab=0) o 3D (tab=1)
     void     populateVisionCombo();   ///< Aggiorna m_visionCombo dai modelli disponibili
