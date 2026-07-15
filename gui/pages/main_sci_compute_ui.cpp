@@ -549,8 +549,13 @@ QWidget* SciComputePage::buildUi()
     wuGLay->setSpacing(dpiScale(4));
 
     m_wuTable = new QTableWidget(0, 7, wuGroup);
-    /* 4 righe × 22px + header 26px + margini = ~120px minimo visibile */
-    m_wuTable->setMinimumHeight(dpiScale(120));
+    /* Min basso (header + ~1 riga): quando lo splitter comprime la sezione
+       alta, un minimo grande (era 120px) impediva al QVBoxLayout di far
+       stare la riga di pulsanti sotto la tabella e la sovrapponeva (Qt non
+       scende sotto il minimumHeight). Con un minimo piccolo la tabella
+       diventa scrollabile e i pulsanti restano sempre visibili. La
+       dimensione naturale resta ampia grazie allo stretch qui sotto. */
+    m_wuTable->setMinimumHeight(dpiScale(48));
     m_wuTable->setHorizontalHeaderLabels(
         {tr("ID"), tr("Tipo"), tr("Label"), tr("Status"), tr("Nodo"), tr("Prior."), tr("Creato")});
     m_wuTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
