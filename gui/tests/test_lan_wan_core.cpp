@@ -7,6 +7,7 @@
      CAT-C  Rate limiting — chat e heavy endpoint
      CAT-D  Costruzione LanServer, start/stop, clientCount
      CAT-E  LanWanPage — rubrica persone autorizzate (accessList)
+     CAT-F  Fallback TLS→HTTP visibile (D-19/T-D19) — stato server + label ambra
 
    Tecnica CAT-E: #define private public per accedere a m_accessListTable /
    loadAccessList() / saveAccessList() (privati in LanWanPage).
@@ -466,6 +467,107 @@ private slots:
     }
 };
 
+/* ══════════════════════════════════════════════════════════════
+   CAT-F — Fallback TLS→HTTP visibile (D-19/T-D19)
+
+   D-19 ha reso il fallback silenzioso TLS→HTTP visibile in UI
+   (stato ambra "TLS non disponibile: token in chiaro"). T-D19
+   chiedeva la verifica manuale (rinominare il cert / disinstallare
+   openssl): qui la stessa condizione è riprodotta da riga di
+   comando — HOME → dir temporanea senza ~/.prismalux/server.crt,
+   PATH senza openssl → _ensureCert() fallisce → start() ripiega
+   su HTTP con isTlsRequested()==true e isTlsEnabled()==false,
+   esattamente la condizione che onLanServerStatusChanged() mappa
+   sullo stato ambra. La label è verificata chiamando lo slot reale.
+   ══════════════════════════════════════════════════════════════ */
+class TestTlsFallback : public QObject {
+    Q_OBJECT
+private:
+    QByteArray m_oldHome, m_oldPath;
+
+private slots:
+    void init() {
+        m_oldHome = qgetenv("HOME");
+        m_oldPath = qgetenv("PATH");
+    }
+    void cleanup() {
+        qputenv("HOME", m_oldHome);
+        qputenv("PATH", m_oldPath);
+    }
+
+    /* F-1: senza cert né openssl, TLS richiesto → fallback HTTP rilevabile */
+    void fallbackHttpSenzaCertNeOpenssl() {
+        QTemporaryDir tmp;
+        QVERIFY(tmp.isValid());
+        qputenv("HOME", tmp.path().toUtf8());   /* niente ~/.prismalux/server.crt */
+        qputenv("PATH", "/nonexistent");         /* openssl irraggiungibile */
+
+        AiClient ai;
+        LanServer srv(&ai);
+        srv.setTlsEnabled(true);
+        const quint16 testPort = 49215;
+        if (!srv.start(testPort)) QSKIP("Porta 49215 già in uso — skip");
+        QVERIFY(srv.isRunning());
+        QVERIFY(srv.isTlsRequested());
+        QVERIFY2(!srv.isTlsEnabled(),
+                 "senza cert e senza openssl il server deve ripiegare su HTTP "
+                 "(condizione ambra di onLanServerStatusChanged)");
+        srv.blockSignals(true);
+        srv.stop();
+    }
+
+    /* F-2: TLS disattivato esplicitamente → nessuna condizione ambra
+       (richiesto==attivo==false, l'avviso non deve scattare) */
+    void tlsNonRichiestoNessunAllarme() {
+        QTemporaryDir tmp;
+        QVERIFY(tmp.isValid());
+        qputenv("HOME", tmp.path().toUtf8());
+        qputenv("PATH", "/nonexistent");
+
+        AiClient ai;
+        LanServer srv(&ai);
+        srv.setTlsEnabled(false);
+        const quint16 testPort = 49216;
+        if (!srv.start(testPort)) QSKIP("Porta 49216 già in uso — skip");
+        QVERIFY(srv.isRunning());
+        QVERIFY(!srv.isTlsRequested());
+        QVERIFY(!srv.isTlsEnabled());
+        srv.blockSignals(true);
+        srv.stop();
+    }
+
+    /* F-3: label ambra quando TLS richiesto ma non attivo — slot UI reale.
+       Il server della pagina NON viene avviato: setTlsEnabled(true) basta a
+       creare lo stato richiesto≠attivo che onLanServerStatusChanged() legge. */
+    void labelAmbraSuFallback() {
+        MockAiClient ai;
+        auto* page = new LanWanPage(&ai);
+        /* m_lanServer è creato lazy in onLanToggleBtnToggled(): qui lo si
+           crea allo stesso modo, senza avviarlo — richiesto≠attivo basta */
+        page->m_lanServer = new LanServer(&ai, page);
+        page->m_lanServer->setTlsEnabled(true);
+        QVERIFY(!page->m_lanServer->isTlsEnabled());
+        page->onLanServerStatusChanged(true);
+        QVERIFY2(page->m_lanStatusLbl->text().contains("TLS non disponibile"),
+                 "con TLS richiesto ma non attivo la label deve avvisare del fallback");
+        QVERIFY2(page->m_lanStatusLbl->styleSheet().contains("#f59e0b"),
+                 "lo stato fallback deve essere ambra, non verde");
+        delete page;
+    }
+
+    /* F-4: nessun avviso quando TLS non è richiesto (HTTP scelto, non subito) */
+    void labelSenzaAvvisoSeTlsNonRichiesto() {
+        MockAiClient ai;
+        auto* page = new LanWanPage(&ai);
+        page->m_lanServer = new LanServer(&ai, page);
+        page->m_lanServer->setTlsEnabled(false);
+        page->onLanServerStatusChanged(true);
+        QVERIFY(!page->m_lanStatusLbl->text().contains("TLS non disponibile"));
+        QVERIFY(!page->m_lanStatusLbl->styleSheet().contains("#f59e0b"));
+        delete page;
+    }
+};
+
 int main(int argc, char* argv[])
 {
     QApplication app(argc, argv);
@@ -475,6 +577,7 @@ int main(int argc, char* argv[])
     { TestRateLimit         t; ret |= QTest::qExec(&t, argc, argv); }
     { TestLanServerLifecycle t; ret |= QTest::qExec(&t, argc, argv); }
     { TestAccessList        t; ret |= QTest::qExec(&t, argc, argv); }
+    { TestTlsFallback       t; ret |= QTest::qExec(&t, argc, argv); }
     return ret;
 }
 #include "test_lan_wan_core.moc"
