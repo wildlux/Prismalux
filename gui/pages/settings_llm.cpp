@@ -504,7 +504,7 @@ QWidget* ImpostazioniPage::buildTestTab()
     llay->setSpacing(6);
 
     auto* title = new QLabel(
-        "\xe2\x9c\x85  Registro Test", leftPanel);   /* ✅ */
+        tr("\xe2\x9c\x85  Registro Test"), leftPanel);   /* ✅ */
     title->setObjectName("cardTitle");
     llay->addWidget(title);
 
@@ -546,11 +546,11 @@ QWidget* ImpostazioniPage::buildTestTab()
         runLay->setSpacing(6);
 
         auto* btnBuild  = new QPushButton(
-            "\xf0\x9f\x94\xa8  Compila", runRow);      /* 🔨 */
+            tr("\xf0\x9f\x94\xa8  Compila"), runRow);      /* 🔨 */
         auto* btnRun    = new QPushButton(
-            "\xe2\x96\xb6  Esegui tutti", runRow);     /* ▶ */
+            tr("\xe2\x96\xb6  Esegui tutti"), runRow);     /* ▶ */
         auto* btnStop   = new QPushButton(
-            "\xe2\x8f\xb9  Ferma", runRow);            /* ⏹ */
+            tr("\xe2\x8f\xb9  Ferma"), runRow);            /* ⏹ */
         btnBuild->setObjectName("actionBtn");
         btnRun->setObjectName("actionBtn");
         btnStop->setObjectName("actionBtn");
@@ -678,7 +678,7 @@ QWidget* ImpostazioniPage::buildTestTab()
         pCardLay->setSpacing(6);
 
         auto* pCasesTitle = new QLabel(
-            "\xf0\x9f\x94\xac  <b>Casi testati:</b>", pCard);   /* 🔬 */
+            tr("\xf0\x9f\x94\xac  <b>Casi testati:</b>"), pCard);   /* 🔬 */
         pCasesTitle->setObjectName("cardDesc");
         pCasesTitle->setTextFormat(Qt::RichText);
         pCardLay->addWidget(pCasesTitle);
@@ -1305,7 +1305,7 @@ QWidget* ImpostazioniPage::buildLlmConsigliatiTab()
     rightLay->addWidget(customSep);
 
     auto* customLbl = new QLabel(
-        "\xf0\x9f\x94\x97  Scarica GGUF da URL personalizzato (HuggingFace):", rightGroup);
+        tr("\xf0\x9f\x94\x97  Scarica GGUF da URL personalizzato (HuggingFace):"), rightGroup);
     customLbl->setObjectName("hintLabel");
     rightLay->addWidget(customLbl);
 
@@ -1317,7 +1317,7 @@ QWidget* ImpostazioniPage::buildLlmConsigliatiTab()
     auto* customEdit = new QLineEdit(rightGroup);
     customEdit->setObjectName("chatInput");
     customEdit->setPlaceholderText(
-        "https://huggingface.co/.../resolve/main/modello.gguf");
+        tr("https://huggingface.co/.../resolve/main/modello.gguf"));
     m_llmCustomEdit = customEdit;
     auto* customDlBtn = new QPushButton(tr("\xe2\xac\x87  Scarica"), rightGroup);
     customDlBtn->setObjectName("actionBtn");
@@ -1627,8 +1627,8 @@ QWidget* ImpostazioniPage::buildLlmClassificaTab()
     table->setObjectName("modelsList");
     table->setColumnCount(9);
     table->setHorizontalHeaderLabels({
-        "#", "Modello", "Param.", "RAM Q4",
-        "Score", "Velocit\xc3\xa0", "\xe2\x89\xa4" "64GB", "VRAM (GB)", "Categoria"
+        tr("#"), tr("Modello"), tr("Param."), tr("RAM Q4"),
+        tr("Score"), tr("Velocit\xc3\xa0"), tr("\xe2\x89\xa4" "64GB"), tr("VRAM (GB)"), tr("Categoria")
     });
     table->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
     table->horizontalHeader()->setSectionResizeMode(8, QHeaderView::ResizeToContents);
@@ -1654,7 +1654,7 @@ QWidget* ImpostazioniPage::buildLlmClassificaTab()
     detailLay->setSpacing(10);
 
     auto* detailLbl = new QLabel(
-        "<span style='color:#94a3b8;'>Seleziona una riga per i dettagli e l'installazione rapida.</span>",
+        tr("<span style='color:#94a3b8;'>Seleziona una riga per i dettagli e l'installazione rapida.</span>"),
         detailGroup);
     detailLbl->setTextFormat(Qt::RichText);
     detailLbl->setWordWrap(true);
@@ -1860,7 +1860,7 @@ QWidget* ImpostazioniPage::buildLlmClassificaTab()
         if (row < 0 || row >= table->rowCount()) {
             installBtn->setEnabled(false);
             detailLbl->setText(
-                "<span style='color:#94a3b8;'>Seleziona una riga per i dettagli.</span>");
+                tr("<span style='color:#94a3b8;'>Seleziona una riga per i dettagli.</span>"));
             return;
         }
         const int idx = table->item(row, 1)->data(Qt::UserRole).toInt();
@@ -1940,7 +1940,7 @@ QWidget* ImpostazioniPage::buildBenchmarkLocaleTab()
     table->setObjectName("modelsList");
     table->setColumnCount(5);
     table->setHorizontalHeaderLabels({
-        "Modello", "T ottimale", "Score", "Tempo", "Note"
+        tr("Modello"), tr("T ottimale"), tr("Score"), tr("Tempo"), tr("Note")
     });
     table->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
     table->horizontalHeader()->setSectionResizeMode(4, QHeaderView::ResizeToContents);
@@ -2026,13 +2026,13 @@ QWidget* ImpostazioniPage::buildBenchmarkLocaleTab()
     actLay->setSpacing(10);
 
     auto* runBtn = new QPushButton(
-        "\xf0\x9f\x94\x84  Riesegui benchmark", actRow);  /* 🔄 */
+        tr("\xf0\x9f\x94\x84  Riesegui benchmark"), actRow);  /* 🔄 */
     runBtn->setObjectName("actionBtn");
     runBtn->setFixedWidth(dpiScale(190));
     m_benchmarkRunBtn = runBtn;
 
     auto* statusLbl = new QLabel(
-        "<span style='color:#64748b;'>Premi per avviare — output in benchmark_out/</span>",
+        tr("<span style='color:#64748b;'>Premi per avviare — output in benchmark_out/</span>"),
         actRow);
     statusLbl->setTextFormat(Qt::RichText);
     m_benchmarkStatusLbl = statusLbl;
@@ -2062,7 +2062,7 @@ void ImpostazioniPage::onBenchmarkRunClicked()
     if (m_benchmarkRunBtn) m_benchmarkRunBtn->setText(tr("\xe2\x96\xa0  Stop benchmark"));
     if (m_benchmarkStatusLbl)
         m_benchmarkStatusLbl->setText(
-            "<span style='color:#facc15;'>\xe2\x8f\xb3 Benchmark in corso...</span>");
+            tr("<span style='color:#facc15;'>\xe2\x8f\xb3 Benchmark in corso...</span>"));
 
     m_benchmarkProc = new QProcess(this);
     m_benchmarkProc->setWorkingDirectory(P::root());
@@ -2076,7 +2076,7 @@ void ImpostazioniPage::onBenchmarkRunClicked()
             qWarning() << "[ImpostazioniPage] benchmark python non avviato:" << m_benchmarkProc->program();
             if (m_benchmarkStatusLbl)
                 m_benchmarkStatusLbl->setText(
-                    "<span style='color:#f87171;'>\xe2\x9d\x8c Python non trovato nel PATH.</span>");
+                    tr("<span style='color:#f87171;'>\xe2\x9d\x8c Python non trovato nel PATH.</span>"));
             if (m_benchmarkRunBtn)
                 m_benchmarkRunBtn->setText(tr("\xf0\x9f\x94\x84  Riesegui benchmark"));
         }

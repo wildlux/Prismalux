@@ -384,7 +384,7 @@ IdroWidget::IdroWidget(QWidget* parent)
     makeNutRow(tr("Integratore C:"),  m_nutCDoseSpin, m_nutCResLbl, dosiBox);
 
     auto* calcDosiBtn = new QPushButton(
-        "\xe2\x9a\x97  CALCOLA DOSI", dosiBox);  /* ⚗ */
+        tr("\xe2\x9a\x97  CALCOLA DOSI"), dosiBox);  /* ⚗ */
     calcDosiBtn->setObjectName("actionBtn");
     calcDosiBtn->setMinimumHeight(dpiScale(36));
     dosiFrm->addRow(calcDosiBtn);

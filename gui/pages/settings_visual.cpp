@@ -116,7 +116,7 @@ QWidget* ImpostazioniPage::buildTemaTab() {
         sysLay->setSpacing(12);
 
         sysCb = new QCheckBox(
-            "\xf0\x9f\x8c\x99  Segui tema di sistema (Dark/Light automatico)", secSystem);
+            tr("\xf0\x9f\x8c\x99  Segui tema di sistema (Dark/Light automatico)"), secSystem);
         sysCb->setObjectName("cardDesc");
         sysCb->setToolTip(
             "Quando attivo, Prismalux segue automaticamente il tema chiaro/scuro\n"
@@ -143,7 +143,7 @@ QWidget* ImpostazioniPage::buildTemaTab() {
         bolleLay->setSpacing(10);
 
         auto* bolleTitle = new QLabel(
-            "\xf0\x9f\x92\xac  <b>Aspetto bolle chat</b>", secBolle);
+            tr("\xf0\x9f\x92\xac  <b>Aspetto bolle chat</b>"), secBolle);
         bolleTitle->setObjectName("cardTitle");
         bolleTitle->setTextFormat(Qt::RichText);
         bolleLay->addWidget(bolleTitle);
@@ -203,7 +203,7 @@ QWidget* ImpostazioniPage::buildTemaTab() {
         navLay->setSpacing(8);
 
         auto* navTitle = new QLabel(
-            "\xf0\x9f\x8f\xb7\xef\xb8\x8f  <b>Modalit\xc3\xa0 etichette tab</b>", secNav);
+            tr("\xf0\x9f\x8f\xb7\xef\xb8\x8f  <b>Modalit\xc3\xa0 etichette tab</b>"), secNav);
         navTitle->setObjectName("cardTitle");
         navTitle->setTextFormat(Qt::RichText);
         navTitle->setToolTip(tr("Scegli come visualizzare le etichette dei tab principali."));
@@ -250,11 +250,11 @@ QWidget* ImpostazioniPage::buildTemaTab() {
         sLay->setSpacing(8);
 
         auto* sTitle = new QLabel(
-            "\xf0\x9f\x97\x82\xef\xb8\x8f  <b>Stile navigazione</b>", secStyle);
+            tr("\xf0\x9f\x97\x82\xef\xb8\x8f  <b>Stile navigazione</b>"), secStyle);
         sTitle->setObjectName("cardTitle");
         sTitle->setTextFormat(Qt::RichText);
         sTitle->setToolTip(
-            "Schede in alto (predefinito) oppure\nmen\xc3\xb9 orizzontale a pulsanti con categorie.");
+            tr("Schede in alto (predefinito) oppure\nmen\xc3\xb9 orizzontale a pulsanti con categorie."));
         sLay->addWidget(sTitle);
 
         struct NavStyleOpt { const char* label; const char* value; };
@@ -295,7 +295,7 @@ QWidget* ImpostazioniPage::buildTemaTab() {
         eLay->setSpacing(8);
 
         auto* eTitle = new QLabel(
-            "\xe2\x96\xb6  <b>Pulsanti di esecuzione</b>", secExec);
+            tr("\xe2\x96\xb6  <b>Pulsanti di esecuzione</b>"), secExec);
         eTitle->setObjectName("cardTitle");
         eTitle->setTextFormat(Qt::RichText);
         eTitle->setToolTip(tr("Avvia, Stop, Esegui, Calcola e simili \xe2\x80\x94 in tutte le schede."));
@@ -340,14 +340,14 @@ QWidget* ImpostazioniPage::buildTemaTab() {
         emLay->setSpacing(8);
 
         auto* emTitle = new QLabel(
-            "\xf0\x9f\x8e\xad  <b>Icone modalit\xc3\xa0 AI</b>", secEmoji);
+            tr("\xf0\x9f\x8e\xad  <b>Icone modalit\xc3\xa0 AI</b>"), secEmoji);
         emTitle->setObjectName("cardTitle");
         emTitle->setTextFormat(Qt::RichText);
         emTitle->setToolTip(tr("Stile emoji nel pulsante TriMode (Chat / Agentico / Conversa)."));
         emLay->addWidget(emTitle);
 
         auto* emDesc = new QLabel(
-            "Scegli come vengono visualizzate le emoji nel pulsante circolare AI.", secEmoji);
+            tr("Scegli come vengono visualizzate le emoji nel pulsante circolare AI."), secEmoji);
         emDesc->setObjectName("cardDesc");
         emDesc->setWordWrap(true);
         emLay->addWidget(emDesc);
@@ -399,13 +399,13 @@ QWidget* ImpostazioniPage::buildTemaTab() {
         shLay->setSpacing(8);
 
         auto* shTitle = new QLabel(
-            "\xf0\x9f\x94\xb3  <b>Forma pulsante AI</b>", secShape);
+            tr("\xf0\x9f\x94\xb3  <b>Forma pulsante AI</b>"), secShape);
         shTitle->setObjectName("cardTitle");
         shTitle->setTextFormat(Qt::RichText);
         shLay->addWidget(shTitle);
 
         auto* shDesc = new QLabel(
-            "Scegli la forma del pulsante Chat / Agentico / Conversa.", secShape);
+            tr("Scegli la forma del pulsante Chat / Agentico / Conversa."), secShape);
         shDesc->setObjectName("cardDesc");
         shDesc->setWordWrap(true);
         shLay->addWidget(shDesc);

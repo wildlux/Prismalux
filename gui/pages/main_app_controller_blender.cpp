@@ -274,7 +274,7 @@ QWidget* AppControllerPage::buildBlenderTab()
     m_blenderStatusLbl->setObjectName("hintLabel");
 
     m_blenderExecBtn = new QPushButton(
-        "\xe2\x96\xb6  Esegui in Blender", connRow);
+        tr("\xe2\x96\xb6  Esegui in Blender"), connRow);
     m_blenderExecBtn->setObjectName("actionBtn");
     m_blenderExecBtn->setFixedWidth(dpiScale(160));
     m_blenderExecBtn->setEnabled(false);

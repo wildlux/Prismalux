@@ -92,7 +92,7 @@ OpenCodePage::OpenCodePage(QWidget* parent) : QWidget(parent) {
     /* ── Input area ── */
     m_input = new QTextEdit(this);
     m_input->setPlaceholderText(
-        "Descrivi il task di codice... (Es: \"Aggiungi un metodo toString() alla classe Foo in src/foo.cpp\")");
+        tr("Descrivi il task di codice... (Es: \"Aggiungi un metodo toString() alla classe Foo in src/foo.cpp\")"));
     m_input->setFixedHeight(dpiScale(90));
 
     auto* btnRow = new QHBoxLayout;

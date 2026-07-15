@@ -240,7 +240,7 @@ QWidget* ProgrammazionePage::buildGitOutputGroup(QWidget* parent,
     m_gitOutput->setReadOnly(true);
     m_gitOutput->setMaximumBlockCount(3000);
     m_gitOutput->setPlaceholderText(
-        "L'output dei comandi git appari\xc3\xa0 qui.\n\nPremi Status per iniziare.");
+        tr("L'output dei comandi git appari\xc3\xa0 qui.\n\nPremi Status per iniziare."));
     outLay->addWidget(m_gitOutput, 1);
 
     auto* outActRow = new QWidget(outGroup);
@@ -255,7 +255,7 @@ QWidget* ProgrammazionePage::buildGitOutputGroup(QWidget* parent,
     outBtnGitAi = new QPushButton(tr("\xf0\x9f\xa4\x96  Analizza con AI"), outActRow);
     outBtnGitAi->setObjectName("actionBtn");
     outBtnGitAi->setToolTip(
-        "L'AI spiega l'output e suggerisce le prossime operazioni");
+        tr("L'AI spiega l'output e suggerisce le prossime operazioni"));
     outActLay->addWidget(outBtnGitAi);
 
     outBtnGenCommit = new QPushButton(tr("\xe2\x9c\x8f  Genera commit msg"), outActRow);
@@ -537,7 +537,7 @@ QWidget* ProgrammazionePage::buildReplHeader(QWidget* parent,
     outBtnImport = new QPushButton(tr("\xe2\x86\x90  Importa dall'editor"), hdr);
     outBtnImport->setObjectName("actionBtn");
     outBtnImport->setToolTip(
-        "Esegue nel REPL il codice presente nel tab \xf0\x9f\x92\xbb Programmazione");
+        tr("Esegue nel REPL il codice presente nel tab \xf0\x9f\x92\xbb Programmazione"));
     hdrLay->addWidget(outBtnImport);
 
     return hdr;
@@ -554,7 +554,7 @@ QWidget* ProgrammazionePage::buildReplOutputGroup(QWidget* parent,
     monoFont.setPointSize(appPt > 0 ? appPt : 10);
 
     auto* outGroup = new QGroupBox(
-        "\xf0\x9f\x96\xa5  Output sessione Python", parent);
+        tr("\xf0\x9f\x96\xa5  Output sessione Python"), parent);
     outGroup->setObjectName("cardGroup");
     auto* outLay = new QVBoxLayout(outGroup);
     outLay->setContentsMargins(4, 8, 4, 4);
@@ -566,7 +566,7 @@ QWidget* ProgrammazionePage::buildReplOutputGroup(QWidget* parent,
     m_replOutput->setReadOnly(true);
     m_replOutput->setMaximumBlockCount(5000);
     m_replOutput->setPlaceholderText(
-        "Premi \xf0\x9f\x94\x84 Riavvia REPL per avviare una sessione Python...");
+        tr("Premi \xf0\x9f\x94\x84 Riavvia REPL per avviare una sessione Python..."));
     outLay->addWidget(m_replOutput, 1);
 
     outBtnClear = new QPushButton(tr("\xf0\x9f\x97\x91  Pulisci output"), outGroup);

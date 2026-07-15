@@ -93,7 +93,7 @@ CodingLabWidget::CodingLabWidget(AiClient* ai, QWidget* parent)
     resLayout->addWidget(m_outputView);
 
     auto* anecLbl = new QLabel(
-        "\xf0\x9f\x92\xa1 <b>Aneddoto per crescere:</b>", m_resultArea);
+        tr("\xf0\x9f\x92\xa1 <b>Aneddoto per crescere:</b>"), m_resultArea);
     resLayout->addWidget(anecLbl);
     m_anecdoteView = new QTextBrowser(m_resultArea);
     m_anecdoteView->setMinimumHeight(60);
@@ -117,7 +117,7 @@ CodingLabWidget::CodingLabWidget(AiClient* ai, QWidget* parent)
     modLayout->setSpacing(6);
 
     auto* modTitle = new QLabel(
-        "<b>\xf0\x9f\x94\xa7 Cosa vuoi modificare?</b>", m_modArea);
+        tr("<b>\xf0\x9f\x94\xa7 Cosa vuoi modificare?</b>"), m_modArea);
     modLayout->addWidget(modTitle);
     m_modInput = new QTextEdit(m_modArea);
     m_modInput->setPlaceholderText(tr("Es: \"Mostra anche i numeri dispari\" oppure \"Aggiungi i commenti al codice\""));

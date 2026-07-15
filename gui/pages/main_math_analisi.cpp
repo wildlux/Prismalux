@@ -386,7 +386,7 @@ QWidget* MatematicaPage::buildAnalisi1Tab()
     topRow->addWidget(m_a1TopicCmb, 1);
 
     auto* btnAiExplain = new QPushButton(
-        "\xf0\x9f\xa4\x96  Spiega con AI", w);
+        tr("\xf0\x9f\xa4\x96  Spiega con AI"), w);
     btnAiExplain->setObjectName("actionBtn");
     btnAiExplain->setProperty("analisiLevel", 1);
     connect(btnAiExplain, &QPushButton::clicked, this, &MatematicaPage::onA1AiClicked);
@@ -418,7 +418,7 @@ QWidget* MatematicaPage::buildAnalisi1Tab()
     m_a1TypeCmb = makeAnalisiTypeCmb(w);
     tryRow->addWidget(m_a1TypeCmb);
     auto* btnTry = new QPushButton(
-        "\xf0\x9f\x93\x90  Risolvi nella scheda accanto", w);
+        tr("\xf0\x9f\x93\x90  Risolvi nella scheda accanto"), w);
     btnTry->setObjectName("actionBtn");
     btnTry->setProperty("highlight", "true");
     btnTry->setToolTip(
@@ -428,7 +428,7 @@ QWidget* MatematicaPage::buildAnalisi1Tab()
     tryRow->addWidget(btnTry);
 
     auto* btnQuickPlot1 = new QPushButton(
-        "\xf0\x9f\x93\x88  Disegna grafico", w);
+        tr("\xf0\x9f\x93\x88  Disegna grafico"), w);
     btnQuickPlot1->setObjectName("actionBtn");
     btnQuickPlot1->setToolTip(tr("Copia l'espressione nel campo Grafico e traccia subito"));
     connect(btnQuickPlot1, &QPushButton::clicked, this, [this]() {
@@ -446,7 +446,7 @@ QWidget* MatematicaPage::buildAnalisi1Tab()
     m_a1PlotInput->setPlaceholderText(tr("f(x) da disegnare nel canvas"));
     plotRow->addWidget(m_a1PlotInput, 1);
     auto* btnPlot1 = new QPushButton(
-        "\xf0\x9f\x93\x88  Disegna grafico", w);
+        tr("\xf0\x9f\x93\x88  Disegna grafico"), w);
     btnPlot1->setObjectName("actionBtn");
     btnPlot1->setToolTip(tr("Traccia f(x) nel canvas a destra"));
     connect(btnPlot1, &QPushButton::clicked, this, &MatematicaPage::onA1PlotClicked);
@@ -496,7 +496,7 @@ QWidget* MatematicaPage::buildAnalisi2Tab()
     topRow->addWidget(m_a2TopicCmb, 1);
 
     auto* btnAiExplain = new QPushButton(
-        "\xf0\x9f\xa4\x96  Spiega con AI", w);
+        tr("\xf0\x9f\xa4\x96  Spiega con AI"), w);
     btnAiExplain->setObjectName("actionBtn");
     connect(btnAiExplain, &QPushButton::clicked, this, &MatematicaPage::onA2AiClicked);
     topRow->addWidget(btnAiExplain);
@@ -561,7 +561,7 @@ QWidget* MatematicaPage::buildAnalisi2Tab()
     m_a2TypeCmb = makeAnalisiTypeCmb(w);
     tryRow->addWidget(m_a2TypeCmb);
     auto* btnTry = new QPushButton(
-        "\xf0\x9f\x93\x90  Risolvi nella scheda accanto", w);
+        tr("\xf0\x9f\x93\x90  Risolvi nella scheda accanto"), w);
     btnTry->setObjectName("actionBtn");
     btnTry->setProperty("highlight", "true");
     btnTry->setToolTip(
@@ -571,7 +571,7 @@ QWidget* MatematicaPage::buildAnalisi2Tab()
     tryRow->addWidget(btnTry);
 
     auto* btnQuickPlot = new QPushButton(
-        "\xf0\x9f\x93\x88  Disegna grafico", w);
+        tr("\xf0\x9f\x93\x88  Disegna grafico"), w);
     btnQuickPlot->setObjectName("actionBtn");
     btnQuickPlot->setToolTip(tr("Copia l'espressione nel campo Grafico e traccia subito"));
     connect(btnQuickPlot, &QPushButton::clicked, this, [this]() {
@@ -589,7 +589,7 @@ QWidget* MatematicaPage::buildAnalisi2Tab()
     m_a2PlotInput->setPlaceholderText(tr("f(x,y) — con 'y' \xe2\x86\x92 3D"));
     plotRow->addWidget(m_a2PlotInput, 1);
     auto* btnPlot2 = new QPushButton(
-        "\xf0\x9f\x93\x88  Disegna grafico", w);
+        tr("\xf0\x9f\x93\x88  Disegna grafico"), w);
     btnPlot2->setObjectName("actionBtn");
     btnPlot2->setToolTip(tr("Traccia f(x) o f(x,y) nel canvas a destra"));
     connect(btnPlot2, &QPushButton::clicked, this, &MatematicaPage::onA2PlotClicked);

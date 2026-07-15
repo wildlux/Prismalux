@@ -349,7 +349,7 @@ QWidget* ProgrammazionePage::buildPolicyTab(QWidget* parent)
 
     /* ── Input descrizione ── */
     auto* descGroup = new QGroupBox(
-        "\xf0\x9f\x93\x9d  Descrivi la policy (in linguaggio naturale)", w);
+        tr("\xf0\x9f\x93\x9d  Descrivi la policy (in linguaggio naturale)"), w);
     auto* descLay = new QVBoxLayout(descGroup);
     m_policyDesc = new QTextEdit(descGroup);
     m_policyDesc->setPlaceholderText(
@@ -362,7 +362,7 @@ QWidget* ProgrammazionePage::buildPolicyTab(QWidget* parent)
 
     /* ── Output policy ── */
     auto* outGroup = new QGroupBox(
-        "\xf0\x9f\x93\x84  Policy generata (modificabile — pronta per copia/incolla)", w);
+        tr("\xf0\x9f\x93\x84  Policy generata (modificabile — pronta per copia/incolla)"), w);
     auto* outLay = new QVBoxLayout(outGroup);
     m_policyOutput = new QTextEdit(outGroup);
     m_policyOutput->setFont(QFont("JetBrains Mono,Fira Code,Consolas,Monospace", 9));

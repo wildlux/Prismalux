@@ -190,7 +190,7 @@ QWidget* RicercaPage::buildAstraleTab()
 
     /* Domanda facoltativa — toggle collassa/espande su clic barra */
     auto* focusToggle = new QPushButton(
-        "\xe2\x96\xba  Domanda / focus (opzionale)", formGroup);
+        tr("\xe2\x96\xba  Domanda / focus (opzionale)"), formGroup);
     focusToggle->setCheckable(true);
     focusToggle->setChecked(false);
     focusToggle->setFlat(true);
@@ -264,7 +264,7 @@ QWidget* RicercaPage::buildAstraleTab()
     chartBtnRow->setContentsMargins(4, 0, 4, 4);
     chartBtnRow->setSpacing(6);
     auto* btnSavePng = new QPushButton(
-        "\xf0\x9f\x96\xbc  Salva immagine .png", chartContainer);  /* 🖼 */
+        tr("\xf0\x9f\x96\xbc  Salva immagine .png"), chartContainer);  /* 🖼 */
     btnSavePng->setObjectName("actionBtn");
     btnSavePng->setToolTip(tr("Salva la ruota astrale come file PNG ad alta risoluzione"));
     chartBtnRow->addWidget(btnSavePng);

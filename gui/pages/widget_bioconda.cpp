@@ -67,7 +67,7 @@ BiocondaWidget::BiocondaWidget(AiClient* ai, QWidget* parent)
     lay->addWidget(medFrame);
 
     auto* descLbl = new QLabel(
-        "\xf0\x9f\x8c\xbf  <i>Bioconda \xe2\x80\x94 Repository specializzato di software bioinformatico.</i>", this);
+        tr("\xf0\x9f\x8c\xbf  <i>Bioconda \xe2\x80\x94 Repository specializzato di software bioinformatico.</i>"), this);
     descLbl->setObjectName("hintLabel");
     descLbl->setTextFormat(Qt::RichText);
     descLbl->setWordWrap(true);

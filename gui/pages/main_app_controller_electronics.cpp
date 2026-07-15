@@ -195,7 +195,7 @@ QWidget* AppControllerPage::buildKiCADTab()
     m_kicadStatusLbl->setObjectName("hintLabel");
 
     m_kicadExecBtn = new QPushButton(
-        "\xf0\x9f\x96\xa5  Esegui in KiCAD", connRow);
+        tr("\xf0\x9f\x96\xa5  Esegui in KiCAD"), connRow);
     m_kicadExecBtn->setObjectName("actionBtn");
     m_kicadExecBtn->setFixedWidth(dpiScale(160));
     m_kicadExecBtn->setEnabled(false);
@@ -353,7 +353,7 @@ QWidget* AppControllerPage::buildTinyMCPTab()
     m_mcuStatusLbl->setObjectName("hintLabel");
 
     m_mcuFlashBtn = new QPushButton(
-        "\xe2\x9a\xa1  Flash MCU", connRow);
+        tr("\xe2\x9a\xa1  Flash MCU"), connRow);
     m_mcuFlashBtn->setObjectName("actionBtn");
     m_mcuFlashBtn->setFixedWidth(dpiScale(130));
     m_mcuFlashBtn->setEnabled(false);
@@ -396,7 +396,7 @@ QWidget* AppControllerPage::buildTinyMCPTab()
         warnLbl->setStyleSheet("color:#fcd34d;background:transparent;border:none;");
 
         auto* goBtn = new QPushButton(
-            "\xe2\x9a\x99\xef\xb8\x8f  Installa in Impostazioni", banner);
+            tr("\xe2\x9a\x99\xef\xb8\x8f  Installa in Impostazioni"), banner);
         goBtn->setObjectName("actionBtn");
         goBtn->setFixedWidth(dpiScale(195));
 
@@ -826,7 +826,7 @@ QWidget* AppControllerPage::buildOBSTab()
         warnLbl->setStyleSheet("color:#fcd34d;background:transparent;border:none;");
 
         auto* goBtn = new QPushButton(
-            "\xe2\x9a\x99\xef\xb8\x8f  Installa in Impostazioni", banner);
+            tr("\xe2\x9a\x99\xef\xb8\x8f  Installa in Impostazioni"), banner);
         goBtn->setObjectName("actionBtn");
         goBtn->setFixedWidth(dpiScale(195));
 

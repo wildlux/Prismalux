@@ -162,7 +162,7 @@ void MainWindow::ensureLogDialog()
     lay->setSpacing(8);
 
     auto* header = new QLabel(
-        "\xf0\x9f\x93\x8b  <b>Log eventi</b> \xe2\x80\x94 backend, AI, pipeline, errori");
+        tr("\xf0\x9f\x93\x8b  <b>Log eventi</b> \xe2\x80\x94 backend, AI, pipeline, errori"));
     header->setTextFormat(Qt::RichText);
     header->setObjectName("sectionTitle");
     lay->addWidget(header);

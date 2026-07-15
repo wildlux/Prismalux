@@ -79,7 +79,7 @@ QWidget* ProgrammazionePage::buildNetworkAnalyzer(QWidget* parent)
     /* Stato tool */
     if (m_netTool.isEmpty()) {
         m_netStatus->setText(
-            "\xe2\x9d\x8c  Nessun tool trovato. Installa tshark: sudo apt install tshark");
+            tr("\xe2\x9d\x8c  Nessun tool trovato. Installa tshark: sudo apt install tshark"));
         m_btnNetStart->setEnabled(false);
     } else {
         m_netStatus->setText(
@@ -177,7 +177,7 @@ QWidget* ProgrammazionePage::buildNetLogSplitter(QWidget* parent)
     m_netAiOutput = new QTextEdit(splitter);
     m_netAiOutput->setReadOnly(true);
     m_netAiOutput->setPlaceholderText(
-        "\xf0\x9f\xa4\x96  L'analisi AI apparira' qui dopo aver cliccato 'Analisi AI'...");
+        tr("\xf0\x9f\xa4\x96  L'analisi AI apparira' qui dopo aver cliccato 'Analisi AI'..."));
     splitter->addWidget(m_netAiOutput);
     splitter->setSizes({300, 150});
     return splitter;
@@ -251,7 +251,7 @@ void ProgrammazionePage::netStart()
     m_netProc->start(m_netTool, args);
     if (!m_netProc->waitForStarted(2000)) {
         m_netStatus->setText(
-            "\xe2\x9d\x8c  Impossibile avviare il tool. Permessi root necessari?");
+            tr("\xe2\x9d\x8c  Impossibile avviare il tool. Permessi root necessari?"));
         LogBus::post("\xe2\x9d\x8c Programmazione: Impossibile avviare il tool di rete. Permessi root necessari?");
         return;
     }
@@ -345,7 +345,7 @@ QWidget* ProgrammazionePage::buildReteLan(QWidget* parent)
 
     /* ── Tabella risultati: IP | MAC | Hostname | Stato ── */
     m_lanTable = new QTableWidget(0, 4, w);
-    m_lanTable->setHorizontalHeaderLabels({" IP", " MAC Address", " Hostname", " Stato"});
+    m_lanTable->setHorizontalHeaderLabels({tr(" IP"), tr(" MAC Address"), tr(" Hostname"), tr(" Stato")});
     m_lanTable->setColumnWidth(0, 130);
     m_lanTable->setColumnWidth(1, 158);
     m_lanTable->setColumnWidth(3, 100);
@@ -362,7 +362,7 @@ QWidget* ProgrammazionePage::buildReteLan(QWidget* parent)
     m_lanStatusLbl = new QLabel(w);
     m_lanStatusLbl->setObjectName("hintLabel");
     m_lanStatusLbl->setText(
-        "\xf0\x9f\x94\x8c Premi un pulsante per scansionare la rete locale.");
+        tr("\xf0\x9f\x94\x8c Premi un pulsante per scansionare la rete locale."));
 
     lay->addWidget(btnRow);
     lay->addWidget(m_lanTable, 1);
@@ -630,7 +630,7 @@ void ProgrammazionePage::onLanScanArpClicked()
 {
     if (m_lanTable) m_lanTable->setRowCount(0);
     if (m_lanStatusLbl) m_lanStatusLbl->setText(
-        "\xf0\x9f\x94\x8d  Lettura ARP cache...");
+        tr("\xf0\x9f\x94\x8d  Lettura ARP cache..."));
     if (m_lanScanArp)  m_lanScanArp->setEnabled(false);
     if (m_lanScanNmap) m_lanScanNmap->setEnabled(false);
     if (m_lanStopBtn)  m_lanStopBtn->setEnabled(true);
@@ -660,7 +660,7 @@ void ProgrammazionePage::onLanScanNmapClicked()
 {
     if (m_lanTable) m_lanTable->setRowCount(0);
     if (m_lanStatusLbl) m_lanStatusLbl->setText(
-        "\xf0\x9f\x8c\x90  Avvio scansione nmap...");
+        tr("\xf0\x9f\x8c\x90  Avvio scansione nmap..."));
     if (m_lanScanArp)  m_lanScanArp->setEnabled(false);
     if (m_lanScanNmap) m_lanScanNmap->setEnabled(false);
     if (m_lanStopBtn)  m_lanStopBtn->setEnabled(true);
@@ -685,7 +685,7 @@ void ProgrammazionePage::onLanScanNmapClicked()
     if (subnet.isEmpty()) {
         if (m_lanStatusLbl)
             m_lanStatusLbl->setText(
-                "\xe2\x9d\x8c  Impossibile determinare la subnet.");
+                tr("\xe2\x9d\x8c  Impossibile determinare la subnet."));
         LogBus::post("\xe2\x9d\x8c Programmazione: Impossibile determinare la subnet.");
         lanResetBtns();
         return;
@@ -724,7 +724,7 @@ void ProgrammazionePage::onLanStopBtnClicked()
     }
     lanResetBtns();
     if (m_lanStatusLbl) m_lanStatusLbl->setText(
-        "\xe2\x8f\xb9  Scansione interrotta.");
+        tr("\xe2\x8f\xb9  Scansione interrotta."));
 }
 
 void ProgrammazionePage::onLanArpError(QProcess::ProcessError err)

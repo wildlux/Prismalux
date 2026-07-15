@@ -770,12 +770,12 @@ void WorldMapWidget::contextMenuEvent(QContextMenuEvent* e)
 
     QMenu menu(this);
     menu.addAction(
-        "\xf0\x9f\x9f\xa2  Imposta come Partenza",
+        tr("\xf0\x9f\x9f\xa2  Imposta come Partenza"),
         this, [this] {
             insertStartWaypoint(m_ctxLat, m_ctxLon);
         });
     menu.addAction(
-        "\xe2\x9e\x95  Aggiungi Tappa",
+        tr("\xe2\x9e\x95  Aggiungi Tappa"),
         this, [this] {
             addWaypoint(m_ctxLat, m_ctxLon);
             emit waypointAdded(m_waypointCoords.size() - 1, m_ctxLat, m_ctxLon);

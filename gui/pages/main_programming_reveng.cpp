@@ -123,7 +123,7 @@ QWidget* ProgrammazionePage::buildRevOptionsRow(QWidget* parent,
     optLay->addStretch(1);
 
     m_btnRevAnalyze = new QPushButton(
-        "\xf0\x9f\x94\x8d  Analizza e Ricostruisci", optRow);
+        tr("\xf0\x9f\x94\x8d  Analizza e Ricostruisci"), optRow);
     m_btnRevAnalyze->setObjectName("actionBtn");
     m_btnRevAnalyze->setProperty("highlight", "true");
     m_btnRevAnalyze->setEnabled(false);
@@ -181,7 +181,7 @@ QWidget* ProgrammazionePage::buildRevPreviewGroup(QWidget* parent)
     monoFont.setPointSize(monoFontPt(10));
 
     auto* prevGroup = new QGroupBox(
-        "\xf0\x9f\x93\x8b  Anteprima file (hex dump + stringhe estratte)", parent);
+        tr("\xf0\x9f\x93\x8b  Anteprima file (hex dump + stringhe estratte)"), parent);
     prevGroup->setObjectName("cardGroup");
     auto* prevLay = new QVBoxLayout(prevGroup);
     prevLay->setContentsMargins(4, 8, 4, 4);
@@ -192,7 +192,7 @@ QWidget* ProgrammazionePage::buildRevPreviewGroup(QWidget* parent)
     m_revPreview->setReadOnly(true);
     m_revPreview->setMaximumHeight(160);
     m_revPreview->setPlaceholderText(
-        "Carica un file per vedere il hex dump e le stringhe ASCII estratte...");
+        tr("Carica un file per vedere il hex dump e le stringhe ASCII estratte..."));
     prevLay->addWidget(m_revPreview);
 
     return prevGroup;
@@ -208,7 +208,7 @@ QWidget* ProgrammazionePage::buildRevOutputGroup(QWidget* parent,
     monoFont.setPointSize(monoFontPt(10));
 
     auto* outGroup = new QGroupBox(
-        "\xf0\x9f\xa4\x96  Codice sorgente ricostruito (streaming AI)", parent);
+        tr("\xf0\x9f\xa4\x96  Codice sorgente ricostruito (streaming AI)"), parent);
     outGroup->setObjectName("cardGroup");
     auto* outLay = new QVBoxLayout(outGroup);
     outLay->setContentsMargins(4, 8, 4, 4);
@@ -229,15 +229,15 @@ QWidget* ProgrammazionePage::buildRevOutputGroup(QWidget* parent,
     revBtnLay->setSpacing(8);
 
     m_btnRevInsert = new QPushButton(
-        "\xe2\x86\x91  Apri in editor Programmazione", revBtnRow);
+        tr("\xe2\x86\x91  Apri in editor Programmazione"), revBtnRow);
     m_btnRevInsert->setObjectName("actionBtn");
     m_btnRevInsert->setEnabled(false);
     m_btnRevInsert->setToolTip(
-        "Estrae il primo blocco codice e lo apre nel tab \xf0\x9f\x92\xbb Programmazione");
+        tr("Estrae il primo blocco codice e lo apre nel tab \xf0\x9f\x92\xbb Programmazione"));
     revBtnLay->addWidget(m_btnRevInsert);
 
     outBtnClearRev = new QPushButton(
-        "\xf0\x9f\x97\x91  Pulisci output", revBtnRow);
+        tr("\xf0\x9f\x97\x91  Pulisci output"), revBtnRow);
     outBtnClearRev->setObjectName("actionBtn");
     revBtnLay->addWidget(outBtnClearRev);
     revBtnLay->addStretch(1);

@@ -60,7 +60,7 @@ BlhmWidget::BlhmWidget(QWidget* parent)
         lblPesi->setTextFormat(Qt::RichText);
 
         m_table = new QTableWidget(0, 4, leftW);
-        m_table->setHorizontalHeaderLabels({"Percorso ontologico", "factory_w", "link_w", "user_w"});
+        m_table->setHorizontalHeaderLabels({tr("Percorso ontologico"), tr("factory_w"), tr("link_w"), tr("user_w")});
         m_table->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
         m_table->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Fixed);
         m_table->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Fixed);

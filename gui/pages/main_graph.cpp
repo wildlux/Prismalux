@@ -532,7 +532,7 @@ QWidget* GraficoPage::buildLeftPanel() {
             gl->setSpacing(4);
 
             auto* titleLbl = new QLabel(
-                "\xf0\x9f\x93\x90  Genera da espressione", m_genSection);
+                tr("\xf0\x9f\x93\x90  Genera da espressione"), m_genSection);
             titleLbl->setObjectName("formLabel");
             gl->addWidget(titleLbl);
 
@@ -588,7 +588,7 @@ QWidget* GraficoPage::buildLeftPanel() {
             gl->addWidget(rangeRow);
 
             auto* btnGen = new QPushButton(
-                "\xe2\x96\xb6  Genera \xe2\x86\x92 inserisce i valori sotto", m_genSection);
+                tr("\xe2\x96\xb6  Genera \xe2\x86\x92 inserisce i valori sotto"), m_genSection);
             btnGen->setObjectName("actionBtn");
             btnGen->setFixedHeight(dpiScale(26));
             connect(btnGen, &QPushButton::clicked, this, &GraficoPage::onGenFormulaClicked);
@@ -604,7 +604,7 @@ QWidget* GraficoPage::buildLeftPanel() {
         /* ── Solidi 3D — visibile solo per Scatter3D (idx==5) ─────── */
         {
             m_solid3DSection = new QGroupBox(
-                "\xf0\x9f\xa7\x8a  Solidi 3D — un clic genera la mesh e mostra l'area", w);
+                tr("\xf0\x9f\xa7\x8a  Solidi 3D — un clic genera la mesh e mostra l'area"), w);
             m_solid3DSection->setObjectName("cardGroup");
             auto* sl = new QVBoxLayout(m_solid3DSection);
             sl->setSpacing(6);
@@ -735,7 +735,7 @@ QWidget* GraficoPage::buildLeftPanel() {
         fl->addRow(sep);
 
         auto* customLbl = new QLabel(
-            "\xf0\x9f\x93\x9d  Serie personalizzata (magenta)", w);
+            tr("\xf0\x9f\x93\x9d  Serie personalizzata (magenta)"), w);
         customLbl->setObjectName("formLabel");
         fl->addRow(customLbl);
 
@@ -750,7 +750,7 @@ QWidget* GraficoPage::buildLeftPanel() {
         fl->addRow(m_smithCustom);
 
         m_btnSmithFile = new QPushButton(
-            "\xf0\x9f\x93\x82  Carica sequenza da file (.txt)", w);
+            tr("\xf0\x9f\x93\x82  Carica sequenza da file (.txt)"), w);
         m_btnSmithFile->setObjectName("actionBtn");
         m_btnSmithFile->setFixedHeight(dpiScale(28));
         m_btnSmithFile->setToolTip(
@@ -900,7 +900,7 @@ QWidget* GraficoPage::buildLeftPanel() {
     imgLay->setSpacing(4);
 
     auto* imgTitleLbl = new QLabel(
-        "\xf0\x9f\x94\x8d  Grafico \xe2\x86\x92 Formula  [vision AI]", m_imgSection);
+        tr("\xf0\x9f\x94\x8d  Grafico \xe2\x86\x92 Formula  [vision AI]"), m_imgSection);
     imgTitleLbl->setObjectName("formLabel");
     imgLay->addWidget(imgTitleLbl);
 
@@ -922,7 +922,7 @@ QWidget* GraficoPage::buildLeftPanel() {
 
     /* Pulsante di installazione — visibile SOLO se non ci sono modelli vision */
     m_btnInstallVision = new QPushButton(
-        "\xf0\x9f\x93\xa5  Installa modello vision",
+        tr("\xf0\x9f\x93\xa5  Installa modello vision"),
         m_imgSection);
     m_btnInstallVision->setObjectName("actionBtn");
     m_btnInstallVision->setFixedHeight(dpiScale(36));
@@ -939,7 +939,7 @@ QWidget* GraficoPage::buildLeftPanel() {
     imgLay->addWidget(m_btnInstallVision);
 
     m_btnImgFormula = new QPushButton(
-        "\xf0\x9f\x93\xb7  Analizza immagine", m_imgSection);
+        tr("\xf0\x9f\x93\xb7  Analizza immagine"), m_imgSection);
     m_btnImgFormula->setObjectName("actionBtn");
     m_btnImgFormula->setFixedHeight(dpiScale(30));
     m_btnImgFormula->setToolTip(tr("Apri un'immagine PNG/JPG e lascia che l'AI estragga la formula"));

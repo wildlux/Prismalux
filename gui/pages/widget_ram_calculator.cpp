@@ -58,7 +58,7 @@ RamCalculatorWidget::RamCalculatorWidget(QWidget* parent) : QWidget(parent)
     root->setSpacing(dpiScale(12));
 
     auto* title = new QLabel(
-        "\xf0\x9f\xa7\xae Calcolatore RAM per modelli LLM locali", inner);
+        tr("\xf0\x9f\xa7\xae Calcolatore RAM per modelli LLM locali"), inner);
     title->setObjectName("cardTitle");
     root->addWidget(title);
 

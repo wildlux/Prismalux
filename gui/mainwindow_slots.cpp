@@ -243,13 +243,13 @@ void MainWindow::onBackendBtnClicked()
     const bool isDwarfStar = (m_ai->backend() == AiClient::Ds4Server);
 
     auto* actOllama = menu->addAction(
-        "\xf0\x9f\xa6\x99  Ollama  \xe2\x80\x94  localhost:11434");
+        tr("\xf0\x9f\xa6\x99  Ollama  \xe2\x80\x94  localhost:11434"));
     actOllama->setCheckable(true);
     actOllama->setChecked(isOllama);
     connect(actOllama, &QAction::triggered, this, &MainWindow::onOllamaActionTriggered);
 
     auto* actDwarf = menu->addAction(
-        "\xe2\xad\x90  DwarfStar  \xe2\x80\x94  localhost:11435");
+        tr("\xe2\xad\x90  DwarfStar  \xe2\x80\x94  localhost:11435"));
     actDwarf->setCheckable(true);
     actDwarf->setChecked(isDwarfStar);
     connect(actDwarf, &QAction::triggered, this, &MainWindow::onDwarfStarActionTriggered);
@@ -268,13 +268,13 @@ void MainWindow::onBackendBtnClicked()
         connect(actStop, &QAction::triggered, this, &MainWindow::stopLlamaServer);
     } else {
         auto* actLSrv = menu->addAction(
-            "\xf0\x9f\xa6\x99\xe2\x9a\xa1\xef\xb8\x8f  Avvia llama-server...");
+            tr("\xf0\x9f\xa6\x99\xe2\x9a\xa1\xef\xb8\x8f  Avvia llama-server..."));
         actLSrv->setCheckable(true);
         actLSrv->setChecked(m_ai->backend() == AiClient::LlamaServer && !m_serverIsDs4);
         connect(actLSrv, &QAction::triggered, this, &MainWindow::showServerDialog);
 
         auto* actDs4 = menu->addAction(
-            "\xe2\xad\x90  Avvia ds4-server...");
+            tr("\xe2\xad\x90  Avvia ds4-server..."));
         actDs4->setCheckable(true);
         actDs4->setChecked(false);
         connect(actDs4, &QAction::triggered, this, &MainWindow::showDwarfStarDialog);
@@ -515,7 +515,7 @@ void MainWindow::onNewChatClicked()
             "La conversazione attuale verr\xc3\xa0 persa se non la salvi.");
         dlg.setIcon(QMessageBox::Question);
         QPushButton* btnSalva  = dlg.addButton(
-            "\xf0\x9f\x93\xbc  Salva", QMessageBox::AcceptRole);
+            tr("\xf0\x9f\x93\xbc  Salva"), QMessageBox::AcceptRole);
         QPushButton* btnScarta = dlg.addButton(tr("Scarta"), QMessageBox::DestructiveRole);
         dlg.addButton(tr("Annulla"), QMessageBox::RejectRole);
         dlg.setDefaultButton(btnSalva);

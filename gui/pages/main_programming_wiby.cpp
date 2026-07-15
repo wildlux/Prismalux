@@ -143,7 +143,7 @@ void ProgrammazionePage::onWibyCmdOutput()
                     if (arr.isEmpty()) {
                         if (m_wibyStatusLbl)
                             m_wibyStatusLbl->setText(
-                                "\xe2\x9a\xa0  Nessun device Tuya trovato in LAN");
+                                tr("\xe2\x9a\xa0  Nessun device Tuya trovato in LAN"));
                     } else {
                         QStringList found;
                         for (const QJsonValue& v : arr) {
@@ -398,7 +398,7 @@ void ProgrammazionePage::onWibyMitmStartClicked()
 
     if (m_wibyMitmStatus)
         m_wibyMitmStatus->setText(
-            "<span style='color:#fbbf24;'>\xe2\x97\x8f  Avvio...</span>");
+            tr("<span style='color:#fbbf24;'>\xe2\x97\x8f  Avvio...</span>"));
 }
 
 void ProgrammazionePage::onWibyMitmStopClicked()

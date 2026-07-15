@@ -209,7 +209,7 @@ void LanWanPage::onGns3AiFinished(const QString& full)
             m_gns3Code = code;
             m_gns3ExecBtn->setEnabled(true);
             m_gns3StatusLbl->setText(
-                "\xf0\x9f\x8c\x90  Codice pronto \xe2\x80\x94 premi Esegui su GNS3");
+                tr("\xf0\x9f\x8c\x90  Codice pronto \xe2\x80\x94 premi Esegui su GNS3"));
         }
     }
 }
@@ -513,7 +513,7 @@ void LanWanPage::onAdbInstallBtnClicked()
     const QString adb = findAdb();
     if (adb.isEmpty()) {
         m_adbStatusLbl->setText(
-            "\xe2\x9d\x8c  adb non trovato. Installa: sudo apt install adb");
+            tr("\xe2\x9d\x8c  adb non trovato. Installa: sudo apt install adb"));
         LogBus::post("\xe2\x9d\x8c LAN WAN: adb non trovato nel PATH.");
         return;
     }
@@ -531,7 +531,7 @@ void LanWanPage::onAdbInstallBtnClicked()
     m_adbLog->show();
     m_adbInstallBtn->setText(tr("\xe2\x8f\xb9  Annulla"));
     m_adbStatusLbl->setText(
-        "\xe2\x8f\xb3  Installazione in corso... (attendi il telefono)");
+        tr("\xe2\x8f\xb3  Installazione in corso... (attendi il telefono)"));
 
     if (m_adbProc) { m_adbProc->deleteLater(); m_adbProc = nullptr; }
     m_adbProc = new QProcess(this);
@@ -548,11 +548,11 @@ void LanWanPage::onAdbInstallBtnClicked()
 
     if (!m_adbProc->waitForStarted(P::kProcessStartTimeoutMs)) {
         m_adbStatusLbl->setText(
-            "\xe2\x9d\x8c  Impossibile avviare adb. Controlla la connessione USB.");
+            tr("\xe2\x9d\x8c  Impossibile avviare adb. Controlla la connessione USB."));
         LogBus::post("\xe2\x9d\x8c LAN WAN: Impossibile avviare adb.");
         m_adbLog->append("Errore: adb non si avvia.");
         m_adbInstallBtn->setText(
-            "\xf0\x9f\x94\x8c  Installa APK via USB  (adb)");
+            tr("\xf0\x9f\x94\x8c  Installa APK via USB  (adb)"));
         m_adbProc->deleteLater(); m_adbProc = nullptr;
     }
 }
@@ -578,7 +578,7 @@ void LanWanPage::onAdbProcFinished(int code, QProcess::ExitStatus)
 
     if (m_adbInstallBtn)
         m_adbInstallBtn->setText(
-            "\xf0\x9f\x94\x8c  Installa APK via USB  (adb)");
+            tr("\xf0\x9f\x94\x8c  Installa APK via USB  (adb)"));
 
     if (!m_adbStatusLbl) return;
 
@@ -598,7 +598,7 @@ void LanWanPage::onAdbProcFinished(int code, QProcess::ExitStatus)
         m_adbStatusLbl->setStyleSheet("color:#ff9800;font-size:11px;");
     } else if (log.contains("no devices") || log.contains("unauthorized")) {
         m_adbStatusLbl->setText(
-            "\xe2\x9d\x8c  Nessun dispositivo. Abilita USB Debugging e accetta il popup sul telefono.");
+            tr("\xe2\x9d\x8c  Nessun dispositivo. Abilita USB Debugging e accetta il popup sul telefono."));
         LogBus::post("\xe2\x9d\x8c LAN WAN: adb nessun dispositivo USB.");
         m_adbStatusLbl->setStyleSheet("color:#f44336;font-size:11px;");
     } else {

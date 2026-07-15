@@ -102,21 +102,21 @@ void StrumentiPage::onFinished(const QString& full) {
             if (!m_blenderCode.isEmpty()) {
                 m_blenderExecBtn->setEnabled(true);
                 m_blenderStatusLbl->setText(
-                    "\xf0\x9f\x90\x8d  Codice pronto \xe2\x80\x94 premi Esegui in Blender");
+                    tr("\xf0\x9f\x90\x8d  Codice pronto \xe2\x80\x94 premi Esegui in Blender"));
             }
         } else if (m_currentCat == 7) { // Office
             m_officeCode = code;
             if (!m_officeCode.isEmpty()) {
                 m_officeExecBtn->setEnabled(true);
                 m_officeStatusLbl->setText(
-                    "\xf0\x9f\x93\x84  Codice pronto \xe2\x80\x94 premi Esegui in Office");
+                    tr("\xf0\x9f\x93\x84  Codice pronto \xe2\x80\x94 premi Esegui in Office"));
             }
         } else { // cat 8 — FreeCAD
             m_freecadCode = code;
             if (!m_freecadCode.isEmpty()) {
                 m_freecadExecBtn->setEnabled(true);
                 m_freecadStatusLbl->setText(
-                    "\xf0\x9f\x94\xa9  Codice pronto \xe2\x80\x94 premi Esegui in FreeCAD");
+                    tr("\xf0\x9f\x94\xa9  Codice pronto \xe2\x80\x94 premi Esegui in FreeCAD"));
             }
         }
     }

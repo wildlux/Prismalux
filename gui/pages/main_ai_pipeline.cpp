@@ -1925,7 +1925,7 @@ void AgentiPage::_finishedPipeline(const QString& full) {
 
             auto* btnBox = new QDialogButtonBox(dlg);
             auto* btnRun = btnBox->addButton(
-                "\xe2\x96\xb6  Esegui", QDialogButtonBox::AcceptRole);
+                tr("\xe2\x96\xb6  Esegui"), QDialogButtonBox::AcceptRole);
             btnBox->addButton(tr("\xe2\x9c\x96  Annulla"), QDialogButtonBox::RejectRole);
             btnRun->setStyleSheet(useSandbox
                 ? "background:#16a34a;color:#fff;font-weight:bold;padding:4px 18px;"

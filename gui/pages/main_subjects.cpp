@@ -95,7 +95,7 @@ SubjectTutorWidget::SubjectTutorWidget(AiClient* ai, const QString& subject,
 
     /* ⏳ Indicatore attesa AI — visibile solo durante elaborazione */
     m_waitLbl = new QLabel(
-        "\xe2\x8f\xb3  Elaborazione in corso \xe2\x80\x94 il modello sta generando la risposta...",
+        tr("\xe2\x8f\xb3  Elaborazione in corso \xe2\x80\x94 il modello sta generando la risposta..."),
         rightW);
     m_waitLbl->setStyleSheet("color: #E5C400; padding: 2px 0; font-style: italic;");
     m_waitLbl->setVisible(false);

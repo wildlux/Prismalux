@@ -52,7 +52,7 @@ StableDiffusionWidget::StableDiffusionWidget(QWidget* parent)
 
     /* ── Titolo ── */
     auto* titleLbl = new QLabel(
-        "\xf0\x9f\x8e\xa8 <b>Stable Diffusion — Text to Image</b>", this);
+        tr("\xf0\x9f\x8e\xa8 <b>Stable Diffusion — Text to Image</b>"), this);
     titleLbl->setTextFormat(Qt::RichText);
     lay->addWidget(titleLbl);
 
@@ -62,9 +62,9 @@ StableDiffusionWidget::StableDiffusionWidget(QWidget* parent)
     modeRow->addWidget(new QLabel(tr("Backend:"), this));
 
     m_rbLocal = new QRadioButton(
-        "\xf0\x9f\x92\xbb  Locale (diffusers)", this);
+        tr("\xf0\x9f\x92\xbb  Locale (diffusers)"), this);
     m_rbA1111 = new QRadioButton(
-        "\xf0\x9f\x8c\x90  AUTOMATIC1111 / Forge (remoto)", this);
+        tr("\xf0\x9f\x8c\x90  AUTOMATIC1111 / Forge (remoto)"), this);
     m_rbLocal->setChecked(true);
 
     auto* modeGroup = new QButtonGroup(this);
@@ -109,7 +109,7 @@ StableDiffusionWidget::StableDiffusionWidget(QWidget* parent)
     copyBtnDiff->setToolTip(tr("Copia comando pip negli appunti"));
     connect(copyBtnDiff, &QPushButton::clicked, copyBtnDiff, [copyBtnDiff]() {
         QApplication::clipboard()->setText(
-            "pip install diffusers transformers accelerate torch");
+            tr("pip install diffusers transformers accelerate torch"));
         Q_UNUSED(copyBtnDiff)
     });
     installHintLay->addWidget(m_installHint, 1);
@@ -123,7 +123,7 @@ StableDiffusionWidget::StableDiffusionWidget(QWidget* parent)
 
     /* Pannello parametri */
     auto* paramGroup = new QGroupBox(
-        "\xf0\x9f\x93\x9d  Parametri generazione", this);
+        tr("\xf0\x9f\x93\x9d  Parametri generazione"), this);
     auto* paramLay = new QVBoxLayout(paramGroup);
     paramLay->setSpacing(6);
 
@@ -131,14 +131,14 @@ StableDiffusionWidget::StableDiffusionWidget(QWidget* parent)
     m_prompt = new QTextEdit(paramGroup);
     m_prompt->setMaximumHeight(80);
     m_prompt->setPlaceholderText(
-        "Es: a futuristic city at sunset, detailed, photorealistic, 8k");
+        tr("Es: a futuristic city at sunset, detailed, photorealistic, 8k"));
     paramLay->addWidget(m_prompt);
 
     paramLay->addWidget(new QLabel(tr("Prompt negativo:"), paramGroup));
     m_negPrompt = new QTextEdit(paramGroup);
     m_negPrompt->setMaximumHeight(52);
     m_negPrompt->setPlaceholderText(
-        "Es: blurry, low quality, watermark, text, ugly");
+        tr("Es: blurry, low quality, watermark, text, ugly"));
     m_negPrompt->setPlainText(
         "blurry, low quality, watermark, text, ugly, deformed");
     paramLay->addWidget(m_negPrompt);
@@ -193,9 +193,9 @@ StableDiffusionWidget::StableDiffusionWidget(QWidget* parent)
     /* Riga pulsanti Controlla + Genera */
     auto* btnRow = new QHBoxLayout;
     m_btnCheck = new QPushButton(
-        "\xe2\x9a\xa1  Controlla", paramGroup);
+        tr("\xe2\x9a\xa1  Controlla"), paramGroup);
     m_btnGen = new QPushButton(
-        "\xf0\x9f\x8e\xa8  Genera immagine", paramGroup);
+        tr("\xf0\x9f\x8e\xa8  Genera immagine"), paramGroup);
     m_btnGen->setObjectName("primaryBtn");
     m_btnGen->setEnabled(false);
     btnRow->addWidget(m_btnCheck);
@@ -207,7 +207,7 @@ StableDiffusionWidget::StableDiffusionWidget(QWidget* parent)
 
     /* Pannello immagine */
     auto* imgGroup = new QGroupBox(
-        "\xf0\x9f\x96\xbc  Immagine generata", this);
+        tr("\xf0\x9f\x96\xbc  Immagine generata"), this);
     auto* imgLay = new QVBoxLayout(imgGroup);
 
     m_imgScroll = new QScrollArea(imgGroup);
@@ -223,10 +223,10 @@ StableDiffusionWidget::StableDiffusionWidget(QWidget* parent)
 
     auto* imgBtnRow = new QHBoxLayout;
     m_btnSave = new QPushButton(
-        "\xf0\x9f\x92\xbe  Salva PNG", imgGroup);
+        tr("\xf0\x9f\x92\xbe  Salva PNG"), imgGroup);
     m_btnSave->setEnabled(false);
     m_btnCopy = new QPushButton(
-        "\xf0\x9f\x93\x8b  Copia", imgGroup);
+        tr("\xf0\x9f\x93\x8b  Copia"), imgGroup);
     m_btnCopy->setEnabled(false);
     imgBtnRow->addStretch();
     imgBtnRow->addWidget(m_btnSave);
@@ -244,7 +244,7 @@ StableDiffusionWidget::StableDiffusionWidget(QWidget* parent)
     lay->addWidget(m_progress);
 
     m_status = new QLabel(
-        "\xf0\x9f\x94\x97  Premi 'Controlla' per verificare il backend selezionato.",
+        tr("\xf0\x9f\x94\x97  Premi 'Controlla' per verificare il backend selezionato."),
         this);
     m_status->setWordWrap(true);
     m_status->setStyleSheet("color:#aaa;font-size:11px;");
@@ -304,14 +304,14 @@ void StableDiffusionWidget::onModeChanged()
         m_modelCombo->addItem("stabilityai/stable-diffusion-xl-base-1.0");
         m_btnGen->setEnabled(false);
         setStatus(
-            "\xf0\x9f\x92\xbb  Premi 'Controlla' per verificare diffusers.", true);
+            tr("\xf0\x9f\x92\xbb  Premi 'Controlla' per verificare diffusers."), true);
     } else {
         m_modelCombo->clear();
         m_modelCombo->setEditable(false);
         m_modelCombo->addItem("(carica dalla lista WebUI)");
         m_btnGen->setEnabled(false);
         setStatus(
-            "\xf0\x9f\x8c\x90  Premi 'Controlla' per verificare AUTOMATIC1111.", true);
+            tr("\xf0\x9f\x8c\x90  Premi 'Controlla' per verificare AUTOMATIC1111."), true);
     }
 }
 
@@ -619,7 +619,7 @@ void StableDiffusionWidget::onCheckDiffusersFinished(int code, QProcess::ExitSta
         m_installHintRow->show();
         m_btnGen->setEnabled(false);
         setStatus(
-            "\xe2\x9d\x8c  diffusers non trovato. Vedi suggerimento sopra.", false);
+            tr("\xe2\x9d\x8c  diffusers non trovato. Vedi suggerimento sopra."), false);
     }
 
     if (proc) proc->deleteLater();

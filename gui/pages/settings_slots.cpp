@@ -557,7 +557,7 @@ void ImpostazioniPage::onStopIndexClicked()
     if (m_btnStopIndex) m_btnStopIndex->setEnabled(false);
     if (m_ragFeedbackLbl) {
         m_ragFeedbackLbl->setText(
-            "\xe2\x8f\xb3  Interruzione in corso dopo il chunk corrente...");
+            tr("\xe2\x8f\xb3  Interruzione in corso dopo il chunk corrente..."));
         m_ragFeedbackLbl->setVisible(true);
     }
 }
@@ -679,7 +679,7 @@ void ImpostazioniPage::onReindexBtnClicked()
     if (m_ai->backend() == AiClient::LlamaLocal) {
         if (m_ragFeedbackLbl) {
             m_ragFeedbackLbl->setText(
-                "\xe2\x9a\xa0  Embedding disponibile solo con Ollama o llama-server.");
+                tr("\xe2\x9a\xa0  Embedding disponibile solo con Ollama o llama-server."));
             m_ragFeedbackLbl->setVisible(true);
         }
         return;
@@ -763,7 +763,7 @@ void ImpostazioniPage::startEmbeddingPhase(const QString& dir)
     if (m_ragQueue.isEmpty()) {
         if (m_ragFeedbackLbl) {
             m_ragFeedbackLbl->setText(
-                "\xf0\x9f\x8c\xab  Nessun contenuto trovato nella cartella.");
+                tr("\xf0\x9f\x8c\xab  Nessun contenuto trovato nella cartella."));
             m_ragFeedbackLbl->setVisible(true);
         }
         if (m_ragReindexBtn) m_ragReindexBtn->setEnabled(true);

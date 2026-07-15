@@ -624,7 +624,7 @@ QWidget* ImpostazioniPage::buildPuliziaTab()
         gl->setSpacing(6);
 
         auto* hdr = new QLabel(
-            "\xe2\x9a\xa0\xef\xb8\x8f  Cartelle pesanti (rimozione manuale)", grp);
+            tr("\xe2\x9a\xa0\xef\xb8\x8f  Cartelle pesanti (rimozione manuale)"), grp);
         hdr->setObjectName("cardTitle");
         gl->addWidget(hdr);
 
@@ -664,7 +664,7 @@ QWidget* ImpostazioniPage::buildPuliziaTab()
     /* ── Backup dati ── */
     {
         auto* grp = new QGroupBox(
-            "\xf0\x9f\x92\xbe  Backup dati Prismalux", w);
+            tr("\xf0\x9f\x92\xbe  Backup dati Prismalux"), w);
         auto* gl  = new QVBoxLayout(grp);
         gl->setContentsMargins(12, 12, 12, 8);
         gl->setSpacing(6);
@@ -701,11 +701,11 @@ QWidget* ImpostazioniPage::buildPuliziaTab()
 
         auto* btnRow  = new QHBoxLayout;
         auto* backupBtn = new QPushButton(
-            "\xf0\x9f\x92\xbe  Crea backup ZIP...", grp);
+            tr("\xf0\x9f\x92\xbe  Crea backup ZIP..."), grp);
         backupBtn->setObjectName("actionBtn");
         backupBtn->setFixedWidth(dpiScale(180));
         auto* openDirBtn = new QPushButton(
-            "\xf0\x9f\x93\x82  Apri cartella dati", grp);
+            tr("\xf0\x9f\x93\x82  Apri cartella dati"), grp);
         openDirBtn->setObjectName("actionBtn");
         openDirBtn->setFixedWidth(dpiScale(160));
         auto* statusLbl = new QLabel("", grp);
@@ -729,7 +729,7 @@ QWidget* ImpostazioniPage::buildPuliziaTab()
     /* ── Audit segreti ── */
     {
         auto* grp = new QGroupBox(
-            "\xf0\x9f\x94\x90  Audit segreti & permessi", w);
+            tr("\xf0\x9f\x94\x90  Audit segreti & permessi"), w);
         auto* gl  = new QVBoxLayout(grp);
         gl->setContentsMargins(12, 12, 12, 8);
         gl->setSpacing(6);
@@ -746,7 +746,7 @@ QWidget* ImpostazioniPage::buildPuliziaTab()
         gl->addWidget(desc);
 
         auto* auditBtn = new QPushButton(
-            "\xf0\x9f\x94\x8d  Esegui audit ora", grp);
+            tr("\xf0\x9f\x94\x8d  Esegui audit ora"), grp);
         auditBtn->setObjectName("actionBtn");
         auditBtn->setFixedWidth(dpiScale(160));
         auto* auditLog = new QTextEdit(grp);

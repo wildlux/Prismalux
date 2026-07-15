@@ -165,12 +165,12 @@ void ModGiochiWidget::onRunAiFinished(const QString& full)
         m_godotCode = code;
         m_godotExecBtn->setEnabled(true);
         m_godotStatusLbl->setText(
-            "\xf0\x9f\x8e\xae  Codice pronto \xe2\x80\x94 premi Esegui in Godot");
+            tr("\xf0\x9f\x8e\xae  Codice pronto \xe2\x80\x94 premi Esegui in Godot"));
     } else if (m_activeTab == 1 && hasBlock && !code.isEmpty()) {
         m_moddingCode = code;
         m_moddingSaveBtn->setEnabled(true);
         m_moddingStatusLbl->setText(
-            "\xe2\x9c\x85  Codice pronto \xe2\x80\x94 premi Salva nel gioco");
+            tr("\xe2\x9c\x85  Codice pronto \xe2\x80\x94 premi Salva nel gioco"));
     }
 }
 
@@ -285,7 +285,7 @@ QWidget* ModGiochiWidget::buildGodotTab()
     m_godotStatusLbl->setObjectName("hintLabel");
 
     m_godotExecBtn = new QPushButton(
-        "\xf0\x9f\x8e\xae  Salva script .gd", connRow);
+        tr("\xf0\x9f\x8e\xae  Salva script .gd"), connRow);
     m_godotExecBtn->setObjectName("actionBtn");
     m_godotExecBtn->setFixedWidth(dpiScale(160));
     m_godotExecBtn->setEnabled(false);
@@ -758,17 +758,17 @@ QWidget* ModGiochiWidget::buildGameModdingTab()
         tr("Percorso cartella in cui salvare il mod..."));
 
     auto* browseBtn = new QPushButton(
-        "\xf0\x9f\x93\x82  Sfoglia", folderRow);
+        tr("\xf0\x9f\x93\x82  Sfoglia"), folderRow);
     browseBtn->setObjectName("actionBtn");
     browseBtn->setFixedWidth(dpiScale(100));
 
     auto* openBtn = new QPushButton(
-        "\xf0\x9f\x93\x82  Apri", folderRow);
+        tr("\xf0\x9f\x93\x82  Apri"), folderRow);
     openBtn->setObjectName("actionBtn");
     openBtn->setFixedWidth(dpiScale(80));
 
     m_moddingStatusLbl = new QLabel(
-        "\xe2\x9a\xaa  Pronto", folderRow);
+        tr("\xe2\x9a\xaa  Pronto"), folderRow);
     m_moddingStatusLbl->setObjectName("hintLabel");
 
     folderLay->addWidget(folderLbl);
@@ -810,17 +810,17 @@ QWidget* ModGiochiWidget::buildGameModdingTab()
     btnLay->setSpacing(8);
 
     m_moddingRunBtn = new QPushButton(
-        "\xf0\x9f\xa4\x96  Genera mod", btnRow);
+        tr("\xf0\x9f\xa4\x96  Genera mod"), btnRow);
     m_moddingRunBtn->setObjectName("actionBtn");
 
     m_moddingStopBtn = new QPushButton(
-        "\xe2\x8f\xb9  Stop", btnRow);
+        tr("\xe2\x8f\xb9  Stop"), btnRow);
     m_moddingStopBtn->setObjectName("actionBtn");
     m_moddingStopBtn->setProperty("danger", true);
     m_moddingStopBtn->setEnabled(false);
 
     m_moddingSaveBtn = new QPushButton(
-        "\xf0\x9f\x92\xbe  Salva nel gioco", btnRow);
+        tr("\xf0\x9f\x92\xbe  Salva nel gioco"), btnRow);
     m_moddingSaveBtn->setObjectName("actionBtn");
     m_moddingSaveBtn->setEnabled(false);
 

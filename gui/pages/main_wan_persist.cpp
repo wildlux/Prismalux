@@ -335,7 +335,7 @@ QWidget* LanWanPage::buildWanComputeTab()
     auto* localRb = new QRadioButton(tr("\xf0\x9f\xa7\xa0  Solo questo PC"));
     auto* lanRb   = new QRadioButton(tr("\xf0\x9f\x8c\x90  Rete LAN (pi\xc3\xb9 PC insieme)"));
     auto* sciRb   = new QRadioButton(
-        "\xf0\x9f\x94\xac  Calcolo Scientifico (BOINC-like)");
+        tr("\xf0\x9f\x94\xac  Calcolo Scientifico (BOINC-like)"));
     sciRb->setToolTip(
         "Distribuisci task scientifici (BLAST, GROMACS, R, Python SciPy...)\n"
         "sui nodi della rete VPN (Tailscale consigliato)");
@@ -520,7 +520,7 @@ QWidget* LanWanPage::buildWanComputeTab()
 
     /* 2 — Decomponi compito: textarea sinistra, bottone destra */
     auto* decompBox = new QGroupBox(
-        "\xf0\x9f\xa7\xa0  Scrivi un compito \xe2\x80\x94 l\xe2\x80\x99" "AI lo divide in agenti automaticamente");
+        tr("\xf0\x9f\xa7\xa0  Scrivi un compito \xe2\x80\x94 l\xe2\x80\x99" "AI lo divide in agenti automaticamente"));
     auto* decompLay = new QHBoxLayout(decompBox);
     decompLay->setSpacing(8); decompLay->setContentsMargins(6,4,6,4);
 
@@ -625,7 +625,7 @@ QWidget* LanWanPage::buildWanComputeTab()
     auto* nodeBLay = new QVBoxLayout(nodeBox);
     nodeBLay->setContentsMargins(4,4,4,4);
     m_wanNodeTable = new QTableWidget(0, 4);
-    m_wanNodeTable->setHorizontalHeaderLabels({"Nome","IP","Stato","Capacit\xc3\xa0"});
+    m_wanNodeTable->setHorizontalHeaderLabels({tr("Nome"),tr("IP"),tr("Stato"),tr("Capacit\xc3\xa0")});
     m_wanNodeTable->horizontalHeader()->setStretchLastSection(true);
     m_wanNodeTable->setSelectionBehavior(QAbstractItemView::SelectRows);
     m_wanNodeTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
@@ -637,7 +637,7 @@ QWidget* LanWanPage::buildWanComputeTab()
     auto* taskBLay = new QVBoxLayout(taskBox);
     taskBLay->setContentsMargins(4,4,4,4);
     m_wanTaskTable = new QTableWidget(0, 5);
-    m_wanTaskTable->setHorizontalHeaderLabels({"ID","Tipo","Payload\xe2\x80\xa6","Stato","Nodo"});
+    m_wanTaskTable->setHorizontalHeaderLabels({tr("ID"),tr("Tipo"),tr("Payload\xe2\x80\xa6"),tr("Stato"),tr("Nodo")});
     m_wanTaskTable->horizontalHeader()->setStretchLastSection(false);
     m_wanTaskTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
     m_wanTaskTable->setSelectionBehavior(QAbstractItemView::SelectRows);
@@ -667,7 +667,7 @@ QWidget* LanWanPage::buildWanComputeTab()
         m_wanChartWidget->setToolTip(tr("Istogramma throughput — ultimi 60 min (bin 5 min)"));
         m_wanChartWidget->setObjectName("cardDesc");
         m_wanExportBtn = new QPushButton(
-            "\xf0\x9f\x93\xa5  Esporta CSV", dashRow);
+            tr("\xf0\x9f\x93\xa5  Esporta CSV"), dashRow);
         m_wanExportBtn->setObjectName("actionBtn");
         m_wanExportBtn->setToolTip(tr("Scarica CSV di tutti i task (id, tipo, payload, stato, nodo, durata, risultato)"));
         dashLay->addWidget(m_wanThroughputLbl, 1);

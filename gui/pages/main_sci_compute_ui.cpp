@@ -333,7 +333,7 @@ QWidget* SciComputePage::buildUi()
     m_localChk->setToolTip(tr("Il coordinator esegue anche task locali"));
 
     m_btnStartStop = new QPushButton(
-        "\xf0\x9f\x9f\xa2  Avvia Coordinator", cfgBar);
+        tr("\xf0\x9f\x9f\xa2  Avvia Coordinator"), cfgBar);
     m_btnStartStop->setObjectName("primaryBtn");
 
     /* Token inline — visibile solo in modalità Coordinator */
@@ -366,7 +366,7 @@ QWidget* SciComputePage::buildUi()
     tokenLay->addWidget(btnCopyToken);
 
     auto* btnGuida = new QPushButton(
-        "\xf0\x9f\x93\x96  Guida", cfgBar);
+        tr("\xf0\x9f\x93\x96  Guida"), cfgBar);
     btnGuida->setObjectName("actionBtn");
     btnGuida->setToolTip(
         "Esempi pratici, modelli LLM consigliati, sicurezza:\n"
@@ -422,7 +422,7 @@ QWidget* SciComputePage::buildUi()
 
     /* Status bar */
     m_statusLbl = new QLabel(
-        "<span style='color:#6b7280;'>\xe2\x9a\xaa Inattivo</span>", root);
+        tr("<span style='color:#6b7280;'>\xe2\x9a\xaa Inattivo</span>"), root);
     m_statusLbl->setTextFormat(Qt::RichText);
     m_statusLbl->setObjectName("cardDesc");
     rootLay->addWidget(m_statusLbl);
@@ -438,7 +438,7 @@ QWidget* SciComputePage::buildUi()
 
     /* Pannello sinistra: form creazione WU */
     auto* createGroup = new QGroupBox(
-        "\xe2\x9e\x95  Nuova Work Unit", topWidget);
+        tr("\xe2\x9e\x95  Nuova Work Unit"), topWidget);
     auto* formLay = new QVBoxLayout(createGroup);
     formLay->setSpacing(dpiScale(5));
 
@@ -512,19 +512,19 @@ QWidget* SciComputePage::buildUi()
     m_replicasCmb->addItem("2 (quorum validation)",   2);
     m_replicasCmb->addItem("3 (quorum 3 nodi)",       3);
     m_replicasCmb->setToolTip(
-        "Repliche > 1: stesso WU su N nodi, confronto hash SHA-256");
+        tr("Repliche > 1: stesso WU su N nodi, confronto hash SHA-256"));
     prioRow->addWidget(m_replicasCmb);
     prioRow->addStretch(1);
     formLay->addLayout(prioRow);
 
     auto* addBtnRow = new QHBoxLayout;
     auto* addBtn = new QPushButton(
-        "\xe2\x9e\x95  Aggiungi alla coda", createGroup);
+        tr("\xe2\x9e\x95  Aggiungi alla coda"), createGroup);
     addBtn->setObjectName("primaryBtn");
     addBtnRow->addWidget(addBtn, 1);
 
     auto* btnGenFile = new QPushButton(
-        "\xf0\x9f\x93\x82  Genera da file", createGroup);
+        tr("\xf0\x9f\x93\x82  Genera da file"), createGroup);
     btnGenFile->setObjectName("actionBtn");
     btnGenFile->setToolTip(
         "Carica FASTA/CSV/TXT e genera N Work Unit automaticamente\n"
@@ -544,7 +544,7 @@ QWidget* SciComputePage::buildUi()
 
     /* Pannello destra: tabella WU */
     auto* wuGroup = new QGroupBox(
-        "\xf0\x9f\x93\x8b  Coda Work Units", topWidget);
+        tr("\xf0\x9f\x93\x8b  Coda Work Units"), topWidget);
     auto* wuGLay  = new QVBoxLayout(wuGroup);
     wuGLay->setSpacing(dpiScale(4));
 
@@ -552,7 +552,7 @@ QWidget* SciComputePage::buildUi()
     /* 4 righe × 22px + header 26px + margini = ~120px minimo visibile */
     m_wuTable->setMinimumHeight(dpiScale(120));
     m_wuTable->setHorizontalHeaderLabels(
-        {"ID", "Tipo", "Label", "Status", "Nodo", "Prior.", "Creato"});
+        {tr("ID"), tr("Tipo"), tr("Label"), tr("Status"), tr("Nodo"), tr("Prior."), tr("Creato")});
     m_wuTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
     m_wuTable->setColumnWidth(0, dpiScale(70));
     m_wuTable->setColumnWidth(1, dpiScale(90));
@@ -600,9 +600,9 @@ QWidget* SciComputePage::buildUi()
     nodeLay->setContentsMargins(4,4,4,4);
     m_nodeTable = new QTableWidget(0, 10, nodeWidget);
     m_nodeTable->setHorizontalHeaderLabels(
-        {"ID", "Nome", "Indirizzo", "CPU", "RAM (GB)", "GPU",
-         "Tool disponibili",
-         "WU\xe2\x9c\x85", "WU\xe2\x9d\x8c", "CPU ore"});
+        {tr("ID"), tr("Nome"), tr("Indirizzo"), tr("CPU"), tr("RAM (GB)"), tr("GPU"),
+         tr("Tool disponibili"),
+         tr("WU\xe2\x9c\x85"), tr("WU\xe2\x9d\x8c"), tr("CPU ore")});
     m_nodeTable->horizontalHeader()->setSectionResizeMode(6, QHeaderView::Stretch);
     m_nodeTable->setColumnWidth(0, dpiScale(70));
     m_nodeTable->setColumnWidth(1, dpiScale(90));
@@ -783,7 +783,7 @@ QWidget* SciComputePage::buildUi()
     sdsLay->addWidget(sdsWarn);
 
     auto* sdsPipeBtn = new QPushButton(
-        "\xe2\x9b\x93  Pipeline completa (brute force \xe2\x86\x92 ibrido \xe2\x86\x92 LLM)", sdsWidget);
+        tr("\xe2\x9b\x93  Pipeline completa (brute force \xe2\x86\x92 ibrido \xe2\x86\x92 LLM)"), sdsWidget);
     sdsPipeBtn->setObjectName("actionBtn");
     sdsPipeBtn->setMinimumHeight(dpiScale(42));
     connect(sdsPipeBtn, &QPushButton::clicked, this,

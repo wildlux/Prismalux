@@ -464,7 +464,7 @@ QWidget* ManutenzioneePage::buildCronTab()
 
     /* Tabella */
     m_cronTable = new QTableWidget(0, CC_COUNT, w);
-    m_cronTable->setHorizontalHeaderLabels({"On", "Nome", "Schedule", "Modello", "Ultima esec.", "Prossima"});
+    m_cronTable->setHorizontalHeaderLabels({tr("On"), tr("Nome"), tr("Schedule"), tr("Modello"), tr("Ultima esec."), tr("Prossima")});
     m_cronTable->horizontalHeader()->setSectionResizeMode(CC_Name, QHeaderView::Stretch);
     m_cronTable->horizontalHeader()->setSectionResizeMode(CC_Schedule, QHeaderView::ResizeToContents);
     m_cronTable->horizontalHeader()->setSectionResizeMode(CC_Model,    QHeaderView::ResizeToContents);

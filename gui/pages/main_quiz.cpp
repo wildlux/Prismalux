@@ -51,7 +51,7 @@ QWidget* buildGeneraTab(QuizPage* self,
     topicEdit = new QLineEdit(w);
     topicEdit->setObjectName("chatInput");
     topicEdit->setPlaceholderText(
-        "es. Algoritmi di ordinamento, Sistemi operativi, Fotosintesi...");
+        QObject::tr("es. Algoritmi di ordinamento, Sistemi operativi, Fotosintesi..."));
     topicRow->addWidget(topicLbl);
     topicRow->addWidget(topicEdit, 1);
     lay->addLayout(topicRow);
@@ -237,7 +237,7 @@ QWidget* buildGiocaTab(QuizPage* self,
     riepilogoLbl->setAlignment(Qt::AlignCenter);
     rLay->addWidget(riepilogoLbl);
     btnRivedi = new QPushButton(
-        "\xf0\x9f\x93\x96  Rivedi errori", riepilogoPage);
+        QObject::tr("\xf0\x9f\x93\x96  Rivedi errori"), riepilogoPage);
     btnRivedi->setObjectName("actionBtn");
     btnRivedi->setVisible(false);
     QObject::connect(btnRivedi, &QPushButton::clicked, self, &QuizPage::onRivediErroriClicked);
@@ -312,7 +312,7 @@ static QWidget* buildCcnaTab(QuizPage* /*self*/,
 
     /* ── Intestazione ── */
     auto* titleLbl = new QLabel(
-        "\xf0\x9f\x8e\x93  Quiz CCNA 200-301  \xe2\x80\x94  Banca dati 500 domande", w);
+        QObject::tr("\xf0\x9f\x8e\x93  Quiz CCNA 200-301  \xe2\x80\x94  Banca dati 500 domande"), w);
     titleLbl->setObjectName("pageTitle");
     lay->addWidget(titleLbl);
 
@@ -899,7 +899,7 @@ void QuizPage::loadDashboard() {
 
     if (sessions.isEmpty()) {
         auto* msg = new QLabel(
-            "\xf0\x9f\x93\xad  Nessun quiz ancora completato.", m_dashContent);
+            tr("\xf0\x9f\x93\xad  Nessun quiz ancora completato."), m_dashContent);
         msg->setObjectName("cardDesc");
         msg->setAlignment(Qt::AlignCenter);
         vlay->addWidget(msg);

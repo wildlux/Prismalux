@@ -47,7 +47,7 @@ AvogadroWidget::AvogadroWidget(AiClient* ai, QWidget* parent)
     lay->setSpacing(6);
 
     auto* descLbl = new QLabel(
-        "\xf0\x9f\xa7\xaa  <i>Avogadro \xe2\x80\x94 Editor molecolare 3D open-source.</i>", this);
+        tr("\xf0\x9f\xa7\xaa  <i>Avogadro \xe2\x80\x94 Editor molecolare 3D open-source.</i>"), this);
     descLbl->setObjectName("hintLabel");
     descLbl->setTextFormat(Qt::RichText);
     descLbl->setWordWrap(true);

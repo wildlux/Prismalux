@@ -118,7 +118,7 @@ SecurityAnalyzerPage::SecurityAnalyzerPage(AiClient* ai, QWidget* parent)
     topLay->addWidget(m_modelCombo);
 
     m_btnAnalyze = new QPushButton(
-        "\xf0\x9f\x94\x8d  Analizza", topBar);  /* 🔍 */
+        tr("\xf0\x9f\x94\x8d  Analizza"), topBar);  /* 🔍 */
     m_btnAnalyze->setObjectName("actionBtn");
     m_btnAnalyze->setProperty("highlight", "true");
     m_btnAnalyze->setMinimumHeight(dpiScale(32));
@@ -164,13 +164,13 @@ SecurityAnalyzerPage::SecurityAnalyzerPage(AiClient* ai, QWidget* parent)
     osvLay->setSpacing(4);
 
     auto* osvDesc = new QLabel(
-        "Verifica dipendenze Python contro il database OSV (api.osv.dev)", osvBox);
+        tr("Verifica dipendenze Python contro il database OSV (api.osv.dev)"), osvBox);
     osvDesc->setWordWrap(true);
     osvDesc->setObjectName("cardDesc");
     osvLay->addWidget(osvDesc);
 
     m_osvScanBtn = new QPushButton(
-        "\xf0\x9f\x94\x8d  Scansiona requirements.lock", osvBox);  /* 🔍 */
+        tr("\xf0\x9f\x94\x8d  Scansiona requirements.lock"), osvBox);  /* 🔍 */
     m_osvScanBtn->setObjectName("actionBtn");
     connect(m_osvScanBtn, &QPushButton::clicked,
             this, &SecurityAnalyzerPage::onOsvScanClicked);
@@ -182,7 +182,7 @@ SecurityAnalyzerPage::SecurityAnalyzerPage(AiClient* ai, QWidget* parent)
     osvLay->addWidget(m_osvStatusLbl);
 
     m_osvUpdateBtn = new QPushButton(
-        "\xe2\xac\x87  Aggiorna DB OSV locale", osvBox);  /* ⬇ */
+        tr("\xe2\xac\x87  Aggiorna DB OSV locale"), osvBox);  /* ⬇ */
     connect(m_osvUpdateBtn, &QPushButton::clicked,
             this, &SecurityAnalyzerPage::onOsvUpdateClicked);
     osvLay->addWidget(m_osvUpdateBtn);
@@ -198,20 +198,20 @@ SecurityAnalyzerPage::SecurityAnalyzerPage(AiClient* ai, QWidget* parent)
     m_reportOutput->setObjectName("chatLog");
     m_reportOutput->setReadOnly(true);
     m_reportOutput->setPlaceholderText(
-        "Il report di sicurezza apparir\xc3\xa0 qui dopo l'analisi...");  /* à */
+        tr("Il report di sicurezza apparir\xc3\xa0 qui dopo l'analisi..."));  /* à */
     m_outputTabs->addTab(m_reportOutput, tr("Report"));
 
     m_rawOutput = new QPlainTextEdit(m_outputTabs);
     m_rawOutput->setObjectName("chatLog");
     m_rawOutput->setReadOnly(true);
     m_rawOutput->setPlaceholderText(
-        "Output grezzo di ciascun agente...");
+        tr("Output grezzo di ciascun agente..."));
     m_outputTabs->addTab(m_rawOutput, tr("Dettagli"));
 
     m_osvOutput = new QTextBrowser(m_outputTabs);
     m_osvOutput->setOpenExternalLinks(false);
     m_osvOutput->setPlaceholderText(
-        "I risultati OSV appariranno qui dopo la scansione...");
+        tr("I risultati OSV appariranno qui dopo la scansione..."));
     m_outputTabs->addTab(m_osvOutput, tr("Dipendenze"));
 
     /* Network manager dedicato allo scanner OSV */
@@ -230,7 +230,7 @@ SecurityAnalyzerPage::SecurityAnalyzerPage(AiClient* ai, QWidget* parent)
     botLay->setSpacing(8);
 
     m_status = new QLabel(
-        "\xf0\x9f\x94\x90  Pronto. Incolla il codice e premi Analizza.", botBar);  /* 🔐 */
+        tr("\xf0\x9f\x94\x90  Pronto. Incolla il codice e premi Analizza."), botBar);  /* 🔐 */
     m_status->setObjectName("statusLabel");
     botLay->addWidget(m_status, 1);
 
@@ -517,7 +517,7 @@ void SecurityAnalyzerPage::onOsvScanClicked()
 
     if (queries.isEmpty()) {
         m_osvStatusLbl->setText(
-            "\xe2\x9a\xa0\xef\xb8\x8f  Nessuna dipendenza trovata nel file.");  /* ⚠️ */
+            tr("\xe2\x9a\xa0\xef\xb8\x8f  Nessuna dipendenza trovata nel file."));  /* ⚠️ */
         return;
     }
 
@@ -553,7 +553,7 @@ void SecurityAnalyzerPage::onOsvScanClicked()
 void SecurityAnalyzerPage::onOsvUpdateClicked()
 {
     m_osvStatusLbl->setText(
-        "\xf0\x9f\x94\x84  Verifica raggiungibilita' API OSV...");  /* 🔄 */
+        tr("\xf0\x9f\x94\x84  Verifica raggiungibilita' API OSV..."));  /* 🔄 */
     m_osvUpdateBtn->setEnabled(false);
 
     /* POST minimo a /v1/query come health check */
@@ -574,7 +574,7 @@ void SecurityAnalyzerPage::onOsvUpdateClicked()
                 m_osvUpdateBtn->setEnabled(true);
                 if (reply->error() == QNetworkReply::NoError) {
                     m_osvStatusLbl->setText(
-                        "\xe2\x9c\x85  API OSV raggiungibile.");  /* ✅ */
+                        tr("\xe2\x9c\x85  API OSV raggiungibile."));  /* ✅ */
                 } else {
                     m_osvStatusLbl->setText(
                         "\xe2\x9d\x8c  API non raggiungibile: "  /* ❌ */
@@ -613,7 +613,7 @@ void SecurityAnalyzerPage::onOsvReply()
     const QJsonDocument doc = QJsonDocument::fromJson(data);
     if (!doc.isObject()) {
         m_osvStatusLbl->setText(
-            "\xe2\x9d\x8c  Risposta non valida da api.osv.dev");  /* ❌ */
+            tr("\xe2\x9d\x8c  Risposta non valida da api.osv.dev"));  /* ❌ */
         LogBus::post("\xe2\x9d\x8c Sicurezza: Risposta non valida da api.osv.dev.");
         return;
     }

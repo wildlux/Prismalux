@@ -82,7 +82,7 @@ QWidget* StrumentiFilePage::buildFileSearchTab()
     m_fileSearchDir->setText(QDir::homePath());
     dirLay->addWidget(m_fileSearchDir, 1);
     auto* btnBrowse = new QPushButton(
-        "\xf0\x9f\x93\x82  Sfoglia", dirRow);
+        tr("\xf0\x9f\x93\x82  Sfoglia"), dirRow);
     btnBrowse->setObjectName("actionBtn");
     btnBrowse->setFixedWidth(dpiScale(90));
     dirLay->addWidget(btnBrowse);
@@ -97,17 +97,17 @@ QWidget* StrumentiFilePage::buildFileSearchTab()
     qLay->addWidget(qLbl);
     m_fileSearchQuery = new QLineEdit(qRow);
     m_fileSearchQuery->setPlaceholderText(
-        "cosa stai cercando? (es. \"configurazione database\")");
+        tr("cosa stai cercando? (es. \"configurazione database\")"));
     qLay->addWidget(m_fileSearchQuery, 1);
 
     m_fileSearchBtn = new QPushButton(
-        "\xf0\x9f\x94\x8d  Cerca", qRow);
+        tr("\xf0\x9f\x94\x8d  Cerca"), qRow);
     m_fileSearchBtn->setObjectName("actionBtn");
     m_fileSearchBtn->setFixedWidth(dpiScale(90));
     qLay->addWidget(m_fileSearchBtn);
 
     m_fileSearchAiBtn = new QPushButton(
-        "\xf0\x9f\xa4\x96  Analisi AI", qRow);
+        tr("\xf0\x9f\xa4\x96  Analisi AI"), qRow);
     m_fileSearchAiBtn->setObjectName("actionBtn");
     m_fileSearchAiBtn->setFixedWidth(dpiScale(100));
     m_fileSearchAiBtn->setEnabled(false);
@@ -161,7 +161,7 @@ QWidget* StrumentiFilePage::buildWikiTab()
 
     m_wikiQuery = new QLineEdit(sRow);
     m_wikiQuery->setPlaceholderText(
-        "argomento Wikipedia (es. \"Intelligenza artificiale\", \"Alan Turing\")");
+        tr("argomento Wikipedia (es. \"Intelligenza artificiale\", \"Alan Turing\")"));
     sLay->addWidget(m_wikiQuery, 1);
 
     m_wikiLangCombo = new QComboBox(sRow);
@@ -176,17 +176,17 @@ QWidget* StrumentiFilePage::buildWikiTab()
     sLay->addWidget(m_wikiLangCombo);
 
     auto* btnFetch = new QPushButton(
-        "\xf0\x9f\x94\x8d  Cerca", sRow);
+        tr("\xf0\x9f\x94\x8d  Cerca"), sRow);
     btnFetch->setObjectName("actionBtn");
     btnFetch->setFixedWidth(dpiScale(80));
     sLay->addWidget(btnFetch);
 
     m_wikiElaboraBtn = new QPushButton(
-        "\xf0\x9f\xa4\x96  Elabora con AI", sRow);
+        tr("\xf0\x9f\xa4\x96  Elabora con AI"), sRow);
     m_wikiElaboraBtn->setObjectName("actionBtn");
     m_wikiElaboraBtn->setEnabled(false);
     m_wikiElaboraBtn->setToolTip(
-        "Invia l\xe2\x80\x99" "articolo Wikipedia al modello per analisi, approfondimento o Q&A");
+        tr("Invia l\xe2\x80\x99" "articolo Wikipedia al modello per analisi, approfondimento o Q&A"));
     sLay->addWidget(m_wikiElaboraBtn);
     lay->addWidget(sRow);
 
@@ -265,7 +265,7 @@ QWidget* StrumentiFilePage::buildDatiTab()
     fileLay->setContentsMargins(0, 0, 0, 0);
     fileLay->setSpacing(8);
     auto* fileBtn = new QPushButton(
-        "\xf0\x9f\x93\x82  Carica dati", fileRow);
+        tr("\xf0\x9f\x93\x82  Carica dati"), fileRow);
     fileBtn->setObjectName("actionBtn");
     fileBtn->setFixedWidth(dpiScale(140));
     m_datiFileLbl = new QLabel(tr("Nessun file caricato"), fileRow);
@@ -321,10 +321,10 @@ QWidget* StrumentiFilePage::buildDatiTab()
     btnLay->setContentsMargins(0, 0, 0, 0);
     btnLay->setSpacing(8);
     auto* previewBtn = new QPushButton(
-        "\xf0\x9f\x91\x81  1. Anteprima", btnRow);
+        tr("\xf0\x9f\x91\x81  1. Anteprima"), btnRow);
     previewBtn->setObjectName("actionBtn");
     auto* analyzeBtn = new QPushButton(
-        "\xf0\x9f\xa4\x96  2. Analizza con AI", btnRow);
+        tr("\xf0\x9f\xa4\x96  2. Analizza con AI"), btnRow);
     analyzeBtn->setObjectName("actionBtn");
     btnLay->addWidget(previewBtn);
     btnLay->addWidget(analyzeBtn);
@@ -334,7 +334,7 @@ QWidget* StrumentiFilePage::buildDatiTab()
     auto* splitter = new QSplitter(Qt::Horizontal, panel);
 
     auto* previewGroup = new QGroupBox(
-        "\xf0\x9f\x91\x81  Anteprima dati (prime 20 righe)", splitter);
+        tr("\xf0\x9f\x91\x81  Anteprima dati (prime 20 righe)"), splitter);
     auto* pgLay = new QVBoxLayout(previewGroup);
     pgLay->setContentsMargins(4, 4, 4, 4);
     m_datiPreview = new QTextEdit(previewGroup);
@@ -348,7 +348,7 @@ QWidget* StrumentiFilePage::buildDatiTab()
     splitter->addWidget(previewGroup);
 
     auto* outputGroup = new QGroupBox(
-        "\xf0\x9f\xa4\x96  Analisi AI", splitter);
+        tr("\xf0\x9f\xa4\x96  Analisi AI"), splitter);
     auto* ogLay = new QVBoxLayout(outputGroup);
     ogLay->setContentsMargins(4, 4, 4, 4);
     m_datiOutput = new QTextEdit(outputGroup);
@@ -394,7 +394,7 @@ QWidget* StrumentiFilePage::buildPdfTab()
     fileLay->setContentsMargins(0, 0, 0, 0);
     fileLay->setSpacing(8);
     auto* fileBtn = new QPushButton(
-        "\xf0\x9f\x93\x84  Carica PDF", fileRow);
+        tr("\xf0\x9f\x93\x84  Carica PDF"), fileRow);
     fileBtn->setObjectName("actionBtn");
     fileBtn->setFixedWidth(dpiScale(130));
     m_pdfFileLbl = new QLabel(tr("Nessun PDF caricato"), fileRow);
@@ -445,7 +445,7 @@ QWidget* StrumentiFilePage::buildPdfTab()
     vbox->addWidget(actionRow);
 
     auto* btnAnalyze = new QPushButton(
-        "\xf0\x9f\xa4\x96  Analizza con AI", panel);
+        tr("\xf0\x9f\xa4\x96  Analizza con AI"), panel);
     btnAnalyze->setObjectName("actionBtn");
     vbox->addWidget(btnAnalyze);
 
@@ -487,7 +487,7 @@ QWidget* StrumentiFilePage::buildWordTab()
     fileLay->setContentsMargins(0, 0, 0, 0);
     fileLay->setSpacing(8);
     auto* fileBtn = new QPushButton(
-        "\xf0\x9f\x93\x82  Carica file", fileRow);
+        tr("\xf0\x9f\x93\x82  Carica file"), fileRow);
     fileBtn->setObjectName("actionBtn");
     fileBtn->setFixedWidth(dpiScale(130));
     m_wordFileLbl = new QLabel(tr("Nessun file caricato"), fileRow);
@@ -537,7 +537,7 @@ QWidget* StrumentiFilePage::buildWordTab()
     vbox->addWidget(actionRow);
 
     auto* btnAnalyze = new QPushButton(
-        "\xf0\x9f\xa4\x96  Analizza con AI", panel);
+        tr("\xf0\x9f\xa4\x96  Analizza con AI"), panel);
     btnAnalyze->setObjectName("actionBtn");
     vbox->addWidget(btnAnalyze);
 

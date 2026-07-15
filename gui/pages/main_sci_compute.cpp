@@ -2055,7 +2055,7 @@ void SciComputePage::onGenerateFromFileClicked()
 
     /* Template params con {{INPUT}} */
     lay->addWidget(new QLabel(
-        "Template parametri JSON \xe2\x80\x94 usa <b>{{INPUT}}</b> dove vuoi i dati di ogni elemento:", dlg));
+        tr("Template parametri JSON \xe2\x80\x94 usa <b>{{INPUT}}</b> dove vuoi i dati di ogni elemento:"), dlg));
     auto* tmplEdit = new QTextEdit(dlg);
     tmplEdit->setObjectName("codeEdit");
     tmplEdit->setMinimumHeight(dpiScale(130));
@@ -2378,8 +2378,8 @@ void SciComputePage::updateStatus()
             .arg(P::kSciComputePort).arg(m_nodeSock.size()));
     else if (m_selfSock && m_selfSock->state() == QAbstractSocket::ConnectedState)
         m_statusLbl->setText(
-            "<span style='color:#3b82f6;'>\xf0\x9f\x94\x97 Worker connesso</span>");
+            tr("<span style='color:#3b82f6;'>\xf0\x9f\x94\x97 Worker connesso</span>"));
     else
         m_statusLbl->setText(
-            "<span style='color:#6b7280;'>\xe2\x9a\xaa Inattivo</span>");
+            tr("<span style='color:#6b7280;'>\xe2\x9a\xaa Inattivo</span>"));
 }

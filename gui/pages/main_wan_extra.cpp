@@ -88,7 +88,7 @@ void LanWanPage::onWanDecomposeBtnClicked()
     m_wanDecomposeBtn->setEnabled(false);
     if (m_wanDecomposeStatusLbl)
         m_wanDecomposeStatusLbl->setText(
-            "\xe2\x8f\xb3  MasterAgent in elaborazione\xe2\x80\xa6");
+            tr("\xe2\x8f\xb3  MasterAgent in elaborazione\xe2\x80\xa6"));
 
     /* Stesso system prompt di AgentiMultiPage::decompose() */
     const QString sys =
@@ -174,7 +174,7 @@ void LanWanPage::wanApplyDecomposedPlan(const QString& jsonPlan)
     if (subtasks.isEmpty()) {
         if (m_wanDecomposeStatusLbl)
             m_wanDecomposeStatusLbl->setText(
-                "\xe2\x9a\xa0\xef\xb8\x8f  Nessun subtask nel piano \xe2\x80\x94 riprova");
+                tr("\xe2\x9a\xa0\xef\xb8\x8f  Nessun subtask nel piano \xe2\x80\x94 riprova"));
         return;
     }
 

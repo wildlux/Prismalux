@@ -91,7 +91,7 @@ OracoloPage::OracoloPage(AiClient* ai, QWidget* parent)
     m_sysEdit = new QTextEdit(this);
     m_sysEdit->setObjectName("chatInput");
     m_sysEdit->setPlaceholderText(
-        "System prompt — definisce il comportamento dell'AI...");
+        tr("System prompt — definisce il comportamento dell'AI..."));
     m_sysEdit->setFixedHeight(dpiScale(64));
     m_sysEdit->setVisible(false);
     lay->addWidget(m_sysEdit);
@@ -114,7 +114,7 @@ OracoloPage::OracoloPage(AiClient* ai, QWidget* parent)
 
     /* ── 3. Label attesa ── */
     m_waitLbl = new QLabel(
-        "\xe2\x8f\xb3  L'AI sta elaborando...", this);
+        tr("\xe2\x8f\xb3  L'AI sta elaborando..."), this);
     m_waitLbl->setObjectName("cardDesc");
     m_waitLbl->setAlignment(Qt::AlignCenter);
     m_waitLbl->setVisible(false);
@@ -151,21 +151,21 @@ OracoloPage::OracoloPage(AiClient* ai, QWidget* parent)
     m_input = new QPlainTextEdit(inputRow);
     m_input->setObjectName("chatInput");
     m_input->setPlaceholderText(
-        "Scrivi il tuo messaggio qui... (Enter per inviare, Shift+Enter per andare a capo, \xf0\x9f\x8e\xa4 per parlare)");
+        tr("Scrivi il tuo messaggio qui... (Enter per inviare, Shift+Enter per andare a capo, \xf0\x9f\x8e\xa4 per parlare)"));
     m_input->setFixedHeight(dpiScale(70));
     m_input->setLineWrapMode(QPlainTextEdit::WidgetWidth);
     m_input->installEventFilter(new InputFilter(this));
 
     /* Invia */
     m_btnSend = new QPushButton(
-        "\xe2\x9c\x88  Invia", inputRow);   /* ✈ Invia */
+        tr("\xe2\x9c\x88  Invia"), inputRow);   /* ✈ Invia */
     m_btnSend->setObjectName("actionBtn");
     m_btnSend->setProperty("primary", true);
     m_btnSend->setMinimumWidth(90);
 
     /* Nascondi (toggle quick bar) */
     m_btnNascondi = new QPushButton(
-        "\xf0\x9f\x91\x81  Nascondi", inputRow);   /* 👁 Nascondi */
+        tr("\xf0\x9f\x91\x81  Nascondi"), inputRow);   /* 👁 Nascondi */
     m_btnNascondi->setObjectName("actionBtn");
     m_btnNascondi->setToolTip(tr("Mostra/nascondi le azioni rapide"));
     m_btnNascondi->setCheckable(true);

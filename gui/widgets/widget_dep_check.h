@@ -54,20 +54,20 @@ public:
         headerLay->setSpacing(8);
 
         auto* title = new QLabel(
-            "\xf0\x9f\x93\xa6  <b>Dipendenze software</b>", header);  /* 📦 */
+            tr("\xf0\x9f\x93\xa6  <b>Dipendenze software</b>"), header);  /* 📦 */
         title->setObjectName("cardTitle");
         title->setTextFormat(Qt::RichText);
         headerLay->addWidget(title, 1);
 
         m_btnCheckAll = new QPushButton(
-            "\xf0\x9f\x94\x84  Controlla tutto", header);  /* 🔄 */
+            tr("\xf0\x9f\x94\x84  Controlla tutto"), header);  /* 🔄 */
         m_btnCheckAll->setObjectName("actionBtn");
         m_btnCheckAll->setToolTip(tr("Verifica lo stato di ogni dipendenza"));
         m_btnCheckAll->setFixedHeight(dpiScale(28));
         headerLay->addWidget(m_btnCheckAll);
 
         m_btnInstallAll = new QPushButton(
-            "\xe2\xac\x87  Installa mancanti", header);  /* ⬇ */
+            tr("\xe2\xac\x87  Installa mancanti"), header);  /* ⬇ */
         m_btnInstallAll->setObjectName("dangerBtn");
         m_btnInstallAll->setToolTip(tr("Installa via pip le dipendenze mancanti"));
         m_btnInstallAll->setFixedHeight(dpiScale(28));
@@ -338,10 +338,10 @@ private:
         if (idx < 0 || idx >= m_statusLabels.size()) return;
         if (ok) {
             m_statusLabels[idx]->setText(
-                "<span style='color:#22c55e;'>\xe2\x9c\x85  OK</span>");
+                tr("<span style='color:#22c55e;'>\xe2\x9c\x85  OK</span>"));
         } else {
             m_statusLabels[idx]->setText(
-                "<span style='color:#ef4444;'>\xe2\x9c\x96  Mancante</span>");
+                tr("<span style='color:#ef4444;'>\xe2\x9c\x96  Mancante</span>"));
         }
         m_statusLabels[idx]->setTextFormat(Qt::RichText);
     }

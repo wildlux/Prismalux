@@ -55,7 +55,7 @@ AppControllerPage::AppControllerPage(AiClient* ai, QWidget* parent)
     tbLay->setSpacing(dpiScale(6));
 
     auto* pipBtn = new QPushButton(
-        "\xf0\x9f\x90\x8d  Moduli Python", toolbar);
+        tr("\xf0\x9f\x90\x8d  Moduli Python"), toolbar);
     pipBtn->setObjectName("actionBtn");
     pipBtn->setToolTip(
         "Apri Impostazioni \xe2\x86\x92 Moduli Python "
@@ -251,32 +251,32 @@ void AppControllerPage::onRunAiFinished(const QString& full)
         m_blenderCode = code;
         m_blenderCodeEdit->setPlainText(header + imports + code);
         m_blenderStatusLbl->setText(
-            "\xf0\x9f\x90\x8d  Codice pronto \xe2\x80\x94 premi Esegui in Blender");
+            tr("\xf0\x9f\x90\x8d  Codice pronto \xe2\x80\x94 premi Esegui in Blender"));
     } else if (m_activeTab == 1 && hasBlock && !code.isEmpty()) {
         m_freecadCode = code;
         m_freecadExecBtn->setEnabled(true);
         m_freecadStatusLbl->setText(
-            "\xf0\x9f\x94\xa9  Codice pronto \xe2\x80\x94 premi Esegui in FreeCAD");
+            tr("\xf0\x9f\x94\xa9  Codice pronto \xe2\x80\x94 premi Esegui in FreeCAD"));
     } else if (m_activeTab == 2 && hasBlock && !code.isEmpty()) {
         m_officeCode = code;
         m_officeExecBtn->setEnabled(true);
         m_officeStatusLbl->setText(
-            "\xf0\x9f\x93\x84  Codice pronto \xe2\x80\x94 premi Esegui in Office");
+            tr("\xf0\x9f\x93\x84  Codice pronto \xe2\x80\x94 premi Esegui in Office"));
     } else if (m_activeTab == 5 && hasBlock && !code.isEmpty()) {
         m_kicadCode = code;
         m_kicadExecBtn->setEnabled(true);
         m_kicadStatusLbl->setText(
-            "\xf0\x9f\x96\xa5  Codice pronto \xe2\x80\x94 premi Esegui in KiCAD");
+            tr("\xf0\x9f\x96\xa5  Codice pronto \xe2\x80\x94 premi Esegui in KiCAD"));
     } else if (m_activeTab == 6 && hasBlock && !code.isEmpty()) {
         m_mcuCode = code;
         m_mcuFlashBtn->setEnabled(true);
         m_mcuStatusLbl->setText(
-            "\xf0\x9f\xa4\x96  Codice pronto \xe2\x80\x94 premi Flash MCU");
+            tr("\xf0\x9f\xa4\x96  Codice pronto \xe2\x80\x94 premi Flash MCU"));
     } else if (m_activeTab == 7 && hasBlock && !code.isEmpty()) {
         m_obsCode = code;
         m_obsExecBtn->setEnabled(true);
         m_obsStatusLbl->setText(
-            "\xf0\x9f\x94\xb4  Codice pronto \xe2\x80\x94 premi Esegui in OBS");
+            tr("\xf0\x9f\x94\xb4  Codice pronto \xe2\x80\x94 premi Esegui in OBS"));
     }
 }
 

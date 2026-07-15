@@ -114,25 +114,25 @@ QWidget* RicercaPage::buildRagTesterTab()
     btnLay->setSpacing(8);
 
     m_ragTesterGenBtn  = new QPushButton(
-        "\xf0\x9f\x93\x9d  Genera domande", btnRow);
+        tr("\xf0\x9f\x93\x9d  Genera domande"), btnRow);
     m_ragTesterGenBtn->setObjectName("actionBtn");
     m_ragTesterGenBtn->setToolTip(
         "Legge il documento selezionato e genera 10 domande:\n"
         "7 sulla comprensione del testo + 3 trabocchetto (logica/fatto non presente)");
 
     m_ragTesterRunBtn  = new QPushButton(
-        "\xf0\x9f\xa4\x96  Esegui test", btnRow);
+        tr("\xf0\x9f\xa4\x96  Esegui test"), btnRow);
     m_ragTesterRunBtn->setObjectName("actionBtn");
     m_ragTesterRunBtn->setEnabled(false);
     m_ragTesterRunBtn->setToolTip(
-        "L'AI risponde a tutte le domande usando solo il testo del documento come contesto");
+        tr("L'AI risponde a tutte le domande usando solo il testo del documento come contesto"));
 
     m_ragTesterEvalBtn = new QPushButton(
-        "\xe2\x9c\x85  Valuta risposte", btnRow);
+        tr("\xe2\x9c\x85  Valuta risposte"), btnRow);
     m_ragTesterEvalBtn->setObjectName("actionBtn");
     m_ragTesterEvalBtn->setEnabled(false);
     m_ragTesterEvalBtn->setToolTip(
-        "L'AI valuta le proprie risposte: correttezza, logica, identificazione trabocchetti");
+        tr("L'AI valuta le proprie risposte: correttezza, logica, identificazione trabocchetti"));
 
     m_ragTesterStatus = new QLabel("", btnRow);
     m_ragTesterStatus->setObjectName("hintLabel");
@@ -145,7 +145,7 @@ QWidget* RicercaPage::buildRagTesterTab()
 
     /* Area domande */
     auto* qGrp = new QGroupBox(
-        "\xf0\x9f\x93\x9d  Domande generate (7 comprensione + 3 trabocchetto)", rightPanel);
+        tr("\xf0\x9f\x93\x9d  Domande generate (7 comprensione + 3 trabocchetto)"), rightPanel);
     auto* qLay = new QVBoxLayout(qGrp);
     qLay->setContentsMargins(8, 8, 8, 8);
     m_ragTesterQuestions = new QTextEdit(qGrp);
@@ -159,7 +159,7 @@ QWidget* RicercaPage::buildRagTesterTab()
 
     /* Area risposte + valutazione */
     auto* aGrp = new QGroupBox(
-        "\xf0\x9f\xa4\x96  Risposte AI + Valutazione", rightPanel);
+        tr("\xf0\x9f\xa4\x96  Risposte AI + Valutazione"), rightPanel);
     auto* aLay = new QVBoxLayout(aGrp);
     aLay->setContentsMargins(8, 8, 8, 8);
     m_ragTesterAnswers = new QTextEdit(aGrp);
@@ -192,7 +192,7 @@ void RicercaPage::onRagTesterGenClicked()
     if (!item) {
         if (m_ragTesterStatus)
             m_ragTesterStatus->setText(
-                "\xe2\x9a\xa0\xef\xb8\x8f  Seleziona un documento dalla lista");
+                tr("\xe2\x9a\xa0\xef\xb8\x8f  Seleziona un documento dalla lista"));
         return;
     }
     const QString path = item->data(Qt::UserRole).toString();
@@ -200,7 +200,7 @@ void RicercaPage::onRagTesterGenClicked()
 
     if (m_ragTesterStatus)
         m_ragTesterStatus->setText(
-            "\xe2\x8f\xb3  Estrazione testo in corso...");
+            tr("\xe2\x8f\xb3  Estrazione testo in corso..."));
     m_ragTesterGenBtn->setEnabled(false);
 
     auto onTextReady = [this](const QString& rawText) {
@@ -208,7 +208,7 @@ void RicercaPage::onRagTesterGenClicked()
         if (m_ragTesterDocText.trimmed().isEmpty()) {
             if (m_ragTesterStatus)
                 m_ragTesterStatus->setText(
-                    "\xe2\x9d\x8c  Impossibile estrarre testo dal documento");
+                    tr("\xe2\x9d\x8c  Impossibile estrarre testo dal documento"));
             if (m_ragTesterGenBtn) m_ragTesterGenBtn->setEnabled(true);
             return;
         }
@@ -252,7 +252,7 @@ void RicercaPage::onRagTesterGenClicked()
             holder->deleteLater();
             if (m_ragTesterStatus)
                 m_ragTesterStatus->setText(
-                    "\xe2\x9c\x85  Domande generate. Premi \"Esegui test\" per testare.");
+                    tr("\xe2\x9c\x85  Domande generate. Premi \"Esegui test\" per testare."));
             if (m_ragTesterGenBtn) m_ragTesterGenBtn->setEnabled(true);
             if (m_ragTesterRunBtn) m_ragTesterRunBtn->setEnabled(true);
         });
@@ -292,7 +292,7 @@ void RicercaPage::onRagTesterGenClicked()
     } else if (ext == "jpg" || ext == "jpeg" || ext == "png") {
         if (m_ragTesterStatus)
             m_ragTesterStatus->setText(
-                "\xf0\x9f\xa4\x96  Analisi immagine con AI...");
+                tr("\xf0\x9f\xa4\x96  Analisi immagine con AI..."));
         const QString sysVis =
             "Descrivi in modo dettagliato e strutturato il contenuto di questa immagine.";
         auto* holder = new QObject(this);
@@ -353,7 +353,7 @@ void RicercaPage::onRagTesterRunClicked()
         holder->deleteLater();
         if (m_ragTesterStatus)
             m_ragTesterStatus->setText(
-                "\xe2\x9c\x85  Test completato. Premi \"Valuta risposte\" per la valutazione.");
+                tr("\xe2\x9c\x85  Test completato. Premi \"Valuta risposte\" per la valutazione."));
         if (m_ragTesterRunBtn)  m_ragTesterRunBtn->setEnabled(true);
         if (m_ragTesterEvalBtn) m_ragTesterEvalBtn->setEnabled(true);
     });

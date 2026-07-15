@@ -630,7 +630,7 @@ void ProgrammazionePage::onCamServerStartClicked()
     }
 
     m_camServerStatus->setText(
-        "\xf0\x9f\x9f\xa1  Server in avvio...");
+        tr("\xf0\x9f\x9f\xa1  Server in avvio..."));
     m_camServerStatus->setStyleSheet("color: #facc15; font-size: 12px;");
     if (m_usbOutput)
         m_usbOutput->append(
@@ -726,7 +726,7 @@ void ProgrammazionePage::onCamPreviewFinished()
         /* lascia l'ultimo frame visibile */
     } else if (m_camPreviewLbl) {
         m_camPreviewLbl->setText(
-            "Stream terminato o non raggiungibile.");
+            tr("Stream terminato o non raggiungibile."));
         m_camPreviewLbl->setStyleSheet(
             "background:#111; color:#888; border-radius:4px;");
     }

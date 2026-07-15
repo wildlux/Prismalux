@@ -649,7 +649,7 @@ void VoiceClonerWidget::applyBackend()
         m_installBtn->setText(tr("\xe2\x9c\x85  XTTS-v2"));
         m_installBtn->setEnabled(false);
         m_backendLbl->setText(
-            "<span style='color:#4ade80;'>XTTS-v2 (voice cloning)</span>");
+            tr("<span style='color:#4ade80;'>XTTS-v2 (voice cloning)</span>"));
         setStatus(tr("Coqui XTTS-v2 disponibile — carica un campione per iniziare"));
         appendLog("Backend: Coqui TTS (XTTS-v2) — voice cloning completo.");
         if (m_sampleGroup) m_sampleGroup->setEnabled(true);
@@ -659,7 +659,7 @@ void VoiceClonerWidget::applyBackend()
         m_installBtn->setText(tr("\xe2\x9c\x85  chatterbox"));
         m_installBtn->setEnabled(false);
         m_backendLbl->setText(
-            "<span style='color:#4ade80;'>chatterbox-tts (voice cloning)</span>");
+            tr("<span style='color:#4ade80;'>chatterbox-tts (voice cloning)</span>"));
         setStatus(tr("chatterbox-tts disponibile — carica un campione per iniziare"));
         appendLog("Backend: chatterbox-tts (Resemble AI) — voice cloning su Python 3.12+.");
         if (m_sampleGroup) m_sampleGroup->setEnabled(true);
@@ -671,7 +671,7 @@ void VoiceClonerWidget::applyBackend()
             "Installa chatterbox-tts per voice cloning reale. "
             "edge-tts e' gia' disponibile ma usa voci predefinite (no campione).");
         m_backendLbl->setText(
-            "<span style='color:#fb923c;'>edge-tts online (no campione)</span>");
+            tr("<span style='color:#fb923c;'>edge-tts online (no campione)</span>"));
         setStatus(tr("edge-tts attivo — nessun campione richiesto, voce predefinita online"));
         appendLog("Backend: edge-tts (Microsoft Edge, online). Il campione non viene usato.");
         appendLog("Per voice cloning installa: pip3 install --break-system-packages chatterbox-tts");
@@ -683,7 +683,7 @@ void VoiceClonerWidget::applyBackend()
     default:
         m_installBtn->setText(tr("\xf0\x9f\x93\xa6  Installa TTS"));
         m_backendLbl->setText(
-            "<span style='color:#f87171;'>nessun backend</span>");
+            tr("<span style='color:#f87171;'>nessun backend</span>"));
         setStatus(tr("TTS non installato — usa il pulsante per installare"));
         appendLog("Nessun backend TTS trovato.");
         appendLog("Opzioni:");

@@ -323,7 +323,7 @@ QWidget* MainWindow::buildServerMathSection(QWidget* parent,
     vlay->addWidget(lblMathStatus);
 
     auto* btnMathDl = new QPushButton(
-        "\xe2\xac\x87  Scarica modello matematico da Hugging Face", container);
+        tr("\xe2\xac\x87  Scarica modello matematico da Hugging Face"), container);
     btnMathDl->setObjectName("actionBtn");
     btnMathDl->setVisible(false);
     vlay->addWidget(btnMathDl);
@@ -458,7 +458,7 @@ static void showMathDownloadDialog(QWidget* parent, const QString& modelsDir) {
     lay->setSpacing(12);
 
     lay->addWidget(new QLabel(
-        "<b>Seleziona modello e variante di quantizzazione:</b>", dlg));
+        QObject::tr("<b>Seleziona modello e variante di quantizzazione:</b>"), dlg));
 
     /* Una riga per ogni modello con radio Q4 / Q8 */
     QVector<QPair<QRadioButton*, QRadioButton*>> rows;

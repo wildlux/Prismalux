@@ -120,7 +120,7 @@ QWidget* MultimediaPage::buildAudioTab()
     fileLay->setContentsMargins(0, 0, 0, 0);
     fileLay->setSpacing(8);
     auto* fileBtn = new QPushButton(
-        "\xf0\x9f\x93\x82  Carica audio", fileRow);
+        tr("\xf0\x9f\x93\x82  Carica audio"), fileRow);
     fileBtn->setObjectName("actionBtn");
     fileBtn->setFixedWidth(dpiScale(140));
     m_recBtn = new QPushButton(tr("\xf0\x9f\x8e\x99  Registra"), fileRow);
@@ -173,10 +173,10 @@ QWidget* MultimediaPage::buildAudioTab()
     btnLay->setContentsMargins(0, 0, 0, 0);
     btnLay->setSpacing(8);
     auto* transcribeBtn = new QPushButton(
-        "\xf0\x9f\x8e\xa4  1. Trascrivi", btnRow);
+        tr("\xf0\x9f\x8e\xa4  1. Trascrivi"), btnRow);
     transcribeBtn->setObjectName("actionBtn");
     auto* analyzeBtn = new QPushButton(
-        "\xf0\x9f\xa4\x96  2. Analizza con AI", btnRow);
+        tr("\xf0\x9f\xa4\x96  2. Analizza con AI"), btnRow);
     analyzeBtn->setObjectName("actionBtn");
     btnLay->addWidget(transcribeBtn);
     btnLay->addWidget(analyzeBtn);
@@ -187,7 +187,7 @@ QWidget* MultimediaPage::buildAudioTab()
     auto* splitter = new QSplitter(Qt::Horizontal, panel);
 
     auto* transcriptGroup = new QGroupBox(
-        "\xf0\x9f\x8e\xa4  Trascrizione", splitter);
+        tr("\xf0\x9f\x8e\xa4  Trascrizione"), splitter);
     auto* tgLay = new QVBoxLayout(transcriptGroup);
     tgLay->setContentsMargins(4, 4, 4, 4);
     m_audioTranscript = new QTextEdit(transcriptGroup);
@@ -199,14 +199,14 @@ QWidget* MultimediaPage::buildAudioTab()
     splitter->addWidget(transcriptGroup);
 
     auto* outputGroup = new QGroupBox(
-        "\xf0\x9f\xa4\x96  Analisi AI", splitter);
+        tr("\xf0\x9f\xa4\x96  Analisi AI"), splitter);
     auto* ogLay = new QVBoxLayout(outputGroup);
     ogLay->setContentsMargins(4, 4, 4, 4);
     m_audioOutput = new QTextEdit(outputGroup);
     m_audioOutput->setObjectName("chatLog");
     m_audioOutput->setReadOnly(true);
     m_audioOutput->setPlaceholderText(
-        "L'analisi AI appare qui dopo il click su 'Analizza con AI'...");
+        tr("L'analisi AI appare qui dopo il click su 'Analizza con AI'..."));
     ogLay->addWidget(m_audioOutput);
     splitter->addWidget(outputGroup);
 
@@ -240,7 +240,7 @@ QWidget* MultimediaPage::buildGraphvizTab()
     vl->setSpacing(8);
 
     auto* title = new QLabel(
-        "\xf0\x9f\x97\xba  <b>Mappe Concettuali \xe2\x80\x94 Graphviz</b>", panel);
+        tr("\xf0\x9f\x97\xba  <b>Mappe Concettuali \xe2\x80\x94 Graphviz</b>"), panel);
     title->setObjectName("sectionTitle");
     title->setTextFormat(Qt::RichText);
     vl->addWidget(title);
@@ -271,7 +271,7 @@ QWidget* MultimediaPage::buildGraphvizTab()
     bl->setSpacing(8);
 
     auto* btnGenerate = new QPushButton(
-        "\xf0\x9f\xa4\x96\xf0\x9f\x96\xbc  Genera e renderizza grafico DOT", btnRow);
+        tr("\xf0\x9f\xa4\x96\xf0\x9f\x96\xbc  Genera e renderizza grafico DOT"), btnRow);
     btnGenerate->setObjectName("actionBtn");
     btnGenerate->setToolTip(
         "Genera il codice DOT con l\xe2\x80\x99" "AI e lo renderizza.\n"
@@ -294,7 +294,7 @@ QWidget* MultimediaPage::buildGraphvizTab()
     m_graphvizImg->setMinimumHeight(200);
     m_graphvizImg->setObjectName("hintLabel");
     m_graphvizImg->setText(
-        "\xf0\x9f\x97\xba  Il grafo apparir\xc3\xa0 qui");
+        tr("\xf0\x9f\x97\xba  Il grafo apparir\xc3\xa0 qui"));
     auto* scroll = new QScrollArea(panel);
     scroll->setWidget(m_graphvizImg);
     scroll->setWidgetResizable(true);
@@ -311,7 +311,7 @@ void MultimediaPage::runGraphvizAi()
     const QString input = m_graphvizInput->toPlainText().trimmed();
     if (input.isEmpty()) {
         m_graphvizStatus->setText(
-            "\xe2\x9a\xa0  Scrivi una descrizione del grafo che vuoi creare.");
+            tr("\xe2\x9a\xa0  Scrivi una descrizione del grafo che vuoi creare."));
         return;
     }
 
@@ -336,7 +336,7 @@ void MultimediaPage::runGraphvizAi()
         "Crea un grafo Graphviz (DOT language) per: " + desc;
 
     m_graphvizStatus->setText(
-        "\xf0\x9f\xa4\x96  L\xe2\x80\x99" "AI sta generando il codice DOT...");
+        tr("\xf0\x9f\xa4\x96  L\xe2\x80\x99" "AI sta generando il codice DOT..."));
     m_graphvizImg->setText("");
 
     QObject::disconnect(m_graphvizFinishedConn);
@@ -395,7 +395,7 @@ void MultimediaPage::onRecBtnToggled(bool on)
             m_audioOutput->clear();
         } else {
             m_audioFileLbl->setText(
-                "\xe2\x9d\x8c  Registrazione fallita (arecord non trovato?)");
+                tr("\xe2\x9d\x8c  Registrazione fallita (arecord non trovato?)"));
             LogBus::post("\xe2\x9d\x8c Multimedia: Registrazione fallita (arecord non trovato?)");
         }
     }
@@ -429,7 +429,7 @@ void MultimediaPage::_doTranscribe(const QString& wav)
             /* Diarizzazione speaker opzionale */
             if (SttWhisper::isDiarizeEnabled()) {
                 m_audioTranscript->setPlaceholderText(
-                    "\xf0\x9f\x91\xa5 Identifico speaker...");
+                    tr("\xf0\x9f\x91\xa5 Identifico speaker..."));
 
                 const QString tmpTxt =
                     P::safeTempPath() + "/prisma_mm_transcript.txt";
@@ -572,7 +572,7 @@ void MultimediaPage::onAnalyzeBtnClicked()
 
     m_audioOutput->clear();
     m_audioOutput->setPlaceholderText(
-        "\xe2\x8c\x9b  Analisi AI in corso...");
+        tr("\xe2\x8c\x9b  Analisi AI in corso..."));
 
     QObject::disconnect(m_audioTokenConn);
     QObject::disconnect(m_audioFinishedConn);
@@ -744,7 +744,7 @@ QWidget* MultimediaPage::buildOcrTab()
 
     /* Pulsante: installa venv OpenCV dedicato in Frameworks/opencv/venv/ */
     auto* btnVenv = new QPushButton(
-        "\xf0\x9f\x90\x8d  Installa venv OpenCV", panel);  /* 🐍 */
+        tr("\xf0\x9f\x90\x8d  Installa venv OpenCV"), panel);  /* 🐍 */
     btnVenv->setObjectName("navBtn");
     btnVenv->setFixedHeight(dpiScale(28));
     btnVenv->setToolTip(
@@ -786,7 +786,7 @@ QWidget* MultimediaPage::buildOcrTab()
     hintRow->addWidget(btnVenv);
 
     auto* btnCopyCmd = new QPushButton(
-        "\xf0\x9f\x93\x8b  Copia comandi", panel);  /* 📋 */
+        tr("\xf0\x9f\x93\x8b  Copia comandi"), panel);  /* 📋 */
     btnCopyCmd->setObjectName("navBtn");
     btnCopyCmd->setFixedHeight(dpiScale(28));
     btnCopyCmd->setToolTip(
@@ -814,7 +814,7 @@ QWidget* MultimediaPage::buildOcrTab()
     cl->setSpacing(8);
 
     m_ocrStartBtn = new QPushButton(
-        "\xe2\x96\xb6  Avvia webcam", ctrlRow);  /* ▶ */
+        tr("\xe2\x96\xb6  Avvia webcam"), ctrlRow);  /* ▶ */
     m_ocrStartBtn->setObjectName("actionBtn");
     m_ocrStartBtn->setCheckable(true);
     cl->addWidget(m_ocrStartBtn);
@@ -853,7 +853,7 @@ QWidget* MultimediaPage::buildOcrTab()
 
     /* Carica video */
     auto* btnVideo = new QPushButton(
-        "\xf0\x9f\x93\xb9  Carica video", ctrlRow);  /* 📹 */
+        tr("\xf0\x9f\x93\xb9  Carica video"), ctrlRow);  /* 📹 */
     btnVideo->setObjectName("actionBtn");
     btnVideo->setToolTip(
         "Carica un video registrato (MP4, AVI, MOV, MKV)\n"
@@ -876,7 +876,7 @@ QWidget* MultimediaPage::buildOcrTab()
     cl->addWidget(m_ocrVideoLbl);
 
     m_ocrTranscribeBtn = new QPushButton(
-        "\xf0\x9f\x8e\xa4  Trascrivi audio", ctrlRow);  /* 🎤 */
+        tr("\xf0\x9f\x8e\xa4  Trascrivi audio"), ctrlRow);  /* 🎤 */
     m_ocrTranscribeBtn->setObjectName("actionBtn");
     m_ocrTranscribeBtn->setToolTip(
         "Estrae l'audio dal video con ffmpeg e lo trascrive con Whisper.\n"
@@ -887,7 +887,7 @@ QWidget* MultimediaPage::buildOcrTab()
     cl->addWidget(m_ocrTranscribeBtn);
 
     auto* btnClear = new QPushButton(
-        "\xf0\x9f\x97\x91  Cancella", ctrlRow);  /* 🗑 */
+        tr("\xf0\x9f\x97\x91  Cancella"), ctrlRow);  /* 🗑 */
     btnClear->setObjectName("actionBtn");
     connect(btnClear, &QPushButton::clicked, panel, [this]{
         m_ocrText->clear();
@@ -974,7 +974,7 @@ QWidget* MultimediaPage::buildOcrTab()
     auto* splitter = new QSplitter(Qt::Horizontal, panel);
 
     auto* previewBox = new QGroupBox(
-        "\xf0\x9f\x93\xb7  Anteprima webcam", splitter);  /* 📷 */
+        tr("\xf0\x9f\x93\xb7  Anteprima webcam"), splitter);  /* 📷 */
     auto* pbLay = new QVBoxLayout(previewBox);
     pbLay->setContentsMargins(4, 4, 4, 4);
     m_ocrPreview = new QLabel(previewBox);
@@ -986,7 +986,7 @@ QWidget* MultimediaPage::buildOcrTab()
     splitter->addWidget(previewBox);
 
     auto* textBox = new QGroupBox(
-        "\xf0\x9f\x93\x84  Testo OCR rilevato", splitter);  /* 📄 */
+        tr("\xf0\x9f\x93\x84  Testo OCR rilevato"), splitter);  /* 📄 */
     auto* tbLay = new QVBoxLayout(textBox);
     tbLay->setContentsMargins(4, 4, 4, 4);
     m_ocrText = new QTextEdit(textBox);
@@ -1003,7 +1003,7 @@ QWidget* MultimediaPage::buildOcrTab()
     /* ── Analisi AI ── */
     auto* aiRow = new QHBoxLayout;
     auto* btnAnalyze = new QPushButton(
-        "\xf0\x9f\xa4\x96  Analizza testo con AI", panel);  /* 🤖 */
+        tr("\xf0\x9f\xa4\x96  Analizza testo con AI"), panel);  /* 🤖 */
     btnAnalyze->setObjectName("actionBtn");
     connect(btnAnalyze, &QPushButton::clicked,
             this, &MultimediaPage::onOcrAnalyzeClicked);
@@ -1012,7 +1012,7 @@ QWidget* MultimediaPage::buildOcrTab()
     vbox->addLayout(aiRow);
 
     auto* aiOutBox = new QGroupBox(
-        "\xf0\x9f\xa4\x96  Analisi AI del manuale", panel);
+        tr("\xf0\x9f\xa4\x96  Analisi AI del manuale"), panel);
     auto* aoLay = new QVBoxLayout(aiOutBox);
     aoLay->setContentsMargins(4, 4, 4, 4);
     m_ocrAiOut = new QTextEdit(aiOutBox);
@@ -1020,7 +1020,7 @@ QWidget* MultimediaPage::buildOcrTab()
     m_ocrAiOut->setReadOnly(true);
     m_ocrAiOut->setMaximumHeight(160);
     m_ocrAiOut->setPlaceholderText(
-        "Riassunto, punti chiave o analisi del testo scansionato...");
+        tr("Riassunto, punti chiave o analisi del testo scansionato..."));
     aoLay->addWidget(m_ocrAiOut);
     vbox->addWidget(aiOutBox);
 
@@ -1429,7 +1429,7 @@ void MultimediaPage::onOcrLoadVideoClicked()
             .arg(m_ocrVideoStep->value());
         m_ocrDaemon->write(cmd.toUtf8());
         m_ocrStatus->setText(
-            "\xf0\x9f\x93\xb9  Analisi video in corso...");
+            tr("\xf0\x9f\x93\xb9  Analisi video in corso..."));
     };
 
     if (!m_ocrDaemon || m_ocrDaemon->state() != QProcess::Running) {
@@ -1491,10 +1491,10 @@ void MultimediaPage::onOcrDaemonReadyRead()
                     .arg(m_ocrVideoStep->value());
                 m_ocrDaemon->write(cmd.toUtf8());
                 m_ocrStatus->setText(
-                    "\xf0\x9f\x93\xb9  Analisi video in corso...");
+                    tr("\xf0\x9f\x93\xb9  Analisi video in corso..."));
             } else {
                 m_ocrStatus->setText(
-                    "\xf0\x9f\x94\x8d  Daemon pronto. Prima scansione...");
+                    tr("\xf0\x9f\x94\x8d  Daemon pronto. Prima scansione..."));
                 requestOcrCapture();
             }
             continue;
@@ -1609,10 +1609,10 @@ void MultimediaPage::onOcrDaemonReadyRead()
                 " righe (" + QString::number(nChars) + " car.)");
         } else if (rawText.length() > 0) {
             m_ocrStatus->setText(
-                "\xe2\x9a\xa0  Testo filtrato — avvicina il foglio.");
+                tr("\xe2\x9a\xa0  Testo filtrato — avvicina il foglio."));
         } else {
             m_ocrStatus->setText(
-                "\xf0\x9f\x94\x8d  Nessun testo — punta la webcam sul bugiardino.");
+                tr("\xf0\x9f\x94\x8d  Nessun testo — punta la webcam sul bugiardino."));
         }
     }
 }
@@ -1656,7 +1656,7 @@ void MultimediaPage::onOcrTranscribeAudioClicked()
         FfmpegUtils::extractArgs(m_ocrVideoPath, m_ocrAudioWav));
     if (!m_ocrFfmpegProc->waitForStarted(P::kProcessStartTimeoutMs)) {
         m_ocrStatus->setText(
-            "\xe2\x9d\x8c  ffmpeg non trovato. Installa con: sudo apt install ffmpeg");
+            tr("\xe2\x9d\x8c  ffmpeg non trovato. Installa con: sudo apt install ffmpeg"));
         LogBus::post("\xe2\x9d\x8c OCR webcam: ffmpeg non trovato nel PATH.");
         m_ocrFfmpegProc->deleteLater();
         m_ocrFfmpegProc = nullptr;
@@ -1671,7 +1671,7 @@ void MultimediaPage::onOcrFfmpegFinished(int code, QProcess::ExitStatus)
 
     if (code != 0) {
         m_ocrStatus->setText(
-            "\xe2\x9d\x8c  Estrazione audio fallita — il video ha audio?");
+            tr("\xe2\x9d\x8c  Estrazione audio fallita — il video ha audio?"));
         LogBus::post("\xe2\x9d\x8c OCR webcam: Estrazione audio fallita (ffmpeg).");
         m_ocrTranscribeBtn->setEnabled(true);
         return;
@@ -1695,7 +1695,7 @@ void MultimediaPage::onOcrFfmpegFinished(int code, QProcess::ExitStatus)
 
             if (!ok || text.trimmed().isEmpty()) {
                 m_ocrStatus->setText(
-                    "\xe2\x9a\xa0  Trascrizione vuota — audio non udibile o lingua errata.");
+                    tr("\xe2\x9a\xa0  Trascrizione vuota — audio non udibile o lingua errata."));
                 return;
             }
 
@@ -1911,7 +1911,7 @@ QWidget* MultimediaPage::buildOsmMapTab()
     panelLay->setSpacing(dpiScale(8));
 
     auto* titleLbl = new QLabel(
-        "\xf0\x9f\x97\xba  <b>Mappa OSM</b>", panel);
+        tr("\xf0\x9f\x97\xba  <b>Mappa OSM</b>"), panel);
     titleLbl->setObjectName("formLabel");
     titleLbl->setTextFormat(Qt::RichText);
     panelLay->addWidget(titleLbl);
@@ -1932,7 +1932,7 @@ QWidget* MultimediaPage::buildOsmMapTab()
 
     /* ── Waypoint list ── */
     auto* wpGroup = new QGroupBox(
-        "\xf0\x9f\x93\x8d  Tappe  (A = partenza, ultima = arrivo)", panel);
+        tr("\xf0\x9f\x93\x8d  Tappe  (A = partenza, ultima = arrivo)"), panel);
     auto* wpLay = new QVBoxLayout(wpGroup);
     wpLay->setSpacing(dpiScale(4));
 
@@ -1984,7 +1984,7 @@ QWidget* MultimediaPage::buildOsmMapTab()
     rtLay->addLayout(profRow);
 
     auto* btnCalc = new QPushButton(
-        "\xf0\x9f\x94\x8d  Calcola percorso", rtGroup);
+        tr("\xf0\x9f\x94\x8d  Calcola percorso"), rtGroup);
     btnCalc->setObjectName("primaryBtn");
     btnCalc->setToolTip(tr("Calcola percorso via OSRM (richiede internet)"));
     rtLay->addWidget(btnCalc);
@@ -2026,12 +2026,12 @@ QWidget* MultimediaPage::buildOsmMapTab()
 
     /* ── Altimetria (ciclisti / alpini) ── */
     auto* elevGroup = new QGroupBox(
-        "\xe2\x9b\xb0  Altimetria", panel);
+        tr("\xe2\x9b\xb0  Altimetria"), panel);
     auto* elevLay = new QVBoxLayout(elevGroup);
     elevLay->setSpacing(dpiScale(3));
 
     m_osmElevLbl = new QLabel(
-        "<small>Calcolata automaticamente dopo il percorso.</small>", elevGroup);
+        tr("<small>Calcolata automaticamente dopo il percorso.</small>"), elevGroup);
     m_osmElevLbl->setObjectName("hintLabel");
     m_osmElevLbl->setWordWrap(true);
     m_osmElevLbl->setTextFormat(Qt::RichText);
@@ -2040,19 +2040,19 @@ QWidget* MultimediaPage::buildOsmMapTab()
 
     /* ── Meteo Partenza ── */
     auto* wxGroup = new QGroupBox(
-        "\xf0\x9f\x8c\xa6  Meteo partenza", panel);
+        tr("\xf0\x9f\x8c\xa6  Meteo partenza"), panel);
     auto* wxLay = new QVBoxLayout(wxGroup);
     wxLay->setSpacing(dpiScale(3));
 
     m_osmWeatherBtn = new QPushButton(
-        "\xf0\x9f\x8c\xa4  Controlla meteo", wxGroup);
+        tr("\xf0\x9f\x8c\xa4  Controlla meteo"), wxGroup);
     m_osmWeatherBtn->setObjectName("actionBtn");
     m_osmWeatherBtn->setToolTip(
-        "Recupera le condizioni meteo attuali della partenza (open-meteo.com)");
+        tr("Recupera le condizioni meteo attuali della partenza (open-meteo.com)"));
     wxLay->addWidget(m_osmWeatherBtn);
 
     m_osmWeatherLbl = new QLabel(
-        "<small>Premi il pulsante dopo aver impostato la partenza.</small>",
+        tr("<small>Premi il pulsante dopo aver impostato la partenza.</small>"),
         wxGroup);
     m_osmWeatherLbl->setObjectName("hintLabel");
     m_osmWeatherLbl->setWordWrap(true);
@@ -2062,19 +2062,19 @@ QWidget* MultimediaPage::buildOsmMapTab()
 
     /* ── Mappe offline ── */
     auto* dlGroup = new QGroupBox(
-        "\xf0\x9f\x93\xb4  Mappe offline", panel);
+        tr("\xf0\x9f\x93\xb4  Mappe offline"), panel);
     auto* dlLay = new QVBoxLayout(dlGroup);
     dlLay->setSpacing(dpiScale(3));
 
     auto* btnDl = new QPushButton(
-        "\xe2\xac\x87  Scarica area visibile", dlGroup);
+        tr("\xe2\xac\x87  Scarica area visibile"), dlGroup);
     btnDl->setObjectName("actionBtn");
     btnDl->setToolTip(
-        "Scarica i tile OSM visibili nella cache locale (~/.cache/Prismalux/osm_tiles/)");
+        tr("Scarica i tile OSM visibili nella cache locale (~/.cache/Prismalux/osm_tiles/)"));
     dlLay->addWidget(btnDl);
 
     m_osmDlLbl = new QLabel(
-        "<small>Tile salvati: non scaricati.</small>", dlGroup);
+        tr("<small>Tile salvati: non scaricati.</small>"), dlGroup);
     m_osmDlLbl->setObjectName("hintLabel");
     m_osmDlLbl->setWordWrap(true);
     m_osmDlLbl->setTextFormat(Qt::RichText);
@@ -2184,7 +2184,7 @@ QWidget* MultimediaPage::buildOsmMapTab()
             m_osmRouteInfo->setText(tr("Distanza: \xe2\x80\x94  |  Tempo: \xe2\x80\x94"));
         if (m_osmElevLbl)
             m_osmElevLbl->setText(
-                "<small>Calcolata automaticamente dopo il percorso.</small>");
+                tr("<small>Calcolata automaticamente dopo il percorso.</small>"));
     });
 
     /* Cancella solo il percorso disegnato */
@@ -2194,7 +2194,7 @@ QWidget* MultimediaPage::buildOsmMapTab()
             m_osmRouteInfo->setText(tr("Distanza: \xe2\x80\x94  |  Tempo: \xe2\x80\x94"));
         if (m_osmElevLbl)
             m_osmElevLbl->setText(
-                "<small>Calcolata automaticamente dopo il percorso.</small>");
+                tr("<small>Calcolata automaticamente dopo il percorso.</small>"));
     });
 
     /* Calcola percorso OSRM + altimetria automatica */
@@ -2202,7 +2202,7 @@ QWidget* MultimediaPage::buildOsmMapTab()
         if (!m_osmWpList || m_osmWpList->count() < 2) {
             if (m_osmRouteInfo)
                 m_osmRouteInfo->setText(
-                    "\xe2\x9a\xa0  Aggiungi almeno 2 tappe (A = partenza).");
+                    tr("\xe2\x9a\xa0  Aggiungi almeno 2 tappe (A = partenza)."));
             return;
         }
 
@@ -2295,7 +2295,7 @@ QWidget* MultimediaPage::buildOsmMapTab()
                     if (elRep->error() != QNetworkReply::NoError) {
                         if (m_osmElevLbl)
                             m_osmElevLbl->setText(
-                                "<small>Altimetria non disponibile.</small>");
+                                tr("<small>Altimetria non disponibile.</small>"));
                         return;
                     }
                     const QJsonArray elArr =
@@ -2334,7 +2334,7 @@ QWidget* MultimediaPage::buildOsmMapTab()
         if (!m_osmWpList || m_osmWpList->count() == 0 || !m_osmNam) {
             if (m_osmWeatherLbl)
                 m_osmWeatherLbl->setText(
-                    "<small>Aggiungi prima la tappa di partenza (A).</small>");
+                    tr("<small>Aggiungi prima la tappa di partenza (A).</small>"));
             return;
         }
         const double startLat = m_osmWpList->item(0)->data(Qt::UserRole).toDouble();
@@ -2401,7 +2401,7 @@ QWidget* MultimediaPage::buildOsmMapTab()
         if (!m_osmDlLbl) return;
         if (total == 0) {
             m_osmDlLbl->setText(
-                "<small>Area gi\xc3\xa0 in cache. Nessun download necessario.</small>");
+                tr("<small>Area gi\xc3\xa0 in cache. Nessun download necessario.</small>"));
         } else if (done >= total) {
             m_osmDlLbl->setText(
                 QString("<small>Scaricati %1 tile. Mappa disponibile offline.</small>")

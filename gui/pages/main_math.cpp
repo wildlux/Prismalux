@@ -314,7 +314,7 @@ QWidget* MatematicaPage::buildSymbolBar()
     auto* topRow = new QHBoxLayout;
     topRow->setSpacing(6);
     auto* symLbl = new QLabel(
-        "\xcf\x83  <b>Simboli LaTeX:</b>", bar);     /* σ Simboli LaTeX: */
+        tr("\xcf\x83  <b>Simboli LaTeX:</b>"), bar);     /* σ Simboli LaTeX: */
     symLbl->setTextFormat(Qt::RichText);
     symLbl->setObjectName("cardDesc");
     topRow->addWidget(symLbl);
@@ -397,7 +397,7 @@ QWidget* MatematicaPage::buildSeqTab()
     lay->setSpacing(5);
 
     lay->addWidget(new QLabel(
-        "<b>Inserisci una sequenza di numeri separati da virgole o spazi:</b>", w));
+        tr("<b>Inserisci una sequenza di numeri separati da virgole o spazi:</b>"), w));
 
     auto* inputRow = new QHBoxLayout;
     m_seqInput = new QLineEdit(w);
@@ -448,21 +448,21 @@ QWidget* MatematicaPage::buildSeqTab()
     };
 
     auto* btnLocal = new QPushButton(
-        "\xf0\x9f\x94\x8d  Rileva pattern (locale, istantaneo)", w);
+        tr("\xf0\x9f\x94\x8d  Rileva pattern (locale, istantaneo)"), w);
     btnLocal->setObjectName("actionBtn");
     tagExecM(btnLocal, "\xf0\x9f\x94\x8d", "Rileva pattern");
     connect(btnLocal, &QPushButton::clicked, this, &MatematicaPage::onLocalPatternClicked);
     btnRow->addWidget(btnLocal);
 
     auto* btnSympy = new QPushButton(
-        "\xcf\x83  Interpola con sympy (preciso)", w);
+        tr("\xcf\x83  Interpola con sympy (preciso)"), w);
     btnSympy->setObjectName("actionBtn");
     tagExecM(btnSympy, "\xcf\x83", "Interpola");
     connect(btnSympy, &QPushButton::clicked, this, &MatematicaPage::onSympyClicked);
     btnRow->addWidget(btnSympy);
 
     auto* btnAI = new QPushButton(
-        "\xf0\x9f\xa4\x96  Analizza con AI (spiega + storia)", w);
+        tr("\xf0\x9f\xa4\x96  Analizza con AI (spiega + storia)"), w);
     btnAI->setObjectName("actionBtn");
     btnAI->setProperty("highlight", "true");
     tagExecM(btnAI, "\xf0\x9f\xa4\x96", "Analizza AI");
@@ -485,7 +485,7 @@ QWidget* MatematicaPage::buildConstTab()
     lay->setSpacing(8);
 
     lay->addWidget(new QLabel(
-        "<b>Calcola costanti matematiche con precisione arbitraria:</b>", w));
+        tr("<b>Calcola costanti matematiche con precisione arbitraria:</b>"), w));
 
     auto* grid = new QGridLayout;
     grid->setSpacing(8);
@@ -519,7 +519,7 @@ QWidget* MatematicaPage::buildConstTab()
 
     auto* btnRow = new QHBoxLayout;
     auto* btnCalc = new QPushButton(
-        "\xcf\x80  Calcola", w);
+        tr("\xcf\x80  Calcola"), w);
     btnCalc->setObjectName("actionBtn");
     btnCalc->setProperty("highlight", "true");
     { auto te=[](QPushButton*b,const char*i,const char*t){b->setProperty("execFull",b->text());b->setProperty("execIcon",QString::fromUtf8(i));b->setProperty("execText",QString::fromUtf8(t));};
@@ -554,7 +554,7 @@ QWidget* MatematicaPage::buildNthTab()
     lay->setSpacing(8);
 
     lay->addWidget(new QLabel(
-        "<b>Calcola l'N-esimo elemento di sequenze famose:</b>", w));
+        tr("<b>Calcola l'N-esimo elemento di sequenze famose:</b>"), w));
 
     auto* grid = new QGridLayout;
     grid->setSpacing(8);
@@ -612,12 +612,12 @@ QWidget* MatematicaPage::buildExprTab()
     lay->setSpacing(8);
 
     lay->addWidget(new QLabel(
-        "<b>Valuta espressioni matematiche (sympy + mpmath):</b>", w));
+        tr("<b>Valuta espressioni matematiche (sympy + mpmath):</b>"), w));
 
     auto* inputRow = new QHBoxLayout;
     m_exprInput = new QLineEdit(w);
     m_exprInput->setPlaceholderText(
-        "es.  sqrt(2) + sin(pi/4)   oppure   factorial(100)   oppure   integrate(x**2, (x,0,1))");
+        tr("es.  sqrt(2) + sin(pi/4)   oppure   factorial(100)   oppure   integrate(x**2, (x,0,1))"));
     inputRow->addWidget(m_exprInput, 1);
     lay->addLayout(inputRow);
 
@@ -1767,7 +1767,7 @@ void MatematicaPage::fetchAndFillMathModels()
                   " avvia Ollama o llama-server per le funzioni AI."));
         LogBus::post("\xe2\x9d\x8c Matematica: Backend non raggiungibile.");
         if (m_modelCombo) m_modelCombo->setToolTip(
-            "Backend non disponibile. Avvia Ollama: ollama serve");
+            tr("Backend non disponibile. Avvia Ollama: ollama serve"));
     });
     m_ai->fetchModels();
 }

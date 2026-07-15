@@ -112,7 +112,7 @@ QWidget* ManutenzioneePage::buildBugTracker()
     fixLay->setSpacing(10);
 
     m_btnApplyFix = new QPushButton(
-        "\xe2\x9c\x85  Applica fix suggeriti", fixRow);
+        tr("\xe2\x9c\x85  Applica fix suggeriti"), fixRow);
     m_btnApplyFix->setObjectName("actionBtn");
     m_btnApplyFix->setEnabled(false);
     m_btnApplyFix->setToolTip(
@@ -121,7 +121,7 @@ QWidget* ManutenzioneePage::buildBugTracker()
     fixLay->addWidget(m_btnApplyFix);
 
     auto* btnClearFix = new QPushButton(
-        "\xf0\x9f\x97\x91  Rimuovi fix", fixRow);
+        tr("\xf0\x9f\x97\x91  Rimuovi fix"), fixRow);
     btnClearFix->setObjectName("actionBtn");
     btnClearFix->setToolTip(tr("Rimuovi i fix salvati per il modello corrente"));
     fixLay->addWidget(btnClearFix);
@@ -292,7 +292,7 @@ void ManutenzioneePage::parseBugFix(const QString& response)
 
     if (!m.hasMatch()) {
         m_bugStatusLbl->setText(
-            "\xe2\x84\xb9  Nessun fix parametrico identificato dall'AI.");
+            tr("\xe2\x84\xb9  Nessun fix parametrico identificato dall'AI."));
         return;
     }
 
@@ -305,7 +305,7 @@ void ManutenzioneePage::parseBugFix(const QString& response)
 
     if (params.isEmpty()) {
         m_bugStatusLbl->setText(
-            "\xe2\x84\xb9  Nessun parametro da applicare.");
+            tr("\xe2\x84\xb9  Nessun parametro da applicare."));
         return;
     }
 
@@ -360,7 +360,7 @@ void ManutenzioneePage::applyBugFix()
     QFile fOut(P::modelParamsPath());
     if (!fOut.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
         m_bugStatusLbl->setText(
-            "\xe2\x9d\x8c  Impossibile scrivere model_params.json.");
+            tr("\xe2\x9d\x8c  Impossibile scrivere model_params.json."));
         return;
     }
     fOut.write(QJsonDocument(allParams).toJson(QJsonDocument::Indented));

@@ -187,7 +187,7 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
        ══════════════════════════════════════════════════ */
     {
         auto* thinkGroup = new QGroupBox(
-            "\xf0\x9f\xa7\xa0  Ragionamento AI (Think Mode)", page);  /* 🧠 */
+            tr("\xf0\x9f\xa7\xa0  Ragionamento AI (Think Mode)"), page);  /* 🧠 */
         thinkGroup->setObjectName("cardGroup");
         auto* thinkLay = new QVBoxLayout(thinkGroup);
         thinkLay->setSpacing(8);
@@ -304,7 +304,7 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
        ══════════════════════════════════════════════════ */
     {
         auto* knGroup = new QGroupBox(
-            "\xf0\x9f\x93\x96  Memoria persistente (Knowledge)", page);  /* 📖 */
+            tr("\xf0\x9f\x93\x96  Memoria persistente (Knowledge)"), page);  /* 📖 */
         knGroup->setObjectName("cardGroup");
         auto* knLay = new QVBoxLayout(knGroup);
         knLay->setSpacing(8);
@@ -312,7 +312,7 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
         /* Riga: checkbox + pulsante Apri file */
         auto* chkRow = new QHBoxLayout;
         auto* chkKn  = new QCheckBox(
-            "Inietta contesto utente nel prompt", knGroup);
+            tr("Inietta contesto utente nel prompt"), knGroup);
         chkKn->setObjectName("cardDesc");
         {
             chkKn->setChecked(AppConfig::s().value(P::SK::kInjectUserKnowledge, true).toBool());
@@ -341,14 +341,14 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
 
         /* ── Costituzione Prismalux ──────────────────────────────────── */
         auto* constGroup = new QGroupBox(
-            "\xf0\x9f\x93\x9c  Costituzione Prismalux", rcW);
+            tr("\xf0\x9f\x93\x9c  Costituzione Prismalux"), rcW);
         constGroup->setObjectName("cardGroup");
         auto* constLay = new QVBoxLayout(constGroup);
         constLay->setSpacing(6);
 
         auto* constRow = new QHBoxLayout;
         auto* chkConst = new QCheckBox(
-            "Inietta principi etici in ogni prompt", constGroup);
+            tr("Inietta principi etici in ogni prompt"), constGroup);
         chkConst->setObjectName("cardDesc");
         chkConst->setChecked(AppConfig::s().value(P::SK::kConstitutionEnabled, true).toBool());
         constRow->addWidget(chkConst);
@@ -471,7 +471,7 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
        ══════════════════════════════════════════════════ */
     {
         auto* srGroup = new QGroupBox(
-            "\xe2\x98\x81\xef\xb8\x8f  Smart Router \xe2\x80\x94 LOCAL / CLOUD automatico", page);
+            tr("\xe2\x98\x81\xef\xb8\x8f  Smart Router \xe2\x80\x94 LOCAL / CLOUD automatico"), page);
         srGroup->setObjectName("cardGroup");
         auto* srLay = new QVBoxLayout(srGroup);
         srLay->setSpacing(8);
@@ -611,7 +611,7 @@ QWidget* ImpostazioniPage::buildDipendenzeTab()
     outer->setSpacing(10);
 
     auto* title = new QLabel(
-        "\xf0\x9f\x93\xa6  Dipendenze esterne");
+        tr("\xf0\x9f\x93\xa6  Dipendenze esterne"));
     title->setObjectName("sectionTitle");
     outer->addWidget(title);
 
@@ -624,7 +624,7 @@ QWidget* ImpostazioniPage::buildDipendenzeTab()
     outer->addWidget(desc);
 
     auto* verifyBtn = new QPushButton(
-        "\xf0\x9f\x94\x8d  Verifica tutto");
+        tr("\xf0\x9f\x94\x8d  Verifica tutto"));
     verifyBtn->setObjectName("actionBtn");
     verifyBtn->setFixedWidth(dpiScale(160));
     outer->addWidget(verifyBtn, 0, Qt::AlignLeft);
@@ -709,7 +709,7 @@ QWidget* ImpostazioniPage::buildDipendenzeTab()
 
         /* Pulsante Installa — visibile solo dopo verifica se rosso */
         auto* installBtn = new QPushButton(
-            "\xf0\x9f\x92\xbe  " "Installa", row);
+            tr("\xf0\x9f\x92\xbe  " "Installa"), row);
         installBtn->setFixedWidth(dpiScale(90));
         installBtn->setToolTip(QString::fromUtf8(d.install));
         installBtn->setObjectName("actionBtn");
@@ -775,9 +775,9 @@ QWidget* ImpostazioniPage::buildDipendenzeTab()
             btnRowLay->setSpacing(8);
 
             auto* copyBtn     = new QPushButton(
-                "\xf0\x9f\x93\x8b " "Copia", dlg);
+                tr("\xf0\x9f\x93\x8b " "Copia"), dlg);
             auto* terminalBtn = new QPushButton(
-                "\xf0\x9f\x96\xa5 " "Apri terminale", dlg);
+                tr("\xf0\x9f\x96\xa5 " "Apri terminale"), dlg);
             auto* closeBtn    = new QPushButton(tr("Chiudi"), dlg);
 
             copyBtn->setObjectName("actionBtn");
@@ -1261,7 +1261,7 @@ QWidget* ImpostazioniPage::buildRagTab()
     outer->addWidget(privacyLbl);
 
     auto* noSaveChk = new QCheckBox(
-        "Non salvare su disco (solo RAM \xe2\x80\x94 indice perso alla chiusura)");
+        tr("Non salvare su disco (solo RAM \xe2\x80\x94 indice perso alla chiusura)"));
     noSaveChk->setObjectName("cardDesc");
     noSaveChk->setToolTip(
         "Quando attivo, l'indice RAG viene costruito in memoria ma non scritto in\n"
@@ -1380,7 +1380,7 @@ QWidget* ImpostazioniPage::buildRagTab()
         jlLay->setSpacing(6);
 
         auto* jlChk = new QCheckBox(
-            "Trasformata di Johnson\xe2\x80\x93Lindenstrauss (JL)", jlFrame);
+            tr("Trasformata di Johnson\xe2\x80\x93Lindenstrauss (JL)"), jlFrame);
         jlChk->setObjectName("cardDesc");
         {
             jlChk->setChecked(AppConfig::s().value(P::SK::kRagJlTransform, true).toBool());
@@ -1435,7 +1435,7 @@ QWidget* ImpostazioniPage::buildRagTab()
 
     /* ── Pulsante: scarica documenti AdE ufficiali ── */
     auto* downloadBtn = new QPushButton(
-        "\xf0\x9f\x93\xa5  Scarica documenti ufficiali consigliati (AdE 2026)");
+        tr("\xf0\x9f\x93\xa5  Scarica documenti ufficiali consigliati (AdE 2026)"));
     downloadBtn->setObjectName("actionBtn");
     downloadBtn->setFixedHeight(dpiScale(32));
     downloadBtn->setToolTip(
@@ -1721,7 +1721,7 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
         fl->addRow("Penalità ripetizioni:", repSpin);
 
         auto* hint = new QLabel(
-            "\xe2\x84\xb9  T 0.0\xe2\x80\x93" "0.1 = risposte fattuali e ripetibili  \xe2\x80\xa2  T 0.3+ = creativo/inventivo");
+            tr("\xe2\x84\xb9  T 0.0\xe2\x80\x93" "0.1 = risposte fattuali e ripetibili  \xe2\x80\xa2  T 0.3+ = creativo/inventivo"));
         hint->setObjectName("hintLabel");
 
         gl->addLayout(fl);
@@ -1817,7 +1817,7 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
 
         /* Brutal Honesty */
         auto* honestyCb = new QCheckBox(
-            "\xf0\x9f\x94\x92  Prefisso Brutal Honesty (consigliato)");
+            tr("\xf0\x9f\x94\x92  Prefisso Brutal Honesty (consigliato)"));
         honestyCb->setChecked(cur.honesty_prefix);
         honestyCb->setToolTip(
             "Aggiunge al system prompt: \"Se non conosci qualcosa, dillo.\n"
@@ -1844,7 +1844,7 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
         cavemanBadge->setFixedWidth(dpiScale(44)); cavemanBadge->setAlignment(Qt::AlignCenter);
 
         auto* cavemanLbl = new QLabel(
-            "\xf0\x9f\xa6\x96  <b>Modalit\xc3\xa0 Caveman</b> \xe2\x80\x94 risposte dirette, zero convenevoli");
+            tr("\xf0\x9f\xa6\x96  <b>Modalit\xc3\xa0 Caveman</b> \xe2\x80\x94 risposte dirette, zero convenevoli"));
         cavemanLay->addWidget(cavemanToggle);
         cavemanLay->addWidget(cavemanBadge);
         cavemanLay->addWidget(cavemanLbl);
@@ -1859,7 +1859,7 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
 
         /* Personalità */
         auto* personaLbl = new QLabel(
-            "\xf0\x9f\x8e\xad  <b>Personalit\xc3\xa0</b> \xe2\x80\x94 stile di risposta");
+            tr("\xf0\x9f\x8e\xad  <b>Personalit\xc3\xa0</b> \xe2\x80\x94 stile di risposta"));
         personaLbl->setTextFormat(Qt::RichText);
         gl->addWidget(personaLbl);
 
@@ -1910,14 +1910,14 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
         gl->setSpacing(8);
 
         auto* flashCb = new QCheckBox(
-            "\xe2\x9a\xa1  Flash Attention — riduce KV-cache RAM/VRAM del 30-50%");
+            tr("\xe2\x9a\xa1  Flash Attention — riduce KV-cache RAM/VRAM del 30-50%"));
         flashCb->setObjectName("cardDesc");
         flashCb->setChecked(AiChatParams::load().flash_attn);
         flashCb->setToolTip(tr("Consigliato con \xe2\x89\xa4 8 GB RAM. Ignorato se il modello non lo supporta."));
         gl->addWidget(flashCb);
 
         auto* mlockCb = new QCheckBox(
-            "\xf0\x9f\x94\x92  Blocca modello in RAM (--mlock, solo llama-server)");
+            tr("\xf0\x9f\x94\x92  Blocca modello in RAM (--mlock, solo llama-server)"));
         mlockCb->setObjectName("cardDesc");
         mlockCb->setChecked(AppConfig::s().value(P::SK::kMlockModel, false).toBool());
         mlockCb->setToolTip(tr("Impedisce lo swap su disco. Utile con \xe2\x89\xa5 16 GB RAM. Richiede riavvio server."));
@@ -2096,7 +2096,7 @@ QWidget* ImpostazioniPage::buildSandboxTab()
 
     /* ── Titolo ── */
     auto* titleLbl = new QLabel(
-        "\xf0\x9f\x90\xb3  Sandbox Docker \xe2\x80\x94 Esecuzione Codice Isolata", page);
+        tr("\xf0\x9f\x90\xb3  Sandbox Docker \xe2\x80\x94 Esecuzione Codice Isolata"), page);
     titleLbl->setObjectName("sectionTitle");
     lay->addWidget(titleLbl);
 
@@ -2116,7 +2116,7 @@ QWidget* ImpostazioniPage::buildSandboxTab()
     statusLay->addLayout(statusRow);
 
     m_dockerUnlockBtn = new QPushButton(
-        "\xf0\x9f\x94\x93  Sblocca e avvia Docker", page);
+        tr("\xf0\x9f\x94\x93  Sblocca e avvia Docker"), page);
     m_dockerUnlockBtn->setObjectName("actionBtn");
     m_dockerUnlockBtn->setToolTip(
         "Esegue (con autorizzazione amministratore):\n"
@@ -2135,7 +2135,7 @@ QWidget* ImpostazioniPage::buildSandboxTab()
     {
         auto* row = new QHBoxLayout;
         auto* chk = new QCheckBox(
-            "Usa sandbox Docker per il codice generato dall\xe2\x80\x99" "AI", page);
+            tr("Usa sandbox Docker per il codice generato dall\xe2\x80\x99" "AI"), page);
         chk->setObjectName("settingsCheck");
         chk->setChecked(AppConfig::s().value(P::SK::kSandboxEnabled, true).toBool());
         chk->setEnabled(!docker.isEmpty());
@@ -2195,7 +2195,7 @@ QWidget* ImpostazioniPage::buildSandboxTab()
     if (!docker.isEmpty()) {
         auto* pullRow = new QHBoxLayout;
         auto* pullBtn = new QPushButton(
-            "\xf0\x9f\x93\xa5  Scarica immagine ora (docker pull)", page);
+            tr("\xf0\x9f\x93\xa5  Scarica immagine ora (docker pull)"), page);
         pullBtn->setObjectName("actionBtn");
         pullBtn->setToolTip(
             "Esegue 'docker pull <immagine>' per scaricare subito l\xe2\x80\x99immagine.\n"

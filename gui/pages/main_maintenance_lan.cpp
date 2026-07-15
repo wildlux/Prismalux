@@ -50,7 +50,7 @@ QWidget* ManutenzioneePage::buildLanServer()
 
     /* ── Titolo sezione ── */
     auto* titleLbl = new QLabel(
-        "<b>" "\xf0\x9f\x8c\x90" " Server LAN per Android</b>", w);  // 🌐
+        tr("<b>" "\xf0\x9f\x8c\x90" " Server LAN per Android</b>"), w);  // 🌐
     titleLbl->setTextFormat(Qt::RichText);
     vbox->addWidget(titleLbl);
 
@@ -103,7 +103,7 @@ QWidget* ManutenzioneePage::buildLanServer()
 
     /* ── Bottone QR Code APK ── */
     auto* qrBtn = new QPushButton(
-        "\xf0\x9f\x93\xb1" "  Scarica APK (QR Code)", group);  // 📱
+        tr("\xf0\x9f\x93\xb1" "  Scarica APK (QR Code)"), group);  // 📱
     qrBtn->setObjectName("actionBtn");
     qrBtn->setToolTip(tr("Mostra il QR code per scaricare PrismaluxMobile.apk sul telefono"));
     qrBtn->setEnabled(false);
@@ -118,7 +118,7 @@ QWidget* ManutenzioneePage::buildLanServer()
     tlsLay->setSpacing(6);
 
     auto* tlsTitleLbl = new QLabel(
-        "<b>" "\xf0\x9f\x94\x92" " TLS — cifratura connessione LAN</b>", tlsGroup);
+        tr("<b>" "\xf0\x9f\x94\x92" " TLS — cifratura connessione LAN</b>"), tlsGroup);
     tlsTitleLbl->setTextFormat(Qt::RichText);
     tlsLay->addWidget(tlsTitleLbl);
 
@@ -127,7 +127,7 @@ QWidget* ManutenzioneePage::buildLanServer()
     tlsCtrlLay->setContentsMargins(0,0,0,0); tlsCtrlLay->setSpacing(8);
 
     m_tlsGenBtn = new QPushButton(
-        "\xf0\x9f\x94\x92  Genera certificato TLS self-signed", tlsGroup);
+        tr("\xf0\x9f\x94\x92  Genera certificato TLS self-signed"), tlsGroup);
     m_tlsGenBtn->setObjectName("actionBtn");
     m_tlsGenBtn->setToolTip(
         "Genera ~/.prismalux/lan_cert.pem e ~/.prismalux/lan_key.pem\n"
@@ -135,7 +135,7 @@ QWidget* ManutenzioneePage::buildLanServer()
         "Richiede openssl installato sul sistema.");
 
     m_tlsEnableCheck = new QCheckBox(
-        "\xf0\x9f\x94\x92  Abilita TLS (richiede certificato)", tlsGroup);
+        tr("\xf0\x9f\x94\x92  Abilita TLS (richiede certificato)"), tlsGroup);
     {
         QSettings s("Prismalux", "GUI");
         m_tlsEnableCheck->setChecked(s.value("lan/tls_enabled", false).toBool());
@@ -163,7 +163,7 @@ QWidget* ManutenzioneePage::buildLanServer()
     tokenLay->setSpacing(6);
 
     auto* tokenTitleLbl = new QLabel(
-        "<b>" "\xf0\x9f\x94\x91" " Token di accesso LAN</b>", tokenGroup);
+        tr("<b>" "\xf0\x9f\x94\x91" " Token di accesso LAN</b>"), tokenGroup);
     tokenTitleLbl->setTextFormat(Qt::RichText);
     tokenLay->addWidget(tokenTitleLbl);
 
@@ -185,7 +185,7 @@ QWidget* ManutenzioneePage::buildLanServer()
     }
 
     m_regenBtn = new QPushButton(
-        "\xf0\x9f\x94\x84" "  Rigenera Token", tokenGroup);
+        tr("\xf0\x9f\x94\x84" "  Rigenera Token"), tokenGroup);
     m_regenBtn->setObjectName("actionBtn");
     m_regenBtn->setToolTip(tr(
         "Genera un nuovo token UUID e lo copia negli appunti.\n"
@@ -243,7 +243,7 @@ void ManutenzioneePage::onQrBtnClicked()
     vl->setContentsMargins(20, 20, 20, 20);
 
     auto* titleLbl = new QLabel(
-        "<b>" "\xf0\x9f\x93\xb1" " Scansiona con il telefono per scaricare l'APK</b>",
+        tr("<b>" "\xf0\x9f\x93\xb1" " Scansiona con il telefono per scaricare l'APK</b>"),
         dlg);
     titleLbl->setTextFormat(Qt::RichText);
     titleLbl->setAlignment(Qt::AlignCenter);

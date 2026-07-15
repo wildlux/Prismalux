@@ -268,7 +268,7 @@ QWidget* AppControllerPage::buildFreeCADTab()
     m_freecadStatusLbl->setObjectName("hintLabel");
 
     m_freecadExecBtn = new QPushButton(
-        "\xe2\x96\xb6  Esegui in FreeCAD", connRow);
+        tr("\xe2\x96\xb6  Esegui in FreeCAD"), connRow);
     m_freecadExecBtn->setObjectName("actionBtn");
     m_freecadExecBtn->setFixedWidth(dpiScale(160));
     m_freecadExecBtn->setEnabled(false);

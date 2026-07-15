@@ -69,7 +69,7 @@ QWidget* AppControllerPage::buildDevAgentTab()
     taskLbl->setFixedWidth(dpiScale(55));
     m_devTaskEdit = new QLineEdit(cfgGroup);
     m_devTaskEdit->setPlaceholderText(
-        "Es: Aggiungi tooltip al pulsante PDF in main_ai_ui.cpp riga 138");
+        tr("Es: Aggiungi tooltip al pulsante PDF in main_ai_ui.cpp riga 138"));
     taskRow->addWidget(taskLbl);
     taskRow->addWidget(m_devTaskEdit, 1);
     cfgLay->addLayout(taskRow);
@@ -93,22 +93,22 @@ QWidget* AppControllerPage::buildDevAgentTab()
     /* Pulsanti controllo */
     auto* ctrlRow = new QHBoxLayout;
     m_devRunBtn = new QPushButton(
-        "\xf0\x9f\x9a\x80  Avvia Dev Agent", cfgGroup);
+        tr("\xf0\x9f\x9a\x80  Avvia Dev Agent"), cfgGroup);
     m_devRunBtn->setObjectName("primaryBtn");
     m_devRunBtn->setFixedHeight(dpiScale(36));
 
     m_devStopBtn = new QPushButton(
-        "\xe2\x8f\xb9  Ferma", cfgGroup);
+        tr("\xe2\x8f\xb9  Ferma"), cfgGroup);
     m_devStopBtn->setObjectName("actionBtn");
     m_devStopBtn->setFixedHeight(dpiScale(36));
     m_devStopBtn->setEnabled(false);
 
     m_devInstallBtn = new QPushButton(
-        "\xf0\x9f\x93\xa6  Installa LangGraph", cfgGroup);
+        tr("\xf0\x9f\x93\xa6  Installa LangGraph"), cfgGroup);
     m_devInstallBtn->setObjectName("actionBtn");
     m_devInstallBtn->setFixedHeight(dpiScale(36));
     m_devInstallBtn->setToolTip(
-        "pip install langgraph langchain-community langchain-ollama unidiff");
+        tr("pip install langgraph langchain-community langchain-ollama unidiff"));
 
     m_devStatusLbl = new QLabel(tr("\xe2\x9a\xab  Pronto"), cfgGroup);
     m_devStatusLbl->setObjectName("statusLabel");
@@ -123,7 +123,7 @@ QWidget* AppControllerPage::buildDevAgentTab()
 
     /* ── Log step-by-step ── */
     auto* logGroup = new QGroupBox(
-        "\xf0\x9f\x93\x8b  Log agente  (Read \xe2\x86\x92 Generate \xe2\x86\x92 Compile \xe2\x86\x92 Fix \xe2\x86\x92 Done)", w);
+        tr("\xf0\x9f\x93\x8b  Log agente  (Read \xe2\x86\x92 Generate \xe2\x86\x92 Compile \xe2\x86\x92 Fix \xe2\x86\x92 Done)"), w);
     auto* logLay = new QVBoxLayout(logGroup);
     m_devLog = new QTextBrowser(logGroup);
     m_devLog->setReadOnly(true);
@@ -148,7 +148,7 @@ QWidget* AppControllerPage::buildDevAgentTab()
 
     /* ── Diff finale ── */
     auto* diffGroup = new QGroupBox(
-        "\xf0\x9f\x93\x9d  Diff generato", leftCol);
+        tr("\xf0\x9f\x93\x9d  Diff generato"), leftCol);
     auto* diffLay = new QVBoxLayout(diffGroup);
     m_devDiff = new QTextEdit(diffGroup);
     m_devDiff->setReadOnly(true);
@@ -175,7 +175,7 @@ QWidget* AppControllerPage::buildDevAgentTab()
 
     /* ── Cronologia snapshot ── */
     auto* histGroup = new QGroupBox(
-        "\xe2\x8f\xaa  Cronologia \xe2\x80\x94 torna indietro nel tempo", rightCol);
+        tr("\xe2\x8f\xaa  Cronologia \xe2\x80\x94 torna indietro nel tempo"), rightCol);
     auto* histLay = new QVBoxLayout(histGroup);
     histLay->setSpacing(dpiScale(4));
 
@@ -194,7 +194,7 @@ QWidget* AppControllerPage::buildDevAgentTab()
 
     auto* histCtrlRow = new QHBoxLayout;
     m_devRestoreBtn = new QPushButton(
-        "\xe2\x86\xa9  Ripristina snapshot", histGroup);
+        tr("\xe2\x86\xa9  Ripristina snapshot"), histGroup);
     m_devRestoreBtn->setObjectName("actionBtn");
     m_devRestoreBtn->setEnabled(false);
     m_devRestoreBtn->setToolTip(
@@ -211,7 +211,7 @@ QWidget* AppControllerPage::buildDevAgentTab()
 
     /* ── Ripristina da Git / GitHub ── */
     auto* gitGroup = new QGroupBox(
-        "\xf0\x9f\x90\x99  Ripristina da Git / GitHub", rightCol);
+        tr("\xf0\x9f\x90\x99  Ripristina da Git / GitHub"), rightCol);
     auto* gitLay = new QVBoxLayout(gitGroup);
     gitLay->setSpacing(dpiScale(4));
 
@@ -223,7 +223,7 @@ QWidget* AppControllerPage::buildDevAgentTab()
     m_devGitBranchEdit->setText(tr("master"));
     m_devGitBranchEdit->setFixedWidth(dpiScale(90));
     auto* fetchResetBtn = new QPushButton(
-        "\xf0\x9f\x8c\x90  Fetch + Reset da GitHub", gitGroup);
+        tr("\xf0\x9f\x8c\x90  Fetch + Reset da GitHub"), gitGroup);
     fetchResetBtn->setObjectName("actionBtn");
     fetchResetBtn->setToolTip(
         "git fetch origin && git reset --hard origin/master\n"
@@ -253,7 +253,7 @@ QWidget* AppControllerPage::buildDevAgentTab()
     gitLay->addLayout(gitLogRow);
 
     m_devGitRestoreBtn = new QPushButton(
-        "\xe2\x86\xa9  Ripristina file al commit selezionato", gitGroup);
+        tr("\xe2\x86\xa9  Ripristina file al commit selezionato"), gitGroup);
     m_devGitRestoreBtn->setObjectName("actionBtn");
     m_devGitRestoreBtn->setEnabled(false);
     m_devGitRestoreBtn->setToolTip(
@@ -264,7 +264,7 @@ QWidget* AppControllerPage::buildDevAgentTab()
     /* Stash */
     auto* stashRow = new QHBoxLayout;
     auto* stashPushBtn = new QPushButton(
-        "\xf0\x9f\x93\xa6  Stash modifiche", gitGroup);
+        tr("\xf0\x9f\x93\xa6  Stash modifiche"), gitGroup);
     stashPushBtn->setObjectName("actionBtn");
     stashPushBtn->setToolTip(tr("git stash push — salva le modifiche correnti in uno stash"));
 
@@ -273,7 +273,7 @@ QWidget* AppControllerPage::buildDevAgentTab()
     m_devStashList->setToolTip(tr("Lista degli stash git disponibili"));
 
     m_devGitStashPopBtn = new QPushButton(
-        "\xf0\x9f\x93\xa4  Applica stash selezionato", gitGroup);
+        tr("\xf0\x9f\x93\xa4  Applica stash selezionato"), gitGroup);
     m_devGitStashPopBtn->setObjectName("actionBtn");
     m_devGitStashPopBtn->setEnabled(false);
 
@@ -352,7 +352,7 @@ void AppControllerPage::onDevAgentRunClicked()
     const QString task = m_devTaskEdit ? m_devTaskEdit->text().trimmed() : QString();
     if (task.isEmpty()) {
         if (m_devStatusLbl) m_devStatusLbl->setText(
-            "\xe2\x9d\x8c  Descrivi il task prima di avviare.");
+            tr("\xe2\x9d\x8c  Descrivi il task prima di avviare."));
         return;
     }
 
@@ -393,7 +393,7 @@ void AppControllerPage::onDevAgentRunClicked()
     m_devProc->start(P::findPython(), {scriptPath});
     if (!m_devProc->waitForStarted(P::kProcessStartTimeoutMs)) {
         if (m_devStatusLbl) m_devStatusLbl->setText(
-            "\xe2\x9d\x8c  Impossibile avviare il server Dev Agent.");
+            tr("\xe2\x9d\x8c  Impossibile avviare il server Dev Agent."));
         return;
     }
 
@@ -408,7 +408,7 @@ void AppControllerPage::onDevAgentRunClicked()
     m_devRunBtn->setEnabled(false);
     m_devStopBtn->setEnabled(true);
     if (m_devStatusLbl) m_devStatusLbl->setText(
-        "\xf0\x9f\x9f\xa1  Dev Agent in esecuzione...");
+        tr("\xf0\x9f\x9f\xa1  Dev Agent in esecuzione..."));
     if (m_devLog) m_devLog->append(
         QString("\xf0\x9f\x9a\x80  <b>Task:</b> %1<br>"
                 "\xf0\x9f\xa4\x96  Modello: %2")
@@ -497,7 +497,7 @@ void AppControllerPage::onDevAgentRestoreClicked()
     if (m_devLog) m_devLog->append(
         QString("\xe2\x8f\xaa  <b>Ripristino snapshot:</b> %1...").arg(backupId));
     if (m_devStatusLbl) m_devStatusLbl->setText(
-        "\xe2\x8f\xaa  Ripristino in corso...");
+        tr("\xe2\x8f\xaa  Ripristino in corso..."));
 
     auto* proc = new QProcess(this);
     proc->setProcessChannelMode(QProcess::SeparateChannels);
@@ -550,7 +550,7 @@ void AppControllerPage::onDevAgentInstallClicked()
 {
     if (m_devInstallBtn) m_devInstallBtn->setEnabled(false);
     if (m_devStatusLbl)  m_devStatusLbl->setText(
-        "\xe2\x8f\xb3  Installazione dipendenze LangGraph...");
+        tr("\xe2\x8f\xb3  Installazione dipendenze LangGraph..."));
 
     auto* proc = new QProcess(this);
     proc->setProcessChannelMode(QProcess::MergedChannels);
@@ -559,7 +559,7 @@ void AppControllerPage::onDevAgentInstallClicked()
         const QString out = QString::fromUtf8(proc->readAll()).trimmed().right(200);
         if (code == 0) {
             if (m_devStatusLbl) m_devStatusLbl->setText(
-                "\xe2\x9c\x85  LangGraph installato correttamente.");
+                tr("\xe2\x9c\x85  LangGraph installato correttamente."));
             if (m_devLog) m_devLog->append(
                 "\xe2\x9c\x85  <b>LangGraph installato</b> \xe2\x80\x94 pronto per l\xe2\x80\x99"
                 "avvio del Dev Agent.");

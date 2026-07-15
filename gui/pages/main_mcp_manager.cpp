@@ -280,7 +280,7 @@ void McpManagerPage::buildUi()
     m_log = new QTextEdit(this);
     m_log->setReadOnly(true);
     m_log->setFixedHeight(dpiScale(140));
-    m_log->setPlaceholderText(QString::fromUtf8("Log operazioni MCP\xe2\x80\xa6"));
+    m_log->setPlaceholderText(tr("Log operazioni MCP\xe2\x80\xa6"));
     root->addWidget(m_log);
 }
 
@@ -321,19 +321,19 @@ void McpManagerPage::rebuildList()
             const QString settingsKey = QLatin1String("mcp_hash/") + name;
             QSettings ss("Prismalux", "GUI");
             if (currentHash.isEmpty()) {
-                e.hashLbl->setText(QString::fromUtf8("\xe2\x9d\x93"));
+                e.hashLbl->setText(tr("\xe2\x9d\x93"));
                 e.hashLbl->setStyleSheet("color: palette(mid);");
             } else {
                 const QString stored = ss.value(settingsKey).toString();
                 if (stored.isEmpty()) {
                     ss.setValue(settingsKey, currentHash);
-                    e.hashLbl->setText(QString::fromUtf8("\xf0\x9f\x93\x9d"));
+                    e.hashLbl->setText(tr("\xf0\x9f\x93\x9d"));
                     e.hashLbl->setStyleSheet("color: #b26a00;");
                 } else if (stored == currentHash) {
-                    e.hashLbl->setText(QString::fromUtf8("\xe2\x9c\x85"));
+                    e.hashLbl->setText(tr("\xe2\x9c\x85"));
                     e.hashLbl->setStyleSheet("color: #2e7d32;");
                 } else {
-                    e.hashLbl->setText(QString::fromUtf8("\xe2\x9a\xa0\xef\xb8\x8f"));
+                    e.hashLbl->setText(tr("\xe2\x9a\xa0\xef\xb8\x8f"));
                     e.hashLbl->setStyleSheet("color: #c62828;");
                     appendLog(QString::fromUtf8("\xe2\x9a\xa0\xef\xb8\x8f <b>") + name +
                               QString::fromUtf8("</b>: server.py modificato (hash cambiato dal primo avvio)!"));
@@ -350,7 +350,7 @@ void McpManagerPage::rebuildList()
 
         e.testBtn = new QPushButton(QString::fromUtf8("\xf0\x9f\xa7\xaa  Testa"), rowW);
         e.testBtn->setProperty("mcpName", name);
-        e.testBtn->setToolTip(QString::fromUtf8("Smoke test JSON-RPC (initialize + tools/list)"));
+        e.testBtn->setToolTip(tr("Smoke test JSON-RPC (initialize + tools/list)"));
 
         row->addWidget(nameLbl);
         row->addWidget(e.statusLbl, 1);
@@ -487,7 +487,7 @@ void McpManagerPage::onInstallClicked()
     setBusy(true);
     m_busyName = name;
     if (e->statusLbl) {
-        e->statusLbl->setText(QString::fromUtf8("\xe2\x8f\xb3 installazione in corso\xe2\x80\xa6"));
+        e->statusLbl->setText(tr("\xe2\x8f\xb3 installazione in corso\xe2\x80\xa6"));
         e->statusLbl->setStyleSheet("color: #b26a00;");
     }
     appendLog(QString::fromUtf8("pip install -r %1 \xe2\x80\xa6").arg(req));
@@ -513,7 +513,7 @@ void McpManagerPage::onInstallFinished(int code, QProcess::ExitStatus)
     if (code == 0) {
         appendLog(QString::fromUtf8("\xe2\x9c\x85 Dipendenze di %1 installate.").arg(m_busyName));
         if (e && e->statusLbl) {
-            e->statusLbl->setText(QString::fromUtf8("\xe2\x9c\x85 dipendenze installate"));
+            e->statusLbl->setText(tr("\xe2\x9c\x85 dipendenze installate"));
             e->statusLbl->setStyleSheet("color: #2e7d32;");
         }
     } else {
@@ -522,7 +522,7 @@ void McpManagerPage::onInstallFinished(int code, QProcess::ExitStatus)
         if (!out.trimmed().isEmpty())
             appendLog(P::sanitizeErrorOutput(out));
         if (e && e->statusLbl) {
-            e->statusLbl->setText(QString::fromUtf8("\xe2\x9d\x8c installazione fallita"));
+            e->statusLbl->setText(tr("\xe2\x9d\x8c installazione fallita"));
             e->statusLbl->setStyleSheet("color: #c62828;");
         }
     }
@@ -547,7 +547,7 @@ void McpManagerPage::onTestClicked()
     m_busyName = name;
     m_testBuf.clear();
     if (e->statusLbl) {
-        e->statusLbl->setText(QString::fromUtf8("\xe2\x8f\xb3 test in corso\xe2\x80\xa6"));
+        e->statusLbl->setText(tr("\xe2\x8f\xb3 test in corso\xe2\x80\xa6"));
         e->statusLbl->setStyleSheet("color: #b26a00;");
     }
     appendLog(QString::fromUtf8("Smoke test JSON-RPC su %1 \xe2\x80\xa6").arg(name));
@@ -628,10 +628,10 @@ void McpManagerPage::finishCurrentTest(bool passed, const QString& detail)
     McpEntry* e = entryByName(m_busyName);
     if (e && e->statusLbl) {
         if (passed) {
-            e->statusLbl->setText(QString::fromUtf8("\xe2\x9c\x85 funzionante"));
+            e->statusLbl->setText(tr("\xe2\x9c\x85 funzionante"));
             e->statusLbl->setStyleSheet("color: #2e7d32;");
         } else {
-            e->statusLbl->setText(QString::fromUtf8("\xe2\x9d\x8c non risponde"));
+            e->statusLbl->setText(tr("\xe2\x9d\x8c non risponde"));
             e->statusLbl->setStyleSheet("color: #c62828;");
         }
     }

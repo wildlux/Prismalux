@@ -8,8 +8,16 @@
         <translation>🕸  Ready. Describe a complex task and press Decompose.</translation>
     </message>
     <message>
+        <source>🕸  &lt;b&gt;Multi-Agente&lt;/b&gt; — Decomposizione + Memoria a Grafo</source>
+        <translation>🕸  &lt;b&gt;Multi-Agent&lt;/b&gt; — Decomposition + Graph Memory</translation>
+    </message>
+    <message>
         <source>Modello LLM usato da master e sub-agenti</source>
         <translation>LLM model used by master and sub-agents</translation>
+    </message>
+    <message>
+        <source>🚀  Decomponsi + Esegui</source>
+        <translation>🚀  Decompose + Run</translation>
     </message>
     <message>
         <source>■  Stop</source>
@@ -26,6 +34,14 @@
     <message>
         <source>&lt;b&gt;Sub-Task&lt;/b&gt;</source>
         <translation>&lt;b&gt;Sub-Task&lt;/b&gt;</translation>
+    </message>
+    <message>
+        <source>&lt;small style='color:#64748b'&gt;Clicca un task per vedere il risultato&lt;/small&gt;</source>
+        <translation>&lt;small style='color:#64748b'&gt;Click a task to see the result&lt;/small&gt;</translation>
+    </message>
+    <message>
+        <source>L'output dei sub-agenti e la sintesi finale appariranno qui...</source>
+        <translation>The sub-agents' output and the final synthesis will appear here...</translation>
     </message>
     <message>
         <source>📝  Risultato</source>
@@ -56,12 +72,24 @@
         <translation>0 nodes · 0 edges</translation>
     </message>
     <message>
+        <source>📄  Esporta TXT</source>
+        <translation>📄  Export TXT</translation>
+    </message>
+    <message>
         <source>Salva snapshot testuale della memoria condivisa</source>
         <translation>Save a text snapshot of the shared memory</translation>
     </message>
     <message>
+        <source>💾  Backup</source>
+        <translation>💾  Backup</translation>
+    </message>
+    <message>
         <source>Esegue subito un backup del DB GraphMemory</source>
         <translation>Run a backup of the GraphMemory DB now</translation>
+    </message>
+    <message>
+        <source>🗑  Svuota Grafo</source>
+        <translation>🗑  Clear Graph</translation>
     </message>
     <message>
         <source>Cancella tutta la memoria a grafo (irreversibile)</source>
@@ -159,6 +187,10 @@ Continue?</translation>
     <message>
         <source>🔍  Cerca MCP per nome o etichetta…</source>
         <translation>🔍  Search MCPs by name or label…</translation>
+    </message>
+    <message>
+        <source>&lt;span style='color:#64748b;'&gt;Nessun MCP in MCPs/&lt;/span&gt;</source>
+        <translation>&lt;span style='color:#64748b;'&gt;No MCP in MCPs/&lt;/span&gt;</translation>
     </message>
     <message>
         <source>MCPs/</source>
@@ -307,6 +339,18 @@ Images: .png .jpg .jpeg .gif .webp</translation>
         <translation>🎤 Transcribe speech</translation>
     </message>
     <message>
+        <source>🔄  Indicizzazione in corso...</source>
+        <translation>🔄  Indexing in progress...</translation>
+    </message>
+    <message>
+        <source>🔄  Estrazione PDF in corso...</source>
+        <translation>🔄  PDF extraction in progress...</translation>
+    </message>
+    <message>
+        <source>📄  Estrazione PDF in corso...</source>
+        <translation>📄  PDF extraction in progress...</translation>
+    </message>
+    <message>
         <source>⚠️  URL non valido</source>
         <translation>⚠️  Invalid URL</translation>
     </message>
@@ -447,6 +491,10 @@ Images: .png .jpg .jpeg .gif .webp</translation>
         <translation>🔄 Regenerate</translation>
     </message>
     <message>
+        <source>Reinvia l'ultimo messaggio utente con il modello appena selezionato</source>
+        <translation>Resend the last user message with the newly selected model</translation>
+    </message>
+    <message>
         <source>📈  Apri nel Grafico</source>
         <translation>📈  Open in Chart</translation>
     </message>
@@ -525,6 +573,10 @@ Images:  .png .jpg .jpeg .gif .webp (requires a vision model)</translation>
     <message>
         <source>➕  Aggiungi URL</source>
         <translation>➕  Add URL</translation>
+    </message>
+    <message>
+        <source>📄  Rilascia per indicizzare nel RAG...</source>
+        <translation>📄  Drop to index into the RAG...</translation>
     </message>
     <message>
         <source>✅  Indicizzato nel RAG</source>
@@ -628,6 +680,10 @@ Images:  .png .jpg .jpeg .gif .webp (requires a vision model)</translation>
         <translation>📂  Shared RAG (all agents):</translation>
     </message>
     <message>
+        <source>🔍  Abilita Controller LLM post-agente</source>
+        <translation>🔍  Enable post-agent LLM Controller</translation>
+    </message>
+    <message>
         <source>Nome preset...</source>
         <translation>Preset name...</translation>
     </message>
@@ -717,6 +773,10 @@ Images:  .png .jpg .jpeg .gif .webp (requires a vision model)</translation>
         <translation>Blender:</translation>
     </message>
     <message>
+        <source>▶  Esegui in Blender</source>
+        <translation>▶  Run in Blender</translation>
+    </message>
+    <message>
         <source>🔄  Verifica connessione...</source>
         <translation>🔄  Checking connection...</translation>
     </message>
@@ -801,24 +861,64 @@ Images:  .png .jpg .jpeg .gif .webp (requires a vision model)</translation>
         <translation>Task:</translation>
     </message>
     <message>
+        <source>Es: Aggiungi tooltip al pulsante PDF in main_ai_ui.cpp riga 138</source>
+        <translation>E.g.: Add a tooltip to the PDF button in main_ai_ui.cpp line 138</translation>
+    </message>
+    <message>
+        <source>🚀  Avvia Dev Agent</source>
+        <translation>🚀  Start Dev Agent</translation>
+    </message>
+    <message>
+        <source>⏹  Ferma</source>
+        <translation type="unfinished">⏹  Stop</translation>
+    </message>
+    <message>
+        <source>📦  Installa LangGraph</source>
+        <translation>📦  Install LangGraph</translation>
+    </message>
+    <message>
+        <source>pip install langgraph langchain-community langchain-ollama unidiff</source>
+        <translation>pip install langgraph langchain-community langchain-ollama unidiff</translation>
+    </message>
+    <message>
         <source>⚫  Pronto</source>
         <translation>⚫  Ready</translation>
+    </message>
+    <message>
+        <source>📋  Log agente  (Read → Generate → Compile → Fix → Done)</source>
+        <translation>📋  Agent log  (Read → Generate → Compile → Fix → Done)</translation>
     </message>
     <message>
         <source>I passi dell'agente appariranno qui...</source>
         <translation>The agent steps will appear here...</translation>
     </message>
     <message>
+        <source>📝  Diff generato</source>
+        <translation>📝  Generated diff</translation>
+    </message>
+    <message>
         <source>Il diff unificato apparirà qui al termine...</source>
         <translation>The unified diff will appear here when finished...</translation>
+    </message>
+    <message>
+        <source>⏪  Cronologia — torna indietro nel tempo</source>
+        <translation>⏪  History — go back in time</translation>
     </message>
     <message>
         <source>Seleziona uno snapshot da ripristinare</source>
         <translation>Select a snapshot to restore</translation>
     </message>
     <message>
+        <source>↩  Ripristina snapshot</source>
+        <translation>↩  Restore snapshot</translation>
+    </message>
+    <message>
         <source>Aggiorna la lista degli snapshot salvati dal Dev Agent</source>
         <translation>Refresh the list of snapshots saved by the Dev Agent</translation>
+    </message>
+    <message>
+        <source>🐙  Ripristina da Git / GitHub</source>
+        <translation>🐙  Restore from Git / GitHub</translation>
     </message>
     <message>
         <source>Branch:</source>
@@ -829,12 +929,24 @@ Images:  .png .jpg .jpeg .gif .webp (requires a vision model)</translation>
         <translation>master</translation>
     </message>
     <message>
+        <source>🌐  Fetch + Reset da GitHub</source>
+        <translation>🌐  Fetch + Reset from GitHub</translation>
+    </message>
+    <message>
         <source>Commit:</source>
         <translation>Commit:</translation>
     </message>
     <message>
         <source>Aggiorna log git</source>
         <translation>Refresh git log</translation>
+    </message>
+    <message>
+        <source>↩  Ripristina file al commit selezionato</source>
+        <translation>↩  Restore files to the selected commit</translation>
+    </message>
+    <message>
+        <source>📦  Stash modifiche</source>
+        <translation>📦  Stash changes</translation>
     </message>
     <message>
         <source>git stash push — salva le modifiche correnti in uno stash</source>
@@ -845,12 +957,32 @@ Images:  .png .jpg .jpeg .gif .webp (requires a vision model)</translation>
         <translation>List of available git stashes</translation>
     </message>
     <message>
+        <source>📤  Applica stash selezionato</source>
+        <translation>📤  Apply selected stash</translation>
+    </message>
+    <message>
         <source>Aggiorna lista stash</source>
         <translation>Refresh stash list</translation>
     </message>
     <message>
+        <source>❌  Descrivi il task prima di avviare.</source>
+        <translation>❌  Describe the task before starting.</translation>
+    </message>
+    <message>
+        <source>❌  Impossibile avviare il server Dev Agent.</source>
+        <translation>❌  Could not start the Dev Agent server.</translation>
+    </message>
+    <message>
+        <source>🟡  Dev Agent in esecuzione...</source>
+        <translation>🟡  Dev Agent running...</translation>
+    </message>
+    <message>
         <source>❌  server.py non trovato</source>
         <translation>❌  server.py not found</translation>
+    </message>
+    <message>
+        <source>⏪  Ripristino in corso...</source>
+        <translation>⏪  Restore in progress...</translation>
     </message>
     <message>
         <source>❌  Impossibile avviare il processo</source>
@@ -859,6 +991,14 @@ Images:  .png .jpg .jpeg .gif .webp (requires a vision model)</translation>
     <message>
         <source>⚫  Fermato</source>
         <translation>⚫  Stopped</translation>
+    </message>
+    <message>
+        <source>⏳  Installazione dipendenze LangGraph...</source>
+        <translation>⏳  Installing LangGraph dependencies...</translation>
+    </message>
+    <message>
+        <source>✅  LangGraph installato correttamente.</source>
+        <translation>✅  LangGraph installed correctly.</translation>
     </message>
     <message>
         <source>⏪  Ripristino commit...</source>
@@ -883,6 +1023,10 @@ Images:  .png .jpg .jpeg .gif .webp (requires a vision model)</translation>
     <message>
         <source>Verifica che il server KiCAD MCP sia raggiungibile</source>
         <translation>Check that the KiCAD MCP server is reachable</translation>
+    </message>
+    <message>
+        <source>🖥  Esegui in KiCAD</source>
+        <translation>🖥  Run in KiCAD</translation>
     </message>
     <message>
         <source>Apri la documentazione KiCAD MCP e guida ai comandi</source>
@@ -919,6 +1063,10 @@ Images:  .png .jpg .jpeg .gif .webp (requires a vision model)</translation>
     <message>
         <source>⚪  MCU non connesso</source>
         <translation>⚪  MCU not connected</translation>
+    </message>
+    <message>
+        <source>⚡  Flash MCU</source>
+        <translation>⚡  Flash MCU</translation>
     </message>
     <message>
         <source>Apri guida al flashing MCU/FPGA: Arduino, STM32, ESP32, AVR</source>
@@ -1029,6 +1177,10 @@ Images:  .png .jpg .jpeg .gif .webp (requires a vision model)</translation>
         <translation>⚪  Not connected</translation>
     </message>
     <message>
+        <source>▶  Esegui in FreeCAD</source>
+        <translation>▶  Run in FreeCAD</translation>
+    </message>
+    <message>
         <source>🛟  Aiuto</source>
         <translation>🛟  Help</translation>
     </message>
@@ -1101,8 +1253,16 @@ Images:  .png .jpg .jpeg .gif .webp (requires a vision model)</translation>
         <translation>⚪  Bridge inactive</translation>
     </message>
     <message>
+        <source>▶  Esegui in Office</source>
+        <translation>▶  Run in Office</translation>
+    </message>
+    <message>
         <source>⚪  Bridge fermato</source>
         <translation>⚪  Bridge stopped</translation>
+    </message>
+    <message>
+        <source>❌  prismalux_office_bridge.py non trovato</source>
+        <translation type="unfinished">❌  prismalux_office_bridge.py not found</translation>
     </message>
     <message>
         <source>🔄  Avvio bridge...</source>
@@ -1111,6 +1271,10 @@ Images:  .png .jpg .jpeg .gif .webp (requires a vision model)</translation>
     <message>
         <source>⏹  Ferma bridge</source>
         <translation>⏹  Stop bridge</translation>
+    </message>
+    <message>
+        <source>⚠  Bridge avviato (verifica fallita)</source>
+        <translation type="unfinished">⚠  Bridge started (verification failed)</translation>
     </message>
     <message>
         <source>🔄  Invio a Office...</source>
@@ -1131,6 +1295,10 @@ Images:  .png .jpg .jpeg .gif .webp (requires a vision model)</translation>
     <message>
         <source>Verifica connessione con AnkiConnect (porta 8765)</source>
         <translation>Check the connection to AnkiConnect (port 8765)</translation>
+    </message>
+    <message>
+        <source>🃏  Invia ad Anki</source>
+        <translation>🃏  Send to Anki</translation>
     </message>
     <message>
         <source>Apri la documentazione AnkiConnect e guida AI per flashcard</source>
@@ -1169,6 +1337,14 @@ Images:  .png .jpg .jpeg .gif .webp (requires a vision model)</translation>
         <translation>🃏  AnkiConnect installation</translation>
     </message>
     <message>
+        <source>⚙️  Installa in Impostazioni</source>
+        <translation>⚙️  Install in Settings</translation>
+    </message>
+    <message>
+        <source>🔑  Passo 1 — Token del bot</source>
+        <translation>🔑  Step 1 — Bot token</translation>
+    </message>
+    <message>
         <source>Token:</source>
         <translation>Token:</translation>
     </message>
@@ -1181,12 +1357,88 @@ Images:  .png .jpg .jpeg .gif .webp (requires a vision model)</translation>
         <translation>Show / hide token</translation>
     </message>
     <message>
+        <source>🛡  Passo 2 — Chi può scrivere al bot</source>
+        <translation>🛡  Step 2 — Who can write to the bot</translation>
+    </message>
+    <message>
         <source>ID autorizzati:</source>
         <translation>Authorized IDs:</translation>
     </message>
     <message>
+        <source>123456789, 987654321  — vuoto = tutti</source>
+        <translation>123456789, 987654321  — empty = everyone</translation>
+    </message>
+    <message>
+        <source>⚙️  Controllo bot</source>
+        <translation>⚙️  Bot control</translation>
+    </message>
+    <message>
+        <source>▶  Avvia Bot</source>
+        <translation>▶  Start Bot</translation>
+    </message>
+    <message>
+        <source>⏹  Ferma Bot</source>
+        <translation>⏹  Stop Bot</translation>
+    </message>
+    <message>
+        <source>⚪  Bot fermo</source>
+        <translation>⚪  Bot stopped</translation>
+    </message>
+    <message>
+        <source>📝  Log messaggi in tempo reale</source>
+        <translation>📝  Real-time message log</translation>
+    </message>
+    <message>
+        <source>Qui appariranno i messaggi ricevuti e le risposte inviate...</source>
+        <translation>Received messages and sent replies will appear here...</translation>
+    </message>
+    <message>
+        <source>📤  Passo 3 — Invia messaggio a destinatari</source>
+        <translation>📤  Step 3 — Send message to recipients</translation>
+    </message>
+    <message>
+        <source>ID numerico utente (es. 123456789) oppure -1001234567890 (gruppo/canale)</source>
+        <translation>Numeric user ID (e.g. 123456789) or -1001234567890 (group/channel)</translation>
+    </message>
+    <message>
+        <source>🤖  Aggiungi automaticamente chi scrive al bot</source>
+        <translation>🤖  Automatically add whoever writes to the bot</translation>
+    </message>
+    <message>
+        <source>Messaggio da inviare:</source>
+        <translation>Message to send:</translation>
+    </message>
+    <message>
+        <source>Scrivi il testo del messaggio...</source>
+        <translation>Write the message text...</translation>
+    </message>
+    <message>
+        <source>📤  Invia a tutti i destinatari</source>
+        <translation>📤  Send to all recipients</translation>
+    </message>
+    <message>
         <source>✅  Token salvato</source>
         <translation>✅  Token saved</translation>
+    </message>
+    <message>
+        <source>❌  python-telegram-bot v20+ non installato</source>
+        <translation>❌  python-telegram-bot v20+ not installed</translation>
+    </message>
+    <message>
+        <source>❌  Inserisci il Bot Token prima di avviare.</source>
+        <translation>❌  Enter the Bot Token before starting.</translation>
+    </message>
+    <message>
+        <source>🔄  Avvio in corso...</source>
+        <translation>🔄  Starting...</translation>
+    </message>
+    <message>
+        <source>❌  Errore avvio (python3 non trovato?)</source>
+        <translation type="unfinished">❌  Startup error (python3 not found?)</translation>
+    </message>
+    <message>
+        <source>✅  Bot attivo — in ascolto</source>
+        <translation>✅  Bot active — listening</translation>
     </message>
     <message>
         <source>❌  Errore bot</source>
@@ -1201,6 +1453,14 @@ Images:  .png .jpg .jpeg .gif .webp (requires a vision model)</translation>
         <translation>exit 0 (unexpected restart)</translation>
     </message>
     <message>
+        <source>❌  Inserisci il Bot Token prima di inviare.</source>
+        <translation>❌  Enter the Bot Token before sending.</translation>
+    </message>
+    <message>
+        <source>🔧  Configurazione bridge</source>
+        <translation>🔧  Bridge configuration</translation>
+    </message>
+    <message>
         <source>Bridge URL:</source>
         <translation>Bridge URL:</translation>
     </message>
@@ -1209,12 +1469,40 @@ Images:  .png .jpg .jpeg .gif .webp (requires a vision model)</translation>
         <translation>http://localhost:3000</translation>
     </message>
     <message>
+        <source>💾  Salva</source>
+        <translation type="unfinished">💾  Save</translation>
+    </message>
+    <message>
+        <source>📣  Contatti promozionali</source>
+        <translation>📣  Promotional contacts</translation>
+    </message>
+    <message>
         <source>+393331234567</source>
         <translation>+393331234567</translation>
     </message>
     <message>
+        <source>➕  Aggiungi</source>
+        <translation type="unfinished">➕  Add</translation>
+    </message>
+    <message>
+        <source>➖  Rimuovi</source>
+        <translation type="unfinished">➖  Remove</translation>
+    </message>
+    <message>
         <source>Messaggio:</source>
         <translation>Message:</translation>
+    </message>
+    <message>
+        <source>Testo del messaggio promozionale...</source>
+        <translation>Promotional message text...</translation>
+    </message>
+    <message>
+        <source>📤  Invia a tutti</source>
+        <translation>📤  Send to all</translation>
+    </message>
+    <message>
+        <source>🤖  Bot AI Rispondente</source>
+        <translation>🤖  AI Auto-reply Bot</translation>
     </message>
     <message>
         <source>Whitelist numeri:</source>
@@ -1225,12 +1513,48 @@ Images:  .png .jpg .jpeg .gif .webp (requires a vision model)</translation>
         <translation>+393331234567, +391234567890 (comma = separator)</translation>
     </message>
     <message>
+        <source>Abilita auto-risposta AI ai messaggi in entrata</source>
+        <translation>Enable AI auto-reply to incoming messages</translation>
+    </message>
+    <message>
+        <source>🟢  Avvia Bot</source>
+        <translation>🟢  Start Bot</translation>
+    </message>
+    <message>
+        <source>🔴  Ferma Bot</source>
+        <translation>🔴  Stop Bot</translation>
+    </message>
+    <message>
+        <source>⚫  Bot non attivo</source>
+        <translation>⚫  Bot not active</translation>
+    </message>
+    <message>
         <source>Log messaggi</source>
         <translation>Message log</translation>
     </message>
     <message>
+        <source>I messaggi ricevuti/inviati dal bot appariranno qui...</source>
+        <translation>Messages received/sent by the bot will appear here...</translation>
+    </message>
+    <message>
         <source>✅  URL salvato</source>
         <translation>✅  URL saved</translation>
+    </message>
+    <message>
+        <source>❌  Inserisci l’URL del bridge.</source>
+        <translation>❌  Enter the bridge URL.</translation>
+    </message>
+    <message>
+        <source>❌  Scrivi il messaggio prima di inviare.</source>
+        <translation>❌  Write the message before sending.</translation>
+    </message>
+    <message>
+        <source>❌  Nessun contatto in lista.</source>
+        <translation>❌  No contact in the list.</translation>
+    </message>
+    <message>
+        <source>❌  Inserisci l’URL del bridge prima di avviare.</source>
+        <translation>❌  Enter the bridge URL before starting.</translation>
     </message>
     <message>
         <source>🟢  Bot attivo — polling ogni 2s</source>
@@ -1241,12 +1565,44 @@ Images:  .png .jpg .jpeg .gif .webp (requires a vision model)</translation>
         <translation>⚫  Bot stopped</translation>
     </message>
     <message>
+        <source>🐍  Moduli Python</source>
+        <translation>🐍  Python modules</translation>
+    </message>
+    <message>
         <source>📬  Telegram</source>
         <translation>📬  Telegram</translation>
+    </message>
+    <message>
+        <source>🐍  Codice pronto — premi Esegui in Blender</source>
+        <translation>🐍  Code ready — press Run in Blender</translation>
+    </message>
+    <message>
+        <source>🔩  Codice pronto — premi Esegui in FreeCAD</source>
+        <translation>🔩  Code ready — press Run in FreeCAD</translation>
+    </message>
+    <message>
+        <source>📄  Codice pronto — premi Esegui in Office</source>
+        <translation>📄  Code ready — press Run in Office</translation>
+    </message>
+    <message>
+        <source>🖥  Codice pronto — premi Esegui in KiCAD</source>
+        <translation>🖥  Code ready — press Run in KiCAD</translation>
+    </message>
+    <message>
+        <source>🤖  Codice pronto — premi Flash MCU</source>
+        <translation>🤖  Code ready — press Flash MCU</translation>
+    </message>
+    <message>
+        <source>🔴  Codice pronto — premi Esegui in OBS</source>
+        <translation>🔴  Code ready — press Run in OBS</translation>
     </message>
 </context>
 <context>
     <name>AvogadroWidget</name>
+    <message>
+        <source>🧪  &lt;i&gt;Avogadro — Editor molecolare 3D open-source.&lt;/i&gt;</source>
+        <translation>🧪  &lt;i&gt;Avogadro — Open-source 3D molecular editor.&lt;/i&gt;</translation>
+    </message>
     <message>
         <source>⚪  Avogadro locale</source>
         <translation>⚪  Local Avogadro</translation>
@@ -1309,6 +1665,10 @@ X axis = input size n, Y axis = operations (log-cubic scale).</translation>
 <context>
     <name>BiocondaWidget</name>
     <message>
+        <source>🌿  &lt;i&gt;Bioconda — Repository specializzato di software bioinformatico.&lt;/i&gt;</source>
+        <translation>🌿  &lt;i&gt;Bioconda — Specialized bioinformatics software repository.&lt;/i&gt;</translation>
+    </message>
+    <message>
         <source>⚪  Bioconda/conda</source>
         <translation>⚪  Bioconda/conda</translation>
     </message>
@@ -1347,6 +1707,22 @@ X axis = input size n, Y axis = operations (log-cubic scale).</translation>
 </context>
 <context>
     <name>BlhmWidget</name>
+    <message>
+        <source>Percorso ontologico</source>
+        <translation>Ontological path</translation>
+    </message>
+    <message>
+        <source>factory_w</source>
+        <translation>factory_w</translation>
+    </message>
+    <message>
+        <source>link_w</source>
+        <translation>link_w</translation>
+    </message>
+    <message>
+        <source>user_w</source>
+        <translation>user_w</translation>
+    </message>
     <message>
         <source>+ Aggiungi peso</source>
         <translation>+ Add weight</translation>
@@ -1499,6 +1875,13 @@ X axis = input size n, Y axis = operations (log-cubic scale).</translation>
     </message>
 </context>
 <context>
+    <name>ChartWidget</name>
+    <message>
+        <source>🖼  Salva come PNG...</source>
+        <translation type="unfinished">🖼  Save as PNG...</translation>
+    </message>
+</context>
+<context>
     <name>ChatBubble</name>
     <message>
         <source>📊  Grafico</source>
@@ -1540,16 +1923,60 @@ X axis = input size n, Y axis = operations (log-cubic scale).</translation>
         <translation>Model:</translation>
     </message>
     <message>
+        <source>📝  Descrizione — cosa deve fare il codice:</source>
+        <translation>📝  Description — what the code should do:</translation>
+    </message>
+    <message>
+        <source>⚡  Genera e Esegui con AI</source>
+        <translation>⚡  Generate and Run with AI</translation>
+    </message>
+    <message>
         <source>⏹  Stop</source>
         <translation type="unfinished">⏹  Stop</translation>
+    </message>
+    <message>
+        <source>📋  Copia codice</source>
+        <translation>📋  Copy code</translation>
+    </message>
+    <message>
+        <source>🗑  Pulisci</source>
+        <translation>🗑  Clear</translation>
+    </message>
+    <message>
+        <source>💻  Codice generato:</source>
+        <translation>💻  Generated code:</translation>
+    </message>
+    <message>
+        <source>Il codice generato dall'AI apparirà qui.</source>
+        <translation>The AI-generated code will appear here.</translation>
+    </message>
+    <message>
+        <source>📟  Output:</source>
+        <translation>📟  Output:</translation>
+    </message>
+    <message>
+        <source>Pronto. Descrivi cosa vuoi che il codice faccia.</source>
+        <translation>Ready. Describe what you want the code to do.</translation>
     </message>
     <message>
         <source>⏹  Interrotto.</source>
         <translation>⏹  Interrupted.</translation>
     </message>
     <message>
+        <source>📋  Codice copiato negli appunti.</source>
+        <translation>📋  Code copied to the clipboard.</translation>
+    </message>
+    <message>
         <source>Pronto.</source>
         <translation>Ready.</translation>
+    </message>
+    <message>
+        <source>❌  Scrivi una descrizione prima di generare.</source>
+        <translation>❌  Write a description before generating.</translation>
+    </message>
+    <message>
+        <source>🤖  AI sta generando il codice...</source>
+        <translation>🤖  AI is generating the code...</translation>
     </message>
     <message>
         <source>❌  Errore AI: </source>
@@ -1558,6 +1985,10 @@ X axis = input size n, Y axis = operations (log-cubic scale).</translation>
     <message>
         <source>❌  Fallito.</source>
         <translation>❌  Failed.</translation>
+    </message>
+    <message>
+        <source>❌  L'AI non ha prodotto una correzione valida.</source>
+        <translation>❌  The AI did not produce a valid fix.</translation>
     </message>
 </context>
 <context>
@@ -1581,6 +2012,14 @@ X axis = input size n, Y axis = operations (log-cubic scale).</translation>
     <message>
         <source>&lt;b&gt;Output del programma:&lt;/b&gt;</source>
         <translation>&lt;b&gt;Program output:&lt;/b&gt;</translation>
+    </message>
+    <message>
+        <source>💡 &lt;b&gt;Aneddoto per crescere:&lt;/b&gt;</source>
+        <translation>💡 &lt;b&gt;Anecdote to grow by:&lt;/b&gt;</translation>
+    </message>
+    <message>
+        <source>&lt;b&gt;🔧 Cosa vuoi modificare?&lt;/b&gt;</source>
+        <translation>&lt;b&gt;🔧 What do you want to change?&lt;/b&gt;</translation>
     </message>
     <message>
         <source>Es: "Mostra anche i numeri dispari" oppure "Aggiungi i commenti al codice"</source>
@@ -1681,8 +2120,20 @@ X axis = input size n, Y axis = operations (log-cubic scale).</translation>
 <context>
     <name>DepCheckPanel</name>
     <message>
+        <source>📦  &lt;b&gt;Dipendenze software&lt;/b&gt;</source>
+        <translation>📦  &lt;b&gt;Software dependencies&lt;/b&gt;</translation>
+    </message>
+    <message>
+        <source>🔄  Controlla tutto</source>
+        <translation>🔄  Check all</translation>
+    </message>
+    <message>
         <source>Verifica lo stato di ogni dipendenza</source>
         <translation>Check the status of every dependency</translation>
+    </message>
+    <message>
+        <source>⬇  Installa mancanti</source>
+        <translation>⬇  Install missing</translation>
     </message>
     <message>
         <source>Installa via pip le dipendenze mancanti</source>
@@ -1699,6 +2150,14 @@ X axis = input size n, Y axis = operations (log-cubic scale).</translation>
     <message>
         <source>⏳ installo...</source>
         <translation>⏳ installing...</translation>
+    </message>
+    <message>
+        <source>&lt;span style='color:#22c55e;'&gt;✅  OK&lt;/span&gt;</source>
+        <translation>&lt;span style='color:#22c55e;'&gt;✅  OK&lt;/span&gt;</translation>
+    </message>
+    <message>
+        <source>&lt;span style='color:#ef4444;'&gt;✖  Mancante&lt;/span&gt;</source>
+        <translation>&lt;span style='color:#ef4444;'&gt;✖  Missing&lt;/span&gt;</translation>
     </message>
 </context>
 <context>
@@ -1989,6 +2448,10 @@ Answer format (JSON ONLY, no other text):
 <context>
     <name>DockerUpdatePanel</name>
     <message>
+        <source>🐳  &lt;b&gt;Container Docker&lt;/b&gt;</source>
+        <translation>🐳  &lt;b&gt;Docker containers&lt;/b&gt;</translation>
+    </message>
+    <message>
         <source>🔄  Elenca container</source>
         <translation>🔄  List containers</translation>
     </message>
@@ -2019,6 +2482,10 @@ Answer format (JSON ONLY, no other text):
     <message>
         <source>✅  Immagine &lt;code&gt;</source>
         <translation>✅  Image &lt;code&gt;</translation>
+    </message>
+    <message>
+        <source>🔄  Ricrea ora (docker compose)</source>
+        <translation>🔄  Recreate now (docker compose)</translation>
     </message>
 </context>
 <context>
@@ -2055,12 +2522,24 @@ Answer format (JSON ONLY, no other text):
         <translation>sin(x)</translation>
     </message>
     <message>
+        <source>📐  Genera da espressione</source>
+        <translation>📐  Generate from expression</translation>
+    </message>
+    <message>
         <source>f(x)  es: x^2  sin(x)  x*(x+1)/2</source>
         <translation>f(x)  e.g.: x^2  sin(x)  x*(x+1)/2</translation>
     </message>
     <message>
         <source>x da:</source>
         <translation>x from:</translation>
+    </message>
+    <message>
+        <source>▶  Genera → inserisce i valori sotto</source>
+        <translation>▶  Generate → fills the values below</translation>
+    </message>
+    <message>
+        <source>🧊  Solidi 3D — un clic genera la mesh e mostra l'area</source>
+        <translation>🧊  3D solids — one click builds the mesh and shows the area</translation>
     </message>
     <message>
         <source>dim.1 (lato/raggio):</source>
@@ -2103,6 +2582,14 @@ Answer format (JSON ONLY, no other text):
         <translation>Show numeric labels</translation>
     </message>
     <message>
+        <source>📝  Serie personalizzata (magenta)</source>
+        <translation>📝  Custom series (magenta)</translation>
+    </message>
+    <message>
+        <source>📂  Carica sequenza da file (.txt)</source>
+        <translation>📂  Load sequence from file (.txt)</translation>
+    </message>
+    <message>
         <source>e  Serie di Taylor</source>
         <translation>e  Taylor series</translation>
     </message>
@@ -2119,8 +2606,20 @@ Answer format (JSON ONLY, no other text):
         <translation>cos(3*x)</translation>
     </message>
     <message>
+        <source>🔍  Grafico → Formula  [vision AI]</source>
+        <translation>🔍  Chart → Formula  [vision AI]</translation>
+    </message>
+    <message>
         <source>Seleziona modello vision...</source>
         <translation>Select vision model...</translation>
+    </message>
+    <message>
+        <source>📥  Installa modello vision</source>
+        <translation>📥  Install vision model</translation>
+    </message>
+    <message>
+        <source>📷  Analizza immagine</source>
+        <translation>📷  Analyze image</translation>
     </message>
     <message>
         <source>Apri un'immagine PNG/JPG e lascia che l'AI estragga la formula</source>
@@ -2424,6 +2923,10 @@ Answer format (JSON ONLY, no other text):
     <message>
         <source>Integratore C:</source>
         <translation>Supplement C:</translation>
+    </message>
+    <message>
+        <source>⚗  CALCOLA DOSI</source>
+        <translation>⚗  COMPUTE DOSES</translation>
     </message>
     <message>
         <source>Schema impianto DWC</source>
@@ -2814,6 +3317,42 @@ so a phone on the LAN can connect</translation>
         <translation>💾  Install</translation>
     </message>
     <message>
+        <source>🧠  Ragionamento AI (Think Mode)</source>
+        <translation>🧠  AI Reasoning (Think Mode)</translation>
+    </message>
+    <message>
+        <source>📖  Memoria persistente (Knowledge)</source>
+        <translation>📖  Persistent memory (Knowledge)</translation>
+    </message>
+    <message>
+        <source>Inietta contesto utente nel prompt</source>
+        <translation>Injects user context into the prompt</translation>
+    </message>
+    <message>
+        <source>📜  Costituzione Prismalux</source>
+        <translation>📜  Prismalux Constitution</translation>
+    </message>
+    <message>
+        <source>Inietta principi etici in ogni prompt</source>
+        <translation>Injects ethical principles into every prompt</translation>
+    </message>
+    <message>
+        <source>☁️  Smart Router — LOCAL / CLOUD automatico</source>
+        <translation>☁️  Smart Router — automatic LOCAL / CLOUD</translation>
+    </message>
+    <message>
+        <source>📦  Dipendenze esterne</source>
+        <translation>📦  External dependencies</translation>
+    </message>
+    <message>
+        <source>🔍  Verifica tutto</source>
+        <translation>🔍  Check all</translation>
+    </message>
+    <message>
+        <source>🖥 Apri terminale</source>
+        <translation>🖥 Open terminal</translation>
+    </message>
+    <message>
         <source>Output installazione:</source>
         <translation>Installation output:</translation>
     </message>
@@ -2828,6 +3367,10 @@ so a phone on the LAN can connect</translation>
     <message>
         <source>🔍  RAG — Recupero Documenti Aumentato</source>
         <translation>🔍  RAG — Retrieval-Augmented Generation</translation>
+    </message>
+    <message>
+        <source>Non salvare su disco (solo RAM — indice perso alla chiusura)</source>
+        <translation>Do not save to disk (RAM only — index lost on close)</translation>
     </message>
     <message>
         <source>/percorso/documenti/</source>
@@ -2848,6 +3391,14 @@ so a phone on the LAN can connect</translation>
     <message>
         <source>Ottimizzazione vettori RAG</source>
         <translation>RAG vector optimization</translation>
+    </message>
+    <message>
+        <source>Trasformata di Johnson–Lindenstrauss (JL)</source>
+        <translation>Johnson–Lindenstrauss (JL) transform</translation>
+    </message>
+    <message>
+        <source>📥  Scarica documenti ufficiali consigliati (AdE 2026)</source>
+        <translation>📥  Download recommended official documents (AdE 2026)</translation>
     </message>
     <message>
         <source>Modello embedding:</source>
@@ -2898,6 +3449,10 @@ so a phone on the LAN can connect</translation>
         <translation>Penalize already generated tokens — 1.20 = reduces loops</translation>
     </message>
     <message>
+        <source>ℹ  T 0.0–0.1 = risposte fattuali e ripetibili  •  T 0.3+ = creativo/inventivo</source>
+        <translation>ℹ  T 0.0–0.1 = factual, repeatable answers  •  T 0.3+ = creative/inventive</translation>
+    </message>
+    <message>
         <source>💬  Contesto e memoria</source>
         <translation>💬  Context and memory</translation>
     </message>
@@ -2912,12 +3467,32 @@ so a phone on the LAN can connect</translation>
         <translation>🧠  AI behavior</translation>
     </message>
     <message>
+        <source>🔒  Prefisso Brutal Honesty (consigliato)</source>
+        <translation>🔒  Brutal Honesty prefix (recommended)</translation>
+    </message>
+    <message>
+        <source>🦖  &lt;b&gt;Modalità Caveman&lt;/b&gt; — risposte dirette, zero convenevoli</source>
+        <translation>🦖  &lt;b&gt;Caveman mode&lt;/b&gt; — direct answers, zero pleasantries</translation>
+    </message>
+    <message>
+        <source>🎭  &lt;b&gt;Personalità&lt;/b&gt; — stile di risposta</source>
+        <translation>🎭  &lt;b&gt;Personality&lt;/b&gt; — answer style</translation>
+    </message>
+    <message>
         <source>⚡  Ottimizzazione hardware</source>
         <translation>⚡  Hardware optimization</translation>
     </message>
     <message>
+        <source>⚡  Flash Attention — riduce KV-cache RAM/VRAM del 30-50%</source>
+        <translation>⚡  Flash Attention — reduces KV-cache RAM/VRAM by 30-50%</translation>
+    </message>
+    <message>
         <source>Consigliato con ≤ 8 GB RAM. Ignorato se il modello non lo supporta.</source>
         <translation>Recommended with ≤ 8 GB RAM. Ignored if the model does not support it.</translation>
+    </message>
+    <message>
+        <source>🔒  Blocca modello in RAM (--mlock, solo llama-server)</source>
+        <translation>🔒  Lock model in RAM (--mlock, llama-server only)</translation>
     </message>
     <message>
         <source>Impedisce lo swap su disco. Utile con ≥ 16 GB RAM. Richiede riavvio server.</source>
@@ -2990,6 +3565,14 @@ Requires ≥ 16 GB RAM</translation>
         <translation>✅  Save</translation>
     </message>
     <message>
+        <source>🐳  Sandbox Docker — Esecuzione Codice Isolata</source>
+        <translation>🐳  Docker Sandbox — Isolated Code Execution</translation>
+    </message>
+    <message>
+        <source>Usa sandbox Docker per il codice generato dall’AI</source>
+        <translation>Use the Docker sandbox for AI-generated code</translation>
+    </message>
+    <message>
         <source>Se disabilitato, il codice AI viene eseguito localmente con pip install retry.
 Con sandbox: rete disabilitata, nessun accesso al filesystem host.</source>
         <translation>If disabled, AI code runs locally with pip install retry.
@@ -3012,6 +3595,10 @@ Aumenta a 512+ per elaborazioni numeriche intensive.</source>
 Raise to 512+ for heavy numeric workloads.</translation>
     </message>
     <message>
+        <source>📥  Scarica immagine ora (docker pull)</source>
+        <translation>📥  Download image now (docker pull)</translation>
+    </message>
+    <message>
         <source>🔄  Pull in corso...</source>
         <translation>🔄  Pulling...</translation>
     </message>
@@ -3022,6 +3609,10 @@ Raise to 512+ for heavy numeric workloads.</translation>
     <message>
         <source>Output test appare qui...</source>
         <translation>Test output appears here...</translation>
+    </message>
+    <message>
+        <source>🔬  &lt;b&gt;Casi testati:&lt;/b&gt;</source>
+        <translation>🔬  &lt;b&gt;Tested cases:&lt;/b&gt;</translation>
     </message>
     <message>
         <source>🔧  Filtro</source>
@@ -3056,6 +3647,14 @@ Raise to 512+ for heavy numeric workloads.</translation>
         <translation>⬇  Install</translation>
     </message>
     <message>
+        <source>🔗  Scarica GGUF da URL personalizzato (HuggingFace):</source>
+        <translation>🔗  Download GGUF from custom URL (HuggingFace):</translation>
+    </message>
+    <message>
+        <source>https://huggingface.co/.../resolve/main/modello.gguf</source>
+        <translation type="unfinished">https://huggingface.co/.../resolve/main/model.gguf</translation>
+    </message>
+    <message>
         <source>⬇  Scarica</source>
         <translation type="unfinished">⬇  Download</translation>
     </message>
@@ -3068,8 +3667,44 @@ Raise to 512+ for heavy numeric workloads.</translation>
         <translation>Sort by:</translation>
     </message>
     <message>
+        <source>#</source>
+        <translation>#</translation>
+    </message>
+    <message>
+        <source>Param.</source>
+        <translation>Param.</translation>
+    </message>
+    <message>
+        <source>RAM Q4</source>
+        <translation>RAM Q4</translation>
+    </message>
+    <message>
+        <source>Score</source>
+        <translation>Score</translation>
+    </message>
+    <message>
+        <source>Velocità</source>
+        <translation>Speed</translation>
+    </message>
+    <message>
+        <source>≤64GB</source>
+        <translation>≤64GB</translation>
+    </message>
+    <message>
+        <source>VRAM (GB)</source>
+        <translation>VRAM (GB)</translation>
+    </message>
+    <message>
+        <source>Categoria</source>
+        <translation>Category</translation>
+    </message>
+    <message>
         <source>🔍  Dettaglio modello selezionato</source>
         <translation>🔍  Selected model details</translation>
+    </message>
+    <message>
+        <source>&lt;span style='color:#94a3b8;'&gt;Seleziona una riga per i dettagli e l'installazione rapida.&lt;/span&gt;</source>
+        <translation>&lt;span style='color:#94a3b8;'&gt;Select a row for details and quick install.&lt;/span&gt;</translation>
     </message>
     <message>
         <source>⬇  Installa (Ollama)</source>
@@ -3080,8 +3715,28 @@ Raise to 512+ for heavy numeric workloads.</translation>
         <translation>Estimated VRAM for Q4 inference (ram_gb / 1.2)</translation>
     </message>
     <message>
+        <source>&lt;span style='color:#94a3b8;'&gt;Seleziona una riga per i dettagli.&lt;/span&gt;</source>
+        <translation>&lt;span style='color:#94a3b8;'&gt;Select a row for details.&lt;/span&gt;</translation>
+    </message>
+    <message>
+        <source>T ottimale</source>
+        <translation>Optimal T</translation>
+    </message>
+    <message>
+        <source>Tempo</source>
+        <translation>Time</translation>
+    </message>
+    <message>
+        <source>Note</source>
+        <translation type="unfinished">Notes</translation>
+    </message>
+    <message>
         <source>Rotella: zoom • Trascina: pan • Doppio click: reset</source>
         <translation>Wheel: zoom • Drag: pan • Double click: reset</translation>
+    </message>
+    <message>
+        <source>&lt;span style='color:#64748b;'&gt;Premi per avviare — output in benchmark_out/&lt;/span&gt;</source>
+        <translation>&lt;span style='color:#64748b;'&gt;Press to start — output in benchmark_out/&lt;/span&gt;</translation>
     </message>
     <message>
         <source>■  Stop benchmark</source>
@@ -3090,6 +3745,30 @@ Raise to 512+ for heavy numeric workloads.</translation>
     <message>
         <source>🔄  Riesegui benchmark</source>
         <translation>🔄  Rerun benchmark</translation>
+    </message>
+    <message>
+        <source>✅  Registro Test</source>
+        <translation>✅  Test Registry</translation>
+    </message>
+    <message>
+        <source>🔨  Compila</source>
+        <translation>🔨  Build</translation>
+    </message>
+    <message>
+        <source>▶  Esegui tutti</source>
+        <translation>▶  Run all</translation>
+    </message>
+    <message>
+        <source>⏹  Ferma</source>
+        <translation type="unfinished">⏹  Stop</translation>
+    </message>
+    <message>
+        <source>&lt;span style='color:#facc15;'&gt;⏳ Benchmark in corso...&lt;/span&gt;</source>
+        <translation>&lt;span style='color:#facc15;'&gt;⏳ Benchmark running...&lt;/span&gt;</translation>
+    </message>
+    <message>
+        <source>&lt;span style='color:#f87171;'&gt;❌ Python non trovato nel PATH.&lt;/span&gt;</source>
+        <translation>&lt;span style='color:#f87171;'&gt;❌ Python not found in PATH.&lt;/span&gt;</translation>
     </message>
     <message>
         <source>⏳  ...</source>
@@ -3148,8 +3827,16 @@ Raise to 512+ for heavy numeric workloads.</translation>
         <translation>🖼  Style preview</translation>
     </message>
     <message>
+        <source>Aggiornata in tempo reale ad ogni modifica dei colori, palette e preset.</source>
+        <translation>Updated in real time on every change of colors, palette and presets.</translation>
+    </message>
+    <message>
         <source>📈  Posizione assi</source>
         <translation>📈  Axis position</translation>
+    </message>
+    <message>
+        <source>Gizmo assi 2D (Cartesiano, Scatter) e 3D (Scatter 3D, Grafo 3D).</source>
+        <translation>2D axis gizmo (Cartesian, Scatter) and 3D (Scatter 3D, 3D Graph).</translation>
     </message>
     <message>
         <source>🎲  Colori serie (palette)</source>
@@ -3158,6 +3845,10 @@ Raise to 512+ for heavy numeric workloads.</translation>
     <message>
         <source>8 colori ciclici per le linee/barre. Svuota per usare la palette interna.</source>
         <translation>8 cyclic colors for lines/bars. Clear to use the built-in palette.</translation>
+    </message>
+    <message>
+        <source>↪  Ripristina palette default</source>
+        <translation>↪  Restore default palette</translation>
     </message>
     <message>
         <source>🎨  Colori grafico</source>
@@ -3174,6 +3865,10 @@ Raise to 512+ for heavy numeric workloads.</translation>
     <message>
         <source>✨  Preset stile grafico</source>
         <translation>✨  Chart style preset</translation>
+    </message>
+    <message>
+        <source>🔄  Ripristina tutto ai valori default</source>
+        <translation>🔄  Restore everything to defaults</translation>
     </message>
     <message>
         <source>❌  Rimuovi selezionato</source>
@@ -3220,6 +3915,38 @@ Raise to 512+ for heavy numeric workloads.</translation>
         <translation>➕  Add to Claude</translation>
     </message>
     <message>
+        <source>📋  MCP configurati in Claude Code  (~/.claude/settings.json)</source>
+        <translation>📋  MCPs configured in Claude Code  (~/.claude/settings.json)</translation>
+    </message>
+    <message>
+        <source>Nome</source>
+        <translation type="unfinished">First name</translation>
+    </message>
+    <message>
+        <source>Tipo</source>
+        <translation>Type</translation>
+    </message>
+    <message>
+        <source>Comando / Args</source>
+        <translation>Command / Args</translation>
+    </message>
+    <message>
+        <source>💾  Esporta lista MCP...</source>
+        <translation>💾  Export MCP list...</translation>
+    </message>
+    <message>
+        <source>📂  Importa lista MCP...</source>
+        <translation>📂  Import MCP list...</translation>
+    </message>
+    <message>
+        <source>🏠  MCP Locali Prismalux  (pronti da usare)</source>
+        <translation>🏠  Prismalux Local MCPs  (ready to use)</translation>
+    </message>
+    <message>
+        <source>🦙  Ollama in locale — usa i modelli locali in Claude Code</source>
+        <translation>🦙  Local Ollama — use local models in Claude Code</translation>
+    </message>
+    <message>
         <source>Aggiunge questo endpoint Ollama come MCP in Claude Desktop settings.json</source>
         <translation>Adds this Ollama endpoint as an MCP in Claude Desktop settings.json</translation>
     </message>
@@ -3240,12 +3967,28 @@ Raise to 512+ for heavy numeric workloads.</translation>
         <translation>npx -y ollama-mcp-server</translation>
     </message>
     <message>
+        <source>➕  Aggiungi MCP personalizzato a Claude Code</source>
+        <translation>➕  Add custom MCP to Claude Code</translation>
+    </message>
+    <message>
         <source>es. my-mcp</source>
         <translation>e.g. my-mcp</translation>
     </message>
     <message>
         <source>es. python3   oppure   npx</source>
         <translation>e.g. python3   or   npx</translation>
+    </message>
+    <message>
+        <source>es. /percorso/server.py   (separati da spazio)</source>
+        <translation>e.g. /path/server.py   (space separated)</translation>
+    </message>
+    <message>
+        <source>es. API_KEY=abc TOKEN=xyz   (opzionale)</source>
+        <translation>e.g. API_KEY=abc TOKEN=xyz   (optional)</translation>
+    </message>
+    <message>
+        <source>💾  Salva in settings.json</source>
+        <translation>💾  Save to settings.json</translation>
     </message>
     <message>
         <source>Nome e Comando sono obbligatori.</source>
@@ -3256,8 +3999,20 @@ Raise to 512+ for heavy numeric workloads.</translation>
         <translation>✅  "</translation>
     </message>
     <message>
+        <source>🌐  MCP Popolari  (copia il comando e installalo nel terminale)</source>
+        <translation>🌐  Popular MCPs  (copy the command and install it in the terminal)</translation>
+    </message>
+    <message>
         <source>Copia: </source>
         <translation>Copy:</translation>
+    </message>
+    <message>
+        <source>🍺  Mostra di nuovo il messaggio di benvenuto</source>
+        <translation>🍺  Show the welcome message again</translation>
+    </message>
+    <message>
+        <source>&lt;b&gt;🧠 Memoria AI — storia versionata&lt;/b&gt;</source>
+        <translation>&lt;b&gt;🧠 AI Memory — versioned history&lt;/b&gt;</translation>
     </message>
     <message>
         <source>↩  Ripristina preferences.yaml</source>
@@ -3344,6 +4099,18 @@ Raise to 512+ for heavy numeric workloads.</translation>
         <translation>✅ Listening on 0.0.0.0:11434</translation>
     </message>
     <message>
+        <source>⏳  Interruzione in corso dopo il chunk corrente...</source>
+        <translation>⏳  Stopping after the current chunk...</translation>
+    </message>
+    <message>
+        <source>⚠  Embedding disponibile solo con Ollama o llama-server.</source>
+        <translation>⚠  Embedding available only with Ollama or llama-server.</translation>
+    </message>
+    <message>
+        <source>🌫  Nessun contenuto trovato nella cartella.</source>
+        <translation>🌫  No content found in the folder.</translation>
+    </message>
+    <message>
         <source>ℹ  Nessun nodo configurato.</source>
         <translation>ℹ  No node configured.</translation>
     </message>
@@ -3412,8 +4179,32 @@ Raise to 512+ for heavy numeric workloads.</translation>
         <translation>0 files · 0 B</translation>
     </message>
     <message>
+        <source>⚠️  Cartelle pesanti (rimozione manuale)</source>
+        <translation>⚠️  Heavy folders (manual removal)</translation>
+    </message>
+    <message>
         <source>✅  Nessuna cartella llama_cpp_studio trovata.</source>
         <translation>✅  No llama_cpp_studio folder found.</translation>
+    </message>
+    <message>
+        <source>💾  Backup dati Prismalux</source>
+        <translation>💾  Prismalux data backup</translation>
+    </message>
+    <message>
+        <source>💾  Crea backup ZIP...</source>
+        <translation>💾  Create ZIP backup...</translation>
+    </message>
+    <message>
+        <source>📂  Apri cartella dati</source>
+        <translation>📂  Open data folder</translation>
+    </message>
+    <message>
+        <source>🔐  Audit segreti &amp; permessi</source>
+        <translation>🔐  Secrets &amp; permissions audit</translation>
+    </message>
+    <message>
+        <source>🔍  Esegui audit ora</source>
+        <translation>🔍  Run audit now</translation>
     </message>
     <message>
         <source>Risultati audit...</source>
@@ -3428,8 +4219,16 @@ Raise to 512+ for heavy numeric workloads.</translation>
         <translation>🎨  Appearance and Theme</translation>
     </message>
     <message>
+        <source>🌙  Segui tema di sistema (Dark/Light automatico)</source>
+        <translation>🌙  Follow system theme (automatic Dark/Light)</translation>
+    </message>
+    <message>
         <source>Richiede Qt 6.5 o superiore.</source>
         <translation>Requires Qt 6.5 or higher.</translation>
+    </message>
+    <message>
+        <source>💬  &lt;b&gt;Aspetto bolle chat&lt;/b&gt;</source>
+        <translation>💬  &lt;b&gt;Chat bubble appearance&lt;/b&gt;</translation>
     </message>
     <message>
         <source>Raggio bordi (px):</source>
@@ -3440,16 +4239,58 @@ Raise to 512+ for heavy numeric workloads.</translation>
         <translation>(applied to new bubbles)</translation>
     </message>
     <message>
+        <source>🏷️  &lt;b&gt;Modalità etichette tab&lt;/b&gt;</source>
+        <translation>🏷️  &lt;b&gt;Tab label mode&lt;/b&gt;</translation>
+    </message>
+    <message>
         <source>Scegli come visualizzare le etichette dei tab principali.</source>
         <translation>Choose how to display the main tab labels.</translation>
+    </message>
+    <message>
+        <source>🗂️  &lt;b&gt;Stile navigazione&lt;/b&gt;</source>
+        <translation>🗂️  &lt;b&gt;Navigation style&lt;/b&gt;</translation>
+    </message>
+    <message>
+        <source>Schede in alto (predefinito) oppure
+menù orizzontale a pulsanti con categorie.</source>
+        <translation>Tabs on top (default) or
+a horizontal button menu with categories.</translation>
+    </message>
+    <message>
+        <source>▶  &lt;b&gt;Pulsanti di esecuzione&lt;/b&gt;</source>
+        <translation>▶  &lt;b&gt;Run buttons&lt;/b&gt;</translation>
     </message>
     <message>
         <source>Avvia, Stop, Esegui, Calcola e simili — in tutte le schede.</source>
         <translation>Start, Stop, Run, Compute and similar — in every tab.</translation>
     </message>
     <message>
+        <source>🎭  &lt;b&gt;Icone modalità AI&lt;/b&gt;</source>
+        <translation>🎭  &lt;b&gt;AI mode icons&lt;/b&gt;</translation>
+    </message>
+    <message>
         <source>Stile emoji nel pulsante TriMode (Chat / Agentico / Conversa).</source>
         <translation>Emoji style in the TriMode button (Chat / Agentic / Converse).</translation>
+    </message>
+    <message>
+        <source>Scegli come vengono visualizzate le emoji nel pulsante circolare AI.</source>
+        <translation>Choose how emoji are displayed in the circular AI button.</translation>
+    </message>
+    <message>
+        <source>🔳  &lt;b&gt;Forma pulsante AI&lt;/b&gt;</source>
+        <translation>🔳  &lt;b&gt;AI button shape&lt;/b&gt;</translation>
+    </message>
+    <message>
+        <source>Scegli la forma del pulsante Chat / Agentico / Conversa.</source>
+        <translation>Choose the shape of the Chat / Agentic / Converse button.</translation>
+    </message>
+    <message>
+        <source>🔊  Voce — Piper TTS</source>
+        <translation>🔊  Voice — Piper TTS</translation>
+    </message>
+    <message>
+        <source>❌  Piper non trovato &amp;mdash; clicca &lt;b&gt;Installa Piper&lt;/b&gt;</source>
+        <translation>❌  Piper not found &amp;mdash; click &lt;b&gt;Install Piper&lt;/b&gt;</translation>
     </message>
     <message>
         <source>Scarica e installa il binario Piper nella cartella del progetto (&lt;appDir&gt;/piper/)</source>
@@ -3462,6 +4303,10 @@ Raise to 512+ for heavy numeric workloads.</translation>
     <message>
         <source>📥  Installa Piper</source>
         <translation>📥  Install Piper</translation>
+    </message>
+    <message>
+        <source>🇮🇹  &lt;b&gt;Voci Italiane disponibili&lt;/b&gt;</source>
+        <translation>🇮🇹  &lt;b&gt;Available Italian voices&lt;/b&gt;</translation>
     </message>
     <message>
         <source>Voce attiva:</source>
@@ -3524,12 +4369,20 @@ Raise to 512+ for heavy numeric workloads.</translation>
         <translation>❌ Extraction error.</translation>
     </message>
     <message>
+        <source>🔊  &lt;b&gt;Test voce&lt;/b&gt;</source>
+        <translation>🔊  &lt;b&gt;Voice test&lt;/b&gt;</translation>
+    </message>
+    <message>
         <source>Scrivi un testo di prova...</source>
         <translation>Type a test text...</translation>
     </message>
     <message>
         <source>Ciao, sono Prismalux. La conoscenza è potere.</source>
         <translation>Hi, I am Prismalux. Knowledge is power.</translation>
+    </message>
+    <message>
+        <source>🔊  Parla</source>
+        <translation>🔊  Speak</translation>
     </message>
     <message>
         <source>Legge il testo con la voce selezionata</source>
@@ -3544,8 +4397,28 @@ Raise to 512+ for heavy numeric workloads.</translation>
         <translation>❌ bash/piper not found</translation>
     </message>
     <message>
+        <source>🎤  Trascrizione — Whisper STT</source>
+        <translation>🎤  Transcription — Whisper STT</translation>
+    </message>
+    <message>
+        <source>🔧  &lt;b&gt;Modalità di trascrizione&lt;/b&gt;</source>
+        <translation>🔧  &lt;b&gt;Transcription mode&lt;/b&gt;</translation>
+    </message>
+    <message>
+        <source>✅  Whisper locale (predefinito)</source>
+        <translation>✅  Local Whisper (default)</translation>
+    </message>
+    <message>
+        <source>🤖  LLM audio via Ollama (sperimentale)</source>
+        <translation>🤖  Audio LLM via Ollama (experimental)</translation>
+    </message>
+    <message>
         <source>Modello:</source>
         <translation>Model:</translation>
+    </message>
+    <message>
+        <source>🔄  Ricarica modelli</source>
+        <translation>🔄  Reload models</translation>
     </message>
     <message>
         <source>⏳  Controllo modelli Ollama…</source>
@@ -3576,8 +4449,16 @@ Raise to 512+ for heavy numeric workloads.</translation>
         <translation>Rescan the known paths for whisper-cli.</translation>
     </message>
     <message>
+        <source>🔨  Scarica e compila whisper.cpp da sorgente</source>
+        <translation>🔨  Download and build whisper.cpp from source</translation>
+    </message>
+    <message>
         <source>✅  Trovato: &lt;code&gt;</source>
         <translation>✅  Found: &lt;code&gt;</translation>
+    </message>
+    <message>
+        <source>🔨  &lt;b&gt;Compilazione whisper.cpp&lt;/b&gt;</source>
+        <translation>🔨  &lt;b&gt;whisper.cpp build&lt;/b&gt;</translation>
     </message>
     <message>
         <source>⌛  Avvio in corso...</source>
@@ -3586,6 +4467,26 @@ Raise to 512+ for heavy numeric workloads.</translation>
     <message>
         <source>⌛  </source>
         <translation>⌛</translation>
+    </message>
+    <message>
+        <source>❌  git fallito. Verifica la connessione e che git sia installato.</source>
+        <translation>❌  git failed. Check the connection and that git is installed.</translation>
+    </message>
+    <message>
+        <source>❌  cmake fallito. Verifica che cmake e gcc siano installati.</source>
+        <translation>❌  cmake failed. Check that cmake and gcc are installed.</translation>
+    </message>
+    <message>
+        <source>❌  Compilazione fallita. Controlla il log sopra.</source>
+        <translation>❌  Build failed. Check the log above.</translation>
+    </message>
+    <message>
+        <source>📌  &lt;b&gt;Modello attivo&lt;/b&gt;</source>
+        <translation>📌  &lt;b&gt;Active model&lt;/b&gt;</translation>
+    </message>
+    <message>
+        <source>❌  Nessun modello trovato &amp;mdash; scaricane uno qui sotto.</source>
+        <translation>❌  No model found &amp;mdash; download one below.</translation>
     </message>
     <message>
         <source>✅  &lt;code&gt;</source>
@@ -3624,8 +4525,44 @@ Raise to 512+ for heavy numeric workloads.</translation>
         <translation>📥  Download</translation>
     </message>
     <message>
+        <source>http://localhost:9000/v1/audio/transcriptions</source>
+        <translation>http://localhost:9000/v1/audio/transcriptions</translation>
+    </message>
+    <message>
+        <source>💾  Salva URL</source>
+        <translation>💾  Save URL</translation>
+    </message>
+    <message>
+        <source>🗑  Cancella</source>
+        <translation type="unfinished">🗑  Clear</translation>
+    </message>
+    <message>
+        <source>⚠  URL rimosso. Si userà whisper-cli locale.</source>
+        <translation>⚠  URL removed. Local whisper-cli will be used.</translation>
+    </message>
+    <message>
+        <source>Abilita diarizzazione dopo trascrizione</source>
+        <translation>Enable diarization after transcription</translation>
+    </message>
+    <message>
+        <source>&lt;span style='color:#22c55e;'&gt;✅ simple-diarizer OK&lt;/span&gt;</source>
+        <translation>&lt;span style='color:#22c55e;'&gt;✅ simple-diarizer OK&lt;/span&gt;</translation>
+    </message>
+    <message>
         <source>Numero speaker:</source>
         <translation>Number of speakers:</translation>
+    </message>
+    <message>
+        <source>💡  &lt;b&gt;Note&lt;/b&gt;</source>
+        <translation>💡  &lt;b&gt;Notes&lt;/b&gt;</translation>
+    </message>
+    <message>
+        <source>🎙  &lt;b&gt;Livello microfono&lt;/b&gt;</source>
+        <translation>🎙  &lt;b&gt;Microphone level&lt;/b&gt;</translation>
+    </message>
+    <message>
+        <source>Avvia o ferma la lettura del microfono predefinito di sistema.</source>
+        <translation>Start or stop reading the system default microphone.</translation>
     </message>
     <message>
         <source>⚠  Microfono non trovato</source>
@@ -3738,6 +4675,10 @@ Raise to 512+ for heavy numeric workloads.</translation>
 <context>
     <name>LanWanPage</name>
     <message>
+        <source>🌐  Codice pronto — premi Esegui su GNS3</source>
+        <translation>🌐  Code ready — press Run on GNS3</translation>
+    </message>
+    <message>
         <source>🔄  Connessione...</source>
         <translation>🔄  Connecting...</translation>
     </message>
@@ -3806,8 +4747,28 @@ Raise to 512+ for heavy numeric workloads.</translation>
         <translation>GNS3 REST API Python script appears here...</translation>
     </message>
     <message>
+        <source>❌  adb non trovato. Installa: sudo apt install adb</source>
+        <translation>❌  adb not found. Install: sudo apt install adb</translation>
+    </message>
+    <message>
         <source>⏹  Annulla</source>
         <translation>⏹  Cancel</translation>
+    </message>
+    <message>
+        <source>⏳  Installazione in corso... (attendi il telefono)</source>
+        <translation>⏳  Installing... (wait for the phone)</translation>
+    </message>
+    <message>
+        <source>❌  Impossibile avviare adb. Controlla la connessione USB.</source>
+        <translation>❌  Could not start adb. Check the USB connection.</translation>
+    </message>
+    <message>
+        <source>🔌  Installa APK via USB  (adb)</source>
+        <translation>🔌  Install APK via USB  (adb)</translation>
+    </message>
+    <message>
+        <source>❌  Nessun dispositivo. Abilita USB Debugging e accetta il popup sul telefono.</source>
+        <translation>❌  No device. Enable USB Debugging and accept the popup on the phone.</translation>
     </message>
     <message>
         <source>&lt;b&gt;</source>
@@ -3828,6 +4789,10 @@ Raise to 512+ for heavy numeric workloads.</translation>
     <message>
         <source>&lt;small&gt;🔒 Il browser mostrerà un avviso di sicurezza: è normale (certificato self-signed). Tocca &lt;b&gt;Avanzate → Procedi&lt;/b&gt; per continuare.&lt;/small&gt;</source>
         <translation>&lt;small&gt;🔒 The browser will show a security warning: this is normal (self-signed certificate). Tap &lt;b&gt;Advanced → Proceed&lt;/b&gt; to continue.&lt;/small&gt;</translation>
+    </message>
+    <message>
+        <source>🔑 Token generato automaticamente — copialo nell'app Android</source>
+        <translation>🔑 Token generated automatically — copy it into the Android app</translation>
     </message>
     <message>
         <source>○  Fermo</source>
@@ -3864,6 +4829,10 @@ Share it with %1.</translation>
         <translation>○  Server OFF</translation>
     </message>
     <message>
+        <source>&lt;b&gt;📱  Server LAN per Android&lt;/b&gt;</source>
+        <translation>&lt;b&gt;📱  LAN server for Android&lt;/b&gt;</translation>
+    </message>
+    <message>
         <source>🔧  Controllo server</source>
         <translation>🔧  Server control</translation>
     </message>
@@ -3894,6 +4863,10 @@ Share it with %1.</translation>
     <message>
         <source>Ottetto %1 della netmask (modifica o usa ▲▼)</source>
         <translation>Octet %1 of the netmask (edit or use ▲▼)</translation>
+    </message>
+    <message>
+        <source>🔒  Controllo accessi al Server Locale</source>
+        <translation>🔒  Local Server access control</translation>
     </message>
     <message>
         <source>Indirizzo IP</source>
@@ -3968,6 +4941,10 @@ Share it with %1.</translation>
         <translation>📱  &lt;b&gt;Android App&lt;/b&gt;</translation>
     </message>
     <message>
+        <source>&lt;small&gt;Impostazioni → 📷 Scansiona QR&lt;/small&gt;</source>
+        <translation>&lt;small&gt;Settings → 📷 Scan QR&lt;/small&gt;</translation>
+    </message>
+    <message>
         <source>Copia URL negli appunti</source>
         <translation>Copy URL to clipboard</translation>
     </message>
@@ -3984,6 +4961,10 @@ Share it with %1.</translation>
         <translation>📋</translation>
     </message>
     <message>
+        <source>📱  QR Connetti (schermo intero)</source>
+        <translation>📱  QR Connect (full screen)</translation>
+    </message>
+    <message>
         <source>Mostra il QR in un dialogo grande</source>
         <translation>Show the QR in a large dialog</translation>
     </message>
@@ -3996,12 +4977,24 @@ Share it with %1.</translation>
         <translation>🌐  Page QR</translation>
     </message>
     <message>
+        <source>🌐  Apri Chat Web nel browser</source>
+        <translation>🌐  Open Web Chat in the browser</translation>
+    </message>
+    <message>
         <source>Installa APK PrismaluxMobile sul telefono Android via USB</source>
         <translation>Install the PrismaluxMobile APK on the Android phone via USB</translation>
     </message>
     <message>
         <source>Output adb...</source>
         <translation>adb output...</translation>
+    </message>
+    <message>
+        <source>⏳  MasterAgent in elaborazione…</source>
+        <translation>⏳  MasterAgent processing…</translation>
+    </message>
+    <message>
+        <source>⚠️  Nessun subtask nel piano — riprova</source>
+        <translation>⚠️  No subtask in the plan — try again</translation>
     </message>
     <message>
         <source>⚗️  Prova in locale</source>
@@ -4030,6 +5023,10 @@ Share it with %1.</translation>
     <message>
         <source>🌐  Rete LAN (più PC insieme)</source>
         <translation>🌐  LAN network (multiple PCs together)</translation>
+    </message>
+    <message>
+        <source>🔬  Calcolo Scientifico (BOINC-like)</source>
+        <translation>🔬  Scientific Computing (BOINC-like)</translation>
     </message>
     <message>
         <source>🖧  Modalità Server</source>
@@ -4076,6 +5073,10 @@ Share it with %1.</translation>
         <translation>Generate a new random token (32 characters)</translation>
     </message>
     <message>
+        <source>🧠  Scrivi un compito — l’AI lo divide in agenti automaticamente</source>
+        <translation>🧠  Write a task — the AI splits it into agents automatically</translation>
+    </message>
+    <message>
         <source>🧠  Crea agenti</source>
         <translation>🧠  Create agents</translation>
     </message>
@@ -4098,8 +5099,40 @@ and press "Create agents"</translation>
         <translation>💻  Connected nodes</translation>
     </message>
     <message>
+        <source>Nome</source>
+        <translation type="unfinished">First name</translation>
+    </message>
+    <message>
+        <source>IP</source>
+        <translation type="unfinished">IP</translation>
+    </message>
+    <message>
+        <source>Stato</source>
+        <translation>Status</translation>
+    </message>
+    <message>
+        <source>Capacità</source>
+        <translation>Capabilities</translation>
+    </message>
+    <message>
         <source>📋  Coda task</source>
         <translation>📋  Task queue</translation>
+    </message>
+    <message>
+        <source>ID</source>
+        <translation>ID</translation>
+    </message>
+    <message>
+        <source>Tipo</source>
+        <translation>Type</translation>
+    </message>
+    <message>
+        <source>Payload…</source>
+        <translation>Payload…</translation>
+    </message>
+    <message>
+        <source>Nodo</source>
+        <translation>Node</translation>
     </message>
     <message>
         <source>🖥  Nodi: 0 idle / 0 working  —  📋  Task: 0 in coda / 0 running / 0 completati / 0 falliti</source>
@@ -4112,6 +5145,10 @@ and press "Create agents"</translation>
     <message>
         <source>Istogramma throughput — ultimi 60 min (bin 5 min)</source>
         <translation>Throughput histogram — last 60 min (5 min bins)</translation>
+    </message>
+    <message>
+        <source>📥  Esporta CSV</source>
+        <translation>📥  Export CSV</translation>
     </message>
     <message>
         <source>Scarica CSV di tutti i task (id, tipo, payload, stato, nodo, durata, risultato)</source>
@@ -4407,6 +5444,10 @@ The server will start in unencrypted TCP mode.</translation>
         <translation>Select an offer (double click = generate right away)</translation>
     </message>
     <message>
+        <source>📋  &lt;b&gt;Tracker Candidature&lt;/b&gt;</source>
+        <translation>📋  &lt;b&gt;Application Tracker&lt;/b&gt;</translation>
+    </message>
+    <message>
         <source>➕ Aggiungi</source>
         <translation>➕ Add</translation>
     </message>
@@ -4421,6 +5462,26 @@ The server will start in unencrypted TCP mode.</translation>
     <message>
         <source>Rimuovi candidatura selezionata dal tracker</source>
         <translation>Remove selected application from the tracker</translation>
+    </message>
+    <message>
+        <source>Azienda</source>
+        <translation>Company</translation>
+    </message>
+    <message>
+        <source>Ruolo</source>
+        <translation>Role</translation>
+    </message>
+    <message>
+        <source>Data invio</source>
+        <translation>Sent on</translation>
+    </message>
+    <message>
+        <source>Stato</source>
+        <translation>Status</translation>
+    </message>
+    <message>
+        <source>Note</source>
+        <translation type="unfinished">Notes</translation>
     </message>
     <message>
         <source>💶  Calcolatore Euro / Ore</source>
@@ -4495,6 +5556,10 @@ The server will start in unencrypted TCP mode.</translation>
         <translation>Analyze posting URLs</translation>
     </message>
     <message>
+        <source>Incolla uno o più URL di annunci di lavoro (uno per riga):</source>
+        <translation>Paste one or more job ad URLs (one per line):</translation>
+    </message>
+    <message>
         <source>Analizza</source>
         <translation>Analyze</translation>
     </message>
@@ -4507,8 +5572,16 @@ The server will start in unencrypted TCP mode.</translation>
         <translation>Analyze CV</translation>
     </message>
     <message>
+        <source>Seleziona un'analisi predefinita (doppio clic = avvia subito):</source>
+        <translation>Select a predefined analysis (double click = start right away):</translation>
+    </message>
+    <message>
         <source>Oppure scrivi una domanda personalizzata:</source>
         <translation>Or write a custom question:</translation>
+    </message>
+    <message>
+        <source>Es: 'Cosa manca per essere assunto come programmatore junior?'</source>
+        <translation>E.g.: 'What is missing to be hired as a junior programmer?'</translation>
     </message>
     <message>
         <source>Seleziona foto profilo</source>
@@ -4790,6 +5863,10 @@ Green &lt; 1s  ·  Orange 1-3s  ·  Red &gt; 3s</translation>
         <translation>Critical temperature</translation>
     </message>
     <message>
+        <source>🛑  Ferma AI</source>
+        <translation>🛑  Stop AI</translation>
+    </message>
+    <message>
         <source>Continua</source>
         <translation>Continue</translation>
     </message>
@@ -4918,6 +5995,10 @@ Green &lt; 1s  ·  Orange 1-3s  ·  Red &gt; 3s</translation>
         <translation>📐  Math profile (Xeon 64 GB)</translation>
     </message>
     <message>
+        <source>⬇  Scarica modello matematico da Hugging Face</source>
+        <translation>⬇  Download math model from Hugging Face</translation>
+    </message>
+    <message>
         <source>(caricamento modelli...)</source>
         <translation>(loading models...)</translation>
     </message>
@@ -4942,6 +6023,22 @@ Green &lt; 1s  ·  Orange 1-3s  ·  Red &gt; 3s</translation>
         <translation>(server unreachable)</translation>
     </message>
     <message>
+        <source>🦙  Ollama  —  localhost:11434</source>
+        <translation>🦙  Ollama  —  localhost:11434</translation>
+    </message>
+    <message>
+        <source>⭐  DwarfStar  —  localhost:11435</source>
+        <translation>⭐  DwarfStar  —  localhost:11435</translation>
+    </message>
+    <message>
+        <source>🦙⚡️  Avvia llama-server...</source>
+        <translation>🦙⚡️  Start llama-server...</translation>
+    </message>
+    <message>
+        <source>⭐  Avvia ds4-server...</source>
+        <translation>⭐  Start ds4-server...</translation>
+    </message>
+    <message>
         <source>❌  Crash startup</source>
         <translation>❌  Startup crash</translation>
     </message>
@@ -4960,6 +6057,10 @@ Green &lt; 1s  ·  Orange 1-3s  ·  Red &gt; 3s</translation>
     <message>
         <source>📼  Salva chat</source>
         <translation>📼  Save chat</translation>
+    </message>
+    <message>
+        <source>📼  Salva</source>
+        <translation>📼  Save</translation>
     </message>
     <message>
         <source>Scarta</source>
@@ -5014,6 +6115,10 @@ Green &lt; 1s  ·  Orange 1-3s  ·  Red &gt; 3s</translation>
         <translation>3. Theme</translation>
     </message>
     <message>
+        <source>Non mostrare più al prossimo riavvio</source>
+        <translation>Do not show again at the next restart</translation>
+    </message>
+    <message>
         <source>🍺  Inizia!</source>
         <translation>🍺  Get started!</translation>
     </message>
@@ -5036,6 +6141,10 @@ Green &lt; 1s  ·  Orange 1-3s  ·  Red &gt; 3s</translation>
     <message>
         <source>📋  Messaggi — Prismalux</source>
         <translation>📋  Messages — Prismalux</translation>
+    </message>
+    <message>
+        <source>📋  &lt;b&gt;Log eventi&lt;/b&gt; — backend, AI, pipeline, errori</source>
+        <translation>📋  &lt;b&gt;Event log&lt;/b&gt; — backend, AI, pipeline, errors</translation>
     </message>
     <message>
         <source>🖥  Sistema</source>
@@ -5133,12 +6242,20 @@ Green &lt; 1s  ·  Orange 1-3s  ·  Red &gt; 3s</translation>
         <translation>⚙️  Advanced Configuration</translation>
     </message>
     <message>
+        <source>📄  &lt;b&gt;Formato Config&lt;/b&gt;  (~/.prismalux_config)</source>
+        <translation>📄  &lt;b&gt;Config Format&lt;/b&gt;  (~/.prismalux_config)</translation>
+    </message>
+    <message>
         <source>Formato:</source>
         <translation>Format:</translation>
     </message>
     <message>
         <source>Converti ▶</source>
         <translation>Convert ▶</translation>
+    </message>
+    <message>
+        <source>🦙  llama.cpp — Avvia llama-server</source>
+        <translation>🦙  llama.cpp — Start llama-server</translation>
     </message>
     <message>
         <source>percorso/al/modello.gguf</source>
@@ -5161,8 +6278,28 @@ Green &lt; 1s  ·  Orange 1-3s  ·  Red &gt; 3s</translation>
         <translation>llama-server log...</translation>
     </message>
     <message>
+        <source>🔄  Aggiornamento Modelli &amp; GPU/RAM</source>
+        <translation>🔄  Models &amp; GPU/RAM Update</translation>
+    </message>
+    <message>
+        <source>🐳  Ollama: &lt;i&gt;verifica in corso...&lt;/i&gt;</source>
+        <translation>🐳  Ollama: &lt;i&gt;checking...&lt;/i&gt;</translation>
+    </message>
+    <message>
         <source>🔍  Verifica</source>
         <translation>🔍  Check</translation>
+    </message>
+    <message>
+        <source>⬇  Aggiorna tutti i modelli Ollama</source>
+        <translation>⬇  Update all Ollama models</translation>
+    </message>
+    <message>
+        <source>⬇  Aggiorna tutti i modelli llama.cpp</source>
+        <translation>⬇  Update all llama.cpp models</translation>
+    </message>
+    <message>
+        <source>Premi "Aggiorna tutti" per scaricare le ultime versioni dei modelli Ollama.</source>
+        <translation>Press "Update all" to download the latest versions of the Ollama models.</translation>
     </message>
     <message>
         <source>⬇  Scarica nuovo modello Ollama:</source>
@@ -5181,12 +6318,20 @@ Green &lt; 1s  ·  Orange 1-3s  ·  Red &gt; 3s</translation>
         <translation>Start Ollama model download</translation>
     </message>
     <message>
+        <source>🔒  Verifica integrità GGUF</source>
+        <translation>🔒  Check GGUF integrity</translation>
+    </message>
+    <message>
         <source>Calcola SHA-256 dei file .gguf in models/ e confronta con le firme salvate</source>
         <translation>Compute SHA-256 of the .gguf files in models/ and compare with the saved signatures</translation>
     </message>
     <message>
         <source>Verifica integrità file modelli GGUF tramite SHA-256</source>
         <translation>Check GGUF model file integrity via SHA-256</translation>
+    </message>
+    <message>
+        <source>💾  Backup conoscenza ora</source>
+        <translation>💾  Backup knowledge now</translation>
     </message>
     <message>
         <source>Esegui backup manuale della cartella KNOWLEDGE_USER</source>
@@ -5217,6 +6362,14 @@ Green &lt; 1s  ·  Orange 1-3s  ·  Red &gt; 3s</translation>
         <translation>💾  RAM Optimization</translation>
     </message>
     <message>
+        <source>Premi "🔍 Rileva" per controllare lo stato della compressione RAM.</source>
+        <translation>Press "🔍 Detect" to check the RAM compression status.</translation>
+    </message>
+    <message>
+        <source>💾💾  Abilita Doppia zstd automaticamente all'avvio</source>
+        <translation>💾💾  Enable Double zstd automatically at startup</translation>
+    </message>
+    <message>
         <source>Output comandi...</source>
         <translation>Command output...</translation>
     </message>
@@ -5245,6 +6398,10 @@ Green &lt; 1s  ·  Orange 1-3s  ·  Red &gt; 3s</translation>
         <translation>⏹  Disable zRAM</translation>
     </message>
     <message>
+        <source>💻  Modalità Calcolo LLM</source>
+        <translation>💻  LLM Compute Mode</translation>
+    </message>
+    <message>
         <source>🚀  GPU  (VRAM)</source>
         <translation>🚀  GPU  (VRAM)</translation>
     </message>
@@ -5261,8 +6418,28 @@ Green &lt; 1s  ·  Orange 1-3s  ·  Red &gt; 3s</translation>
         <translation>🔗  Dual GPU</translation>
     </message>
     <message>
+        <source>⏳  In attesa rilevamento hardware...</source>
+        <translation>⏳  Waiting for hardware detection...</translation>
+    </message>
+    <message>
+        <source>💾  Salva modalità</source>
+        <translation>💾  Save mode</translation>
+    </message>
+    <message>
+        <source>Applica la modalità selezionata e la salva per i prossimi avvii.</source>
+        <translation>Applies the selected mode and saves it for future startups.</translation>
+    </message>
+    <message>
+        <source>🧠  NPU — Neural Processing Unit</source>
+        <translation>🧠  NPU — Neural Processing Unit</translation>
+    </message>
+    <message>
         <source>⏳  Rilevamento in corso...</source>
         <translation>⏳  Detection in progress...</translation>
+    </message>
+    <message>
+        <source>🔵  Installa intel-npu-acceleration-library</source>
+        <translation>🔵  Install intel-npu-acceleration-library</translation>
     </message>
     <message>
         <source>Copia comando pip negli appunti</source>
@@ -5271,6 +6448,14 @@ Green &lt; 1s  ·  Orange 1-3s  ·  Red &gt; 3s</translation>
     <message>
         <source>pip install intel-npu-acceleration-library</source>
         <translation>pip install intel-npu-acceleration-library</translation>
+    </message>
+    <message>
+        <source>⏳  &lt;b&gt;GPU&lt;/b&gt;: recupero layer count dal modello...</source>
+        <translation>⏳  &lt;b&gt;GPU&lt;/b&gt;: fetching layer count from the model...</translation>
+    </message>
+    <message>
+        <source>⏳  &lt;b&gt;Misto&lt;/b&gt;: recupero layer count dal modello...</source>
+        <translation>⏳  &lt;b&gt;Mixed&lt;/b&gt;: fetching layer count from the model...</translation>
     </message>
     <message>
         <source>🐳  Ollama: &lt;i&gt;verifica...&lt;/i&gt;</source>
@@ -5321,12 +6506,44 @@ Green &lt; 1s  ·  Orange 1-3s  ·  Red &gt; 3s</translation>
         <translation>⚠  git not available.</translation>
     </message>
     <message>
+        <source>❌  Inserisci il nome del modello.</source>
+        <translation>❌  Enter the model name.</translation>
+    </message>
+    <message>
         <source>⏳  Download...</source>
         <translation>⏳  Downloading...</translation>
     </message>
     <message>
         <source>⏹  Annulla</source>
         <translation>⏹  Cancel</translation>
+    </message>
+    <message>
+        <source>✅  Download completato.</source>
+        <translation>✅  Download completed.</translation>
+    </message>
+    <message>
+        <source>❌  Download fallito.</source>
+        <translation>❌  Download failed.</translation>
+    </message>
+    <message>
+        <source>ℹ  Nessun file .gguf trovato in models/</source>
+        <translation>ℹ  No .gguf file found in models/</translation>
+    </message>
+    <message>
+        <source>⏳  Verifica in corso...</source>
+        <translation>⏳  Checking...</translation>
+    </message>
+    <message>
+        <source>✅  Verifica completata. Firme salvate.</source>
+        <translation>✅  Check completed. Signatures saved.</translation>
+    </message>
+    <message>
+        <source>❌  Impossibile creare la cartella di backup.</source>
+        <translation>❌  Could not create the backup folder.</translation>
+    </message>
+    <message>
+        <source>🔄  Aggiornamenti Sistema</source>
+        <translation>🔄  System Updates</translation>
     </message>
     <message>
         <source>⬇  Scarica</source>
@@ -5349,8 +6566,28 @@ Green &lt; 1s  ·  Orange 1-3s  ·  Red &gt; 3s</translation>
         <translation>📋  Results and AI Analysis</translation>
     </message>
     <message>
+        <source>✅  Applica fix suggeriti</source>
+        <translation>✅  Apply suggested fixes</translation>
+    </message>
+    <message>
+        <source>🗑  Rimuovi fix</source>
+        <translation>🗑  Remove fixes</translation>
+    </message>
+    <message>
         <source>Rimuovi i fix salvati per il modello corrente</source>
         <translation>Remove the saved fixes for the current model</translation>
+    </message>
+    <message>
+        <source>ℹ  Nessun fix parametrico identificato dall'AI.</source>
+        <translation>ℹ  No parametric fix identified by the AI.</translation>
+    </message>
+    <message>
+        <source>ℹ  Nessun parametro da applicare.</source>
+        <translation>ℹ  No parameter to apply.</translation>
+    </message>
+    <message>
+        <source>❌  Impossibile scrivere model_params.json.</source>
+        <translation>❌  Could not write model_params.json.</translation>
     </message>
     <message>
         <source>⚠  Seleziona prima un modello valido.</source>
@@ -5409,6 +6646,30 @@ Green &lt; 1s  ·  Orange 1-3s  ·  Red &gt; 3s</translation>
         <translation>⏸  Pause all</translation>
     </message>
     <message>
+        <source>On</source>
+        <translation>On</translation>
+    </message>
+    <message>
+        <source>Nome</source>
+        <translation type="unfinished">First name</translation>
+    </message>
+    <message>
+        <source>Schedule</source>
+        <translation>Schedule</translation>
+    </message>
+    <message>
+        <source>Modello</source>
+        <translation type="unfinished">Model</translation>
+    </message>
+    <message>
+        <source>Ultima esec.</source>
+        <translation>Last run</translation>
+    </message>
+    <message>
+        <source>Prossima</source>
+        <translation>Next</translation>
+    </message>
+    <message>
         <source>📜  Log esecuzioni:</source>
         <translation>📜  Execution log:</translation>
     </message>
@@ -5417,8 +6678,24 @@ Green &lt; 1s  ·  Orange 1-3s  ·  Red &gt; 3s</translation>
         <translation>Show the QR code to download PrismaluxMobile.apk on the phone</translation>
     </message>
     <message>
+        <source>&lt;b&gt;🔒 TLS — cifratura connessione LAN&lt;/b&gt;</source>
+        <translation>&lt;b&gt;🔒 TLS — LAN connection encryption&lt;/b&gt;</translation>
+    </message>
+    <message>
+        <source>🔒  Genera certificato TLS self-signed</source>
+        <translation>🔒  Generate self-signed TLS certificate</translation>
+    </message>
+    <message>
+        <source>🔒  Abilita TLS (richiede certificato)</source>
+        <translation>🔒  Enable TLS (requires certificate)</translation>
+    </message>
+    <message>
         <source>Output generazione certificato TLS…</source>
         <translation>TLS certificate generation output…</translation>
+    </message>
+    <message>
+        <source>&lt;b&gt;🔑 Token di accesso LAN&lt;/b&gt;</source>
+        <translation>&lt;b&gt;🔑 LAN access token&lt;/b&gt;</translation>
     </message>
     <message>
         <source>(auto-generato all’avvio server)</source>
@@ -5437,6 +6714,10 @@ The old token is invalidated immediately if the server is running.</translation>
     <message>
         <source>Scarica PrismaluxMobile</source>
         <translation>Download PrismaluxMobile</translation>
+    </message>
+    <message>
+        <source>&lt;b&gt;📱 Scansiona con il telefono per scaricare l'APK&lt;/b&gt;</source>
+        <translation>&lt;b&gt;📱 Scan with your phone to download the APK&lt;/b&gt;</translation>
     </message>
     <message>
         <source>📋  Copia URL</source>
@@ -5471,8 +6752,16 @@ The old token is invalidated immediately if the server is running.</translation>
         <translation type="unfinished">○  Server OFF</translation>
     </message>
     <message>
+        <source>&lt;b&gt;🌐 Server LAN per Android&lt;/b&gt;</source>
+        <translation>&lt;b&gt;🌐 LAN server for Android&lt;/b&gt;</translation>
+    </message>
+    <message>
         <source>○  Fermo</source>
         <translation type="unfinished">○  Stopped</translation>
+    </message>
+    <message>
+        <source>📱  Scarica APK (QR Code)</source>
+        <translation>📱  Download APK (QR Code)</translation>
     </message>
     <message>
         <source>❌  openssl non trovato — sudo apt install openssl</source>
@@ -5518,6 +6807,14 @@ The old token is invalidated immediately if the server is running.</translation>
         <translation>Show/hide the LaTeX rendering panel for the last AI answer</translation>
     </message>
     <message>
+        <source>σ  &lt;b&gt;Simboli LaTeX:&lt;/b&gt;</source>
+        <translation>σ  &lt;b&gt;LaTeX symbols:&lt;/b&gt;</translation>
+    </message>
+    <message>
+        <source>&lt;b&gt;Inserisci una sequenza di numeri separati da virgole o spazi:&lt;/b&gt;</source>
+        <translation>&lt;b&gt;Enter a sequence of numbers separated by commas or spaces:&lt;/b&gt;</translation>
+    </message>
+    <message>
         <source>es. 1, 4, 9, 16, 25   oppure   1 1 2 3 5 8 13</source>
         <translation>e.g. 1, 4, 9, 16, 25   or   1 1 2 3 5 8 13</translation>
     </message>
@@ -5530,6 +6827,22 @@ The old token is invalidated immediately if the server is running.</translation>
         <translation>Suggest the next ones</translation>
     </message>
     <message>
+        <source>🔍  Rileva pattern (locale, istantaneo)</source>
+        <translation>🔍  Detect pattern (local, instant)</translation>
+    </message>
+    <message>
+        <source>σ  Interpola con sympy (preciso)</source>
+        <translation>σ  Interpolate with sympy (precise)</translation>
+    </message>
+    <message>
+        <source>🤖  Analizza con AI (spiega + storia)</source>
+        <translation>🤖  Analyze with AI (explains + history)</translation>
+    </message>
+    <message>
+        <source>&lt;b&gt;Calcola costanti matematiche con precisione arbitraria:&lt;/b&gt;</source>
+        <translation>&lt;b&gt;Compute mathematical constants with arbitrary precision:&lt;/b&gt;</translation>
+    </message>
+    <message>
         <source>Costante:</source>
         <translation>Constant:</translation>
     </message>
@@ -5538,8 +6851,16 @@ The old token is invalidated immediately if the server is running.</translation>
         <translation>Decimal digits:</translation>
     </message>
     <message>
+        <source>π  Calcola</source>
+        <translation>π  Compute</translation>
+    </message>
+    <message>
         <source>Tutte le costanti (100 cifre)</source>
         <translation>All constants (100 digits)</translation>
+    </message>
+    <message>
+        <source>&lt;b&gt;Calcola l'N-esimo elemento di sequenze famose:&lt;/b&gt;</source>
+        <translation>&lt;b&gt;Compute the N-th element of famous sequences:&lt;/b&gt;</translation>
     </message>
     <message>
         <source>Tipo:</source>
@@ -5560,6 +6881,14 @@ The old token is invalidated immediately if the server is running.</translation>
     <message>
         <source>🔟  Calcola</source>
         <translation>🔟  Compute</translation>
+    </message>
+    <message>
+        <source>&lt;b&gt;Valuta espressioni matematiche (sympy + mpmath):&lt;/b&gt;</source>
+        <translation>&lt;b&gt;Evaluate mathematical expressions (sympy + mpmath):&lt;/b&gt;</translation>
+    </message>
+    <message>
+        <source>es.  sqrt(2) + sin(pi/4)   oppure   factorial(100)   oppure   integrate(x**2, (x,0,1))</source>
+        <translation>e.g.  sqrt(2) + sin(pi/4)   or   factorial(100)   or   integrate(x**2, (x,0,1))</translation>
     </message>
     <message>
         <source>Cifre di precisione:</source>
@@ -5620,6 +6949,10 @@ The old token is invalidated immediately if the server is running.</translation>
     <message>
         <source>Nessun numero</source>
         <translation>No number</translation>
+    </message>
+    <message>
+        <source>Backend non disponibile. Avvia Ollama: ollama serve</source>
+        <translation>Backend unavailable. Start Ollama: ollama serve</translation>
     </message>
     <message>
         <source>✅  Analisi AI completata.</source>
@@ -5694,6 +7027,14 @@ The old token is invalidated immediately if the server is running.</translation>
         <translation>SymPy expression (pre-filled from the argument)</translation>
     </message>
     <message>
+        <source>📐  Risolvi nella scheda accanto</source>
+        <translation>📐  Solve in the next tab</translation>
+    </message>
+    <message>
+        <source>📈  Disegna grafico</source>
+        <translation>📈  Draw chart</translation>
+    </message>
+    <message>
         <source>Copia l'espressione nel campo Grafico e traccia subito</source>
         <translation>Copy the expression to the Chart field and plot right away</translation>
     </message>
@@ -5738,8 +7079,20 @@ The old token is invalidated immediately if the server is running.</translation>
         <translation type="unfinished">🤖  AI processing...</translation>
     </message>
     <message>
+        <source>&lt;b&gt;Risolvi un'equazione, disequazione o espressione PASSO PER PASSO (stile Derive):&lt;/b&gt;</source>
+        <translation>&lt;b&gt;Solve an equation, inequality or expression STEP BY STEP (Derive style):&lt;/b&gt;</translation>
+    </message>
+    <message>
+        <source>Inserisci equazione o espressione: es. x² + 5x + 6 = 0,  2x &gt; 4,  sin(x)/x</source>
+        <translation>Enter an equation or expression: e.g. x² + 5x + 6 = 0,  2x &gt; 4,  sin(x)/x</translation>
+    </message>
+    <message>
         <source>Copia la formula negli appunti</source>
         <translation>Copy the formula to the clipboard</translation>
+    </message>
+    <message>
+        <source>🔢  Risolvi passo per passo</source>
+        <translation>🔢  Solve step by step</translation>
     </message>
     <message>
         <source>🤖  Spiega con AI</source>
@@ -5772,6 +7125,14 @@ The old token is invalidated immediately if the server is running.</translation>
     <message>
         <source>📋  Copia</source>
         <translation>📋  Copy</translation>
+    </message>
+    <message>
+        <source>&lt;b&gt;Valuta espressioni booleane (SymPy):&lt;/b&gt;</source>
+        <translation>&lt;b&gt;Evaluate boolean expressions (SymPy):&lt;/b&gt;</translation>
+    </message>
+    <message>
+        <source>es.  (A &amp; B) | (~A &amp; C)   oppure   ~(A | B)   oppure   A ^ B</source>
+        <translation>e.g.  (A &amp; B) | (~A &amp; C)   or   ~(A | B)   or   A ^ B</translation>
     </message>
     <message>
         <source>Inserisci operatore / funzione</source>
@@ -5816,6 +7177,30 @@ The old token is invalidated immediately if the server is running.</translation>
 <context>
     <name>McpManagerPage</name>
     <message>
+        <source>Log operazioni MCP…</source>
+        <translation>MCP operations log…</translation>
+    </message>
+    <message>
+        <source>❓</source>
+        <translation>❓</translation>
+    </message>
+    <message>
+        <source>📝</source>
+        <translation>📝</translation>
+    </message>
+    <message>
+        <source>✅</source>
+        <translation type="unfinished">✅</translation>
+    </message>
+    <message>
+        <source>⚠️</source>
+        <translation>⚠️</translation>
+    </message>
+    <message>
+        <source>Smoke test JSON-RPC (initialize + tools/list)</source>
+        <translation>JSON-RPC smoke test (initialize + tools/list)</translation>
+    </message>
+    <message>
         <source>Ambiente mancante</source>
         <translation>Missing environment</translation>
     </message>
@@ -5823,12 +7208,40 @@ The old token is invalidated immediately if the server is running.</translation>
         <source>Installa dipendenze</source>
         <translation>Install dependencies</translation>
     </message>
+    <message>
+        <source>⏳ installazione in corso…</source>
+        <translation>⏳ installing…</translation>
+    </message>
+    <message>
+        <source>✅ dipendenze installate</source>
+        <translation>✅ dependencies installed</translation>
+    </message>
+    <message>
+        <source>❌ installazione fallita</source>
+        <translation>❌ installation failed</translation>
+    </message>
+    <message>
+        <source>⏳ test in corso…</source>
+        <translation>⏳ testing…</translation>
+    </message>
+    <message>
+        <source>✅ funzionante</source>
+        <translation>✅ working</translation>
+    </message>
+    <message>
+        <source>❌ non risponde</source>
+        <translation>❌ not responding</translation>
+    </message>
 </context>
 <context>
     <name>ModGiochiWidget</name>
     <message>
         <source>⚪  GDScript pronto</source>
         <translation>⚪  GDScript ready</translation>
+    </message>
+    <message>
+        <source>🎮  Salva script .gd</source>
+        <translation>🎮  Save .gd script</translation>
     </message>
     <message>
         <source>Tipo:</source>
@@ -5875,6 +7288,14 @@ The old token is invalidated immediately if the server is running.</translation>
         <translation>Path to the folder where the mod is saved...</translation>
     </message>
     <message>
+        <source>📂  Sfoglia</source>
+        <translation type="unfinished">📂  Browse</translation>
+    </message>
+    <message>
+        <source>📂  Apri</source>
+        <translation>📂  Open</translation>
+    </message>
+    <message>
         <source>Modello AI:</source>
         <translation>AI model:</translation>
     </message>
@@ -5889,12 +7310,28 @@ E.g.: 'Skyrim: spell that creates a wall of fire around the player'
 E.g.: 'WoW addon that shows a timer for the Heroic Fury CD'</translation>
     </message>
     <message>
+        <source>🤖  Genera mod</source>
+        <translation>🤖  Generate mod</translation>
+    </message>
+    <message>
+        <source>💾  Salva nel gioco</source>
+        <translation>💾  Save into the game</translation>
+    </message>
+    <message>
         <source>Il codice del mod generato dall'AI appare qui...</source>
         <translation>The AI-generated mod code appears here...</translation>
     </message>
     <message>
         <source>⚪  Pronto</source>
         <translation>⚪  Ready</translation>
+    </message>
+    <message>
+        <source>🎮  Codice pronto — premi Esegui in Godot</source>
+        <translation>🎮  Code ready — press Run in Godot</translation>
+    </message>
+    <message>
+        <source>✅  Codice pronto — premi Salva nel gioco</source>
+        <translation>✅  Code ready — press Save into the game</translation>
     </message>
     <message>
         <source>Crea cartella?</source>
@@ -6118,6 +7555,10 @@ It must be installed in Ollama (ollama pull &lt;name&gt;).</translation>
         <translation>🎙  Record</translation>
     </message>
     <message>
+        <source>📂  Carica audio</source>
+        <translation>📂  Load audio</translation>
+    </message>
+    <message>
         <source>Nessun file caricato</source>
         <translation>No file loaded</translation>
     </message>
@@ -6126,8 +7567,56 @@ It must be installed in Ollama (ollama pull &lt;name&gt;).</translation>
         <translation>AI action:</translation>
     </message>
     <message>
+        <source>🎤  1. Trascrivi</source>
+        <translation>🎤  1. Transcribe</translation>
+    </message>
+    <message>
+        <source>🤖  2. Analizza con AI</source>
+        <translation>🤖  2. Analyze with AI</translation>
+    </message>
+    <message>
+        <source>🎤  Trascrizione</source>
+        <translation>🎤  Transcription</translation>
+    </message>
+    <message>
+        <source>🤖  Analisi AI</source>
+        <translation type="unfinished">🤖  AI analysis</translation>
+    </message>
+    <message>
+        <source>L'analisi AI appare qui dopo il click su 'Analizza con AI'...</source>
+        <translation>The AI analysis appears here after clicking 'Analyze with AI'...</translation>
+    </message>
+    <message>
+        <source>🗺  &lt;b&gt;Mappe Concettuali — Graphviz&lt;/b&gt;</source>
+        <translation>🗺  &lt;b&gt;Concept Maps — Graphviz&lt;/b&gt;</translation>
+    </message>
+    <message>
+        <source>🤖🖼  Genera e renderizza grafico DOT</source>
+        <translation>🤖🖼  Generate and render DOT graph</translation>
+    </message>
+    <message>
+        <source>🗺  Il grafo apparirà qui</source>
+        <translation>🗺  The graph will appear here</translation>
+    </message>
+    <message>
+        <source>⚠  Scrivi una descrizione del grafo che vuoi creare.</source>
+        <translation>⚠  Write a description of the graph you want to create.</translation>
+    </message>
+    <message>
+        <source>🤖  L’AI sta generando il codice DOT...</source>
+        <translation>🤖  The AI is generating the DOT code...</translation>
+    </message>
+    <message>
         <source>✅  prismalux_record.wav</source>
         <translation>✅  prismalux_record.wav</translation>
+    </message>
+    <message>
+        <source>❌  Registrazione fallita (arecord non trovato?)</source>
+        <translation>❌  Recording failed (arecord not found?)</translation>
+    </message>
+    <message>
+        <source>👥 Identifico speaker...</source>
+        <translation type="unfinished">👥 Identifying speakers...</translation>
     </message>
     <message>
         <source>⏳  Rendering con Graphviz...</source>
@@ -6136,6 +7625,10 @@ It must be installed in Ollama (ollama pull &lt;name&gt;).</translation>
     <message>
         <source>❌  Errore AI</source>
         <translation>❌  AI error</translation>
+    </message>
+    <message>
+        <source>🐍  Installa venv OpenCV</source>
+        <translation>🐍  Install OpenCV venv</translation>
     </message>
     <message>
         <source>❌  bash non trovato</source>
@@ -6152,6 +7645,10 @@ It must be installed in Ollama (ollama pull &lt;name&gt;).</translation>
     <message>
         <source>❌  Errore venv</source>
         <translation>❌  Venv error</translation>
+    </message>
+    <message>
+        <source>📋  Copia comandi</source>
+        <translation>📋  Copy commands</translation>
     </message>
     <message>
         <source>✅  Copiato!</source>
@@ -6178,12 +7675,24 @@ Higher = sharper text, slower.
 720p is the best speed/quality tradeoff.</translation>
     </message>
     <message>
+        <source>📹  Carica video</source>
+        <translation>📹  Load video</translation>
+    </message>
+    <message>
         <source>1 frame ogni:</source>
         <translation>1 frame every:</translation>
     </message>
     <message>
         <source>Estrai 1 frame ogni N secondi di video</source>
         <translation>Extract 1 frame every N seconds of video</translation>
+    </message>
+    <message>
+        <source>🎤  Trascrivi audio</source>
+        <translation>🎤  Transcribe audio</translation>
+    </message>
+    <message>
+        <source>🗑  Cancella</source>
+        <translation type="unfinished">🗑  Clear</translation>
     </message>
     <message>
         <source>🪛  Filtri:</source>
@@ -6234,8 +7743,28 @@ If the similarity exceeds the threshold, Tesseract is skipped (~5ms instead of ~
 0.97 = skip OCR if 97% of the color distribution is the same.</translation>
     </message>
     <message>
+        <source>📷  Anteprima webcam</source>
+        <translation>📷  Webcam preview</translation>
+    </message>
+    <message>
         <source>📷  In attesa...</source>
         <translation>📷  Waiting...</translation>
+    </message>
+    <message>
+        <source>📄  Testo OCR rilevato</source>
+        <translation>📄  Detected OCR text</translation>
+    </message>
+    <message>
+        <source>🤖  Analizza testo con AI</source>
+        <translation>🤖  Analyze text with AI</translation>
+    </message>
+    <message>
+        <source>🤖  Analisi AI del manuale</source>
+        <translation>🤖  AI analysis of the manual</translation>
+    </message>
+    <message>
+        <source>Riassunto, punti chiave o analisi del testo scansionato...</source>
+        <translation>Summary, key points or analysis of the scanned text...</translation>
     </message>
     <message>
         <source>⏳  Avvio daemon OCR (import librerie)...</source>
@@ -6318,8 +7847,44 @@ restarting from A.</translation>
         <translation>Distance: —  |  Time: —</translation>
     </message>
     <message>
+        <source>📹  Analisi video in corso...</source>
+        <translation>📹  Video analysis in progress...</translation>
+    </message>
+    <message>
+        <source>🔍  Daemon pronto. Prima scansione...</source>
+        <translation>🔍  Daemon ready. First scan...</translation>
+    </message>
+    <message>
         <source>❌  </source>
         <translation>❌</translation>
+    </message>
+    <message>
+        <source>⚠  Testo filtrato — avvicina il foglio.</source>
+        <translation>⚠  Text filtered — bring the sheet closer.</translation>
+    </message>
+    <message>
+        <source>🔍  Nessun testo — punta la webcam sul bugiardino.</source>
+        <translation>🔍  No text — point the webcam at the leaflet.</translation>
+    </message>
+    <message>
+        <source>❌  ffmpeg non trovato. Installa con: sudo apt install ffmpeg</source>
+        <translation>❌  ffmpeg not found. Install with: sudo apt install ffmpeg</translation>
+    </message>
+    <message>
+        <source>❌  Estrazione audio fallita — il video ha audio?</source>
+        <translation>❌  Audio extraction failed — does the video have audio?</translation>
+    </message>
+    <message>
+        <source>⚠  Trascrizione vuota — audio non udibile o lingua errata.</source>
+        <translation>⚠  Empty transcription — inaudible audio or wrong language.</translation>
+    </message>
+    <message>
+        <source>🗺  &lt;b&gt;Mappa OSM&lt;/b&gt;</source>
+        <translation>🗺  &lt;b&gt;OSM Map&lt;/b&gt;</translation>
+    </message>
+    <message>
+        <source>📍  Tappe  (A = partenza, ultima = arrivo)</source>
+        <translation>📍  Waypoints  (A = start, last = destination)</translation>
     </message>
     <message>
         <source>✖  Rimuovi</source>
@@ -6338,6 +7903,10 @@ restarting from A.</translation>
         <translation>Mode:</translation>
     </message>
     <message>
+        <source>🔍  Calcola percorso</source>
+        <translation>🔍  Compute route</translation>
+    </message>
+    <message>
         <source>🗑  Cancella percorso</source>
         <translation>🗑  Delete route</translation>
     </message>
@@ -6354,12 +7923,56 @@ restarting from A.</translation>
         <translation>📂  Load</translation>
     </message>
     <message>
+        <source>⛰  Altimetria</source>
+        <translation>⛰  Elevation</translation>
+    </message>
+    <message>
+        <source>&lt;small&gt;Calcolata automaticamente dopo il percorso.&lt;/small&gt;</source>
+        <translation>&lt;small&gt;Computed automatically after the route.&lt;/small&gt;</translation>
+    </message>
+    <message>
+        <source>🌦  Meteo partenza</source>
+        <translation>🌦  Weather at start</translation>
+    </message>
+    <message>
+        <source>🌤  Controlla meteo</source>
+        <translation>🌤  Check weather</translation>
+    </message>
+    <message>
+        <source>Recupera le condizioni meteo attuali della partenza (open-meteo.com)</source>
+        <translation>Fetches the current weather conditions at the start point (open-meteo.com)</translation>
+    </message>
+    <message>
+        <source>&lt;small&gt;Premi il pulsante dopo aver impostato la partenza.&lt;/small&gt;</source>
+        <translation>&lt;small&gt;Press the button after setting the start point.&lt;/small&gt;</translation>
+    </message>
+    <message>
+        <source>📴  Mappe offline</source>
+        <translation>📴  Offline maps</translation>
+    </message>
+    <message>
+        <source>⬇  Scarica area visibile</source>
+        <translation>⬇  Download visible area</translation>
+    </message>
+    <message>
+        <source>Scarica i tile OSM visibili nella cache locale (~/.cache/Prismalux/osm_tiles/)</source>
+        <translation>Downloads the visible OSM tiles into the local cache (~/.cache/Prismalux/osm_tiles/)</translation>
+    </message>
+    <message>
+        <source>&lt;small&gt;Tile salvati: non scaricati.&lt;/small&gt;</source>
+        <translation>&lt;small&gt;Saved tiles: not downloaded.&lt;/small&gt;</translation>
+    </message>
+    <message>
         <source>Rinomina tappa</source>
         <translation>Rename waypoint</translation>
     </message>
     <message>
         <source>Nome:</source>
         <translation>First name:</translation>
+    </message>
+    <message>
+        <source>⚠  Aggiungi almeno 2 tappe (A = partenza).</source>
+        <translation>⚠  Add at least 2 waypoints (A = start).</translation>
     </message>
     <message>
         <source>🔄  Calcolo in corso...</source>
@@ -6370,12 +7983,24 @@ restarting from A.</translation>
         <translation>&lt;small&gt;Computing elevation...&lt;/small&gt;</translation>
     </message>
     <message>
+        <source>&lt;small&gt;Altimetria non disponibile.&lt;/small&gt;</source>
+        <translation>&lt;small&gt;Elevation not available.&lt;/small&gt;</translation>
+    </message>
+    <message>
+        <source>&lt;small&gt;Aggiungi prima la tappa di partenza (A).&lt;/small&gt;</source>
+        <translation>&lt;small&gt;Add the start waypoint (A) first.&lt;/small&gt;</translation>
+    </message>
+    <message>
         <source>&lt;small&gt;Caricamento...&lt;/small&gt;</source>
         <translation>&lt;small&gt;Loading...&lt;/small&gt;</translation>
     </message>
     <message>
         <source>&lt;small&gt;Avvio download...&lt;/small&gt;</source>
         <translation>&lt;small&gt;Starting download...&lt;/small&gt;</translation>
+    </message>
+    <message>
+        <source>&lt;small&gt;Area già in cache. Nessun download necessario.&lt;/small&gt;</source>
+        <translation>&lt;small&gt;Area already cached. No download needed.&lt;/small&gt;</translation>
     </message>
     <message>
         <source>Salva percorso</source>
@@ -6548,6 +8173,10 @@ Dependencies: ffmpeg (PATH) + Ollama with a vision model (llava, moondream...)</
         <translation>🔄  Refresh</translation>
     </message>
     <message>
+        <source>Descrivi il task di codice... (Es: "Aggiungi un metodo toString() alla classe Foo in src/foo.cpp")</source>
+        <translation>Describe the coding task... (E.g.: "Add a toString() method to the Foo class in src/foo.cpp")</translation>
+    </message>
+    <message>
         <source>▶  Invia</source>
         <translation>▶  Send</translation>
     </message>
@@ -6575,12 +8204,28 @@ Dependencies: ffmpeg (PATH) + Ollama with a vision model (llava, moondream...)</
 <context>
     <name>OracoloPage</name>
     <message>
+        <source>System prompt — definisce il comportamento dell'AI...</source>
+        <translation>System prompt — defines the AI behavior...</translation>
+    </message>
+    <message>
+        <source>⏳  L'AI sta elaborando...</source>
+        <translation>⏳  The AI is processing...</translation>
+    </message>
+    <message>
         <source>Mostra/nascondi system prompt</source>
         <translation>Show/hide system prompt</translation>
     </message>
     <message>
         <source>Allega immagine</source>
         <translation>Attach image</translation>
+    </message>
+    <message>
+        <source>Scrivi il tuo messaggio qui... (Enter per inviare, Shift+Enter per andare a capo, 🎤 per parlare)</source>
+        <translation>Write your message here... (Enter to send, Shift+Enter for a new line, 🎤 to speak)</translation>
+    </message>
+    <message>
+        <source>👁  Nascondi</source>
+        <translation>👁  Hide</translation>
     </message>
     <message>
         <source>Mostra/nascondi le azioni rapide</source>
@@ -6768,8 +8413,20 @@ Automatically injects the most relevant chunks from the knowledge base.</transla
         <translation>💾  Output folder</translation>
     </message>
     <message>
+        <source>🚀  Avvia Fine-tuning</source>
+        <translation>🚀  Start Fine-tuning</translation>
+    </message>
+    <message>
+        <source>✋  Interrompi</source>
+        <translation>✋  Stop</translation>
+    </message>
+    <message>
         <source>🦙  llama-finetune</source>
         <translation>🦙  llama-finetune</translation>
+    </message>
+    <message>
+        <source>📦  pip install unsloth trl datasets transformers</source>
+        <translation>📦  pip install unsloth trl datasets transformers</translation>
     </message>
     <message>
         <source>🔥  unsloth</source>
@@ -6877,6 +8534,14 @@ Automatically injects the most relevant chunks from the knowledge base.</transla
         <translation>Reload model list from Ollama</translation>
     </message>
     <message>
+        <source>📝  Descrivi la policy (in linguaggio naturale)</source>
+        <translation>📝  Describe the policy (in natural language)</translation>
+    </message>
+    <message>
+        <source>📄  Policy generata (modificabile — pronta per copia/incolla)</source>
+        <translation>📄  Generated policy (editable — ready for copy/paste)</translation>
+    </message>
+    <message>
         <source>🤖  Genera policy</source>
         <translation>🤖  Generate policy</translation>
     </message>
@@ -6925,8 +8590,20 @@ Automatically injects the most relevant chunks from the knowledge base.</transla
         <translation>🕸  Update graph</translation>
     </message>
     <message>
+        <source>📊  Risultati subnet</source>
+        <translation>📊  Subnet results</translation>
+    </message>
+    <message>
         <source>Inserisci un CIDR e clicca Calcola...</source>
         <translation>Enter a CIDR and click Compute...</translation>
+    </message>
+    <message>
+        <source>🕸  Grafo subnet (Graphviz)</source>
+        <translation>🕸  Subnet graph (Graphviz)</translation>
+    </message>
+    <message>
+        <source>🕸  Il grafo apparirà dopo il calcolo</source>
+        <translation>🕸  The graph will appear after the calculation</translation>
     </message>
     <message>
         <source>❌  Formato: 192.168.0.0/24</source>
@@ -6981,12 +8658,36 @@ Automatically injects the most relevant chunks from the knowledge base.</transla
         <translation>Detail:</translation>
     </message>
     <message>
+        <source>🔍  Analizza e Ricostruisci</source>
+        <translation>🔍  Analyze and Reconstruct</translation>
+    </message>
+    <message>
         <source>🤖  Modello AI:</source>
         <translation>🤖  AI model:</translation>
     </message>
     <message>
         <source>Aggiorna lista modelli disponibili</source>
         <translation>Refresh the list of available models</translation>
+    </message>
+    <message>
+        <source>📋  Anteprima file (hex dump + stringhe estratte)</source>
+        <translation>📋  File preview (hex dump + extracted strings)</translation>
+    </message>
+    <message>
+        <source>Carica un file per vedere il hex dump e le stringhe ASCII estratte...</source>
+        <translation>Load a file to see the hex dump and the extracted ASCII strings...</translation>
+    </message>
+    <message>
+        <source>🤖  Codice sorgente ricostruito (streaming AI)</source>
+        <translation>🤖  Reconstructed source code (AI streaming)</translation>
+    </message>
+    <message>
+        <source>↑  Apri in editor Programmazione</source>
+        <translation>↑  Open in Programming editor</translation>
+    </message>
+    <message>
+        <source>Estrae il primo blocco codice e lo apre nel tab 💻 Programmazione</source>
+        <translation>Extracts the first code block and opens it in the 💻 Programming tab</translation>
     </message>
     <message>
         <source>Tipo agente:</source>
@@ -7003,6 +8704,14 @@ Automatically injects the most relevant chunks from the knowledge base.</transla
     <message>
         <source>Interrompi la generazione</source>
         <translation>Stop the generation</translation>
+    </message>
+    <message>
+        <source>📝  Descrizione del task (cosa vuoi costruire?)</source>
+        <translation>📝  Task description (what do you want to build?)</translation>
+    </message>
+    <message>
+        <source>🤖  Output agente (streaming)</source>
+        <translation>🤖  Agent output (streaming)</translation>
     </message>
     <message>
         <source>Esegui il codice nell’editor (F5)</source>
@@ -7045,6 +8754,18 @@ Automatically injects the most relevant chunks from the knowledge base.</transla
         <translation>📟  Output</translation>
     </message>
     <message>
+        <source>📈  Grafico — output numerico</source>
+        <translation>📈  Chart — numeric output</translation>
+    </message>
+    <message>
+        <source>↑  Inserisci in editor</source>
+        <translation>↑  Insert into editor</translation>
+    </message>
+    <message>
+        <source>Estrae il primo blocco di codice dalla risposta AI e lo inserisce nell’editor</source>
+        <translation>Extracts the first code block from the AI answer and inserts it into the editor</translation>
+    </message>
+    <message>
         <source>❌  Nessun codice da eseguire.</source>
         <translation>❌  No code to run.</translation>
     </message>
@@ -7069,8 +8790,20 @@ Automatically injects the most relevant chunks from the knowledge base.</transla
         <translation>⚠️  AI busy. Wait or press Stop.</translation>
     </message>
     <message>
+        <source>⚠  clang-tidy non trovato — installa: sudo apt install clang-tidy</source>
+        <translation>⚠  clang-tidy not found — install: sudo apt install clang-tidy</translation>
+    </message>
+    <message>
+        <source>⚠  eslint non trovato — installa: npm install -g eslint</source>
+        <translation>⚠  eslint not found — install: npm install -g eslint</translation>
+    </message>
+    <message>
         <source>🔍  Analisi in corso (</source>
         <translation>🔍  Analysis in progress (</translation>
+    </message>
+    <message>
+        <source>❌  Linter non avviabile — verifica installazione</source>
+        <translation>❌  Linter could not start — check the installation</translation>
     </message>
     <message>
         <source>Loop Fix — Esecuzione automatica di codice AI</source>
@@ -7105,12 +8838,52 @@ Automatically injects the most relevant chunks from the knowledge base.</transla
         <translation>✅  Completed successfully.</translation>
     </message>
     <message>
+        <source>L'output dei comandi apparirà qui...</source>
+        <translation>Command output will appear here...</translation>
+    </message>
+    <message>
+        <source>🔍  Rilevamento GPU</source>
+        <translation>🔍  GPU detection</translation>
+    </message>
+    <message>
+        <source>📦  Scarica Driver</source>
+        <translation>📦  Download Driver</translation>
+    </message>
+    <message>
+        <source>💡  Guida AI</source>
+        <translation>💡  AI Guide</translation>
+    </message>
+    <message>
+        <source>🔄  Reinstalla DKMS</source>
+        <translation>🔄  Reinstall DKMS</translation>
+    </message>
+    <message>
         <source>🟢  Driver NVIDIA</source>
         <translation>🟢  NVIDIA driver</translation>
     </message>
     <message>
+        <source>📦  Scarica ROCm</source>
+        <translation>📦  Download ROCm</translation>
+    </message>
+    <message>
         <source>🔴  Driver AMD</source>
         <translation>🔴  AMD driver</translation>
+    </message>
+    <message>
+        <source>🔍  Versione attuale</source>
+        <translation>🔍  Current version</translation>
+    </message>
+    <message>
+        <source>📋  Lista kernel</source>
+        <translation>📋  Kernel list</translation>
+    </message>
+    <message>
+        <source>💡  Compila Kernel (AI)</source>
+        <translation>💡  Build Kernel (AI)</translation>
+    </message>
+    <message>
+        <source>⚠  Nota sicurezza</source>
+        <translation>⚠  Security note</translation>
     </message>
     <message>
         <source>🐧  Kernel Linux</source>
@@ -7127,6 +8900,10 @@ Automatically injects the most relevant chunks from the knowledge base.</transla
     <message>
         <source>✖  Disco.</source>
         <translation>✖  Disc.</translation>
+    </message>
+    <message>
+        <source>●  Server non avviato</source>
+        <translation>●  Server not started</translation>
     </message>
     <message>
         <source>USB / V4L2</source>
@@ -7229,6 +9006,26 @@ Automatically injects the most relevant chunks from the knowledge base.</transla
         <translation>Stop the MJPEG server</translation>
     </message>
     <message>
+        <source>&lt;b&gt;🎥 WIBY Smart Camera — PTZ LAN (192.168.1.222)&lt;/b&gt;</source>
+        <translation>&lt;b&gt;🎥 WIBY Smart Camera — PTZ LAN (192.168.1.222)&lt;/b&gt;</translation>
+    </message>
+    <message>
+        <source>🔍 Cerca LAN</source>
+        <translation>🔍 Search LAN</translation>
+    </message>
+    <message>
+        <source>🔗 Connetti</source>
+        <translation>🔗 Connect</translation>
+    </message>
+    <message>
+        <source>✖ Disco.</source>
+        <translation>✖ Disc.</translation>
+    </message>
+    <message>
+        <source>●  Non connesso</source>
+        <translation>●  Not connected</translation>
+    </message>
+    <message>
         <source>PTZ</source>
         <translation>PTZ</translation>
     </message>
@@ -7241,8 +9038,32 @@ Automatically injects the most relevant chunks from the knowledge base.</transla
         <translation>Camera</translation>
     </message>
     <message>
+        <source>📡 Ottieni URL</source>
+        <translation>📡 Get URL</translation>
+    </message>
+    <message>
         <source>URL HLS o RTSP...</source>
         <translation>HLS or RTSP URL...</translation>
+    </message>
+    <message>
+        <source>▶ Avvia viewer</source>
+        <translation>▶ Start viewer</translation>
+    </message>
+    <message>
+        <source>📖 Guida: firmware offline (OpenIPC + UART)</source>
+        <translation>📖 Guide: offline firmware (OpenIPC + UART)</translation>
+    </message>
+    <message>
+        <source>🕵 Avvia MITM</source>
+        <translation>🕵 Start MITM</translation>
+    </message>
+    <message>
+        <source>Nessun feed — avvia il server e premi 🔗 Connetti</source>
+        <translation>No feed — start the server and press 🔗 Connect</translation>
+    </message>
+    <message>
+        <source>L'output dei comandi USB apparirà qui...</source>
+        <translation>USB command output will appear here...</translation>
     </message>
     <message>
         <source>📹  USB &amp; Videocam LAN</source>
@@ -7251,6 +9072,10 @@ Automatically injects the most relevant chunks from the knowledge base.</transla
     <message>
         <source>📁  Target:</source>
         <translation>📁  Target:</translation>
+    </message>
+    <message>
+        <source>/path/to/module.ko   oppure   nome-simbolo-da-cercare</source>
+        <translation>/path/to/module.ko   or   symbol-name-to-search</translation>
     </message>
     <message>
         <source>📂  Sfoglia</source>
@@ -7361,6 +9186,10 @@ Automatically injects the most relevant chunks from the knowledge base.</transla
         <translation>Create a kprobe on the kernel symbol for dynamic tracing</translation>
     </message>
     <message>
+        <source>🤖  Analisi AI — spiega output</source>
+        <translation>🤖  AI analysis — explains the output</translation>
+    </message>
+    <message>
         <source>Pulisce l'output del reverse engineering</source>
         <translation>Clear the reverse engineering output</translation>
     </message>
@@ -7405,12 +9234,24 @@ Automatically injects the most relevant chunks from the knowledge base.</transla
         <translation>🖥  git output</translation>
     </message>
     <message>
+        <source>L'output dei comandi git apparià qui.
+
+Premi Status per iniziare.</source>
+        <translation>The git command output will appear here.
+
+Press Status to begin.</translation>
+    </message>
+    <message>
         <source>🗑  Pulisci</source>
         <translation>🗑  Clear</translation>
     </message>
     <message>
         <source>🤖  Analizza con AI</source>
         <translation>🤖  Analyze with AI</translation>
+    </message>
+    <message>
+        <source>L'AI spiega l'output e suggerisce le prossime operazioni</source>
+        <translation>The AI explains the output and suggests the next operations</translation>
     </message>
     <message>
         <source>✏  Genera commit msg</source>
@@ -7439,6 +9280,18 @@ Automatically injects the most relevant chunks from the knowledge base.</transla
     <message>
         <source>←  Importa dall'editor</source>
         <translation>←  Import from the editor</translation>
+    </message>
+    <message>
+        <source>Esegue nel REPL il codice presente nel tab 💻 Programmazione</source>
+        <translation>Runs in the REPL the code from the 💻 Programming tab</translation>
+    </message>
+    <message>
+        <source>🖥  Output sessione Python</source>
+        <translation>🖥  Python session output</translation>
+    </message>
+    <message>
+        <source>Premi 🔄 Riavvia REPL per avviare una sessione Python...</source>
+        <translation>Press 🔄 Restart REPL to start a Python session...</translation>
     </message>
     <message>
         <source>🗑  Pulisci output</source>
@@ -7475,6 +9328,10 @@ Automatically injects the most relevant chunks from the knowledge base.</transla
     <message>
         <source>❌  python3 non trovato</source>
         <translation>❌  python3 not found</translation>
+    </message>
+    <message>
+        <source>❌  Nessun tool trovato. Installa tshark: sudo apt install tshark</source>
+        <translation>❌  No tool found. Install tshark: sudo apt install tshark</translation>
     </message>
     <message>
         <source>📡  Interfaccia:</source>
@@ -7517,6 +9374,14 @@ Automatically injects the most relevant chunks from the knowledge base.</transla
         <translation>The captured packets will appear here...</translation>
     </message>
     <message>
+        <source>🤖  L'analisi AI apparira' qui dopo aver cliccato 'Analisi AI'...</source>
+        <translation>🤖  The AI analysis will appear here after clicking 'AI Analysis'...</translation>
+    </message>
+    <message>
+        <source>❌  Impossibile avviare il tool. Permessi root necessari?</source>
+        <translation>❌  Could not start the tool. Root permissions needed?</translation>
+    </message>
+    <message>
         <source>🔍  ARP Cache (rapido)</source>
         <translation>🔍  ARP cache (quick)</translation>
     </message>
@@ -7525,12 +9390,48 @@ Automatically injects the most relevant chunks from the knowledge base.</transla
         <translation>🌐  nmap scan (full)</translation>
     </message>
     <message>
+        <source>🔍  Lettura ARP cache...</source>
+        <translation>🔍  Reading ARP cache...</translation>
+    </message>
+    <message>
+        <source>🌐  Avvio scansione nmap...</source>
+        <translation>🌐  Starting nmap scan...</translation>
+    </message>
+    <message>
+        <source>❌  Impossibile determinare la subnet.</source>
+        <translation>❌  Could not determine the subnet.</translation>
+    </message>
+    <message>
+        <source>⏹  Scansione interrotta.</source>
+        <translation>⏹  Scan stopped.</translation>
+    </message>
+    <message>
         <source>⏹  Stop</source>
         <translation type="unfinished">⏹  Stop</translation>
     </message>
     <message>
         <source>🔄  Aggiorna info</source>
         <translation>🔄  Refresh info</translation>
+    </message>
+    <message>
+        <source> IP</source>
+        <translation> IP</translation>
+    </message>
+    <message>
+        <source> MAC Address</source>
+        <translation> MAC Address</translation>
+    </message>
+    <message>
+        <source> Hostname</source>
+        <translation> Hostname</translation>
+    </message>
+    <message>
+        <source> Stato</source>
+        <translation> Status</translation>
+    </message>
+    <message>
+        <source>🔌 Premi un pulsante per scansionare la rete locale.</source>
+        <translation>🔌 Press a button to scan the local network.</translation>
     </message>
     <message>
         <source>&lt;i&gt;🟡 Nessuna interfaccia IPv4 attiva&lt;/i&gt;</source>
@@ -7577,8 +9478,24 @@ Automatically injects the most relevant chunks from the knowledge base.</transla
         <translation>Source code</translation>
     </message>
     <message>
+        <source>⬆  Importa dall'editor</source>
+        <translation>⬆  Import from the editor</translation>
+    </message>
+    <message>
+        <source>Copia il codice dall'editor principale in questo pannello</source>
+        <translation>Copies the code from the main editor into this panel</translation>
+    </message>
+    <message>
         <source>Codice tradotto</source>
         <translation>Translated code</translation>
+    </message>
+    <message>
+        <source>Il codice tradotto apparirà qui durante lo streaming...</source>
+        <translation>The translated code will appear here during streaming...</translation>
+    </message>
+    <message>
+        <source>⬆  Inserisci nell'editor</source>
+        <translation>⬆  Insert into the editor</translation>
     </message>
     <message>
         <source>Copia tutto il testo dell'output negli appunti</source>
@@ -7637,18 +9554,42 @@ Automatically injects the most relevant chunks from the knowledge base.</transla
         <translation>🔒  Type:</translation>
     </message>
     <message>
+        <source>📝  Configurazione (modificabile)</source>
+        <translation>📝  Configuration (editable)</translation>
+    </message>
+    <message>
         <source>Template qui...</source>
         <translation>Template here...</translation>
+    </message>
+    <message>
+        <source>🤖  Migliora con AI</source>
+        <translation>🤖  Improve with AI</translation>
+    </message>
+    <message>
+        <source>⚡  Applica / Esegui</source>
+        <translation>⚡  Apply / Run</translation>
+    </message>
+    <message>
+        <source>🔑  Genera chiavi n2n</source>
+        <translation>🔑  Generate n2n keys</translation>
     </message>
     <message>
         <source>Genera community name e PSK casuali per n2n</source>
         <translation>Generate random community name and PSK for n2n</translation>
     </message>
     <message>
+        <source>🔍  Valida config</source>
+        <translation>🔍  Validate config</translation>
+    </message>
+    <message>
         <source>Simula e valida la configurazione senza avviare la VPN
 Controlla: placeholder, binari, porte, raggiungibilita' server</source>
         <translation>Simulates and validates the configuration without starting the VPN
 Checks: placeholders, binaries, ports, server reachability</translation>
+    </message>
+    <message>
+        <source>📂  Importa</source>
+        <translation>📂  Import</translation>
     </message>
     <message>
         <source>Carica un file di configurazione VPN esistente</source>
@@ -7667,6 +9608,10 @@ Checks: placeholders, binaries, ports, server reachability</translation>
         <translation>Detect active VPN interfaces (wg/tun) and their IP, without root</translation>
     </message>
     <message>
+        <source>📟  Output comandi</source>
+        <translation>📟  Command output</translation>
+    </message>
+    <message>
         <source>Nessuna webcam</source>
         <translation>No webcam</translation>
     </message>
@@ -7679,8 +9624,16 @@ Checks: placeholders, binaries, ports, server reachability</translation>
         <translation>Startup error</translation>
     </message>
     <message>
+        <source>🟡  Server in avvio...</source>
+        <translation>🟡  Server starting...</translation>
+    </message>
+    <message>
         <source>●  Server fermato.</source>
         <translation>●  Server stopped.</translation>
+    </message>
+    <message>
+        <source>Stream terminato o non raggiungibile.</source>
+        <translation>Stream ended or unreachable.</translation>
     </message>
     <message>
         <source>Ricerca WIBY in LAN (8s)...</source>
@@ -7689,6 +9642,10 @@ Checks: placeholders, binaries, ports, server reachability</translation>
     <message>
         <source>Avvio controller...</source>
         <translation>Starting controller...</translation>
+    </message>
+    <message>
+        <source>⚠  Nessun device Tuya trovato in LAN</source>
+        <translation>⚠  No Tuya device found on the LAN</translation>
     </message>
     <message>
         <source>Stream terminato.</source>
@@ -7707,8 +9664,16 @@ Checks: placeholders, binaries, ports, server reachability</translation>
         <translation>●  Stopped</translation>
     </message>
     <message>
+        <source>&lt;span style='color:#fbbf24;'&gt;●  Avvio...&lt;/span&gt;</source>
+        <translation>&lt;span style='color:#fbbf24;'&gt;●  Starting...&lt;/span&gt;</translation>
+    </message>
+    <message>
         <source>●  Inattivo</source>
         <translation>●  Idle</translation>
+    </message>
+    <message>
+        <source>💻  Codifica</source>
+        <translation>💻  Encoding</translation>
     </message>
 </context>
 <context>
@@ -7720,6 +9685,10 @@ Checks: placeholders, binaries, ports, server reachability</translation>
 </context>
 <context>
     <name>PythonUpdatePanel</name>
+    <message>
+        <source>🐍  &lt;b&gt;Librerie Python (Prismalux)&lt;/b&gt;</source>
+        <translation>🐍  &lt;b&gt;Python libraries (Prismalux)&lt;/b&gt;</translation>
+    </message>
     <message>
         <source>🔄  Controlla aggiornamenti</source>
         <translation>🔄  Check for updates</translation>
@@ -7787,6 +9756,10 @@ Checks: placeholders, binaries, ports, server reachability</translation>
     <message>
         <source>aggiornamento disponibile</source>
         <translation>update available</translation>
+    </message>
+    <message>
+        <source>&lt;span style='color:#22c55e;'&gt;aggiornata&lt;/span&gt;</source>
+        <translation>&lt;span style='color:#22c55e;'&gt;up to date&lt;/span&gt;</translation>
     </message>
 </context>
 <context>
@@ -7930,6 +9903,10 @@ This action is irreversible.</translation>
         <translation>📐  Download math model from Hugging Face</translation>
     </message>
     <message>
+        <source>&lt;b&gt;Seleziona modello e variante di quantizzazione:&lt;/b&gt;</source>
+        <translation>&lt;b&gt;Select model and quantization variant:&lt;/b&gt;</translation>
+    </message>
+    <message>
         <source>⬇  Scarica</source>
         <translation type="unfinished">⬇  Download</translation>
     </message>
@@ -7948,6 +9925,10 @@ This action is irreversible.</translation>
     <message>
         <source>Argomento:</source>
         <translation>Topic:</translation>
+    </message>
+    <message>
+        <source>es. Algoritmi di ordinamento, Sistemi operativi, Fotosintesi...</source>
+        <translation>e.g. Sorting algorithms, Operating systems, Photosynthesis...</translation>
     </message>
     <message>
         <source>Domande:</source>
@@ -7988,6 +9969,14 @@ This action is irreversible.</translation>
     <message>
         <source>Avanti →</source>
         <translation type="unfinished">Next →</translation>
+    </message>
+    <message>
+        <source>📖  Rivedi errori</source>
+        <translation>📖  Review mistakes</translation>
+    </message>
+    <message>
+        <source>🎓  Quiz CCNA 200-301  —  Banca dati 500 domande</source>
+        <translation>🎓  CCNA 200-301 Quiz  —  500-question bank</translation>
     </message>
     <message>
         <source>Tema:</source>
@@ -8345,6 +10334,10 @@ This action is irreversible.</translation>
         <translation>❌  Wrong!</translation>
     </message>
     <message>
+        <source>📭  Nessun quiz ancora completato.</source>
+        <translation type="unfinished">📭  No quiz completed yet.</translation>
+    </message>
+    <message>
         <source>📈  Statistiche globali</source>
         <translation>📈  Global statistics</translation>
     </message>
@@ -8359,6 +10352,10 @@ This action is irreversible.</translation>
 </context>
 <context>
     <name>RDKitWidget</name>
+    <message>
+        <source>🔬  &lt;i&gt;RDKit — Libreria open-source di chemioinformatica.&lt;/i&gt;</source>
+        <translation>🔬  &lt;i&gt;RDKit — Open-source cheminformatics library.&lt;/i&gt;</translation>
+    </message>
     <message>
         <source>⚪  RDKit locale</source>
         <translation>⚪  Local RDKit</translation>
@@ -8477,6 +10474,10 @@ Click to open the file picker. Max 32 KB total.
 <context>
     <name>RamCalculatorWidget</name>
     <message>
+        <source>🧮 Calcolatore RAM per modelli LLM locali</source>
+        <translation>🧮 RAM calculator for local LLM models</translation>
+    </message>
+    <message>
         <source>Modello</source>
         <translation type="unfinished">Model</translation>
     </message>
@@ -8508,12 +10509,20 @@ Click to open the file picker. Max 32 KB total.
         <translation>🚀  Generate Paper</translation>
     </message>
     <message>
+        <source>es. Sistema ibrido di inferenza ontologica per LLM</source>
+        <translation>e.g. Hybrid ontological inference system for LLM</translation>
+    </message>
+    <message>
         <source>es. Mario Rossi (IT)</source>
         <translation>e.g. Mario Rossi (IT)</translation>
     </message>
     <message>
         <source>🔏  Genera Brevetto</source>
         <translation>🔏  Generate Patent</translation>
+    </message>
+    <message>
+        <source>es. BLHM — Documento Tecnico v1.0</source>
+        <translation>e.g. BLHM — Technical Document v1.0</translation>
     </message>
     <message>
         <source>es. wildlux</source>
@@ -8524,12 +10533,24 @@ Click to open the file picker. Max 32 KB total.
         <translation>e.g. 1.0</translation>
     </message>
     <message>
+        <source>📋  Genera Documento</source>
+        <translation>📋  Generate Document</translation>
+    </message>
+    <message>
+        <source>Es: quantum computing error correction / battery cathode material ...</source>
+        <translation>E.g.: quantum computing error correction / battery cathode material ...</translation>
+    </message>
+    <message>
         <source>🔍  Cerca</source>
         <translation>🔍  Search</translation>
     </message>
     <message>
         <source>I risultati appariranno qui...</source>
         <translation>The results will appear here...</translation>
+    </message>
+    <message>
+        <source>🤖  Analizza con AI</source>
+        <translation type="unfinished">🤖  Analyze with AI</translation>
     </message>
     <message>
         <source>✅  Codice pronto — premi Esegui</source>
@@ -8598,6 +10619,10 @@ Click to open the file picker. Max 32 KB total.
     <message>
         <source>Modello LLM per estrazione entità</source>
         <translation>LLM model for entity extraction</translation>
+    </message>
+    <message>
+        <source>🔄  Analizza RAG</source>
+        <translation>🔄  Analyze RAG</translation>
     </message>
     <message>
         <source>⏸  Pausa</source>
@@ -8766,6 +10791,14 @@ Continue?</translation>
         <translation>🔮  Fill Karmic Wheel</translation>
     </message>
     <message>
+        <source>►  Domanda / focus (opzionale)</source>
+        <translation>►  Question / focus (optional)</translation>
+    </message>
+    <message>
+        <source>🖼  Salva immagine .png</source>
+        <translation>🖼  Save .png image</translation>
+    </message>
+    <message>
         <source>Salva la ruota astrale come file PNG ad alta risoluzione</source>
         <translation>Save the astral wheel as a high-resolution PNG file</translation>
     </message>
@@ -8842,6 +10875,50 @@ Continue?</translation>
         <translation>🔄  Refresh list</translation>
     </message>
     <message>
+        <source>📝  Genera domande</source>
+        <translation>📝  Generate questions</translation>
+    </message>
+    <message>
+        <source>🤖  Esegui test</source>
+        <translation>🤖  Run test</translation>
+    </message>
+    <message>
+        <source>L'AI risponde a tutte le domande usando solo il testo del documento come contesto</source>
+        <translation>The AI answers all the questions using only the document text as context</translation>
+    </message>
+    <message>
+        <source>✅  Valuta risposte</source>
+        <translation>✅  Evaluate answers</translation>
+    </message>
+    <message>
+        <source>L'AI valuta le proprie risposte: correttezza, logica, identificazione trabocchetti</source>
+        <translation>The AI evaluates its own answers: correctness, logic, trap identification</translation>
+    </message>
+    <message>
+        <source>📝  Domande generate (7 comprensione + 3 trabocchetto)</source>
+        <translation>📝  Generated questions (7 comprehension + 3 trap)</translation>
+    </message>
+    <message>
+        <source>🤖  Risposte AI + Valutazione</source>
+        <translation>🤖  AI answers + Evaluation</translation>
+    </message>
+    <message>
+        <source>⚠️  Seleziona un documento dalla lista</source>
+        <translation>⚠️  Select a document from the list</translation>
+    </message>
+    <message>
+        <source>⏳  Estrazione testo in corso...</source>
+        <translation>⏳  Extracting text...</translation>
+    </message>
+    <message>
+        <source>❌  Impossibile estrarre testo dal documento</source>
+        <translation>❌  Could not extract text from the document</translation>
+    </message>
+    <message>
+        <source>✅  Domande generate. Premi "Esegui test" per testare.</source>
+        <translation>✅  Questions generated. Press "Run test" to test.</translation>
+    </message>
+    <message>
         <source>❌  Errore AI: </source>
         <translation>❌  AI error:</translation>
     </message>
@@ -8850,8 +10927,16 @@ Continue?</translation>
         <translation>❌  pdftotext not found — sudo apt install poppler-utils</translation>
     </message>
     <message>
+        <source>🤖  Analisi immagine con AI...</source>
+        <translation>🤖  Analyzing image with AI...</translation>
+    </message>
+    <message>
         <source>🤖  Risposta alle domande in corso...</source>
         <translation>🤖  Answering the questions...</translation>
+    </message>
+    <message>
+        <source>✅  Test completato. Premi "Valuta risposte" per la valutazione.</source>
+        <translation>✅  Test completed. Press "Evaluate answers" for the evaluation.</translation>
     </message>
     <message>
         <source>❌  Errore: </source>
@@ -8921,6 +11006,10 @@ Continue?</translation>
         <translation>Task type:</translation>
     </message>
     <message>
+        <source>Template parametri JSON — usa &lt;b&gt;{{INPUT}}&lt;/b&gt; dove vuoi i dati di ogni elemento:</source>
+        <translation>JSON parameters template — use &lt;b&gt;{{INPUT}}&lt;/b&gt; where you want each item's data:</translation>
+    </message>
+    <message>
         <source>Label prefix:</source>
         <translation>Label prefix:</translation>
     </message>
@@ -8969,6 +11058,14 @@ Continue?</translation>
         <translation type="unfinished">Export completed</translation>
     </message>
     <message>
+        <source>&lt;span style='color:#3b82f6;'&gt;🔗 Worker connesso&lt;/span&gt;</source>
+        <translation>&lt;span style='color:#3b82f6;'&gt;🔗 Worker connected&lt;/span&gt;</translation>
+    </message>
+    <message>
+        <source>&lt;span style='color:#6b7280;'&gt;⚪ Inattivo&lt;/span&gt;</source>
+        <translation>&lt;span style='color:#6b7280;'&gt;⚪ Idle&lt;/span&gt;</translation>
+    </message>
+    <message>
         <source>🖧  Coordinator (server)</source>
         <translation>🖧  Coordinator (server)</translation>
     </message>
@@ -8997,6 +11094,10 @@ Continue?</translation>
         <translation>Copy token to clipboard</translation>
     </message>
     <message>
+        <source>📖  Guida</source>
+        <translation type="unfinished">📖  Guide</translation>
+    </message>
+    <message>
         <source>Coordinator IP:</source>
         <translation>Coordinator IP:</translation>
     </message>
@@ -9011,6 +11112,10 @@ Continue?</translation>
     <message>
         <source>🔗  Connetti</source>
         <translation>🔗  Connect</translation>
+    </message>
+    <message>
+        <source>➕  Nuova Work Unit</source>
+        <translation>➕  New Work Unit</translation>
     </message>
     <message>
         <source>Tipo:</source>
@@ -9045,6 +11150,50 @@ Continue?</translation>
         <translation>Replicas:</translation>
     </message>
     <message>
+        <source>Repliche &gt; 1: stesso WU su N nodi, confronto hash SHA-256</source>
+        <translation>Replicas &gt; 1: same WU on N nodes, SHA-256 hash comparison</translation>
+    </message>
+    <message>
+        <source>➕  Aggiungi alla coda</source>
+        <translation>➕  Add to queue</translation>
+    </message>
+    <message>
+        <source>📂  Genera da file</source>
+        <translation>📂  Generate from file</translation>
+    </message>
+    <message>
+        <source>📋  Coda Work Units</source>
+        <translation>📋  Work Units queue</translation>
+    </message>
+    <message>
+        <source>ID</source>
+        <translation>ID</translation>
+    </message>
+    <message>
+        <source>Tipo</source>
+        <translation>Type</translation>
+    </message>
+    <message>
+        <source>Label</source>
+        <translation>Label</translation>
+    </message>
+    <message>
+        <source>Status</source>
+        <translation>Status</translation>
+    </message>
+    <message>
+        <source>Nodo</source>
+        <translation>Node</translation>
+    </message>
+    <message>
+        <source>Prior.</source>
+        <translation>Prior.</translation>
+    </message>
+    <message>
+        <source>Creato</source>
+        <translation>Created</translation>
+    </message>
+    <message>
         <source>Aggiorna lista WU</source>
         <translation>Refresh WU list</translation>
     </message>
@@ -9059,6 +11208,42 @@ Continue?</translation>
     <message>
         <source>📊  Aggrega risultati</source>
         <translation>📊  Aggregate results</translation>
+    </message>
+    <message>
+        <source>Nome</source>
+        <translation type="unfinished">First name</translation>
+    </message>
+    <message>
+        <source>Indirizzo</source>
+        <translation>Address</translation>
+    </message>
+    <message>
+        <source>CPU</source>
+        <translation>CPU</translation>
+    </message>
+    <message>
+        <source>RAM (GB)</source>
+        <translation>RAM (GB)</translation>
+    </message>
+    <message>
+        <source>GPU</source>
+        <translation>GPU</translation>
+    </message>
+    <message>
+        <source>Tool disponibili</source>
+        <translation>Available tools</translation>
+    </message>
+    <message>
+        <source>WU✅</source>
+        <translation>WU✅</translation>
+    </message>
+    <message>
+        <source>WU❌</source>
+        <translation>WU❌</translation>
+    </message>
+    <message>
+        <source>CPU ore</source>
+        <translation>CPU hours</translation>
     </message>
     <message>
         <source>🖥  Nodi</source>
@@ -9081,6 +11266,10 @@ Continue?</translation>
         <translation>⛓  Pipeline</translation>
     </message>
     <message>
+        <source>⛓  Pipeline completa (brute force → ibrido → LLM)</source>
+        <translation>⛓  Full pipeline (brute force → hybrid → LLM)</translation>
+    </message>
+    <message>
         <source>🧬  Ricerca SDS</source>
         <translation>🧬  SDS Research</translation>
     </message>
@@ -9088,12 +11277,42 @@ Continue?</translation>
 <context>
     <name>SciProteinWidget</name>
     <message>
+        <source>🧬  Predizione struttura (ESMFold)</source>
+        <translation>🧬  Structure prediction (ESMFold)</translation>
+    </message>
+    <message>
+        <source>&lt;small&gt;Incolla sequenza FASTA o amminoacidi grezzi (max 400 aa per API)&lt;/small&gt;</source>
+        <translation>&lt;small&gt;Paste a FASTA sequence or raw amino acids (max 400 aa per API)&lt;/small&gt;</translation>
+    </message>
+    <message>
+        <source>&gt;MyProtein
+MKTLLLTLVVVTIVCLDLGAV...</source>
+        <translation>&gt;MyProtein
+MKTLLLTLVVVTIVCLDLGAV...</translation>
+    </message>
+    <message>
+        <source>🧬  Predici struttura (ESMFold API)</source>
+        <translation>🧬  Predict structure (ESMFold API)</translation>
+    </message>
+    <message>
+        <source>🔮  AlphaFold DB (EBI/DeepMind)</source>
+        <translation>🔮  AlphaFold DB (EBI/DeepMind)</translation>
+    </message>
+    <message>
+        <source>&lt;small&gt;Strutture pre-calcolate per ~200M proteine&lt;/small&gt;</source>
+        <translation>&lt;small&gt;Pre-computed structures for ~200M proteins&lt;/small&gt;</translation>
+    </message>
+    <message>
         <source>UniProt ID  (es. P05067)</source>
         <translation>UniProt ID  (e.g. P05067)</translation>
     </message>
     <message>
         <source>Scarica struttura da AlphaFold DB</source>
         <translation>Download structure from AlphaFold DB</translation>
+    </message>
+    <message>
+        <source>🗃  Ricerca database</source>
+        <translation>🗃  Database search</translation>
     </message>
     <message>
         <source>Cerca in RCSB PDB (es. insulin, 1ABC)</source>
@@ -9104,8 +11323,28 @@ Continue?</translation>
         <translation>Search in UniProt (e.g. Alzheimer, BRCA1)</translation>
     </message>
     <message>
+        <source>Doppio click per scaricare la struttura PDB</source>
+        <translation>Double click to download the PDB structure</translation>
+    </message>
+    <message>
+        <source>⬇  Salva .pdb</source>
+        <translation>⬇  Save .pdb</translation>
+    </message>
+    <message>
+        <source>🧪  Invia al Docking</source>
+        <translation>🧪  Send to Docking</translation>
+    </message>
+    <message>
+        <source>&lt;span style='color:#ef4444'&gt;Inserisci una sequenza amminoacidica.&lt;/span&gt;</source>
+        <translation>&lt;span style='color:#ef4444'&gt;Enter an amino acid sequence.&lt;/span&gt;</translation>
+    </message>
+    <message>
         <source>🔄  Predizione in corso (30-120s)...</source>
         <translation>🔄  Predicting (30-120s)...</translation>
+    </message>
+    <message>
+        <source>&lt;span style='color:#22c55e'&gt;✅  Struttura predetta!&lt;/span&gt;</source>
+        <translation>&lt;span style='color:#22c55e'&gt;✅  Structure predicted!&lt;/span&gt;</translation>
     </message>
 </context>
 <context>
@@ -9113,6 +11352,10 @@ Continue?</translation>
     <message>
         <source>Modello LLM usato dagli agenti di analisi</source>
         <translation>LLM model used by the analysis agents</translation>
+    </message>
+    <message>
+        <source>🔍  Analizza</source>
+        <translation type="unfinished">🔍  Analyze</translation>
     </message>
     <message>
         <source>■  Stop</source>
@@ -9123,16 +11366,44 @@ Continue?</translation>
         <translation>Dependency scanner</translation>
     </message>
     <message>
+        <source>Verifica dipendenze Python contro il database OSV (api.osv.dev)</source>
+        <translation>Check Python dependencies against the OSV database (api.osv.dev)</translation>
+    </message>
+    <message>
+        <source>🔍  Scansiona requirements.lock</source>
+        <translation>🔍  Scan requirements.lock</translation>
+    </message>
+    <message>
+        <source>⬇  Aggiorna DB OSV locale</source>
+        <translation>⬇  Update local OSV DB</translation>
+    </message>
+    <message>
+        <source>Il report di sicurezza apparirà qui dopo l'analisi...</source>
+        <translation>The security report will appear here after the analysis...</translation>
+    </message>
+    <message>
         <source>Report</source>
         <translation>Report</translation>
+    </message>
+    <message>
+        <source>Output grezzo di ciascun agente...</source>
+        <translation>Raw output of each agent...</translation>
     </message>
     <message>
         <source>Dettagli</source>
         <translation>Details</translation>
     </message>
     <message>
+        <source>I risultati OSV appariranno qui dopo la scansione...</source>
+        <translation>The OSV results will appear here after the scan...</translation>
+    </message>
+    <message>
         <source>Dipendenze</source>
         <translation>Dependencies</translation>
+    </message>
+    <message>
+        <source>🔐  Pronto. Incolla il codice e premi Analizza.</source>
+        <translation>🔐  Ready. Paste the code and press Analyze.</translation>
     </message>
     <message>
         <source>⚠️  Incolla del codice prima di avviare l'analisi.</source>
@@ -9157,6 +11428,22 @@ Continue?</translation>
     <message>
         <source>❌  Errore sintesi: </source>
         <translation>❌  Synthesis error:</translation>
+    </message>
+    <message>
+        <source>⚠️  Nessuna dipendenza trovata nel file.</source>
+        <translation>⚠️  No dependency found in the file.</translation>
+    </message>
+    <message>
+        <source>🔄  Verifica raggiungibilita' API OSV...</source>
+        <translation>🔄  Checking OSV API reachability...</translation>
+    </message>
+    <message>
+        <source>✅  API OSV raggiungibile.</source>
+        <translation>✅  OSV API reachable.</translation>
+    </message>
+    <message>
+        <source>❌  Risposta non valida da api.osv.dev</source>
+        <translation>❌  Invalid response from api.osv.dev</translation>
     </message>
 </context>
 <context>
@@ -9221,6 +11508,18 @@ Continue?</translation>
 <context>
     <name>SintetizzatoreWidget</name>
     <message>
+        <source>🎵  &lt;b&gt;Sintetizzatore Toni Puri&lt;/b&gt;</source>
+        <translation>🎵  &lt;b&gt;Pure Tone Synthesizer&lt;/b&gt;</translation>
+    </message>
+    <message>
+        <source>🎹  Programmatore Toni</source>
+        <translation>🎹  Tone Programmer</translation>
+    </message>
+    <message>
+        <source>📊  Assemblatore Visuale — Oscilloscopio</source>
+        <translation>📊  Visual Assembler — Oscilloscope</translation>
+    </message>
+    <message>
         <source>Volume: 70%</source>
         <translation>Volume: 70%</translation>
     </message>
@@ -9241,12 +11540,44 @@ Continue?</translation>
         <translation>+ Add</translation>
     </message>
     <message>
+        <source>🔊  Ascolta</source>
+        <translation>🔊  Listen</translation>
+    </message>
+    <message>
+        <source>🗑  Rimuovi</source>
+        <translation type="unfinished">🗑  Remove</translation>
+    </message>
+    <message>
+        <source>💾  Salva sequenza</source>
+        <translation>💾  Save sequence</translation>
+    </message>
+    <message>
+        <source>📂  Carica sequenza</source>
+        <translation>📂  Load sequence</translation>
+    </message>
+    <message>
+        <source>▶  Riproduci sequenza</source>
+        <translation>▶  Play sequence</translation>
+    </message>
+    <message>
         <source>⏹  Stop</source>
         <translation type="unfinished">⏹  Stop</translation>
     </message>
     <message>
+        <source>💾  Salva WAV</source>
+        <translation type="unfinished">💾  Save WAV</translation>
+    </message>
+    <message>
         <source>Aggiungi toni e premi Riproduci</source>
         <translation>Add tones and press Play</translation>
+    </message>
+    <message>
+        <source>⚠  Aggiungi almeno un tono alla sequenza</source>
+        <translation>⚠  Add at least one tone to the sequence</translation>
+    </message>
+    <message>
+        <source>❌  Impossibile scrivere file temporaneo</source>
+        <translation>❌  Could not write temporary file</translation>
     </message>
     <message>
         <source>❌  aplay non trovato — installa alsa-utils</source>
@@ -9410,6 +11741,10 @@ Caduta tensione max ammessa: 3% della tensione sistema.</source>
 Max allowed voltage drop: 3% of the system voltage.</translation>
     </message>
     <message>
+        <source>&lt;small&gt;&lt;i&gt;(ΔV max 3%)&lt;/i&gt;&lt;/small&gt;</source>
+        <translation>&lt;small&gt;&lt;i&gt;(ΔV max 3%)&lt;/i&gt;&lt;/small&gt;</translation>
+    </message>
+    <message>
         <source>Schema impianto</source>
         <translation>System diagram</translation>
     </message>
@@ -9448,6 +11783,10 @@ Max allowed voltage drop: 3% of the system voltage.</translation>
     <message>
         <source>Wh/gg</source>
         <translation>Wh/day</translation>
+    </message>
+    <message>
+        <source>☀  CALCOLA IMPIANTO</source>
+        <translation>☀  COMPUTE SYSTEM</translation>
     </message>
     <message>
         <source>Risultati</source>
@@ -9840,6 +12179,14 @@ otherwise fping). Discovers all active hosts.</translation>
         <translation>Backend:</translation>
     </message>
     <message>
+        <source>💻  Locale (diffusers)</source>
+        <translation>💻  Local (diffusers)</translation>
+    </message>
+    <message>
+        <source>🌐  AUTOMATIC1111 / Forge (remoto)</source>
+        <translation>🌐  AUTOMATIC1111 / Forge (remote)</translation>
+    </message>
+    <message>
         <source>WebUI URL:</source>
         <translation>WebUI URL:</translation>
     </message>
@@ -9852,12 +12199,28 @@ otherwise fping). Discovers all active hosts.</translation>
         <translation>Copy pip command to clipboard</translation>
     </message>
     <message>
+        <source>pip install diffusers transformers accelerate torch</source>
+        <translation>pip install diffusers transformers accelerate torch</translation>
+    </message>
+    <message>
+        <source>📝  Parametri generazione</source>
+        <translation>📝  Generation parameters</translation>
+    </message>
+    <message>
         <source>Prompt:</source>
         <translation>Prompt:</translation>
     </message>
     <message>
+        <source>Es: a futuristic city at sunset, detailed, photorealistic, 8k</source>
+        <translation>E.g.: a futuristic city at sunset, detailed, photorealistic, 8k</translation>
+    </message>
+    <message>
         <source>Prompt negativo:</source>
         <translation>Negative prompt:</translation>
+    </message>
+    <message>
+        <source>Es: blurry, low quality, watermark, text, ugly</source>
+        <translation>E.g.: blurry, low quality, watermark, text, ugly</translation>
     </message>
     <message>
         <source>Modello:</source>
@@ -9882,6 +12245,30 @@ otherwise fping). Discovers all active hosts.</translation>
     <message>
         <source>-1 = casuale</source>
         <translation>-1 = random</translation>
+    </message>
+    <message>
+        <source>⚡  Controlla</source>
+        <translation>⚡  Check</translation>
+    </message>
+    <message>
+        <source>🖼  Immagine generata</source>
+        <translation>🖼  Generated image</translation>
+    </message>
+    <message>
+        <source>💾  Salva PNG</source>
+        <translation>💾  Save PNG</translation>
+    </message>
+    <message>
+        <source>🔗  Premi 'Controlla' per verificare il backend selezionato.</source>
+        <translation>🔗  Press 'Check' to verify the selected backend.</translation>
+    </message>
+    <message>
+        <source>💻  Premi 'Controlla' per verificare diffusers.</source>
+        <translation>💻  Press 'Check' to verify diffusers.</translation>
+    </message>
+    <message>
+        <source>🌐  Premi 'Controlla' per verificare AUTOMATIC1111.</source>
+        <translation>🌐  Press 'Check' to verify AUTOMATIC1111.</translation>
     </message>
     <message>
         <source>🔄  Connessione a </source>
@@ -9932,8 +12319,16 @@ otherwise fping). Discovers all active hosts.</translation>
         <translation>📋  Copy</translation>
     </message>
     <message>
+        <source>🎨 &lt;b&gt;Stable Diffusion — Text to Image&lt;/b&gt;</source>
+        <translation>🎨 &lt;b&gt;Stable Diffusion — Text to Image&lt;/b&gt;</translation>
+    </message>
+    <message>
         <source>✅  Pronto: </source>
         <translation>✅  Ready:</translation>
+    </message>
+    <message>
+        <source>❌  diffusers non trovato. Vedi suggerimento sopra.</source>
+        <translation>❌  diffusers not found. See the suggestion above.</translation>
     </message>
     <message>
         <source>🔄  </source>
@@ -9963,16 +12358,48 @@ otherwise fping). Discovers all active hosts.</translation>
         <translation>📁  Folder:</translation>
     </message>
     <message>
+        <source>📂  Sfoglia</source>
+        <translation type="unfinished">📂  Browse</translation>
+    </message>
+    <message>
         <source>🔍  Cerca:</source>
         <translation>🔍  Search:</translation>
+    </message>
+    <message>
+        <source>cosa stai cercando? (es. "configurazione database")</source>
+        <translation>what are you looking for? (e.g. "database configuration")</translation>
+    </message>
+    <message>
+        <source>🔍  Cerca</source>
+        <translation type="unfinished">🔍  Search</translation>
+    </message>
+    <message>
+        <source>🤖  Analisi AI</source>
+        <translation type="unfinished">🤖  AI analysis</translation>
     </message>
     <message>
         <source>Manda i file trovati al modello AI per analisi</source>
         <translation>Send the found files to the AI model for analysis</translation>
     </message>
     <message>
+        <source>argomento Wikipedia (es. "Intelligenza artificiale", "Alan Turing")</source>
+        <translation>Wikipedia topic (e.g. "Artificial intelligence", "Alan Turing")</translation>
+    </message>
+    <message>
         <source>Lingua Wikipedia</source>
         <translation>Wikipedia language</translation>
+    </message>
+    <message>
+        <source>🤖  Elabora con AI</source>
+        <translation>🤖  Process with AI</translation>
+    </message>
+    <message>
+        <source>Invia l’articolo Wikipedia al modello per analisi, approfondimento o Q&amp;A</source>
+        <translation>Sends the Wikipedia article to the model for analysis, deep-dive or Q&amp;A</translation>
+    </message>
+    <message>
+        <source>📂  Carica dati</source>
+        <translation>📂  Load data</translation>
     </message>
     <message>
         <source>Nessun file caricato</source>
@@ -9991,6 +12418,22 @@ otherwise fping). Discovers all active hosts.</translation>
         <translation>Analysis:</translation>
     </message>
     <message>
+        <source>👁  1. Anteprima</source>
+        <translation>👁  1. Preview</translation>
+    </message>
+    <message>
+        <source>🤖  2. Analizza con AI</source>
+        <translation>🤖  2. Analyze with AI</translation>
+    </message>
+    <message>
+        <source>👁  Anteprima dati (prime 20 righe)</source>
+        <translation>👁  Data preview (first 20 rows)</translation>
+    </message>
+    <message>
+        <source>📄  Carica PDF</source>
+        <translation type="unfinished">📄  Load PDF</translation>
+    </message>
+    <message>
         <source>Nessun PDF caricato</source>
         <translation>No PDF loaded</translation>
     </message>
@@ -10001,6 +12444,14 @@ otherwise fping). Discovers all active hosts.</translation>
     <message>
         <source>Azione:</source>
         <translation>Action:</translation>
+    </message>
+    <message>
+        <source>🤖  Analizza con AI</source>
+        <translation type="unfinished">🤖  Analyze with AI</translation>
+    </message>
+    <message>
+        <source>📂  Carica file</source>
+        <translation>📂  Load file</translation>
     </message>
     <message>
         <source>pip install python-docx odfpy</source>
@@ -10018,6 +12469,10 @@ otherwise fping). Discovers all active hosts.</translation>
         <translation>✅  &lt;b&gt;</translation>
     </message>
     <message>
+        <source>Pianifica comandi periodici con il Cron Scheduler integrato</source>
+        <translation>Schedule periodic commands with the built-in Cron Scheduler</translation>
+    </message>
+    <message>
         <source>🤖  Modello:</source>
         <translation>🤖  Model:</translation>
     </message>
@@ -10032,6 +12487,10 @@ otherwise fping). Discovers all active hosts.</translation>
     <message>
         <source>Esegui richiesta AI</source>
         <translation>Run AI request</translation>
+    </message>
+    <message>
+        <source>⏳  Caricamento Cron Scheduler in corso...</source>
+        <translation>⏳  Loading Cron Scheduler...</translation>
     </message>
     <message>
         <source>📚  RAG documenti</source>
@@ -10056,6 +12515,10 @@ otherwise fping). Discovers all active hosts.</translation>
     <message>
         <source>📄  Carica PDF</source>
         <translation>📄  Load PDF</translation>
+    </message>
+    <message>
+        <source>Seleziona un file PDF da usare come contesto per la generazione AI</source>
+        <translation>Select a PDF file to use as context for the AI generation</translation>
     </message>
     <message>
         <source>Nessun PDF caricato</source>
@@ -10114,12 +12577,32 @@ otherwise fping). Discovers all active hosts.</translation>
         <translation>🔗  Check</translation>
     </message>
     <message>
+        <source>Testa la connessione TCP al bridge Blender (porta 9001 default)</source>
+        <translation>Test the TCP connection to the Blender bridge (port 9001 default)</translation>
+    </message>
+    <message>
         <source>⚪  Non connesso</source>
         <translation>⚪  Not connected</translation>
     </message>
     <message>
+        <source>▶  Esegui in Blender</source>
+        <translation>▶  Run in Blender</translation>
+    </message>
+    <message>
+        <source>Invia il codice Python generato a Blender via bridge MCP</source>
+        <translation>Sends the generated Python code to Blender via the MCP bridge</translation>
+    </message>
+    <message>
+        <source>🛟 🔧  Aiuto</source>
+        <translation>🛟 🔧  Help</translation>
+    </message>
+    <message>
         <source>Office:</source>
         <translation>Office:</translation>
+    </message>
+    <message>
+        <source>Avvia il bridge Python che si connette a LibreOffice via UNO API</source>
+        <translation>Starts the Python bridge that connects to LibreOffice via the UNO API</translation>
     </message>
     <message>
         <source>⚪  Bridge non avviato</source>
@@ -10130,16 +12613,48 @@ otherwise fping). Discovers all active hosts.</translation>
         <translation>🖥  Run in Office</translation>
     </message>
     <message>
+        <source>Invia il codice Python UNO generato a LibreOffice tramite bridge</source>
+        <translation>Sends the generated UNO Python code to LibreOffice through the bridge</translation>
+    </message>
+    <message>
         <source>FreeCAD:</source>
         <translation>FreeCAD:</translation>
+    </message>
+    <message>
+        <source>Testa la connessione TCP al bridge FreeCAD (porta 9876 default)</source>
+        <translation>Test the TCP connection to the FreeCAD bridge (port 9876 default)</translation>
+    </message>
+    <message>
+        <source>🔩  Esegui in FreeCAD</source>
+        <translation>🔩  Run in FreeCAD</translation>
+    </message>
+    <message>
+        <source>Invia il codice Python FreeCAD generato via bridge MCP</source>
+        <translation>Sends the generated FreeCAD Python code via the MCP bridge</translation>
     </message>
     <message>
         <source>🏗  Disegno:</source>
         <translation>🏗  Drawing:</translation>
     </message>
     <message>
+        <source>📂  Carica disegno / PDF</source>
+        <translation>📂  Load drawing / PDF</translation>
+    </message>
+    <message>
         <source>Nessun file</source>
         <translation>No file</translation>
+    </message>
+    <message>
+        <source>Quote / note  es: 50x30x10mm, acciaio, foro Ø 8...</source>
+        <translation>Dimensions / notes  e.g.: 50x30x10mm, steel, hole Ø 8...</translation>
+    </message>
+    <message>
+        <source>🏗  Genera modello 3D</source>
+        <translation>🏗  Generate 3D model</translation>
+    </message>
+    <message>
+        <source>🔵  Apri CloudCompare</source>
+        <translation>🔵  Open CloudCompare</translation>
     </message>
     <message>
         <source>✕  Chiudi</source>
@@ -10206,6 +12721,10 @@ otherwise fping). Discovers all active hosts.</translation>
         <translation>✅  FreeCAD connected</translation>
     </message>
     <message>
+        <source>❌  Timeout — FreeCAD non risponde</source>
+        <translation>❌  Timeout — FreeCAD not responding</translation>
+    </message>
+    <message>
         <source>🔄  Invio a FreeCAD...</source>
         <translation>🔄  Sending to FreeCAD...</translation>
     </message>
@@ -10220,6 +12739,18 @@ otherwise fping). Discovers all active hosts.</translation>
     <message>
         <source>🔄  Elaborazione in corso...</source>
         <translation>🔄  Processing...</translation>
+    </message>
+    <message>
+        <source>🐍  Codice pronto — premi Esegui in Blender</source>
+        <translation>🐍  Code ready — press Run in Blender</translation>
+    </message>
+    <message>
+        <source>📄  Codice pronto — premi Esegui in Office</source>
+        <translation>📄  Code ready — press Run in Office</translation>
+    </message>
+    <message>
+        <source>🔩  Codice pronto — premi Esegui in FreeCAD</source>
+        <translation>🔩  Code ready — press Run in FreeCAD</translation>
     </message>
     <message>
         <source>⏹  Stop</source>
@@ -10243,6 +12774,10 @@ otherwise fping). Discovers all active hosts.</translation>
     <message>
         <source>Chiedi ▶</source>
         <translation>Ask ▶</translation>
+    </message>
+    <message>
+        <source>⏳  Elaborazione in corso — il modello sta generando la risposta...</source>
+        <translation type="unfinished">⏳  Processing — the model is generating the answer...</translation>
     </message>
 </context>
 <context>
@@ -11203,6 +13738,10 @@ When the server starts the list fills with the installed models.</translation>
         <translation>ArUco targets — real scale</translation>
     </message>
     <message>
+        <source>Stampa sempre al 100% / "dimensione reale" (MAI "adatta alla pagina"):</source>
+        <translation>Always print at 100% / "real size" (NEVER "fit to page"):</translation>
+    </message>
+    <message>
         <source>🖨 Marker singoli (PDF)</source>
         <translation>🖨 Single markers (PDF)</translation>
     </message>
@@ -11229,6 +13768,22 @@ When the server starts the list fills with the installed models.</translation>
     <message>
         <source>Device attivi</source>
         <translation>Active devices</translation>
+    </message>
+    <message>
+        <source>Device</source>
+        <translation>Device</translation>
+    </message>
+    <message>
+        <source>Foto</source>
+        <translation>Photos</translation>
+    </message>
+    <message>
+        <source>Ultimo</source>
+        <translation>Last</translation>
+    </message>
+    <message>
+        <source>Dispositivo</source>
+        <translation type="unfinished">Device</translation>
     </message>
     <message>
         <source>Tasto destro su un device per eliminarlo (e le sue foto).</source>
@@ -11512,12 +14067,20 @@ restarting Prismalux: press it after a 'sudo apt install'.</translation>
         <translation>✅  XTTS-v2</translation>
     </message>
     <message>
+        <source>&lt;span style='color:#4ade80;'&gt;XTTS-v2 (voice cloning)&lt;/span&gt;</source>
+        <translation>&lt;span style='color:#4ade80;'&gt;XTTS-v2 (voice cloning)&lt;/span&gt;</translation>
+    </message>
+    <message>
         <source>Coqui XTTS-v2 disponibile — carica un campione per iniziare</source>
         <translation>Coqui XTTS-v2 available — load a sample to start</translation>
     </message>
     <message>
         <source>✅  chatterbox</source>
         <translation>✅  chatterbox</translation>
+    </message>
+    <message>
+        <source>&lt;span style='color:#4ade80;'&gt;chatterbox-tts (voice cloning)&lt;/span&gt;</source>
+        <translation>&lt;span style='color:#4ade80;'&gt;chatterbox-tts (voice cloning)&lt;/span&gt;</translation>
     </message>
     <message>
         <source>chatterbox-tts disponibile — carica un campione per iniziare</source>
@@ -11528,8 +14091,16 @@ restarting Prismalux: press it after a 'sudo apt install'.</translation>
         <translation>Install chatterbox</translation>
     </message>
     <message>
+        <source>&lt;span style='color:#fb923c;'&gt;edge-tts online (no campione)&lt;/span&gt;</source>
+        <translation>&lt;span style='color:#fb923c;'&gt;edge-tts online (no sample)&lt;/span&gt;</translation>
+    </message>
+    <message>
         <source>edge-tts attivo — nessun campione richiesto, voce predefinita online</source>
         <translation>edge-tts active — no sample required, default online voice</translation>
+    </message>
+    <message>
+        <source>&lt;span style='color:#f87171;'&gt;nessun backend&lt;/span&gt;</source>
+        <translation>&lt;span style='color:#f87171;'&gt;no backend&lt;/span&gt;</translation>
     </message>
     <message>
         <source>TTS non installato — usa il pulsante per installare</source>
@@ -11696,6 +14267,14 @@ Static files NOT served — run collectstatic</translation>
     <message>
         <source>Reimposta vista</source>
         <translation>Reset view</translation>
+    </message>
+    <message>
+        <source>🟢  Imposta come Partenza</source>
+        <translation>🟢  Set as Start</translation>
+    </message>
+    <message>
+        <source>➕  Aggiungi Tappa</source>
+        <translation>➕  Add Waypoint</translation>
     </message>
 </context>
 </TS>

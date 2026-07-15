@@ -145,7 +145,7 @@ QWidget* ImpostazioniPage::buildVoceTab()
 
     /* ── Colonna sinistra: TTS Piper (nessun scroll interno) ── */
     auto* inner = new QGroupBox(
-        "\xf0\x9f\x94\x8a  Voce \xe2\x80\x94 Piper TTS");
+        tr("\xf0\x9f\x94\x8a  Voce \xe2\x80\x94 Piper TTS"));
     inner->setObjectName("cardGroup");
     auto* ilay  = new QVBoxLayout(inner);
     ilay->setContentsMargins(14, 10, 14, 10);
@@ -172,7 +172,7 @@ QWidget* ImpostazioniPage::buildVoceTab()
         const QString bin = ImpostazioniPage::piperBinPath();
         if (bin.isEmpty())
             lblPiperStatus->setText(
-                "\xe2\x9d\x8c  Piper non trovato &mdash; clicca <b>Installa Piper</b>");
+                tr("\xe2\x9d\x8c  Piper non trovato &mdash; clicca <b>Installa Piper</b>"));
         else
             lblPiperStatus->setText(
                 "\xe2\x9c\x85  Piper pronto: <code>" + bin + "</code>");
@@ -215,7 +215,7 @@ QWidget* ImpostazioniPage::buildVoceTab()
     secVLay->setSpacing(6);
 
     auto* voceTitle = new QLabel(
-        "\xf0\x9f\x87\xae\xf0\x9f\x87\xb9  <b>Voci Italiane disponibili</b>",
+        tr("\xf0\x9f\x87\xae\xf0\x9f\x87\xb9  <b>Voci Italiane disponibili</b>"),
         secVoci);
     voceTitle->setObjectName("cardTitle");
     voceTitle->setTextFormat(Qt::RichText);
@@ -494,7 +494,7 @@ QWidget* ImpostazioniPage::buildVoceTab()
     secTLay->setSpacing(8);
 
     auto* testTitle = new QLabel(
-        "\xf0\x9f\x94\x8a  <b>Test voce</b>", secTest);
+        tr("\xf0\x9f\x94\x8a  <b>Test voce</b>"), secTest);
     testTitle->setObjectName("cardTitle");
     testTitle->setTextFormat(Qt::RichText);
     secTLay->addWidget(testTitle);
@@ -510,7 +510,7 @@ QWidget* ImpostazioniPage::buildVoceTab()
     txtTest->setText(tr("Ciao, sono Prismalux. La conoscenza \xc3\xa8 potere."));
 
     auto* btnSpeak = new QPushButton(
-        "\xf0\x9f\x94\x8a  Parla", secTest);
+        tr("\xf0\x9f\x94\x8a  Parla"), secTest);
     btnSpeak->setObjectName("actionBtn");
     btnSpeak->setToolTip(tr("Legge il testo con la voce selezionata"));
 
@@ -616,7 +616,7 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
 
     /* ── Colonna destra: STT Whisper (nessun scroll interno) ── */
     auto* inner = new QGroupBox(
-        "\xf0\x9f\x8e\xa4  Trascrizione \xe2\x80\x94 Whisper STT");
+        tr("\xf0\x9f\x8e\xa4  Trascrizione \xe2\x80\x94 Whisper STT"));
     inner->setObjectName("cardGroup");
     auto* ilay = new QVBoxLayout(inner);
     ilay->setContentsMargins(14, 10, 14, 10);
@@ -634,18 +634,18 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
         secModeLay->setSpacing(8);
 
         auto* modeTitle = new QLabel(
-            "\xf0\x9f\x94\xa7  <b>Modalit\xc3\xa0 di trascrizione</b>", secMode);
+            tr("\xf0\x9f\x94\xa7  <b>Modalit\xc3\xa0 di trascrizione</b>"), secMode);
         modeTitle->setObjectName("cardTitle");
         modeTitle->setTextFormat(Qt::RichText);
         secModeLay->addWidget(modeTitle);
 
         auto* radioWhisper = new QRadioButton(
-            "\xe2\x9c\x85  Whisper locale (predefinito)", secMode);
+            tr("\xe2\x9c\x85  Whisper locale (predefinito)"), secMode);
         radioWhisper->setObjectName("settingsRadio");
         radioWhisper->setChecked(true);
 
         auto* radioLlm = new QRadioButton(
-            "\xf0\x9f\xa4\x96  LLM audio via Ollama (sperimentale)", secMode);
+            tr("\xf0\x9f\xa4\x96  LLM audio via Ollama (sperimentale)"), secMode);
         radioLlm->setObjectName("settingsRadio");
 
         {
@@ -686,7 +686,7 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
         llmModelRow->addWidget(llmModelCombo, 1);
 
         auto* llmRefreshBtn = new QPushButton(
-            "\xf0\x9f\x94\x84  Ricarica modelli", llmPanel);
+            tr("\xf0\x9f\x94\x84  Ricarica modelli"), llmPanel);
         llmRefreshBtn->setObjectName("actionBtn");
         llmModelRow->addWidget(llmRefreshBtn);
         llmLay->addLayout(llmModelRow);
@@ -838,7 +838,7 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
 
     /* Pulsante compila da sorgente — visibile solo se binario mancante */
     auto* btnCompileWsp = new QPushButton(
-        "\xf0\x9f\x94\xa8  Scarica e compila whisper.cpp da sorgente", secBin);
+        tr("\xf0\x9f\x94\xa8  Scarica e compila whisper.cpp da sorgente"), secBin);
     btnCompileWsp->setObjectName("primaryBtn");
     btnCompileWsp->setFixedHeight(dpiScale(34));
     btnCompileWsp->setVisible(SttWhisper::whisperBin().isEmpty());
@@ -881,7 +881,7 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
     secCLay->setSpacing(6);
 
     auto* compileTitle = new QLabel(
-        "\xf0\x9f\x94\xa8  <b>Compilazione whisper.cpp</b>", secCompile);
+        tr("\xf0\x9f\x94\xa8  <b>Compilazione whisper.cpp</b>"), secCompile);
     compileTitle->setObjectName("cardTitle");
     compileTitle->setTextFormat(Qt::RichText);
     secCLay->addWidget(compileTitle);
@@ -998,7 +998,7 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
             [runner, bldDir, wspDir, threads](bool ok1) {
             if (!ok1) {
                 runner->status->setText(
-                    "\xe2\x9d\x8c  git fallito. Verifica la connessione e che git sia installato.");
+                    tr("\xe2\x9d\x8c  git fallito. Verifica la connessione e che git sia installato."));
                 runner->btn->setEnabled(true);
                 delete runner; return;
             }
@@ -1014,7 +1014,7 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
                 [runner, bldDir, threads](bool ok2) {
                 if (!ok2) {
                     runner->status->setText(
-                        "\xe2\x9d\x8c  cmake fallito. Verifica che cmake e gcc siano installati.");
+                        tr("\xe2\x9d\x8c  cmake fallito. Verifica che cmake e gcc siano installati."));
                     runner->btn->setEnabled(true);
                     delete runner; return;
                 }
@@ -1045,7 +1045,7 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
                         }
                     } else {
                         runner->status->setText(
-                            "\xe2\x9d\x8c  Compilazione fallita. Controlla il log sopra.");
+                            tr("\xe2\x9d\x8c  Compilazione fallita. Controlla il log sopra."));
                     }
                     runner->btn->setEnabled(true);
                     delete runner;
@@ -1064,7 +1064,7 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
     secActLay->setSpacing(8);
 
     auto* actTitle = new QLabel(
-        "\xf0\x9f\x93\x8c  <b>Modello attivo</b>", secActive);
+        tr("\xf0\x9f\x93\x8c  <b>Modello attivo</b>"), secActive);
     actTitle->setObjectName("cardTitle");
     actTitle->setTextFormat(Qt::RichText);
     secActLay->addWidget(actTitle);
@@ -1077,7 +1077,7 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
         const QString m = SttWhisper::whisperModel();
         if (m.isEmpty())
             lblActivePath->setText(
-                "\xe2\x9d\x8c  Nessun modello trovato &mdash; scaricane uno qui sotto.");
+                tr("\xe2\x9d\x8c  Nessun modello trovato &mdash; scaricane uno qui sotto."));
         else
             lblActivePath->setText(tr("\xe2\x9c\x85  <code>") + m + "</code>");
     };
@@ -1294,18 +1294,18 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
     auto* httpEdit = new QLineEdit(secHttp);
     httpEdit->setObjectName("settingsInput");
     httpEdit->setPlaceholderText(
-        "http://localhost:9000/v1/audio/transcriptions");
+        tr("http://localhost:9000/v1/audio/transcriptions"));
     {
         QSettings hs("Prismalux", "GUI");
         httpEdit->setText(
             hs.value(P::SK::kSttHttpUrl, "").toString());
     }
     auto* httpSaveBtn = new QPushButton(
-        "\xf0\x9f\x92\xbe  Salva URL", secHttp);
+        tr("\xf0\x9f\x92\xbe  Salva URL"), secHttp);
     httpSaveBtn->setObjectName("actionBtn");
     httpSaveBtn->setFixedWidth(dpiScale(110));
     auto* httpClearBtn = new QPushButton(
-        "\xf0\x9f\x97\x91  Cancella", secHttp);
+        tr("\xf0\x9f\x97\x91  Cancella"), secHttp);
     httpClearBtn->setObjectName("secondaryBtn");
     httpClearBtn->setFixedWidth(dpiScale(90));
     httpRow->addWidget(httpEdit, 1);
@@ -1334,7 +1334,7 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
                 QSettings hs("Prismalux", "GUI");
                 hs.remove(P::SK::kSttHttpUrl);
                 httpStatus->setText(
-                    "\xe2\x9a\xa0  URL rimosso. Si user\xc3\xa0 whisper-cli locale.");
+                    tr("\xe2\x9a\xa0  URL rimosso. Si user\xc3\xa0 whisper-cli locale."));
             });
 
     ilay->addWidget(secHttp);
@@ -1376,7 +1376,7 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
         row1Lay->setSpacing(10);
 
         auto* chkDiar = new QCheckBox(
-            "Abilita diarizzazione dopo trascrizione", row1);
+            tr("Abilita diarizzazione dopo trascrizione"), row1);
         {
             QSettings hs("Prismalux", "GUI");
             chkDiar->setChecked(hs.value(P::SK::kSttDiarizeEnabled, false).toBool());
@@ -1396,7 +1396,7 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
                     proc->deleteLater();
                     if (code == 0)
                         lblDiarStatus->setText(
-                            "<span style='color:#22c55e;'>\xe2\x9c\x85 simple-diarizer OK</span>");
+                            tr("<span style='color:#22c55e;'>\xe2\x9c\x85 simple-diarizer OK</span>"));
                     else
                         lblDiarStatus->setText(
                             "<span style='color:#f59e0b;'>\xe2\x9a\xa0 "
@@ -1434,7 +1434,7 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
         row2Lay->addStretch();
 
         auto* btnSaveDiar = new QPushButton(
-            "\xf0\x9f\x92\xbe  Salva", row2);
+            tr("\xf0\x9f\x92\xbe  Salva"), row2);
         btnSaveDiar->setObjectName("actionBtn");
         btnSaveDiar->setFixedWidth(dpiScale(80));
         row2Lay->addWidget(btnSaveDiar);
@@ -1466,7 +1466,7 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
     secNoteLay->setSpacing(6);
 
     auto* noteTitle = new QLabel(
-        "\xf0\x9f\x92\xa1  <b>Note</b>", secNote);
+        tr("\xf0\x9f\x92\xa1  <b>Note</b>"), secNote);
     noteTitle->setObjectName("cardTitle");
     noteTitle->setTextFormat(Qt::RichText);
     secNoteLay->addWidget(noteTitle);
@@ -1518,7 +1518,7 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
     secMicLay->setSpacing(6);
 
     auto* micTitle = new QLabel(
-        "\xf0\x9f\x8e\x99  <b>Livello microfono</b>", secMic);   /* 🎙 */
+        tr("\xf0\x9f\x8e\x99  <b>Livello microfono</b>"), secMic);   /* 🎙 */
     micTitle->setObjectName("cardTitle");
     micTitle->setTextFormat(Qt::RichText);
     secMicLay->addWidget(micTitle);
@@ -1546,11 +1546,11 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
 
     /* Pulsante Start/Stop */
     m_micToggleBtn = new QPushButton(
-        "\xf0\x9f\x94\xb4  Avvia monitoraggio", secMic);   /* 🔴 */
+        tr("\xf0\x9f\x94\xb4  Avvia monitoraggio"), secMic);   /* 🔴 */
     m_micToggleBtn->setObjectName("actionBtn");
     m_micToggleBtn->setCheckable(true);
     m_micToggleBtn->setToolTip(
-        "Avvia o ferma la lettura del microfono predefinito di sistema.");
+        tr("Avvia o ferma la lettura del microfono predefinito di sistema."));
     connect(m_micToggleBtn, &QPushButton::clicked,
             this, &ImpostazioniPage::onMicToggleBtnClicked);
     secMicLay->addWidget(m_micToggleBtn);

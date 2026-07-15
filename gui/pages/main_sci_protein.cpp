@@ -107,23 +107,23 @@ SciProteinWidget::SciProteinWidget(QWidget* parent)
 
     /* Sequenza + ESMFold */
     auto* seqGroup = new QGroupBox(
-        "\xf0\x9f\xa7\xac  Predizione struttura (ESMFold)", leftPanel);
+        tr("\xf0\x9f\xa7\xac  Predizione struttura (ESMFold)"), leftPanel);
     auto* seqLay   = new QVBoxLayout(seqGroup);
     seqLay->setSpacing(dpiScale(4));
 
     seqLay->addWidget(new QLabel(
-        "<small>Incolla sequenza FASTA o amminoacidi grezzi (max 400 aa per API)</small>",
+        tr("<small>Incolla sequenza FASTA o amminoacidi grezzi (max 400 aa per API)</small>"),
         seqGroup));
 
     m_seqEdit = new QTextEdit(seqGroup);
     m_seqEdit->setFixedHeight(dpiScale(90));
     m_seqEdit->setObjectName("codeEdit");
     m_seqEdit->setPlaceholderText(
-        ">MyProtein\nMKTLLLTLVVVTIVCLDLGAV...");
+        tr(">MyProtein\nMKTLLLTLVVVTIVCLDLGAV..."));
     seqLay->addWidget(m_seqEdit);
 
     m_btnFold = new QPushButton(
-        "\xf0\x9f\xa7\xac  Predici struttura (ESMFold API)", seqGroup);
+        tr("\xf0\x9f\xa7\xac  Predici struttura (ESMFold API)"), seqGroup);
     m_btnFold->setObjectName("primaryBtn");
     m_btnFold->setToolTip(
         "Chiama ESMFold API (Meta) — gratuito, max 400 aa\n"
@@ -139,12 +139,12 @@ SciProteinWidget::SciProteinWidget(QWidget* parent)
 
     /* AlphaFold DB */
     auto* afGroup = new QGroupBox(
-        "\xf0\x9f\x94\xae  AlphaFold DB (EBI/DeepMind)", leftPanel);
+        tr("\xf0\x9f\x94\xae  AlphaFold DB (EBI/DeepMind)"), leftPanel);
     auto* afLay   = new QVBoxLayout(afGroup);
     afLay->setSpacing(dpiScale(4));
 
     afLay->addWidget(new QLabel(
-        "<small>Strutture pre-calcolate per ~200M proteine</small>", afGroup));
+        tr("<small>Strutture pre-calcolate per ~200M proteine</small>"), afGroup));
 
     auto* afRow = new QHBoxLayout;
     m_uniprotEdit = new QLineEdit(afGroup);
@@ -160,7 +160,7 @@ SciProteinWidget::SciProteinWidget(QWidget* parent)
 
     /* Ricerca PDB + UniProt */
     auto* dbGroup = new QGroupBox(
-        "\xf0\x9f\x97\x83  Ricerca database", leftPanel);
+        tr("\xf0\x9f\x97\x83  Ricerca database"), leftPanel);
     auto* dbLay   = new QVBoxLayout(dbGroup);
     dbLay->setSpacing(dpiScale(4));
 
@@ -187,7 +187,7 @@ SciProteinWidget::SciProteinWidget(QWidget* parent)
     m_searchList = new QListWidget(dbGroup);
     m_searchList->setFixedHeight(dpiScale(140));
     m_searchList->setToolTip(
-        "Doppio click per scaricare la struttura PDB");
+        tr("Doppio click per scaricare la struttura PDB"));
     dbLay->addWidget(m_searchList);
 
     leftLay->addWidget(dbGroup);
@@ -195,11 +195,11 @@ SciProteinWidget::SciProteinWidget(QWidget* parent)
     /* Azioni */
     auto* actRow = new QHBoxLayout;
     m_btnDownload = new QPushButton(
-        "\xe2\xac\x87  Salva .pdb", leftPanel);
+        tr("\xe2\xac\x87  Salva .pdb"), leftPanel);
     m_btnDownload->setObjectName("actionBtn");
     m_btnDownload->setEnabled(false);
     m_btnDock = new QPushButton(
-        "\xf0\x9f\xa7\xaa  Invia al Docking", leftPanel);
+        tr("\xf0\x9f\xa7\xaa  Invia al Docking"), leftPanel);
     m_btnDock->setObjectName("actionBtn");
     m_btnDock->setEnabled(false);
     m_btnDock->setToolTip(
@@ -312,7 +312,7 @@ void SciProteinWidget::onEsmFoldClicked()
     const QString seq = cleanSequence(m_seqEdit->toPlainText());
     if (seq.isEmpty()) {
         m_foldStatus->setText(
-            "<span style='color:#ef4444'>Inserisci una sequenza amminoacidica.</span>");
+            tr("<span style='color:#ef4444'>Inserisci una sequenza amminoacidica.</span>"));
         return;
     }
     if (seq.size() > 400) {
@@ -364,7 +364,7 @@ void SciProteinWidget::onEsmFoldReply(QNetworkReply* reply)
     }
 
     m_foldStatus->setText(
-        "<span style='color:#22c55e'>\xe2\x9c\x85  Struttura predetta!</span>");
+        tr("<span style='color:#22c55e'>\xe2\x9c\x85  Struttura predetta!</span>"));
     const QString label = "ESMFold_" +
         QDateTime::currentDateTime().toString("hhmmss");
     loadInViewer(pdb, label);

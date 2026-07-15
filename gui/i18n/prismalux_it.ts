@@ -8,7 +8,15 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>🕸  &lt;b&gt;Multi-Agente&lt;/b&gt; — Decomposizione + Memoria a Grafo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Modello LLM usato da master e sub-agenti</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🚀  Decomponsi + Esegui</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -25,6 +33,14 @@
     </message>
     <message>
         <source>&lt;b&gt;Sub-Task&lt;/b&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;small style=&apos;color:#64748b&apos;&gt;Clicca un task per vedere il risultato&lt;/small&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>L&apos;output dei sub-agenti e la sintesi finale appariranno qui...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -56,11 +72,23 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>📄  Esporta TXT</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Salva snapshot testuale della memoria condivisa</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>💾  Backup</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Esegue subito un backup del DB GraphMemory</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🗑  Svuota Grafo</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -133,6 +161,10 @@ Continuare?</source>
     </message>
     <message>
         <source>🔍  Cerca MCP per nome o etichetta…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;span style=&apos;color:#64748b;&apos;&gt;Nessun MCP in MCPs/&lt;/span&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -270,6 +302,18 @@ Immagini: .png .jpg .jpeg .gif .webp</source>
     </message>
     <message>
         <source>🎤 Trascrivi parlato</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔄  Indicizzazione in corso...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔄  Estrazione PDF in corso...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📄  Estrazione PDF in corso...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -433,6 +477,10 @@ Immagini: .png .jpg .jpeg .gif .webp</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Reinvia l&apos;ultimo messaggio utente con il modello appena selezionato</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>📈  Apri nel Grafico</source>
         <translation type="unfinished"></translation>
     </message>
@@ -508,6 +556,10 @@ Immagini:  .png .jpg .jpeg .gif .webp (richiede modello vision)</source>
     </message>
     <message>
         <source>➕  Aggiungi URL</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📄  Rilascia per indicizzare nel RAG...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -612,6 +664,10 @@ Immagini:  .png .jpg .jpeg .gif .webp (richiede modello vision)</source>
     </message>
     <message>
         <source>📂  RAG condiviso (tutti gli agenti):</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔍  Abilita Controller LLM post-agente</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -740,6 +796,10 @@ Immagini:  .png .jpg .jpeg .gif .webp (richiede modello vision)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>🔧  Configurazione bridge</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Bridge URL:</source>
         <translation type="unfinished"></translation>
     </message>
@@ -748,11 +808,39 @@ Immagini:  .png .jpg .jpeg .gif .webp (richiede modello vision)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>💾  Salva</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📣  Contatti promozionali</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>+393331234567</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>➕  Aggiungi</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>➖  Rimuovi</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Messaggio:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Testo del messaggio promozionale...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📤  Invia a tutti</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🤖  Bot AI Rispondente</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -764,11 +852,47 @@ Immagini:  .png .jpg .jpeg .gif .webp (richiede modello vision)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Abilita auto-risposta AI ai messaggi in entrata</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🟢  Avvia Bot</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔴  Ferma Bot</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⚫  Bot non attivo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Log messaggi</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>I messaggi ricevuti/inviati dal bot appariranno qui...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>✅  URL salvato</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>❌  Inserisci l’URL del bridge.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>❌  Scrivi il messaggio prima di inviare.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>❌  Nessun contatto in lista.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>❌  Inserisci l’URL del bridge prima di avviare.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -777,6 +901,14 @@ Immagini:  .png .jpg .jpeg .gif .webp (richiede modello vision)</source>
     </message>
     <message>
         <source>⚫  Bot fermato</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⚙️  Installa in Impostazioni</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔑  Passo 1 — Token del bot</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -792,11 +924,87 @@ Immagini:  .png .jpg .jpeg .gif .webp (richiede modello vision)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>🛡  Passo 2 — Chi può scrivere al bot</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>ID autorizzati:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>123456789, 987654321  — vuoto = tutti</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⚙️  Controllo bot</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>▶  Avvia Bot</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⏹  Ferma Bot</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⚪  Bot fermo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📝  Log messaggi in tempo reale</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Qui appariranno i messaggi ricevuti e le risposte inviate...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📤  Passo 3 — Invia messaggio a destinatari</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>ID numerico utente (es. 123456789) oppure -1001234567890 (gruppo/canale)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🤖  Aggiungi automaticamente chi scrive al bot</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Messaggio da inviare:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Scrivi il testo del messaggio...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📤  Invia a tutti i destinatari</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>✅  Token salvato</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>❌  python-telegram-bot v20+ non installato</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>❌  Inserisci il Bot Token prima di avviare.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔄  Avvio in corso...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>❌  Errore avvio (python3 non trovato?)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>✅  Bot attivo — in ascolto</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -809,6 +1017,10 @@ Immagini:  .png .jpg .jpeg .gif .webp (richiede modello vision)</source>
     </message>
     <message>
         <source>exit 0 (riavvio inatteso)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>❌  Inserisci il Bot Token prima di inviare.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -825,6 +1037,10 @@ Immagini:  .png .jpg .jpeg .gif .webp (richiede modello vision)</source>
     </message>
     <message>
         <source>⚪  Non connesso</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>▶  Esegui in FreeCAD</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -892,6 +1108,10 @@ Immagini:  .png .jpg .jpeg .gif .webp (richiede modello vision)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>🖥  Esegui in KiCAD</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Apri la documentazione KiCAD MCP e guida ai comandi</source>
         <translation type="unfinished"></translation>
     </message>
@@ -925,6 +1145,10 @@ Immagini:  .png .jpg .jpeg .gif .webp (richiede modello vision)</source>
     </message>
     <message>
         <source>⚪  MCU non connesso</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⚡  Flash MCU</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1028,6 +1252,10 @@ Immagini:  .png .jpg .jpeg .gif .webp (richiede modello vision)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>▶  Esegui in Blender</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Apri la documentazione e i comandi AI disponibili per Blender</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1064,7 +1292,31 @@ Immagini:  .png .jpg .jpeg .gif .webp (richiede modello vision)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Es: Aggiungi tooltip al pulsante PDF in main_ai_ui.cpp riga 138</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🚀  Avvia Dev Agent</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⏹  Ferma</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📦  Installa LangGraph</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>pip install langgraph langchain-community langchain-ollama unidiff</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>⚫  Pronto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📋  Log agente  (Read → Generate → Compile → Fix → Done)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1072,7 +1324,15 @@ Immagini:  .png .jpg .jpeg .gif .webp (richiede modello vision)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>📝  Diff generato</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Il diff unificato apparirà qui al termine...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⏪  Cronologia — torna indietro nel tempo</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1080,7 +1340,15 @@ Immagini:  .png .jpg .jpeg .gif .webp (richiede modello vision)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>↩  Ripristina snapshot</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Aggiorna la lista degli snapshot salvati dal Dev Agent</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🐙  Ripristina da Git / GitHub</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1092,11 +1360,23 @@ Immagini:  .png .jpg .jpeg .gif .webp (richiede modello vision)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>🌐  Fetch + Reset da GitHub</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Commit:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Aggiorna log git</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>↩  Ripristina file al commit selezionato</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📦  Stash modifiche</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1108,11 +1388,31 @@ Immagini:  .png .jpg .jpeg .gif .webp (richiede modello vision)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>📤  Applica stash selezionato</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Aggiorna lista stash</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>❌  Descrivi il task prima di avviare.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>❌  Impossibile avviare il server Dev Agent.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🟡  Dev Agent in esecuzione...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>❌  server.py non trovato</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⏪  Ripristino in corso...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1121,6 +1421,14 @@ Immagini:  .png .jpg .jpeg .gif .webp (richiede modello vision)</source>
     </message>
     <message>
         <source>⚫  Fermato</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⏳  Installazione dipendenze LangGraph...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>✅  LangGraph installato correttamente.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1152,6 +1460,10 @@ Immagini:  .png .jpg .jpeg .gif .webp (richiede modello vision)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>▶  Esegui in Office</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Apri la documentazione LibreOffice e guida comandi macro</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1164,11 +1476,19 @@ Immagini:  .png .jpg .jpeg .gif .webp (richiede modello vision)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>❌  prismalux_office_bridge.py non trovato</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🔄  Avvio bridge...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>⏹  Ferma bridge</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⚠  Bridge avviato (verifica fallita)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1189,6 +1509,10 @@ Immagini:  .png .jpg .jpeg .gif .webp (richiede modello vision)</source>
     </message>
     <message>
         <source>Verifica connessione con AnkiConnect (porta 8765)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🃏  Invia ad Anki</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1228,12 +1552,44 @@ Immagini:  .png .jpg .jpeg .gif .webp (richiede modello vision)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>🐍  Moduli Python</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>📬  Telegram</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🐍  Codice pronto — premi Esegui in Blender</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔩  Codice pronto — premi Esegui in FreeCAD</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📄  Codice pronto — premi Esegui in Office</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🖥  Codice pronto — premi Esegui in KiCAD</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🤖  Codice pronto — premi Flash MCU</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔴  Codice pronto — premi Esegui in OBS</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
     <name>AvogadroWidget</name>
+    <message>
+        <source>🧪  &lt;i&gt;Avogadro — Editor molecolare 3D open-source.&lt;/i&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
     <message>
         <source>⚪  Avogadro locale</source>
         <translation type="unfinished"></translation>
@@ -1294,6 +1650,10 @@ Asse X = dimensione input n, Asse Y = operazioni (scala log-cubica).</source>
 <context>
     <name>BiocondaWidget</name>
     <message>
+        <source>🌿  &lt;i&gt;Bioconda — Repository specializzato di software bioinformatico.&lt;/i&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>⚪  Bioconda/conda</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1332,6 +1692,22 @@ Asse X = dimensione input n, Asse Y = operazioni (scala log-cubica).</source>
 </context>
 <context>
     <name>BlhmWidget</name>
+    <message>
+        <source>Percorso ontologico</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>factory_w</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>link_w</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>user_w</source>
+        <translation type="unfinished"></translation>
+    </message>
     <message>
         <source>+ Aggiungi peso</source>
         <translation type="unfinished"></translation>
@@ -1483,6 +1859,13 @@ Asse X = dimensione input n, Asse Y = operazioni (scala log-cubica).</source>
     </message>
 </context>
 <context>
+    <name>ChartWidget</name>
+    <message>
+        <source>🖼  Salva come PNG...</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>ChatBubble</name>
     <message>
         <source>📊  Grafico</source>
@@ -1524,7 +1907,39 @@ Asse X = dimensione input n, Asse Y = operazioni (scala log-cubica).</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>📝  Descrizione — cosa deve fare il codice:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⚡  Genera e Esegui con AI</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>⏹  Stop</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📋  Copia codice</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🗑  Pulisci</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>💻  Codice generato:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Il codice generato dall&apos;AI apparirà qui.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📟  Output:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pronto. Descrivi cosa vuoi che il codice faccia.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1532,7 +1947,19 @@ Asse X = dimensione input n, Asse Y = operazioni (scala log-cubica).</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>📋  Codice copiato negli appunti.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Pronto.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>❌  Scrivi una descrizione prima di generare.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🤖  AI sta generando il codice...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1541,6 +1968,10 @@ Asse X = dimensione input n, Asse Y = operazioni (scala log-cubica).</source>
     </message>
     <message>
         <source>❌  Fallito.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>❌  L&apos;AI non ha prodotto una correzione valida.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -1564,6 +1995,14 @@ Asse X = dimensione input n, Asse Y = operazioni (scala log-cubica).</source>
     </message>
     <message>
         <source>&lt;b&gt;Output del programma:&lt;/b&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>💡 &lt;b&gt;Aneddoto per crescere:&lt;/b&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;b&gt;🔧 Cosa vuoi modificare?&lt;/b&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1665,7 +2104,19 @@ Asse X = dimensione input n, Asse Y = operazioni (scala log-cubica).</source>
 <context>
     <name>DepCheckPanel</name>
     <message>
+        <source>📦  &lt;b&gt;Dipendenze software&lt;/b&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔄  Controlla tutto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Verifica lo stato di ogni dipendenza</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⬇  Installa mancanti</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1682,6 +2133,14 @@ Asse X = dimensione input n, Asse Y = operazioni (scala log-cubica).</source>
     </message>
     <message>
         <source>⏳ installo...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;span style=&apos;color:#22c55e;&apos;&gt;✅  OK&lt;/span&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;span style=&apos;color:#ef4444;&apos;&gt;✖  Mancante&lt;/span&gt;</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -1958,6 +2417,10 @@ Formato risposta (SOLO JSON, nessun altro testo):
 <context>
     <name>DockerUpdatePanel</name>
     <message>
+        <source>🐳  &lt;b&gt;Container Docker&lt;/b&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🔄  Elenca container</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1987,6 +2450,10 @@ Formato risposta (SOLO JSON, nessun altro testo):
     </message>
     <message>
         <source>✅  Immagine &lt;code&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔄  Ricrea ora (docker compose)</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -2024,11 +2491,23 @@ Formato risposta (SOLO JSON, nessun altro testo):
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>📐  Genera da espressione</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>f(x)  es: x^2  sin(x)  x*(x+1)/2</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>x da:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>▶  Genera → inserisce i valori sotto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🧊  Solidi 3D — un clic genera la mesh e mostra l&apos;area</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2072,6 +2551,14 @@ Formato risposta (SOLO JSON, nessun altro testo):
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>📝  Serie personalizzata (magenta)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📂  Carica sequenza da file (.txt)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>e  Serie di Taylor</source>
         <translation type="unfinished"></translation>
     </message>
@@ -2088,7 +2575,19 @@ Formato risposta (SOLO JSON, nessun altro testo):
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>🔍  Grafico → Formula  [vision AI]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Seleziona modello vision...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📥  Installa modello vision</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📷  Analizza immagine</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2395,6 +2894,10 @@ Formato risposta (SOLO JSON, nessun altro testo):
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>⚗  CALCOLA DOSI</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Schema impianto DWC</source>
         <translation type="unfinished"></translation>
     </message>
@@ -2672,7 +3175,31 @@ Completa almeno un quiz per vedere le statistiche qui.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>⚠️  Cartelle pesanti (rimozione manuale)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>✅  Nessuna cartella llama_cpp_studio trovata.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>💾  Backup dati Prismalux</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>💾  Crea backup ZIP...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📂  Apri cartella dati</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔐  Audit segreti &amp; permessi</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔍  Esegui audit ora</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2685,6 +3212,10 @@ Completa almeno un quiz per vedere le statistiche qui.</source>
     </message>
     <message>
         <source>Output test appare qui...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔬  &lt;b&gt;Casi testati:&lt;/b&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2720,6 +3251,14 @@ Completa almeno un quiz per vedere le statistiche qui.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>🔗  Scarica GGUF da URL personalizzato (HuggingFace):</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>https://huggingface.co/.../resolve/main/modello.gguf</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>⬇  Scarica</source>
         <translation type="unfinished"></translation>
     </message>
@@ -2732,7 +3271,43 @@ Completa almeno un quiz per vedere le statistiche qui.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>#</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Param.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>RAM Q4</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Score</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Velocità</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>≤64GB</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>VRAM (GB)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Categoria</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🔍  Dettaglio modello selezionato</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;span style=&apos;color:#94a3b8;&apos;&gt;Seleziona una riga per i dettagli e l&apos;installazione rapida.&lt;/span&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2744,7 +3319,27 @@ Completa almeno un quiz per vedere le statistiche qui.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>&lt;span style=&apos;color:#94a3b8;&apos;&gt;Seleziona una riga per i dettagli.&lt;/span&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>T ottimale</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tempo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Note</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Rotella: zoom • Trascina: pan • Doppio click: reset</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;span style=&apos;color:#64748b;&apos;&gt;Premi per avviare — output in benchmark_out/&lt;/span&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2753,6 +3348,30 @@ Completa almeno un quiz per vedere le statistiche qui.</source>
     </message>
     <message>
         <source>🔄  Riesegui benchmark</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>✅  Registro Test</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔨  Compila</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>▶  Esegui tutti</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⏹  Ferma</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;span style=&apos;color:#facc15;&apos;&gt;⏳ Benchmark in corso...&lt;/span&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;span style=&apos;color:#f87171;&apos;&gt;❌ Python non trovato nel PATH.&lt;/span&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2804,6 +3423,14 @@ Completa almeno un quiz per vedere le statistiche qui.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>🔊  Voce — Piper TTS</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>❌  Piper non trovato &amp;mdash; clicca &lt;b&gt;Installa Piper&lt;/b&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Scarica e installa il binario Piper nella cartella del progetto (&lt;appDir&gt;/piper/)</source>
         <translation type="unfinished"></translation>
     </message>
@@ -2813,6 +3440,10 @@ Completa almeno un quiz per vedere le statistiche qui.</source>
     </message>
     <message>
         <source>📥  Installa Piper</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🇮🇹  &lt;b&gt;Voci Italiane disponibili&lt;/b&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2876,11 +3507,19 @@ Completa almeno un quiz per vedere le statistiche qui.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>🔊  &lt;b&gt;Test voce&lt;/b&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Scrivi un testo di prova...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Ciao, sono Prismalux. La conoscenza è potere.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔊  Parla</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2896,7 +3535,27 @@ Completa almeno un quiz per vedere le statistiche qui.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>🎤  Trascrizione — Whisper STT</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔧  &lt;b&gt;Modalità di trascrizione&lt;/b&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>✅  Whisper locale (predefinito)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🤖  LLM audio via Ollama (sperimentale)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Modello:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔄  Ricarica modelli</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2928,7 +3587,15 @@ Completa almeno un quiz per vedere le statistiche qui.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>🔨  Scarica e compila whisper.cpp da sorgente</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>✅  Trovato: &lt;code&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔨  &lt;b&gt;Compilazione whisper.cpp&lt;/b&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2937,6 +3604,26 @@ Completa almeno un quiz per vedere le statistiche qui.</source>
     </message>
     <message>
         <source>⌛  </source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>❌  git fallito. Verifica la connessione e che git sia installato.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>❌  cmake fallito. Verifica che cmake e gcc siano installati.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>❌  Compilazione fallita. Controlla il log sopra.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📌  &lt;b&gt;Modello attivo&lt;/b&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>❌  Nessun modello trovato &amp;mdash; scaricane uno qui sotto.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2980,7 +3667,43 @@ Completa almeno un quiz per vedere le statistiche qui.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>http://localhost:9000/v1/audio/transcriptions</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>💾  Salva URL</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🗑  Cancella</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⚠  URL rimosso. Si userà whisper-cli locale.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Abilita diarizzazione dopo trascrizione</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;span style=&apos;color:#22c55e;&apos;&gt;✅ simple-diarizer OK&lt;/span&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Numero speaker:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>💡  &lt;b&gt;Note&lt;/b&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🎙  &lt;b&gt;Livello microfono&lt;/b&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Avvia o ferma la lettura del microfono predefinito di sistema.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3122,6 +3845,42 @@ Clic centrale: copia il nome negli appunti</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>🧠  Ragionamento AI (Think Mode)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📖  Memoria persistente (Knowledge)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Inietta contesto utente nel prompt</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📜  Costituzione Prismalux</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Inietta principi etici in ogni prompt</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>☁️  Smart Router — LOCAL / CLOUD automatico</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📦  Dipendenze esterne</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔍  Verifica tutto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🖥 Apri terminale</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Output installazione:</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3146,6 +3905,10 @@ Clic centrale: copia il nome negli appunti</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Non salvare su disco (solo RAM — indice perso alla chiusura)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>/percorso/documenti/</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3163,6 +3926,14 @@ Clic centrale: copia il nome negli appunti</source>
     </message>
     <message>
         <source>Ottimizzazione vettori RAG</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Trasformata di Johnson–Lindenstrauss (JL)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📥  Scarica documenti ufficiali consigliati (AdE 2026)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3212,6 +3983,10 @@ Clic centrale: copia il nome negli appunti</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>ℹ  T 0.0–0.1 = risposte fattuali e ripetibili  •  T 0.3+ = creativo/inventivo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>💬  Contesto e memoria</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3225,11 +4000,31 @@ Clic centrale: copia il nome negli appunti</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>🔒  Prefisso Brutal Honesty (consigliato)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🦖  &lt;b&gt;Modalità Caveman&lt;/b&gt; — risposte dirette, zero convenevoli</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🎭  &lt;b&gt;Personalità&lt;/b&gt; — stile di risposta</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>⚡  Ottimizzazione hardware</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>⚡  Flash Attention — riduce KV-cache RAM/VRAM del 30-50%</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Consigliato con ≤ 8 GB RAM. Ignorato se il modello non lo supporta.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔒  Blocca modello in RAM (--mlock, solo llama-server)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3302,6 +4097,14 @@ Richiede ≥ 16 GB RAM</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>🐳  Sandbox Docker — Esecuzione Codice Isolata</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Usa sandbox Docker per il codice generato dall’AI</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Se disabilitato, il codice AI viene eseguito localmente con pip install retry.
 Con sandbox: rete disabilitata, nessun accesso al filesystem host.</source>
         <translation type="unfinished"></translation>
@@ -3318,6 +4121,10 @@ Con sandbox: rete disabilitata, nessun accesso al filesystem host.</source>
         <source>Limite RAM del container Docker.
 256 MB è sufficiente per la maggior parte dei task.
 Aumenta a 512+ per elaborazioni numeriche intensive.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📥  Scarica immagine ora (docker pull)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3405,7 +4212,15 @@ Aumenta a 512+ per elaborazioni numeriche intensive.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>🌙  Segui tema di sistema (Dark/Light automatico)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Richiede Qt 6.5 o superiore.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>💬  &lt;b&gt;Aspetto bolle chat&lt;/b&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3417,7 +4232,24 @@ Aumenta a 512+ per elaborazioni numeriche intensive.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>🏷️  &lt;b&gt;Modalità etichette tab&lt;/b&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Scegli come visualizzare le etichette dei tab principali.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🗂️  &lt;b&gt;Stile navigazione&lt;/b&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Schede in alto (predefinito) oppure
+menù orizzontale a pulsanti con categorie.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>▶  &lt;b&gt;Pulsanti di esecuzione&lt;/b&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3425,7 +4257,23 @@ Aumenta a 512+ per elaborazioni numeriche intensive.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>🎭  &lt;b&gt;Icone modalità AI&lt;/b&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Stile emoji nel pulsante TriMode (Chat / Agentico / Conversa).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Scegli come vengono visualizzate le emoji nel pulsante circolare AI.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔳  &lt;b&gt;Forma pulsante AI&lt;/b&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Scegli la forma del pulsante Chat / Agentico / Conversa.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3437,7 +4285,15 @@ Aumenta a 512+ per elaborazioni numeriche intensive.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Aggiornata in tempo reale ad ogni modifica dei colori, palette e preset.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>📈  Posizione assi</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Gizmo assi 2D (Cartesiano, Scatter) e 3D (Scatter 3D, Grafo 3D).</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3446,6 +4302,10 @@ Aumenta a 512+ per elaborazioni numeriche intensive.</source>
     </message>
     <message>
         <source>8 colori ciclici per le linee/barre. Svuota per usare la palette interna.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>↪  Ripristina palette default</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3462,6 +4322,10 @@ Aumenta a 512+ per elaborazioni numeriche intensive.</source>
     </message>
     <message>
         <source>✨  Preset stile grafico</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔄  Ripristina tutto ai valori default</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3509,6 +4373,38 @@ Aumenta a 512+ per elaborazioni numeriche intensive.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>📋  MCP configurati in Claude Code  (~/.claude/settings.json)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Nome</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tipo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Comando / Args</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>💾  Esporta lista MCP...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📂  Importa lista MCP...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🏠  MCP Locali Prismalux  (pronti da usare)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🦙  Ollama in locale — usa i modelli locali in Claude Code</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Aggiunge questo endpoint Ollama come MCP in Claude Desktop settings.json</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3529,11 +4425,27 @@ Aumenta a 512+ per elaborazioni numeriche intensive.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>➕  Aggiungi MCP personalizzato a Claude Code</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>es. my-mcp</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>es. python3   oppure   npx</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>es. /percorso/server.py   (separati da spazio)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>es. API_KEY=abc TOKEN=xyz   (opzionale)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>💾  Salva in settings.json</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3545,7 +4457,19 @@ Aumenta a 512+ per elaborazioni numeriche intensive.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>🌐  MCP Popolari  (copia il comando e installalo nel terminale)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Copia: </source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🍺  Mostra di nuovo il messaggio di benvenuto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;b&gt;🧠 Memoria AI — storia versionata&lt;/b&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3641,6 +4565,18 @@ Aumenta a 512+ per elaborazioni numeriche intensive.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>⏳  Interruzione in corso dopo il chunk corrente...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⚠  Embedding disponibile solo con Ollama o llama-server.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🌫  Nessun contenuto trovato nella cartella.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>ℹ  Nessun nodo configurato.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3691,6 +4627,14 @@ Aumenta a 512+ per elaborazioni numeriche intensive.</source>
 <context>
     <name>LanWanPage</name>
     <message>
+        <source>⏳  MasterAgent in elaborazione…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⚠️  Nessun subtask nel piano — riprova</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>⚗️  Prova in locale</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3708,6 +4652,10 @@ Aumenta a 512+ per elaborazioni numeriche intensive.</source>
     </message>
     <message>
         <source>⏹  Ferma simulazione</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🌐  Codice pronto — premi Esegui su GNS3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3779,7 +4727,27 @@ Aumenta a 512+ per elaborazioni numeriche intensive.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>❌  adb non trovato. Installa: sudo apt install adb</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>⏹  Annulla</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⏳  Installazione in corso... (attendi il telefono)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>❌  Impossibile avviare adb. Controlla la connessione USB.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔌  Installa APK via USB  (adb)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>❌  Nessun dispositivo. Abilita USB Debugging e accetta il popup sul telefono.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3800,6 +4768,10 @@ Aumenta a 512+ per elaborazioni numeriche intensive.</source>
     </message>
     <message>
         <source>&lt;small&gt;🔒 Il browser mostrerà un avviso di sicurezza: è normale (certificato self-signed). Tocca &lt;b&gt;Avanzate → Procedi&lt;/b&gt; per continuare.&lt;/small&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔑 Token generato automaticamente — copialo nell&apos;app Android</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3836,6 +4808,10 @@ Condividilo con %1.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>&lt;b&gt;📱  Server LAN per Android&lt;/b&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🔧  Controllo server</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3865,6 +4841,10 @@ Condividilo con %1.</source>
     </message>
     <message>
         <source>Ottetto %1 della netmask (modifica o usa ▲▼)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔒  Controllo accessi al Server Locale</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3940,6 +4920,10 @@ Condividilo con %1.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>&lt;small&gt;Impostazioni → 📷 Scansiona QR&lt;/small&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Copia URL negli appunti</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3956,6 +4940,10 @@ Condividilo con %1.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>📱  QR Connetti (schermo intero)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Mostra il QR in un dialogo grande</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3965,6 +4953,10 @@ Condividilo con %1.</source>
     </message>
     <message>
         <source>🌐  QR Pagina</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🌐  Apri Chat Web nel browser</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3981,6 +4973,10 @@ Condividilo con %1.</source>
     </message>
     <message>
         <source>🌐  Rete LAN (più PC insieme)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔬  Calcolo Scientifico (BOINC-like)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -4036,6 +5032,10 @@ Condividilo con %1.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>🧠  Scrivi un compito — l’AI lo divide in agenti automaticamente</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🧠  Crea agenti</source>
         <translation type="unfinished"></translation>
     </message>
@@ -4057,7 +5057,39 @@ e premi &quot;Crea agenti&quot;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Nome</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>IP</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Stato</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Capacità</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>📋  Coda task</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>ID</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tipo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Payload…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Nodo</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -4070,6 +5102,10 @@ e premi &quot;Crea agenti&quot;</source>
     </message>
     <message>
         <source>Istogramma throughput — ultimi 60 min (bin 5 min)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📥  Esporta CSV</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -4355,6 +5391,10 @@ Il server avvierà in modalità TCP non cifrata.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>📋  &lt;b&gt;Tracker Candidature&lt;/b&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>➕ Aggiungi</source>
         <translation type="unfinished"></translation>
     </message>
@@ -4368,6 +5408,26 @@ Il server avvierà in modalità TCP non cifrata.</source>
     </message>
     <message>
         <source>Rimuovi candidatura selezionata dal tracker</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Azienda</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ruolo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Data invio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Stato</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Note</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -4443,6 +5503,10 @@ Il server avvierà in modalità TCP non cifrata.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Incolla uno o più URL di annunci di lavoro (uno per riga):</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Analizza</source>
         <translation type="unfinished"></translation>
     </message>
@@ -4455,7 +5519,15 @@ Il server avvierà in modalità TCP non cifrata.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Seleziona un&apos;analisi predefinita (doppio clic = avvia subito):</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Oppure scrivi una domanda personalizzata:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Es: &apos;Cosa manca per essere assunto come programmatore junior?&apos;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -4693,6 +5765,10 @@ Cosa vuoi fare con questo campo?</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>⬇  Scarica modello matematico da Hugging Face</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>(caricamento modelli...)</source>
         <translation type="unfinished"></translation>
     </message>
@@ -4717,6 +5793,22 @@ Cosa vuoi fare con questo campo?</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>🦙  Ollama  —  localhost:11434</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⭐  DwarfStar  —  localhost:11435</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🦙⚡️  Avvia llama-server...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⭐  Avvia ds4-server...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>❌  Crash startup</source>
         <translation type="unfinished"></translation>
     </message>
@@ -4734,6 +5826,10 @@ Cosa vuoi fare con questo campo?</source>
     </message>
     <message>
         <source>📼  Salva chat</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📼  Salva</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -4786,6 +5882,10 @@ Cosa vuoi fare con questo campo?</source>
     </message>
     <message>
         <source>3. Tema</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Non mostrare più al prossimo riavvio</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -4889,6 +5989,10 @@ Cosa vuoi fare con questo campo?</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>📋  &lt;b&gt;Log eventi&lt;/b&gt; — backend, AI, pipeline, errori</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🖥  Sistema</source>
         <translation type="unfinished"></translation>
     </message>
@@ -4982,6 +6086,10 @@ Verde &lt; 1s  ·  Arancio 1-3s  ·  Rosso &gt; 3s</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>🛑  Ferma AI</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Continua</source>
         <translation type="unfinished"></translation>
     </message>
@@ -5005,6 +6113,10 @@ Verde &lt; 1s  ·  Arancio 1-3s  ·  Rosso &gt; 3s</source>
 <context>
     <name>ManutenzioneePage</name>
     <message>
+        <source>&lt;b&gt;🌐 Server LAN per Android&lt;/b&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>○  Server OFF</source>
         <translation type="unfinished"></translation>
     </message>
@@ -5017,11 +6129,31 @@ Verde &lt; 1s  ·  Arancio 1-3s  ·  Rosso &gt; 3s</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>📱  Scarica APK (QR Code)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Mostra il QR code per scaricare PrismaluxMobile.apk sul telefono</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>&lt;b&gt;🔒 TLS — cifratura connessione LAN&lt;/b&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔒  Genera certificato TLS self-signed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔒  Abilita TLS (richiede certificato)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Output generazione certificato TLS…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;b&gt;🔑 Token di accesso LAN&lt;/b&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -5039,6 +6171,10 @@ Il vecchio token viene invalidato immediatamente se il server è attivo.</source
     </message>
     <message>
         <source>Scarica PrismaluxMobile</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;b&gt;📱 Scansiona con il telefono per scaricare l&apos;APK&lt;/b&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -5118,6 +6254,30 @@ Il vecchio token viene invalidato immediatamente se il server è attivo.</source
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>On</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Nome</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Schedule</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Modello</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ultima esec.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Prossima</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>📜  Log esecuzioni:</source>
         <translation type="unfinished"></translation>
     </message>
@@ -5194,11 +6354,19 @@ Il vecchio token viene invalidato immediatamente se il server è attivo.</source
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>📄  &lt;b&gt;Formato Config&lt;/b&gt;  (~/.prismalux_config)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Formato:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Converti ▶</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🦙  llama.cpp — Avvia llama-server</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -5222,7 +6390,27 @@ Il vecchio token viene invalidato immediatamente se il server è attivo.</source
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>🔄  Aggiornamento Modelli &amp; GPU/RAM</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🐳  Ollama: &lt;i&gt;verifica in corso...&lt;/i&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🔍  Verifica</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⬇  Aggiorna tutti i modelli Ollama</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⬇  Aggiorna tutti i modelli llama.cpp</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Premi &quot;Aggiorna tutti&quot; per scaricare le ultime versioni dei modelli Ollama.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -5246,11 +6434,19 @@ Il vecchio token viene invalidato immediatamente se il server è attivo.</source
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>🔒  Verifica integrità GGUF</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Calcola SHA-256 dei file .gguf in models/ e confronta con le firme salvate</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Verifica integrità file modelli GGUF tramite SHA-256</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>💾  Backup conoscenza ora</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -5282,6 +6478,14 @@ Il vecchio token viene invalidato immediatamente se il server è attivo.</source
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Premi &quot;🔍 Rileva&quot; per controllare lo stato della compressione RAM.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>💾💾  Abilita Doppia zstd automaticamente all&apos;avvio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Output comandi...</source>
         <translation type="unfinished"></translation>
     </message>
@@ -5310,6 +6514,10 @@ Il vecchio token viene invalidato immediatamente se il server è attivo.</source
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>💻  Modalità Calcolo LLM</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🚀  GPU  (VRAM)</source>
         <translation type="unfinished"></translation>
     </message>
@@ -5326,7 +6534,27 @@ Il vecchio token viene invalidato immediatamente se il server è attivo.</source
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>⏳  In attesa rilevamento hardware...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>💾  Salva modalità</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Applica la modalità selezionata e la salva per i prossimi avvii.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🧠  NPU — Neural Processing Unit</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>⏳  Rilevamento in corso...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔵  Installa intel-npu-acceleration-library</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -5335,6 +6563,14 @@ Il vecchio token viene invalidato immediatamente se il server è attivo.</source
     </message>
     <message>
         <source>pip install intel-npu-acceleration-library</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⏳  &lt;b&gt;GPU&lt;/b&gt;: recupero layer count dal modello...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⏳  &lt;b&gt;Misto&lt;/b&gt;: recupero layer count dal modello...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -5386,11 +6622,43 @@ Il vecchio token viene invalidato immediatamente se il server è attivo.</source
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>❌  Inserisci il nome del modello.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>⏳  Download...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>⏹  Annulla</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>✅  Download completato.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>❌  Download fallito.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>ℹ  Nessun file .gguf trovato in models/</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⏳  Verifica in corso...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>✅  Verifica completata. Firme salvate.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>❌  Impossibile creare la cartella di backup.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔄  Aggiornamenti Sistema</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -5410,7 +6678,27 @@ Il vecchio token viene invalidato immediatamente se il server è attivo.</source
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>✅  Applica fix suggeriti</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🗑  Rimuovi fix</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Rimuovi i fix salvati per il modello corrente</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>ℹ  Nessun fix parametrico identificato dall&apos;AI.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>ℹ  Nessun parametro da applicare.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>❌  Impossibile scrivere model_params.json.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -5424,6 +6712,14 @@ Il vecchio token viene invalidato immediatamente se il server è attivo.</source
 </context>
 <context>
     <name>MatematicaPage</name>
+    <message>
+        <source>&lt;b&gt;Valuta espressioni booleane (SymPy):&lt;/b&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>es.  (A &amp; B) | (~A &amp; C)   oppure   ~(A | B)   oppure   A ^ B</source>
+        <translation type="unfinished"></translation>
+    </message>
     <message>
         <source>Inserisci operatore / funzione</source>
         <translation type="unfinished"></translation>
@@ -5485,6 +6781,14 @@ Il vecchio token viene invalidato immediatamente se il server è attivo.</source
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>σ  &lt;b&gt;Simboli LaTeX:&lt;/b&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;b&gt;Inserisci una sequenza di numeri separati da virgole o spazi:&lt;/b&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>es. 1, 4, 9, 16, 25   oppure   1 1 2 3 5 8 13</source>
         <translation type="unfinished"></translation>
     </message>
@@ -5497,6 +6801,22 @@ Il vecchio token viene invalidato immediatamente se il server è attivo.</source
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>🔍  Rileva pattern (locale, istantaneo)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>σ  Interpola con sympy (preciso)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🤖  Analizza con AI (spiega + storia)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;b&gt;Calcola costanti matematiche con precisione arbitraria:&lt;/b&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Costante:</source>
         <translation type="unfinished"></translation>
     </message>
@@ -5505,7 +6825,15 @@ Il vecchio token viene invalidato immediatamente se il server è attivo.</source
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>π  Calcola</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Tutte le costanti (100 cifre)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;b&gt;Calcola l&apos;N-esimo elemento di sequenze famose:&lt;/b&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -5526,6 +6854,14 @@ Il vecchio token viene invalidato immediatamente se il server è attivo.</source
     </message>
     <message>
         <source>🔟  Calcola</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;b&gt;Valuta espressioni matematiche (sympy + mpmath):&lt;/b&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>es.  sqrt(2) + sin(pi/4)   oppure   factorial(100)   oppure   integrate(x**2, (x,0,1))</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -5589,6 +6925,10 @@ Il vecchio token viene invalidato immediatamente se il server è attivo.</source
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Backend non disponibile. Avvia Ollama: ollama serve</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>✅  Analisi AI completata.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -5649,7 +6989,19 @@ Il vecchio token viene invalidato immediatamente se il server è attivo.</source
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>&lt;b&gt;Risolvi un&apos;equazione, disequazione o espressione PASSO PER PASSO (stile Derive):&lt;/b&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Inserisci equazione o espressione: es. x² + 5x + 6 = 0,  2x &gt; 4,  sin(x)/x</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Copia la formula negli appunti</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔢  Risolvi passo per passo</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -5690,6 +7042,14 @@ Il vecchio token viene invalidato immediatamente se il server è attivo.</source
     </message>
     <message>
         <source>Espressione SymPy (pre-compilata dall&apos;argomento)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📐  Risolvi nella scheda accanto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📈  Disegna grafico</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -5759,6 +7119,30 @@ Il vecchio token viene invalidato immediatamente se il server è attivo.</source
 <context>
     <name>McpManagerPage</name>
     <message>
+        <source>Log operazioni MCP…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>❓</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📝</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>✅</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⚠️</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Smoke test JSON-RPC (initialize + tools/list)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Ambiente mancante</source>
         <translation type="unfinished"></translation>
     </message>
@@ -5766,11 +7150,39 @@ Il vecchio token viene invalidato immediatamente se il server è attivo.</source
         <source>Installa dipendenze</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>⏳ installazione in corso…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>✅ dipendenze installate</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>❌ installazione fallita</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⏳ test in corso…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>✅ funzionante</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>❌ non risponde</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>ModGiochiWidget</name>
     <message>
         <source>⚪  GDScript pronto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🎮  Salva script .gd</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -5818,6 +7230,14 @@ Il vecchio token viene invalidato immediatamente se il server è attivo.</source
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>📂  Sfoglia</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📂  Apri</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Modello AI:</source>
         <translation type="unfinished"></translation>
     </message>
@@ -5829,11 +7249,27 @@ Es: &apos;WoW addon che mostra un timer per la CD di Ira dell&apos;Eroe&apos;</s
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>🤖  Genera mod</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>💾  Salva nel gioco</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Il codice del mod generato dall&apos;AI appare qui...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>⚪  Pronto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🎮  Codice pronto — premi Esegui in Godot</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>✅  Codice pronto — premi Salva nel gioco</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -6218,6 +7654,134 @@ Se la somiglianza supera la soglia, Tesseract viene saltato (~5ms invece di ~1-2
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>📂  Carica audio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🎤  1. Trascrivi</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🤖  2. Analizza con AI</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🎤  Trascrizione</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🤖  Analisi AI</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>L&apos;analisi AI appare qui dopo il click su &apos;Analizza con AI&apos;...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🗺  &lt;b&gt;Mappe Concettuali — Graphviz&lt;/b&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🤖🖼  Genera e renderizza grafico DOT</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🗺  Il grafo apparirà qui</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⚠  Scrivi una descrizione del grafo che vuoi creare.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🤖  L’AI sta generando il codice DOT...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>❌  Registrazione fallita (arecord non trovato?)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>👥 Identifico speaker...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🐍  Installa venv OpenCV</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📋  Copia comandi</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📹  Carica video</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🎤  Trascrivi audio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🗑  Cancella</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📷  Anteprima webcam</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📄  Testo OCR rilevato</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🤖  Analizza testo con AI</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🤖  Analisi AI del manuale</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Riassunto, punti chiave o analisi del testo scansionato...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📹  Analisi video in corso...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔍  Daemon pronto. Prima scansione...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⚠  Testo filtrato — avvicina il foglio.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔍  Nessun testo — punta la webcam sul bugiardino.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>❌  ffmpeg non trovato. Installa con: sudo apt install ffmpeg</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>❌  Estrazione audio fallita — il video ha audio?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⚠  Trascrizione vuota — audio non udibile o lingua errata.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🗺  &lt;b&gt;Mappa OSM&lt;/b&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📍  Tappe  (A = partenza, ultima = arrivo)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Click destro sulla mappa per impostare la partenza</source>
         <translation type="unfinished"></translation>
     </message>
@@ -6256,6 +7820,10 @@ ripartire da A.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>🔍  Calcola percorso</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Calcola percorso via OSRM (richiede internet)</source>
         <translation type="unfinished"></translation>
     </message>
@@ -6288,11 +7856,55 @@ ripartire da A.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>⛰  Altimetria</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;small&gt;Calcolata automaticamente dopo il percorso.&lt;/small&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🌦  Meteo partenza</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🌤  Controlla meteo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Recupera le condizioni meteo attuali della partenza (open-meteo.com)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;small&gt;Premi il pulsante dopo aver impostato la partenza.&lt;/small&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📴  Mappe offline</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⬇  Scarica area visibile</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Scarica i tile OSM visibili nella cache locale (~/.cache/Prismalux/osm_tiles/)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;small&gt;Tile salvati: non scaricati.&lt;/small&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Rinomina tappa</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Nome:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⚠  Aggiungi almeno 2 tappe (A = partenza).</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -6304,11 +7916,23 @@ ripartire da A.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>&lt;small&gt;Altimetria non disponibile.&lt;/small&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;small&gt;Aggiungi prima la tappa di partenza (A).&lt;/small&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>&lt;small&gt;Caricamento...&lt;/small&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>&lt;small&gt;Avvio download...&lt;/small&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;small&gt;Area già in cache. Nessun download necessario.&lt;/small&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -6470,6 +8094,10 @@ Dipendenze: ffmpeg (PATH) + Ollama con un modello vision (llava, moondream...)</
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Descrivi il task di codice... (Es: &quot;Aggiungi un metodo toString() alla classe Foo in src/foo.cpp&quot;)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>▶  Invia</source>
         <translation type="unfinished"></translation>
     </message>
@@ -6497,11 +8125,27 @@ Dipendenze: ffmpeg (PATH) + Ollama con un modello vision (llava, moondream...)</
 <context>
     <name>OracoloPage</name>
     <message>
+        <source>System prompt — definisce il comportamento dell&apos;AI...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⏳  L&apos;AI sta elaborando...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Mostra/nascondi system prompt</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Allega immagine</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Scrivi il tuo messaggio qui... (Enter per inviare, Shift+Enter per andare a capo, 🎤 per parlare)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>👁  Nascondi</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -6689,7 +8333,19 @@ Inietta automaticamente i chunk più rilevanti dalla base di conoscenza.</source
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>🚀  Avvia Fine-tuning</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>✋  Interrompi</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🦙  llama-finetune</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📦  pip install unsloth trl datasets transformers</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -6830,7 +8486,23 @@ Inietta automaticamente i chunk più rilevanti dalla base di conoscenza.</source
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>📝  Configurazione (modificabile)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Template qui...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🤖  Migliora con AI</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⚡  Applica / Esegui</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔑  Genera chiavi n2n</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -6838,8 +8510,16 @@ Inietta automaticamente i chunk più rilevanti dalla base di conoscenza.</source
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>🔍  Valida config</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Simula e valida la configurazione senza avviare la VPN
 Controlla: placeholder, binari, porte, raggiungibilita&apos; server</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📂  Importa</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -6856,6 +8536,10 @@ Controlla: placeholder, binari, porte, raggiungibilita&apos; server</source>
     </message>
     <message>
         <source>Rileva interfacce VPN attive (wg/tun) e il loro IP, senza root</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📟  Output comandi</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -6879,6 +8563,10 @@ Controlla: placeholder, binari, porte, raggiungibilita&apos; server</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>🔍  Analizza e Ricostruisci</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Invia il file all&apos;AI per la ricostruzione del sorgente</source>
         <translation type="unfinished"></translation>
     </message>
@@ -6892,6 +8580,30 @@ Controlla: placeholder, binari, porte, raggiungibilita&apos; server</source>
     </message>
     <message>
         <source>Aggiorna lista modelli disponibili</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📋  Anteprima file (hex dump + stringhe estratte)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Carica un file per vedere il hex dump e le stringhe ASCII estratte...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🤖  Codice sorgente ricostruito (streaming AI)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>↑  Apri in editor Programmazione</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Estrae il primo blocco codice e lo apre nel tab 💻 Programmazione</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>❌  Nessun tool trovato. Installa tshark: sudo apt install tshark</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -6935,6 +8647,14 @@ Controlla: placeholder, binari, porte, raggiungibilita&apos; server</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>🤖  L&apos;analisi AI apparira&apos; qui dopo aver cliccato &apos;Analisi AI&apos;...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>❌  Impossibile avviare il tool. Permessi root necessari?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🔍  ARP Cache (rapido)</source>
         <translation type="unfinished"></translation>
     </message>
@@ -6943,11 +8663,47 @@ Controlla: placeholder, binari, porte, raggiungibilita&apos; server</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>🔍  Lettura ARP cache...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🌐  Avvio scansione nmap...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>❌  Impossibile determinare la subnet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⏹  Scansione interrotta.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>⏹  Stop</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>🔄  Aggiorna info</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source> IP</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source> MAC Address</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source> Hostname</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source> Stato</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔌 Premi un pulsante per scansionare la rete locale.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -6975,7 +8731,19 @@ Controlla: placeholder, binari, porte, raggiungibilita&apos; server</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>📊  Risultati subnet</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Inserisci un CIDR e clicca Calcola...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🕸  Grafo subnet (Graphviz)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🕸  Il grafo apparirà dopo il calcolo</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -7051,11 +8819,21 @@ Controlla: placeholder, binari, porte, raggiungibilita&apos; server</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>L&apos;output dei comandi git apparià qui.
+
+Premi Status per iniziare.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🗑  Pulisci</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>🤖  Analizza con AI</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>L&apos;AI spiega l&apos;output e suggerisce le prossime operazioni</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -7084,6 +8862,18 @@ Controlla: placeholder, binari, porte, raggiungibilita&apos; server</source>
     </message>
     <message>
         <source>←  Importa dall&apos;editor</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Esegue nel REPL il codice presente nel tab 💻 Programmazione</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🖥  Output sessione Python</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Premi 🔄 Riavvia REPL per avviare una sessione Python...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -7123,11 +8913,51 @@ Controlla: placeholder, binari, porte, raggiungibilita&apos; server</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>L&apos;output dei comandi apparirà qui...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔍  Rilevamento GPU</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📦  Scarica Driver</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>💡  Guida AI</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔄  Reinstalla DKMS</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🟢  Driver NVIDIA</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>📦  Scarica ROCm</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🔴  Driver AMD</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔍  Versione attuale</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📋  Lista kernel</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>💡  Compila Kernel (AI)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⚠  Nota sicurezza</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -7144,6 +8974,10 @@ Controlla: placeholder, binari, porte, raggiungibilita&apos; server</source>
     </message>
     <message>
         <source>✖  Disco.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>●  Server non avviato</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -7247,6 +9081,26 @@ Controlla: placeholder, binari, porte, raggiungibilita&apos; server</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>&lt;b&gt;🎥 WIBY Smart Camera — PTZ LAN (192.168.1.222)&lt;/b&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔍 Cerca LAN</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔗 Connetti</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>✖ Disco.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>●  Non connesso</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>PTZ</source>
         <translation type="unfinished"></translation>
     </message>
@@ -7259,7 +9113,31 @@ Controlla: placeholder, binari, porte, raggiungibilita&apos; server</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>📡 Ottieni URL</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>URL HLS o RTSP...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>▶ Avvia viewer</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📖 Guida: firmware offline (OpenIPC + UART)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🕵 Avvia MITM</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Nessun feed — avvia il server e premi 🔗 Connetti</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>L&apos;output dei comandi USB apparirà qui...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -7268,6 +9146,10 @@ Controlla: placeholder, binari, porte, raggiungibilita&apos; server</source>
     </message>
     <message>
         <source>📁  Target:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>/path/to/module.ko   oppure   nome-simbolo-da-cercare</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -7379,6 +9261,10 @@ Controlla: placeholder, binari, porte, raggiungibilita&apos; server</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>🤖  Analisi AI — spiega output</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Pulisce l&apos;output del reverse engineering</source>
         <translation type="unfinished"></translation>
     </message>
@@ -7399,7 +9285,15 @@ Controlla: placeholder, binari, porte, raggiungibilita&apos; server</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>🟡  Server in avvio...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>●  Server fermato.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Stream terminato o non raggiungibile.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -7415,7 +9309,15 @@ Controlla: placeholder, binari, porte, raggiungibilita&apos; server</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>📝  Descrivi la policy (in linguaggio naturale)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Es: Permetti SSH e HTTPS in entrata, blocca tutto il resto...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📄  Policy generata (modificabile — pronta per copia/incolla)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -7459,6 +9361,10 @@ Controlla: placeholder, binari, porte, raggiungibilita&apos; server</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>⚠  Nessun device Tuya trovato in LAN</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Stream terminato.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -7472,6 +9378,10 @@ Controlla: placeholder, binari, porte, raggiungibilita&apos; server</source>
     </message>
     <message>
         <source>●  Fermato</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;span style=&apos;color:#fbbf24;&apos;&gt;●  Avvio...&lt;/span&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -7519,6 +9429,18 @@ Controlla: placeholder, binari, porte, raggiungibilita&apos; server</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>📈  Grafico — output numerico</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>↑  Inserisci in editor</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Estrae il primo blocco di codice dalla risposta AI e lo inserisce nell’editor</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Chiudi pannello AI</source>
         <translation type="unfinished"></translation>
     </message>
@@ -7547,7 +9469,19 @@ Controlla: placeholder, binari, porte, raggiungibilita&apos; server</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>⚠  clang-tidy non trovato — installa: sudo apt install clang-tidy</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⚠  eslint non trovato — installa: npm install -g eslint</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🔍  Analisi in corso (</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>❌  Linter non avviabile — verifica installazione</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -7591,6 +9525,14 @@ Controlla: placeholder, binari, porte, raggiungibilita&apos; server</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>📝  Descrizione del task (cosa vuoi costruire?)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🤖  Output agente (streaming)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Da:</source>
         <translation type="unfinished"></translation>
     </message>
@@ -7623,11 +9565,31 @@ Controlla: placeholder, binari, porte, raggiungibilita&apos; server</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>⬆  Importa dall&apos;editor</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Copia il codice dall&apos;editor principale in questo pannello</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Codice tradotto</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Il codice tradotto apparirà qui durante lo streaming...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⬆  Inserisci nell&apos;editor</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Copia tutto il testo dell&apos;output negli appunti</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>💻  Codifica</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -7640,6 +9602,10 @@ Controlla: placeholder, binari, porte, raggiungibilita&apos; server</source>
 </context>
 <context>
     <name>PythonUpdatePanel</name>
+    <message>
+        <source>🐍  &lt;b&gt;Librerie Python (Prismalux)&lt;/b&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
     <message>
         <source>🔄  Controlla aggiornamenti</source>
         <translation type="unfinished"></translation>
@@ -7708,11 +9674,19 @@ Controlla: placeholder, binari, porte, raggiungibilita&apos; server</source>
         <source>aggiornamento disponibile</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>&lt;span style=&apos;color:#22c55e;&apos;&gt;aggiornata&lt;/span&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>QObject</name>
     <message>
         <source>📐  Scarica modello matematico da Hugging Face</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;b&gt;Seleziona modello e variante di quantizzazione:&lt;/b&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -7764,6 +9738,10 @@ Controlla: placeholder, binari, porte, raggiungibilita&apos; server</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>es. Algoritmi di ordinamento, Sistemi operativi, Fotosintesi...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Domande:</source>
         <translation type="unfinished"></translation>
     </message>
@@ -7801,6 +9779,14 @@ Controlla: placeholder, binari, porte, raggiungibilita&apos; server</source>
     </message>
     <message>
         <source>Avanti →</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📖  Rivedi errori</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🎓  Quiz CCNA 200-301  —  Banca dati 500 domande</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -8264,6 +10250,10 @@ Questa azione è irreversibile.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>📭  Nessun quiz ancora completato.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>📈  Statistiche globali</source>
         <translation type="unfinished"></translation>
     </message>
@@ -8278,6 +10268,10 @@ Questa azione è irreversibile.</source>
 </context>
 <context>
     <name>RDKitWidget</name>
+    <message>
+        <source>🔬  &lt;i&gt;RDKit — Libreria open-source di chemioinformatica.&lt;/i&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
     <message>
         <source>⚪  RDKit locale</source>
         <translation type="unfinished"></translation>
@@ -8394,6 +10388,10 @@ Pulsante 🌐 per caricare una pagina web.</source>
 <context>
     <name>RamCalculatorWidget</name>
     <message>
+        <source>🧮 Calcolatore RAM per modelli LLM locali</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Modello</source>
         <translation type="unfinished"></translation>
     </message>
@@ -8450,6 +10448,14 @@ Pulsante 🌐 per caricare una pagina web.</source>
     </message>
     <message>
         <source>🔮  Compila Ruota Karmica</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>►  Domanda / focus (opzionale)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🖼  Salva immagine .png</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -8533,11 +10539,19 @@ Pulsante 🌐 per caricare una pagina web.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>es. Sistema ibrido di inferenza ontologica per LLM</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>es. Mario Rossi (IT)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>🔏  Genera Brevetto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>es. BLHM — Documento Tecnico v1.0</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -8549,11 +10563,23 @@ Pulsante 🌐 per caricare una pagina web.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>📋  Genera Documento</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Es: quantum computing error correction / battery cathode material ...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🔍  Cerca</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>I risultati appariranno qui...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🤖  Analizza con AI</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -8618,6 +10644,10 @@ Pulsante 🌐 per caricare una pagina web.</source>
     </message>
     <message>
         <source>Modello LLM per estrazione entità</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔄  Analizza RAG</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -8758,6 +10788,50 @@ Continuare?</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>📝  Genera domande</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🤖  Esegui test</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>L&apos;AI risponde a tutte le domande usando solo il testo del documento come contesto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>✅  Valuta risposte</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>L&apos;AI valuta le proprie risposte: correttezza, logica, identificazione trabocchetti</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📝  Domande generate (7 comprensione + 3 trabocchetto)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🤖  Risposte AI + Valutazione</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⚠️  Seleziona un documento dalla lista</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⏳  Estrazione testo in corso...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>❌  Impossibile estrarre testo dal documento</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>✅  Domande generate. Premi &quot;Esegui test&quot; per testare.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>❌  Errore AI: </source>
         <translation type="unfinished"></translation>
     </message>
@@ -8766,7 +10840,15 @@ Continuare?</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>🤖  Analisi immagine con AI...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🤖  Risposta alle domande in corso...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>✅  Test completato. Premi &quot;Valuta risposte&quot; per la valutazione.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -8837,6 +10919,10 @@ Continuare?</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Template parametri JSON — usa &lt;b&gt;{{INPUT}}&lt;/b&gt; dove vuoi i dati di ogni elemento:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Label prefix:</source>
         <translation type="unfinished"></translation>
     </message>
@@ -8885,6 +10971,14 @@ Continuare?</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>&lt;span style=&apos;color:#3b82f6;&apos;&gt;🔗 Worker connesso&lt;/span&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;span style=&apos;color:#6b7280;&apos;&gt;⚪ Inattivo&lt;/span&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🖧  Coordinator (server)</source>
         <translation type="unfinished"></translation>
     </message>
@@ -8913,6 +11007,10 @@ Continuare?</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>📖  Guida</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Coordinator IP:</source>
         <translation type="unfinished"></translation>
     </message>
@@ -8926,6 +11024,10 @@ Continuare?</source>
     </message>
     <message>
         <source>🔗  Connetti</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>➕  Nuova Work Unit</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -8961,6 +11063,50 @@ Continuare?</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Repliche &gt; 1: stesso WU su N nodi, confronto hash SHA-256</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>➕  Aggiungi alla coda</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📂  Genera da file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📋  Coda Work Units</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>ID</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tipo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Label</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Status</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Nodo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Prior.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Creato</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Aggiorna lista WU</source>
         <translation type="unfinished"></translation>
     </message>
@@ -8974,6 +11120,42 @@ Continuare?</source>
     </message>
     <message>
         <source>📊  Aggrega risultati</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Nome</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Indirizzo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>CPU</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>RAM (GB)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>GPU</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tool disponibili</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>WU✅</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>WU❌</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>CPU ore</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -8997,6 +11179,10 @@ Continuare?</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>⛓  Pipeline completa (brute force → ibrido → LLM)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🧬  Ricerca SDS</source>
         <translation type="unfinished"></translation>
     </message>
@@ -9004,11 +11190,40 @@ Continuare?</source>
 <context>
     <name>SciProteinWidget</name>
     <message>
+        <source>🧬  Predizione struttura (ESMFold)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;small&gt;Incolla sequenza FASTA o amminoacidi grezzi (max 400 aa per API)&lt;/small&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&gt;MyProtein
+MKTLLLTLVVVTIVCLDLGAV...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🧬  Predici struttura (ESMFold API)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔮  AlphaFold DB (EBI/DeepMind)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;small&gt;Strutture pre-calcolate per ~200M proteine&lt;/small&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>UniProt ID  (es. P05067)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Scarica struttura da AlphaFold DB</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🗃  Ricerca database</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -9020,7 +11235,27 @@ Continuare?</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Doppio click per scaricare la struttura PDB</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⬇  Salva .pdb</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🧪  Invia al Docking</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;span style=&apos;color:#ef4444&apos;&gt;Inserisci una sequenza amminoacidica.&lt;/span&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🔄  Predizione in corso (30-120s)...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;span style=&apos;color:#22c55e&apos;&gt;✅  Struttura predetta!&lt;/span&gt;</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -9028,6 +11263,10 @@ Continuare?</source>
     <name>SecurityAnalyzerPage</name>
     <message>
         <source>Modello LLM usato dagli agenti di analisi</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔍  Analizza</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -9039,7 +11278,27 @@ Continuare?</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Verifica dipendenze Python contro il database OSV (api.osv.dev)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔍  Scansiona requirements.lock</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⬇  Aggiorna DB OSV locale</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Il report di sicurezza apparirà qui dopo l&apos;analisi...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Report</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Output grezzo di ciascun agente...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -9047,7 +11306,15 @@ Continuare?</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>I risultati OSV appariranno qui dopo la scansione...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Dipendenze</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔐  Pronto. Incolla il codice e premi Analizza.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -9072,6 +11339,22 @@ Continuare?</source>
     </message>
     <message>
         <source>❌  Errore sintesi: </source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⚠️  Nessuna dipendenza trovata nel file.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔄  Verifica raggiungibilita&apos; API OSV...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>✅  API OSV raggiungibile.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>❌  Risposta non valida da api.osv.dev</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -9137,6 +11420,18 @@ Continuare?</source>
 <context>
     <name>SintetizzatoreWidget</name>
     <message>
+        <source>🎵  &lt;b&gt;Sintetizzatore Toni Puri&lt;/b&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🎹  Programmatore Toni</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📊  Assemblatore Visuale — Oscilloscopio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Volume: 70%</source>
         <translation type="unfinished"></translation>
     </message>
@@ -9157,11 +11452,43 @@ Continuare?</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>🔊  Ascolta</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🗑  Rimuovi</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>💾  Salva sequenza</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📂  Carica sequenza</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>▶  Riproduci sequenza</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>⏹  Stop</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>💾  Salva WAV</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Aggiungi toni e premi Riproduci</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⚠  Aggiungi almeno un tono alla sequenza</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>❌  Impossibile scrivere file temporaneo</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -9317,6 +11644,10 @@ Caduta tensione max ammessa: 3% della tensione sistema.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>&lt;small&gt;&lt;i&gt;(ΔV max 3%)&lt;/i&gt;&lt;/small&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Schema impianto</source>
         <translation type="unfinished"></translation>
     </message>
@@ -9354,6 +11685,10 @@ Caduta tensione max ammessa: 3% della tensione sistema.</source>
     </message>
     <message>
         <source>Wh/gg</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>☀  CALCOLA IMPIANTO</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -9745,6 +12080,14 @@ altrimenti fping). Scopre tutti gli host attivi.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>💻  Locale (diffusers)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🌐  AUTOMATIC1111 / Forge (remoto)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>WebUI URL:</source>
         <translation type="unfinished"></translation>
     </message>
@@ -9757,11 +12100,27 @@ altrimenti fping). Scopre tutti gli host attivi.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>pip install diffusers transformers accelerate torch</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📝  Parametri generazione</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Prompt:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Es: a futuristic city at sunset, detailed, photorealistic, 8k</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Prompt negativo:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Es: blurry, low quality, watermark, text, ugly</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -9786,6 +12145,30 @@ altrimenti fping). Scopre tutti gli host attivi.</source>
     </message>
     <message>
         <source>-1 = casuale</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⚡  Controlla</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🖼  Immagine generata</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>💾  Salva PNG</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔗  Premi &apos;Controlla&apos; per verificare il backend selezionato.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>💻  Premi &apos;Controlla&apos; per verificare diffusers.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🌐  Premi &apos;Controlla&apos; per verificare AUTOMATIC1111.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -9837,7 +12220,15 @@ altrimenti fping). Scopre tutti gli host attivi.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>🎨 &lt;b&gt;Stable Diffusion — Text to Image&lt;/b&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>✅  Pronto: </source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>❌  diffusers non trovato. Vedi suggerimento sopra.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -9868,7 +12259,23 @@ altrimenti fping). Scopre tutti gli host attivi.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>📂  Sfoglia</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🔍  Cerca:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>cosa stai cercando? (es. &quot;configurazione database&quot;)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔍  Cerca</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🤖  Analisi AI</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -9876,7 +12283,23 @@ altrimenti fping). Scopre tutti gli host attivi.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>argomento Wikipedia (es. &quot;Intelligenza artificiale&quot;, &quot;Alan Turing&quot;)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Lingua Wikipedia</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🤖  Elabora con AI</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Invia l’articolo Wikipedia al modello per analisi, approfondimento o Q&amp;A</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📂  Carica dati</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -9896,6 +12319,22 @@ altrimenti fping). Scopre tutti gli host attivi.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>👁  1. Anteprima</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🤖  2. Analizza con AI</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>👁  Anteprima dati (prime 20 righe)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📄  Carica PDF</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Nessun PDF caricato</source>
         <translation type="unfinished"></translation>
     </message>
@@ -9905,6 +12344,14 @@ altrimenti fping). Scopre tutti gli host attivi.</source>
     </message>
     <message>
         <source>Azione:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🤖  Analizza con AI</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📂  Carica file</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -9935,7 +12382,23 @@ altrimenti fping). Scopre tutti gli host attivi.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Testa la connessione TCP al bridge Blender (porta 9001 default)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>⚪  Non connesso</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>▶  Esegui in Blender</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Invia il codice Python generato a Blender via bridge MCP</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🛟 🔧  Aiuto</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -9947,11 +12410,19 @@ altrimenti fping). Scopre tutti gli host attivi.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Avvia il bridge Python che si connette a LibreOffice via UNO API</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>⚪  Bridge non avviato</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>🖥  Esegui in Office</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Invia il codice Python UNO generato a LibreOffice tramite bridge</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -9963,11 +12434,39 @@ altrimenti fping). Scopre tutti gli host attivi.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Testa la connessione TCP al bridge FreeCAD (porta 9876 default)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔩  Esegui in FreeCAD</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Invia il codice Python FreeCAD generato via bridge MCP</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🏗  Disegno:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>📂  Carica disegno / PDF</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Nessun file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Quote / note  es: 50x30x10mm, acciaio, foro Ø 8...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🏗  Genera modello 3D</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔵  Apri CloudCompare</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -10059,6 +12558,10 @@ altrimenti fping). Scopre tutti gli host attivi.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>❌  Timeout — FreeCAD non risponde</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🔄  Invio a FreeCAD...</source>
         <translation type="unfinished"></translation>
     </message>
@@ -10072,6 +12575,10 @@ altrimenti fping). Scopre tutti gli host attivi.</source>
     </message>
     <message>
         <source>✅  &lt;b&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pianifica comandi periodici con il Cron Scheduler integrato</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -10092,6 +12599,10 @@ altrimenti fping). Scopre tutti gli host attivi.</source>
     </message>
     <message>
         <source>Esegui richiesta AI</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⏳  Caricamento Cron Scheduler in corso...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -10123,11 +12634,27 @@ altrimenti fping). Scopre tutti gli host attivi.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Seleziona un file PDF da usare come contesto per la generazione AI</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Nessun PDF caricato</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>🔄  Elaborazione in corso...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🐍  Codice pronto — premi Esegui in Blender</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📄  Codice pronto — premi Esegui in Office</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔩  Codice pronto — premi Esegui in FreeCAD</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -10147,6 +12674,10 @@ altrimenti fping). Scopre tutti gli host attivi.</source>
     </message>
     <message>
         <source>Chiedi ▶</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⏳  Elaborazione in corso — il modello sta generando la risposta...</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -11079,6 +13610,10 @@ All&apos;avvio del server l&apos;elenco si riempie con i modelli installati.</so
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Stampa sempre al 100% / &quot;dimensione reale&quot; (MAI &quot;adatta alla pagina&quot;):</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🖨 Marker singoli (PDF)</source>
         <translation type="unfinished"></translation>
     </message>
@@ -11104,6 +13639,22 @@ All&apos;avvio del server l&apos;elenco si riempie con i modelli installati.</so
     </message>
     <message>
         <source>Device attivi</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Device</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Foto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ultimo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Dispositivo</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -11383,11 +13934,19 @@ riavviare Prismalux: premilo dopo un &apos;sudo apt install&apos;.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>&lt;span style=&apos;color:#4ade80;&apos;&gt;XTTS-v2 (voice cloning)&lt;/span&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Coqui XTTS-v2 disponibile — carica un campione per iniziare</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>✅  chatterbox</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;span style=&apos;color:#4ade80;&apos;&gt;chatterbox-tts (voice cloning)&lt;/span&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -11399,7 +13958,15 @@ riavviare Prismalux: premilo dopo un &apos;sudo apt install&apos;.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>&lt;span style=&apos;color:#fb923c;&apos;&gt;edge-tts online (no campione)&lt;/span&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>edge-tts attivo — nessun campione richiesto, voce predefinita online</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;span style=&apos;color:#f87171;&apos;&gt;nessun backend&lt;/span&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -11564,6 +14131,14 @@ File statici NON serviti — esegui collectstatic</source>
     </message>
     <message>
         <source>Reimposta vista</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🟢  Imposta come Partenza</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>➕  Aggiungi Tappa</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

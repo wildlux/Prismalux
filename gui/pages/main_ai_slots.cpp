@@ -1475,7 +1475,7 @@ void AgentiPage::_ingestRagFiles(const QList<QUrl>& urls)
             m_ragIngesting = true;
             if (m_ragStatusLbl)
                 m_ragStatusLbl->setText(
-                    "\xf0\x9f\x94\x84  Indicizzazione in corso...");
+                    tr("\xf0\x9f\x94\x84  Indicizzazione in corso..."));
 
             if (m_ragInline)
                 m_ragInline->addEntry(QFileInfo(path).fileName(), content);
@@ -1490,10 +1490,10 @@ void AgentiPage::_ingestRagFiles(const QList<QUrl>& urls)
             m_ragIngesting = true;
             if (m_ragStatusLbl)
                 m_ragStatusLbl->setText(
-                    "\xf0\x9f\x94\x84  Estrazione PDF in corso...");
+                    tr("\xf0\x9f\x94\x84  Estrazione PDF in corso..."));
             if (m_ragDropZone)
                 m_ragDropZone->setText(
-                    "\xf0\x9f\x93\x84  Estrazione PDF in corso...");
+                    tr("\xf0\x9f\x93\x84  Estrazione PDF in corso..."));
 
             loadDroppedFile(path);
 

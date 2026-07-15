@@ -632,7 +632,7 @@ QWidget* ImpostazioniPage::buildGraficoTab(GraficoCanvas* canvas)
     prevLay->addWidget(prevTitle);
 
     auto* prevDesc = new QLabel(
-        "Aggiornata in tempo reale ad ogni modifica dei colori, palette e preset.", prevCard);
+        tr("Aggiornata in tempo reale ad ogni modifica dei colori, palette e preset."), prevCard);
     prevDesc->setObjectName("cardDesc");
     prevDesc->setWordWrap(true);
     prevLay->addWidget(prevDesc);
@@ -653,7 +653,7 @@ QWidget* ImpostazioniPage::buildGraficoTab(GraficoCanvas* canvas)
     axLay->addWidget(axTitle);
 
     auto* axDesc = new QLabel(
-        "Gizmo assi 2D (Cartesiano, Scatter) e 3D (Scatter 3D, Grafo 3D).", axCard);
+        tr("Gizmo assi 2D (Cartesiano, Scatter) e 3D (Scatter 3D, Grafo 3D)."), axCard);
     axDesc->setWordWrap(true);
     axDesc->setObjectName("cardDesc");
     axLay->addWidget(axDesc);
@@ -733,7 +733,7 @@ QWidget* ImpostazioniPage::buildGraficoTab(GraficoCanvas* canvas)
     palLay->addWidget(palBtnRow);
 
     auto* btnResetPal = new QPushButton(
-        "\xe2\x86\xaa  Ripristina palette default", palCard);  /* ↪ */
+        tr("\xe2\x86\xaa  Ripristina palette default"), palCard);  /* ↪ */
     btnResetPal->setObjectName("actionBtn");
     QObject::connect(btnResetPal, &QPushButton::clicked, palCard,
         [canvas, saveStyle, palBtns]() mutable {
@@ -973,7 +973,7 @@ QWidget* ImpostazioniPage::buildGraficoTab(GraficoCanvas* canvas)
 
     /* ── Reset totale ──────────────────────────────────────────── */
     auto* btnReset = new QPushButton(
-        "\xf0\x9f\x94\x84  Ripristina tutto ai valori default", inner);  /* 🔄 */
+        tr("\xf0\x9f\x94\x84  Ripristina tutto ai valori default"), inner);  /* 🔄 */
     btnReset->setObjectName("actionBtn");
     QObject::connect(btnReset, &QPushButton::clicked, inner,
         [canvas, saveStyle,

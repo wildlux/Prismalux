@@ -310,7 +310,7 @@ void AgentiPage::buildToolsPanel(QVBoxLayout* lay)
 
         if (mcpNames.isEmpty()) {
             gl->addWidget(new QLabel(
-                "<span style='color:#64748b;'>Nessun MCP in MCPs/</span>", grid),
+                tr("<span style='color:#64748b;'>Nessun MCP in MCPs/</span>"), grid),
                 0, 0, 1, 4);
         } else {
             QSettings s("Prismalux", "GUI");

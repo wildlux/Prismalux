@@ -51,7 +51,7 @@ public:
         headerLay->setSpacing(8);
 
         auto* title = new QLabel(
-            "\xf0\x9f\x90\x8d  <b>Librerie Python (Prismalux)</b>", header);
+            tr("\xf0\x9f\x90\x8d  <b>Librerie Python (Prismalux)</b>"), header);
         title->setObjectName("cardTitle");
         title->setTextFormat(Qt::RichText);
         headerLay->addWidget(title, 1);
@@ -487,7 +487,7 @@ private:
                 r.statusLbl->setText(tr("aggiornamento disponibile"));
             } else {
                 r.latestLbl->setText(
-                    "<span style='color:#22c55e;'>aggiornata</span>");
+                    tr("<span style='color:#22c55e;'>aggiornata</span>"));
                 r.latestLbl->setTextFormat(Qt::RichText);
                 r.targetEdit->setText(installed);
                 r.statusLbl->setText("aggiornata");

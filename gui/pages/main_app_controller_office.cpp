@@ -117,7 +117,7 @@ QWidget* AppControllerPage::buildOfficeTab()
     m_officeStatusLbl->setObjectName("hintLabel");
 
     m_officeExecBtn = new QPushButton(
-        "\xe2\x96\xb6  Esegui in Office", connRow);
+        tr("\xe2\x96\xb6  Esegui in Office"), connRow);
     m_officeExecBtn->setObjectName("actionBtn");
     m_officeExecBtn->setFixedWidth(dpiScale(160));
     m_officeExecBtn->setEnabled(false);
@@ -248,7 +248,7 @@ void AppControllerPage::onOfficeStartClicked()
     const QString path = s_findOfficeBridgePath();
     if (path.isEmpty()) {
         m_officeStatusLbl->setText(
-            "\xe2\x9d\x8c  prismalux_office_bridge.py non trovato");
+            tr("\xe2\x9d\x8c  prismalux_office_bridge.py non trovato"));
         return;
     }
     if (!m_officeBridgeProc) {
@@ -265,7 +265,7 @@ void AppControllerPage::onOfficeStartClicked()
         QTimer::singleShot(1200, this, &AppControllerPage::onOfficeStatusReply);
     } else {
         m_officeStatusLbl->setText(
-            "\xe2\x9d\x8c  Errore avvio (python3 non trovato?)");
+            tr("\xe2\x9d\x8c  Errore avvio (python3 non trovato?)"));
     }
 }
 
@@ -301,7 +301,7 @@ void AppControllerPage::onOfficeStatusReply()
                 (ok.isEmpty() ? "bridge attivo" : ok.join(", ")));
         } else {
             m_officeStatusLbl->setText(
-                "\xe2\x9a\xa0  Bridge avviato (verifica fallita)");
+                tr("\xe2\x9a\xa0  Bridge avviato (verifica fallita)"));
         }
     });
 }
@@ -465,7 +465,7 @@ QWidget* AppControllerPage::buildAnkiTab()
     m_ankiStatusLbl->setObjectName("hintLabel");
 
     m_ankiSendBtn = new QPushButton(
-        "\xf0\x9f\x83\x8f  Invia ad Anki", connRow);
+        tr("\xf0\x9f\x83\x8f  Invia ad Anki"), connRow);
     m_ankiSendBtn->setObjectName("actionBtn");
     m_ankiSendBtn->setFixedWidth(dpiScale(150));
     m_ankiSendBtn->setEnabled(false);

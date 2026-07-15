@@ -365,7 +365,7 @@ QWidget* RicercaPage::buildBrevettoTab()
 
     auto* editTitolo   = new QLineEdit;
     editTitolo->setPlaceholderText(
-        "es. Sistema ibrido di inferenza ontologica per LLM");
+        tr("es. Sistema ibrido di inferenza ontologica per LLM"));
     auto* editInventori = new QLineEdit;
     editInventori->setPlaceholderText(tr("es. Mario Rossi (IT)"));
     auto* cmbIpc = new QComboBox;
@@ -500,7 +500,7 @@ QWidget* RicercaPage::buildDocTecnicoTab()
 
     auto* editNome   = new QLineEdit;
     editNome->setPlaceholderText(
-        "es. BLHM — Documento Tecnico v1.0");
+        tr("es. BLHM — Documento Tecnico v1.0"));
     auto* editAutore = new QLineEdit;
     editAutore->setPlaceholderText(tr("es. wildlux"));
     auto* editVers   = new QLineEdit;
@@ -533,7 +533,7 @@ QWidget* RicercaPage::buildDocTecnicoTab()
     auto* btnLay  = new QHBoxLayout(btnRow);
     btnLay->setContentsMargins(0, 4, 0, 0);
     auto* btnGen  = new QPushButton(
-        "\xf0\x9f\x93\x8b  Genera Documento");
+        tr("\xf0\x9f\x93\x8b  Genera Documento"));
     auto* btnStop = new QPushButton(tr("\xe2\x96\xa0  Stop"));
     btnGen->setObjectName("actionBtn");
     btnStop->setObjectName("actionBtn");
@@ -895,7 +895,7 @@ QWidget* RicercaPage::buildCercaLetteraturaTab()
 
     m_litQuery = new QLineEdit(w);
     m_litQuery->setPlaceholderText(
-        "Es: quantum computing error correction / battery cathode material ...");
+        tr("Es: quantum computing error correction / battery cathode material ..."));
 
     m_litSource = new QComboBox(w);
     m_litSource->addItem("\xf0\x9f\x93\x84  arXiv",           "arxiv");
@@ -923,7 +923,7 @@ QWidget* RicercaPage::buildCercaLetteraturaTab()
     lay->addWidget(m_litResults, 1);
 
     m_litAiBtn = new QPushButton(
-        "\xf0\x9f\xa4\x96  Analizza con AI", w);
+        tr("\xf0\x9f\xa4\x96  Analizza con AI"), w);
     m_litAiBtn->setObjectName("actionBtn");
     m_litAiBtn->setEnabled(false);
     lay->addWidget(m_litAiBtn);
@@ -1738,7 +1738,7 @@ QWidget* RicercaPage::buildRagGrafoTab()
     ctrlLay->setSpacing(8);
 
     m_ragRunBtn = new QPushButton(
-        "\xf0\x9f\x94\x84  Analizza RAG", w);  /* 🔄 */
+        tr("\xf0\x9f\x94\x84  Analizza RAG"), w);  /* 🔄 */
     m_ragRunBtn->setObjectName("actionBtn");
     m_ragRunBtn->setProperty("highlight", "true");
     m_ragRunBtn->setToolTip(

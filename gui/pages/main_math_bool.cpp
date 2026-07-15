@@ -49,7 +49,7 @@ QWidget* MatematicaPage::buildBoolTab()
 
     /* ── Campo espressione booleana ── */
     lay->addWidget(new QLabel(
-        "<b>Valuta espressioni booleane (SymPy):</b>", w));
+        tr("<b>Valuta espressioni booleane (SymPy):</b>"), w));
     lay->addWidget(new QLabel(
         "<small>Sintassi: <code>A & B</code> (AND)  <code>A | B</code> (OR)  "
         "<code>~A</code> (NOT)  <code>A ^ B</code> (XOR)  "
@@ -58,7 +58,7 @@ QWidget* MatematicaPage::buildBoolTab()
     auto* inputRow = new QHBoxLayout;
     m_boolInput = new QLineEdit(w);
     m_boolInput->setPlaceholderText(
-        "es.  (A & B) | (~A & C)   oppure   ~(A | B)   oppure   A ^ B");
+        tr("es.  (A & B) | (~A & C)   oppure   ~(A | B)   oppure   A ^ B"));
     inputRow->addWidget(m_boolInput, 1);
     lay->addLayout(inputRow);
 

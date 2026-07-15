@@ -80,7 +80,7 @@ QWidget* AppControllerPage::buildTelegramTab()
         warnLbl->setWordWrap(true);
 
         auto* goBtn = new QPushButton(
-            "\xe2\x9a\x99\xef\xb8\x8f  Installa in Impostazioni", banner);
+            tr("\xe2\x9a\x99\xef\xb8\x8f  Installa in Impostazioni"), banner);
         goBtn->setObjectName("actionBtn");
         goBtn->setFixedWidth(dpiScale(200));
 
@@ -103,7 +103,7 @@ QWidget* AppControllerPage::buildTelegramTab()
        PASSO 1 — Token del bot
        ════════════════════════════════════════════════════════ */
     auto* step1 = new QGroupBox(
-        "\xf0\x9f\x94\x91  Passo 1 \xe2\x80\x94 Token del bot", w);
+        tr("\xf0\x9f\x94\x91  Passo 1 \xe2\x80\x94 Token del bot"), w);
     auto* s1Lay = new QVBoxLayout(step1);
     s1Lay->setSpacing(dpiScale(6));
 
@@ -130,7 +130,7 @@ QWidget* AppControllerPage::buildTelegramTab()
     eyeBtn->setFixedWidth(dpiScale(36));
     eyeBtn->setCheckable(true);
     auto* saveTokenBtn = new QPushButton(
-        "\xf0\x9f\x92\xbe  Salva", step1);
+        tr("\xf0\x9f\x92\xbe  Salva"), step1);
     saveTokenBtn->setObjectName("actionBtn");
     saveTokenBtn->setFixedWidth(dpiScale(80));
     tokenRow->addWidget(tokenLbl);
@@ -144,7 +144,7 @@ QWidget* AppControllerPage::buildTelegramTab()
        PASSO 2 — Chi può scrivere al bot (sicurezza)
        ════════════════════════════════════════════════════════ */
     auto* step2 = new QGroupBox(
-        "\xf0\x9f\x9b\xa1  Passo 2 \xe2\x80\x94 Chi pu\xc3\xb2 scrivere al bot", w);
+        tr("\xf0\x9f\x9b\xa1  Passo 2 \xe2\x80\x94 Chi pu\xc3\xb2 scrivere al bot"), w);
     auto* s2Lay = new QVBoxLayout(step2);
     s2Lay->setSpacing(dpiScale(6));
 
@@ -165,7 +165,7 @@ QWidget* AppControllerPage::buildTelegramTab()
     wlLbl->setFixedWidth(dpiScale(100));
     m_telegramWhitelistEdit = new QLineEdit(step2);
     m_telegramWhitelistEdit->setPlaceholderText(
-        "123456789, 987654321  \xe2\x80\x94 vuoto = tutti");
+        tr("123456789, 987654321  \xe2\x80\x94 vuoto = tutti"));
     wlRow->addWidget(wlLbl);
     wlRow->addWidget(m_telegramWhitelistEdit, 1);
     s2Lay->addLayout(wlRow);
@@ -175,23 +175,23 @@ QWidget* AppControllerPage::buildTelegramTab()
        Controllo avvia / ferma
        ════════════════════════════════════════════════════════ */
     auto* ctrlGroup = new QGroupBox(
-        "\xe2\x9a\x99\xef\xb8\x8f  Controllo bot", w);
+        tr("\xe2\x9a\x99\xef\xb8\x8f  Controllo bot"), w);
     auto* ctrlLay = new QHBoxLayout(ctrlGroup);
     ctrlLay->setSpacing(dpiScale(8));
 
     m_telegramStartBtn = new QPushButton(
-        "\xe2\x96\xb6  Avvia Bot", ctrlGroup);
+        tr("\xe2\x96\xb6  Avvia Bot"), ctrlGroup);
     m_telegramStartBtn->setObjectName("actionBtn");
     m_telegramStartBtn->setFixedWidth(dpiScale(120));
 
     m_telegramStopBtn = new QPushButton(
-        "\xe2\x8f\xb9  Ferma Bot", ctrlGroup);
+        tr("\xe2\x8f\xb9  Ferma Bot"), ctrlGroup);
     m_telegramStopBtn->setObjectName("actionBtn");
     m_telegramStopBtn->setFixedWidth(dpiScale(120));
     m_telegramStopBtn->setEnabled(false);
 
     m_telegramStatusLbl = new QLabel(
-        "\xe2\x9a\xaa  Bot fermo", ctrlGroup);
+        tr("\xe2\x9a\xaa  Bot fermo"), ctrlGroup);
     m_telegramStatusLbl->setObjectName("statusLabel");
 
     ctrlLay->addWidget(m_telegramStartBtn);
@@ -201,14 +201,14 @@ QWidget* AppControllerPage::buildTelegramTab()
 
     /* Log messaggi */
     auto* logGroup = new QGroupBox(
-        "\xf0\x9f\x93\x9d  Log messaggi in tempo reale", w);
+        tr("\xf0\x9f\x93\x9d  Log messaggi in tempo reale"), w);
     auto* logLay = new QVBoxLayout(logGroup);
     m_telegramLog = new QTextBrowser(logGroup);
     m_telegramLog->setReadOnly(true);
     m_telegramLog->setOpenLinks(false);
     m_telegramLog->setMinimumHeight(dpiScale(160));
     m_telegramLog->setPlaceholderText(
-        "Qui appariranno i messaggi ricevuti e le risposte inviate...");
+        tr("Qui appariranno i messaggi ricevuti e le risposte inviate..."));
     connect(m_telegramLog, &QTextBrowser::anchorClicked,
             this, &AppControllerPage::onPipLinkClicked);
     logLay->addWidget(m_telegramLog);
@@ -218,7 +218,7 @@ QWidget* AppControllerPage::buildTelegramTab()
        PASSO 3 — Invia messaggio a destinatari specifici
        ════════════════════════════════════════════════════════ */
     auto* step3 = new QGroupBox(
-        "\xf0\x9f\x93\xa4  Passo 3 \xe2\x80\x94 Invia messaggio a destinatari", w);
+        tr("\xf0\x9f\x93\xa4  Passo 3 \xe2\x80\x94 Invia messaggio a destinatari"), w);
     auto* s3Lay = new QVBoxLayout(step3);
     s3Lay->setSpacing(dpiScale(6));
 
@@ -245,13 +245,13 @@ QWidget* AppControllerPage::buildTelegramTab()
     auto* promoAddRow = new QHBoxLayout;
     m_telegramPromoContactEdit = new QLineEdit(step3);
     m_telegramPromoContactEdit->setPlaceholderText(
-        "ID numerico utente (es. 123456789) oppure -1001234567890 (gruppo/canale)");
+        tr("ID numerico utente (es. 123456789) oppure -1001234567890 (gruppo/canale)"));
     auto* tgAddBtn = new QPushButton(
-        "\xe2\x9e\x95  Aggiungi", step3);
+        tr("\xe2\x9e\x95  Aggiungi"), step3);
     tgAddBtn->setObjectName("actionBtn");
     tgAddBtn->setFixedWidth(dpiScale(100));
     auto* tgRemoveBtn = new QPushButton(
-        "\xe2\x9e\x96  Rimuovi", step3);
+        tr("\xe2\x9e\x96  Rimuovi"), step3);
     tgRemoveBtn->setObjectName("actionBtn");
     tgRemoveBtn->setFixedWidth(dpiScale(100));
     promoAddRow->addWidget(m_telegramPromoContactEdit, 1);
@@ -264,24 +264,24 @@ QWidget* AppControllerPage::buildTelegramTab()
     s3Lay->addWidget(m_telegramContactList);
 
     m_telegramAutoAddCheck = new QCheckBox(
-        "\xf0\x9f\xa4\x96  Aggiungi automaticamente chi scrive al bot", step3);
+        tr("\xf0\x9f\xa4\x96  Aggiungi automaticamente chi scrive al bot"), step3);
     m_telegramAutoAddCheck->setToolTip(
         "Quando un utente invia qualsiasi messaggio al bot (incluso /start),\n"
         "il suo ID numerico viene aggiunto automaticamente alla lista destinatari.");
     s3Lay->addWidget(m_telegramAutoAddCheck);
 
     auto* promoMsgLbl = new QLabel(
-        "Messaggio da inviare:", step3);
+        tr("Messaggio da inviare:"), step3);
     s3Lay->addWidget(promoMsgLbl);
     m_telegramPromoMsgEdit = new QTextEdit(step3);
     m_telegramPromoMsgEdit->setFixedHeight(dpiScale(60));
     m_telegramPromoMsgEdit->setPlaceholderText(
-        "Scrivi il testo del messaggio...");
+        tr("Scrivi il testo del messaggio..."));
     s3Lay->addWidget(m_telegramPromoMsgEdit);
 
     auto* promoCtrlRow = new QHBoxLayout;
     auto* tgSendAllBtn = new QPushButton(
-        "\xf0\x9f\x93\xa4  Invia a tutti i destinatari", step3);
+        tr("\xf0\x9f\x93\xa4  Invia a tutti i destinatari"), step3);
     tgSendAllBtn->setObjectName("actionBtn");
     m_telegramPromoStatusLbl = new QLabel("", step3);
     m_telegramPromoStatusLbl->setObjectName("statusLabel");
@@ -367,7 +367,7 @@ void AppControllerPage::onTelegramStartClicked()
     if (QProcess::execute(P::findPython(),
             {"-c", "from telegram.ext import Application"}) != 0) {
         m_telegramStatusLbl->setText(
-            "\xe2\x9d\x8c  python-telegram-bot v20+ non installato");
+            tr("\xe2\x9d\x8c  python-telegram-bot v20+ non installato"));
         m_telegramLog->append(
             "<span style='color:#f87171;'>"
             "\xe2\x9d\x8c  Modulo mancante \xe2\x80\x94 clicca qui per installarlo: "
@@ -380,7 +380,7 @@ void AppControllerPage::onTelegramStartClicked()
     const QString token = m_telegramTokenEdit->text().trimmed();
     if (token.isEmpty()) {
         m_telegramStatusLbl->setText(
-            "\xe2\x9d\x8c  Inserisci il Bot Token prima di avviare.");
+            tr("\xe2\x9d\x8c  Inserisci il Bot Token prima di avviare."));
         return;
     }
 
@@ -432,12 +432,12 @@ void AppControllerPage::onTelegramStartClicked()
         m_telegramStartBtn->setEnabled(false);
         m_telegramStopBtn->setEnabled(true);
         m_telegramStatusLbl->setText(
-            "\xf0\x9f\x94\x84  Avvio in corso...");
+            tr("\xf0\x9f\x94\x84  Avvio in corso..."));
         m_telegramLog->append(
             "<b>\xe2\x96\xb6 Bot avviato.</b> Attendo conferma da Telegram...");
     } else {
         m_telegramStatusLbl->setText(
-            "\xe2\x9d\x8c  Errore avvio (python3 non trovato?)");
+            tr("\xe2\x9d\x8c  Errore avvio (python3 non trovato?)"));
         m_telegramLog->append(
             "\xe2\x9d\x8c  python3 non trovato. Verifica l'installazione.");
     }
@@ -469,7 +469,7 @@ void AppControllerPage::onTelegramProcReadyRead()
 
         if (type == "ready") {
             m_telegramStatusLbl->setText(
-                "\xe2\x9c\x85  Bot attivo \xe2\x80\x94 in ascolto");
+                tr("\xe2\x9c\x85  Bot attivo \xe2\x80\x94 in ascolto"));
             m_telegramLog->append(
                 "<b style='color:#4ade80;'>"
                 "\xe2\x9c\x85 Bot pronto.</b>");
@@ -710,19 +710,19 @@ void AppControllerPage::onTelegramSendPromoClicked()
     const QString token = m_telegramTokenEdit->text().trimmed();
     if (token.isEmpty()) {
         m_telegramPromoStatusLbl->setText(
-            "\xe2\x9d\x8c  Inserisci il Bot Token prima di inviare.");
+            tr("\xe2\x9d\x8c  Inserisci il Bot Token prima di inviare."));
         return;
     }
     const QString msg = m_telegramPromoMsgEdit->toPlainText().trimmed();
     if (msg.isEmpty()) {
         m_telegramPromoStatusLbl->setText(
-            "\xe2\x9d\x8c  Scrivi il messaggio prima di inviare.");
+            tr("\xe2\x9d\x8c  Scrivi il messaggio prima di inviare."));
         return;
     }
     const int total = m_telegramContactList->count();
     if (total == 0) {
         m_telegramPromoStatusLbl->setText(
-            "\xe2\x9d\x8c  Nessun contatto in lista.");
+            tr("\xe2\x9d\x8c  Nessun contatto in lista."));
         return;
     }
 

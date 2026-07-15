@@ -203,10 +203,10 @@ QWidget* PersonalizzaPage::buildLoraTab()
         auto* bLay   = new QHBoxLayout(btnRow);
         bLay->setContentsMargins(0, 0, 0, 0);
         m_loraStartBtn = new QPushButton(
-            "\xf0\x9f\x9a\x80  Avvia Fine-tuning", btnRow);
+            tr("\xf0\x9f\x9a\x80  Avvia Fine-tuning"), btnRow);
         m_loraStartBtn->setObjectName("actionBtn");
         m_loraStopBtn  = new QPushButton(
-            "\xe2\x9c\x8b  Interrompi", btnRow);
+            tr("\xe2\x9c\x8b  Interrompi"), btnRow);
         m_loraStopBtn->setObjectName("actionBtn");
         m_loraStopBtn->setEnabled(false);
         bLay->addWidget(m_loraStartBtn);
@@ -284,7 +284,7 @@ QWidget* PersonalizzaPage::buildLoraTab()
         tLay->addWidget(scriptEdit, 1);
 
         auto* installBtn = new QPushButton(
-            "\xf0\x9f\x93\xa6  pip install unsloth trl datasets transformers", tab);
+            tr("\xf0\x9f\x93\xa6  pip install unsloth trl datasets transformers"), tab);
         installBtn->setObjectName("actionBtn");
         m_loraLog2 = makeLog("Log installazione...");
         m_loraLog2->setFixedHeight(dpiScale(100));

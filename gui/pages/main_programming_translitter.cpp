@@ -177,10 +177,10 @@ QWidget* ProgrammazionePage::buildTrSplitter(QWidget* parent)
     srcLay->addWidget(m_trInput, 1);
 
     auto* btnFromEditor = new QPushButton(
-        "\xe2\xac\x86  Importa dall'editor", srcGroup);
+        tr("\xe2\xac\x86  Importa dall'editor"), srcGroup);
     btnFromEditor->setObjectName("actionBtn");
     btnFromEditor->setToolTip(
-        "Copia il codice dall'editor principale in questo pannello");
+        tr("Copia il codice dall'editor principale in questo pannello"));
     srcLay->addWidget(btnFromEditor);
     connect(btnFromEditor, &QPushButton::clicked,
             this, &ProgrammazionePage::onBtnFromEditorClicked);
@@ -197,7 +197,7 @@ QWidget* ProgrammazionePage::buildTrSplitter(QWidget* parent)
     m_trOutput->setReadOnly(true);
     m_trOutput->setFont(monoFont);
     m_trOutput->setPlaceholderText(
-        "Il codice tradotto apparir\xc3\xa0 qui durante lo streaming...");
+        tr("Il codice tradotto apparir\xc3\xa0 qui durante lo streaming..."));
     dstLay->addWidget(m_trOutput, 1);
 
     auto* outBtnRow = new QWidget(dstGroup);
@@ -206,7 +206,7 @@ QWidget* ProgrammazionePage::buildTrSplitter(QWidget* parent)
     outBtnLay->setSpacing(6);
 
     m_btnTrInsert = new QPushButton(
-        "\xe2\xac\x86  Inserisci nell'editor", outBtnRow);
+        tr("\xe2\xac\x86  Inserisci nell'editor"), outBtnRow);
     m_btnTrInsert->setObjectName("actionBtn");
     m_btnTrInsert->setEnabled(false);
     m_btnTrInsert->setToolTip(

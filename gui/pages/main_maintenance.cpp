@@ -218,7 +218,7 @@ QGroupBox* ManutenzioneePage::buildAdvancedConfigGroup(QWidget* parent)
 void ManutenzioneePage::buildConfigFmtSection(QGroupBox* grp, QVBoxLayout* lay)
 {
     auto* fmtTitle = new QLabel(
-        "\xf0\x9f\x93\x84  <b>Formato Config</b>  (~/.prismalux_config)", grp);
+        tr("\xf0\x9f\x93\x84  <b>Formato Config</b>  (~/.prismalux_config)"), grp);
     fmtTitle->setObjectName("cardTitle");
     fmtTitle->setTextFormat(Qt::RichText);
     lay->addWidget(fmtTitle);
@@ -261,7 +261,7 @@ void ManutenzioneePage::buildConfigFmtSection(QGroupBox* grp, QVBoxLayout* lay)
 void ManutenzioneePage::buildLlamaServerSection(QGroupBox* grp, QVBoxLayout* lay)
 {
     m_grpServ = new QGroupBox(
-        "\xf0\x9f\xa6\x99  llama.cpp \xe2\x80\x94 Avvia llama-server", grp);
+        tr("\xf0\x9f\xa6\x99  llama.cpp \xe2\x80\x94 Avvia llama-server"), grp);
     m_grpServ->setVisible(false);
     m_grpServ->setStyleSheet(GRP_STYLE);
     auto* srvLay = new QVBoxLayout(m_grpServ);
@@ -325,7 +325,7 @@ void ManutenzioneePage::buildLlamaServerSection(QGroupBox* grp, QVBoxLayout* lay
 QGroupBox* ManutenzioneePage::buildUpdateGroup(QWidget* parent)
 {
     auto* grp = new QGroupBox(
-        "\xf0\x9f\x94\x84  Aggiornamento Modelli & GPU/RAM", parent);
+        tr("\xf0\x9f\x94\x84  Aggiornamento Modelli & GPU/RAM"), parent);
     grp->setObjectName("cardGroup");
     auto* lay = new QVBoxLayout(grp);
     lay->setSpacing(6);
@@ -337,7 +337,7 @@ QGroupBox* ManutenzioneePage::buildUpdateGroup(QWidget* parent)
     verLay->setContentsMargins(0, 0, 0, 0);
     verLay->setSpacing(8);
     m_verLbl = new QLabel(
-        "\xf0\x9f\x90\xb3  Ollama: <i>verifica in corso...</i>", verRow);
+        tr("\xf0\x9f\x90\xb3  Ollama: <i>verifica in corso...</i>"), verRow);
     m_verLbl->setObjectName("cardDesc");
     m_verLbl->setTextFormat(Qt::RichText);
     verLay->addWidget(m_verLbl, 1);
@@ -360,10 +360,10 @@ QGroupBox* ManutenzioneePage::buildUpdateGroup(QWidget* parent)
     btnRowL->setContentsMargins(0, 0, 0, 0);
     btnRowL->setSpacing(8);
     m_updAllBtn = new QPushButton(
-        "\xe2\xac\x87  Aggiorna tutti i modelli Ollama", btnRow);
+        tr("\xe2\xac\x87  Aggiorna tutti i modelli Ollama"), btnRow);
     m_updAllBtn->setObjectName("actionBtn");
     m_updLlamaBtn = new QPushButton(
-        "\xe2\xac\x87  Aggiorna tutti i modelli llama.cpp", btnRow);
+        tr("\xe2\xac\x87  Aggiorna tutti i modelli llama.cpp"), btnRow);
     m_updLlamaBtn->setObjectName("actionBtn");
     m_updStatusLbl = new QLabel("", btnRow);
     m_updStatusLbl->setObjectName("cardDesc");
@@ -379,7 +379,7 @@ QGroupBox* ManutenzioneePage::buildUpdateGroup(QWidget* parent)
     m_updLog->setObjectName("chatLog");
     m_updLog->setMinimumHeight(80);
     m_updLog->setPlaceholderText(
-        "Premi \"Aggiorna tutti\" per scaricare le ultime versioni dei modelli Ollama.");
+        tr("Premi \"Aggiorna tutti\" per scaricare le ultime versioni dei modelli Ollama."));
     lay->addWidget(m_updLog);
 
     /* ── Scarica nuovo modello ── */
@@ -411,7 +411,7 @@ QGroupBox* ManutenzioneePage::buildUpdateGroup(QWidget* parent)
     auto* ggufRowL = new QHBoxLayout(ggufRow);
     ggufRowL->setContentsMargins(0,0,0,0); ggufRowL->setSpacing(8);
     m_btnVerifyGguf = new QPushButton(
-        "\xf0\x9f\x94\x92  Verifica integrit\xc3\xa0 GGUF", ggufRow);
+        tr("\xf0\x9f\x94\x92  Verifica integrit\xc3\xa0 GGUF"), ggufRow);
     m_btnVerifyGguf->setObjectName("actionBtn");
     m_btnVerifyGguf->setToolTip(tr("Calcola SHA-256 dei file .gguf in models/ e confronta con le firme salvate"));
     m_btnVerifyGguf->setAccessibleName(tr("Verifica integrità file modelli GGUF tramite SHA-256"));
@@ -430,7 +430,7 @@ QGroupBox* ManutenzioneePage::buildUpdateGroup(QWidget* parent)
     auto* bkRowL = new QHBoxLayout(bkRow);
     bkRowL->setContentsMargins(0,0,0,0); bkRowL->setSpacing(8);
     auto* bkBtn = new QPushButton(
-        "\xf0\x9f\x92\xbe  Backup conoscenza ora", bkRow);
+        tr("\xf0\x9f\x92\xbe  Backup conoscenza ora"), bkRow);
     bkBtn->setObjectName("actionBtn");
     bkBtn->setAccessibleName(tr("Esegui backup manuale della cartella KNOWLEDGE_USER"));
     m_backupStatusLbl = new QLabel(tr("Backup automatico ogni 24h."), bkRow);
@@ -598,7 +598,7 @@ QGroupBox* ManutenzioneePage::buildRamOptGroup(QWidget* parent)
     lay->setSpacing(8);
 
     m_ramStatusLbl = new QLabel(
-        "Premi \"\xf0\x9f\x94\x8d Rileva\" per controllare lo stato della compressione RAM.",
+        tr("Premi \"\xf0\x9f\x94\x8d Rileva\" per controllare lo stato della compressione RAM."),
         grp);
     m_ramStatusLbl->setObjectName("cardDesc");
     m_ramStatusLbl->setWordWrap(true);
@@ -626,7 +626,7 @@ QGroupBox* ManutenzioneePage::buildRamOptGroup(QWidget* parent)
     autoZramLay->setContentsMargins(0, 0, 0, 0);
     autoZramLay->setSpacing(8);
     auto* autoZramCb = new QCheckBox(
-        "\xf0\x9f\x92\xbe\xf0\x9f\x92\xbe  Abilita Doppia zstd automaticamente all'avvio", grp);
+        tr("\xf0\x9f\x92\xbe\xf0\x9f\x92\xbe  Abilita Doppia zstd automaticamente all'avvio"), grp);
     autoZramCb->setObjectName("cardDesc");
     {
         QSettings s("Prismalux", "GUI");
@@ -697,7 +697,7 @@ QWidget* ManutenzioneePage::buildRamButtonRow(QGroupBox* grp)
 QGroupBox* ManutenzioneePage::buildComputeModeGroup(QWidget* parent)
 {
     auto* grp = new QGroupBox(
-        "\xf0\x9f\x92\xbb  Modalit\xc3\xa0 Calcolo LLM", parent);
+        tr("\xf0\x9f\x92\xbb  Modalit\xc3\xa0 Calcolo LLM"), parent);
     grp->setObjectName("cardGroup");
     auto* lay = new QVBoxLayout(grp);
     lay->setSpacing(8);
@@ -749,7 +749,7 @@ QGroupBox* ManutenzioneePage::buildComputeModeGroup(QWidget* parent)
     lay->addWidget(btnRow);
 
     m_computeInfo = new QLabel(
-        "\xe2\x8f\xb3  In attesa rilevamento hardware...", grp);
+        tr("\xe2\x8f\xb3  In attesa rilevamento hardware..."), grp);
     m_computeInfo->setObjectName("cardDesc");
     m_computeInfo->setWordWrap(true);
     lay->addWidget(m_computeInfo);
@@ -760,11 +760,11 @@ QGroupBox* ManutenzioneePage::buildComputeModeGroup(QWidget* parent)
     saveLay->setContentsMargins(0, 4, 0, 0);
     saveLay->setSpacing(10);
     m_btnSaveMode = new QPushButton(
-        "\xf0\x9f\x92\xbe  Salva modalit\xc3\xa0", grp);
+        tr("\xf0\x9f\x92\xbe  Salva modalit\xc3\xa0"), grp);
     m_btnSaveMode->setObjectName("actionBtn");
     m_btnSaveMode->setEnabled(false);
     m_btnSaveMode->setToolTip(
-        "Applica la modalit\xc3\xa0 selezionata e la salva per i prossimi avvii.");
+        tr("Applica la modalit\xc3\xa0 selezionata e la salva per i prossimi avvii."));
     saveLay->addWidget(m_btnSaveMode);
     saveLay->addStretch(1);
     lay->addWidget(saveRow);
@@ -783,7 +783,7 @@ QGroupBox* ManutenzioneePage::buildComputeModeGroup(QWidget* parent)
 QGroupBox* ManutenzioneePage::buildNpuGroup(QWidget* parent)
 {
     auto* grp = new QGroupBox(
-        "\xf0\x9f\xa7\xa0  NPU \xe2\x80\x94 Neural Processing Unit", parent);
+        tr("\xf0\x9f\xa7\xa0  NPU \xe2\x80\x94 Neural Processing Unit"), parent);
     grp->setObjectName("cardGroup");
     auto* lay = new QVBoxLayout(grp);
 
@@ -819,7 +819,7 @@ QGroupBox* ManutenzioneePage::buildNpuGroup(QWidget* parent)
         : found.join("\n"));
 
     auto* btnIntelNpu = new QPushButton(
-        "\xf0\x9f\x94\xb5  Installa intel-npu-acceleration-library", grp);
+        tr("\xf0\x9f\x94\xb5  Installa intel-npu-acceleration-library"), grp);
     btnIntelNpu->setObjectName("actionBtn");
     btnIntelNpu->setToolTip(
         "pip install intel-npu-acceleration-library\n"
@@ -1081,7 +1081,7 @@ void ManutenzioneePage::applyComputeMode(const QString& mode)
          * un valore > layer count reale causa ISE 500. */
         if (m_computeInfo)
             m_computeInfo->setText(
-                "\xe2\x8f\xb3  <b>GPU</b>: recupero layer count dal modello...");
+                tr("\xe2\x8f\xb3  <b>GPU</b>: recupero layer count dal modello..."));
 
         m_ai->fetchModelLayers([guard=QPointer<ManutenzioneePage>(this)](int layers) {
             if (!guard || !guard->m_ai) return;
@@ -1110,7 +1110,7 @@ void ManutenzioneePage::applyComputeMode(const QString& mode)
          * I layer in eccesso vanno su CPU/RAM — nessun errore ISE. */
         if (m_computeInfo)
             m_computeInfo->setText(
-                "\xe2\x8f\xb3  <b>Misto</b>: recupero layer count dal modello...");
+                tr("\xe2\x8f\xb3  <b>Misto</b>: recupero layer count dal modello..."));
 
         m_ai->fetchModelLayers([guard=QPointer<ManutenzioneePage>(this)](int layers) {
             if (!guard || !guard->m_ai) return;
@@ -1932,7 +1932,7 @@ void ManutenzioneePage::onDownloadModelClicked()
     const QString model = m_downloadModelEdit->text().trimmed();
     if (model.isEmpty()) {
         if (m_downloadStatusLbl) m_downloadStatusLbl->setText(
-            "\xe2\x9d\x8c  Inserisci il nome del modello.");
+            tr("\xe2\x9d\x8c  Inserisci il nome del modello."));
         return;
     }
     if (m_downloadProc && m_downloadProc->state() != QProcess::NotRunning) {
@@ -1985,12 +1985,12 @@ void ManutenzioneePage::onDownloadProcFinished(int code, QProcess::ExitStatus)
     if (m_btnDownloadModel) m_btnDownloadModel->setText(tr("\xe2\xac\x87  Scarica"));
     if (code == 0) {
         if (m_downloadStatusLbl) m_downloadStatusLbl->setText(
-            "\xe2\x9c\x85  Download completato.");
+            tr("\xe2\x9c\x85  Download completato."));
         if (m_updLog) m_updLog->append(
             "\xe2\x9c\x85  <b>Modello scaricato con successo.</b>\n");
     } else {
         if (m_downloadStatusLbl) m_downloadStatusLbl->setText(
-            "\xe2\x9d\x8c  Download fallito.");
+            tr("\xe2\x9d\x8c  Download fallito."));
         if (m_updLog) m_updLog->append(
             "\xe2\x9d\x8c  Download terminato con errore.\n");
     }
@@ -2041,7 +2041,7 @@ void ManutenzioneePage::onVerifyGgufClicked()
 
     if (ggufFiles.isEmpty()) {
         if (m_ggufStatusLbl) m_ggufStatusLbl->setText(
-            "\xe2\x84\xb9  Nessun file .gguf trovato in models/");
+            tr("\xe2\x84\xb9  Nessun file .gguf trovato in models/"));
         return;
     }
 
@@ -2056,7 +2056,7 @@ void ManutenzioneePage::onVerifyGgufClicked()
         QString("\n\xf0\x9f\x94\x92  Verifica integrit\xc3\xa0 %1 file GGUF...\n")
         .arg(ggufFiles.size()));
     if (m_ggufStatusLbl) m_ggufStatusLbl->setText(
-        "\xe2\x8f\xb3  Verifica in corso...");
+        tr("\xe2\x8f\xb3  Verifica in corso..."));
     if (m_btnVerifyGguf) m_btnVerifyGguf->setEnabled(false);
 
     ggufVerifyNext();
@@ -2068,7 +2068,7 @@ void ManutenzioneePage::ggufVerifyNext()
         /* Tutti verificati */
         saveGgufHashes();
         if (m_ggufStatusLbl) m_ggufStatusLbl->setText(
-            "\xe2\x9c\x85  Verifica completata. Firme salvate.");
+            tr("\xe2\x9c\x85  Verifica completata. Firme salvate."));
         if (m_btnVerifyGguf) m_btnVerifyGguf->setEnabled(true);
         return;
     }
@@ -2156,7 +2156,7 @@ void ManutenzioneePage::performKnowledgeBackup()
 
     if (!QDir().mkpath(dstDir)) {
         if (m_backupStatusLbl) m_backupStatusLbl->setText(
-            "\xe2\x9d\x8c  Impossibile creare la cartella di backup.");
+            tr("\xe2\x9d\x8c  Impossibile creare la cartella di backup."));
         return;
     }
 
@@ -2204,7 +2204,7 @@ QWidget* ManutenzioneePage::buildSystemUpdates()
     lay->setSpacing(12);
 
     auto* titleLbl = new QLabel(
-        "\xf0\x9f\x94\x84  Aggiornamenti Sistema", page);
+        tr("\xf0\x9f\x94\x84  Aggiornamenti Sistema"), page);
     titleLbl->setObjectName("sectionTitle");
     lay->addWidget(titleLbl);
 

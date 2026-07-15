@@ -2737,7 +2737,7 @@ void Vision3DWidget::buildUi()
     auto* arucoBox = new QGroupBox(tr("Bersagli ArUco \xe2\x80\x94 scala reale"));
     auto* arucoLay = new QVBoxLayout(arucoBox);
     arucoLay->addWidget(new QLabel(
-        "Stampa sempre al 100% / \"dimensione reale\" (MAI \"adatta alla pagina\"):"));
+        tr("Stampa sempre al 100% / \"dimensione reale\" (MAI \"adatta alla pagina\"):")));
     auto* arucoBtnRow = new QHBoxLayout;
     auto* printArucoBtn = new QPushButton(tr("\xf0\x9f\x96\xa8 Marker singoli (PDF)"));
     printArucoBtn->setObjectName("actionBtn");
@@ -2784,7 +2784,7 @@ void Vision3DWidget::buildUi()
     auto* devBox = new QGroupBox(tr("Device attivi"));
     auto* devLay = new QVBoxLayout(devBox);
     m_deviceTable = new QTableWidget(0, 4);
-    m_deviceTable->setHorizontalHeaderLabels({"Device", "Foto", "Ultimo", "Dispositivo"});
+    m_deviceTable->setHorizontalHeaderLabels({tr("Device"), tr("Foto"), tr("Ultimo"), tr("Dispositivo")});
     m_deviceTable->horizontalHeader()->setStretchLastSection(true);
     m_deviceTable->verticalHeader()->setVisible(false);
     m_deviceTable->setEditTriggers(QAbstractItemView::NoEditTriggers);

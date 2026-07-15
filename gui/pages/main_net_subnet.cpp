@@ -190,7 +190,7 @@ QWidget* ProgrammazionePage::buildSubnetTab(QWidget* parent)
 
     /* Pannello sinistro — tabella testuale */
     auto* leftPanel = new QGroupBox(
-        "\xf0\x9f\x93\x8a  Risultati subnet", splitter);
+        tr("\xf0\x9f\x93\x8a  Risultati subnet"), splitter);
     auto* leftLay   = new QVBoxLayout(leftPanel);
     m_subnetResults = new QTextEdit(leftPanel);
     m_subnetResults->setReadOnly(true);
@@ -201,7 +201,7 @@ QWidget* ProgrammazionePage::buildSubnetTab(QWidget* parent)
 
     /* Pannello destro — immagine Graphviz */
     auto* rightPanel = new QGroupBox(
-        "\xf0\x9f\x95\xb8  Grafo subnet (Graphviz)", splitter);
+        tr("\xf0\x9f\x95\xb8  Grafo subnet (Graphviz)"), splitter);
     auto* rightLay   = new QVBoxLayout(rightPanel);
 
     auto* scrollArea = new QScrollArea(rightPanel);
@@ -212,7 +212,7 @@ QWidget* ProgrammazionePage::buildSubnetTab(QWidget* parent)
     m_subnetGraphImg->setAlignment(Qt::AlignCenter);
     m_subnetGraphImg->setMinimumSize(dpiScale(200), dpiScale(200));
     m_subnetGraphImg->setText(
-        "\xf0\x9f\x95\xb8  Il grafo apparir\xc3\xa0 dopo il calcolo");
+        tr("\xf0\x9f\x95\xb8  Il grafo apparir\xc3\xa0 dopo il calcolo"));
     m_subnetGraphImg->setObjectName("hintLabel");
     m_subnetGraphImg->setWordWrap(true);
     scrollArea->setWidget(m_subnetGraphImg);

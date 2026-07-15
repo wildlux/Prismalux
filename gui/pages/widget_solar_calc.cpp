@@ -354,7 +354,7 @@ SolarCalcWidget::SolarCalcWidget(QWidget* parent)
         "Caduta tensione max ammessa: 3% della tensione sistema."));
     caviRow->addWidget(m_lCaviSpin);
     auto* caviNote = new QLabel(
-        "<small><i>(\xce\x94V max 3%)</i></small>", regBox);
+        tr("<small><i>(\xce\x94V max 3%)</i></small>"), regBox);
     caviNote->setTextFormat(Qt::RichText);
     caviRow->addWidget(caviNote);
     caviRow->addStretch();
@@ -418,7 +418,7 @@ SolarCalcWidget::SolarCalcWidget(QWidget* parent)
 
     /* ── Pulsante Calcola ── */
     auto* calcBtn = new QPushButton(
-        "\xe2\x98\x80  CALCOLA IMPIANTO", inner);
+        tr("\xe2\x98\x80  CALCOLA IMPIANTO"), inner);
     calcBtn->setObjectName("actionBtn");
     calcBtn->setMinimumHeight(dpiScale(42));
     calcBtn->setStyleSheet("QPushButton { font-size:14px; font-weight:bold; }");

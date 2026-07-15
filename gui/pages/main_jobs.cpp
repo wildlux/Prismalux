@@ -494,7 +494,7 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     auto* trkHdrL   = new QHBoxLayout(trkHdrRow);
     trkHdrL->setContentsMargins(0,0,0,0); trkHdrL->setSpacing(6);
     auto* trkTitleLbl = new QLabel(
-        "\xf0\x9f\x93\x8b  <b>Tracker Candidature</b>", trkHdrRow);
+        tr("\xf0\x9f\x93\x8b  <b>Tracker Candidature</b>"), trkHdrRow);
     trkTitleLbl->setTextFormat(Qt::RichText);
     m_trackerAddBtn = new QPushButton(tr("\xe2\x9e\x95 Aggiungi"), trkHdrRow);
     m_trackerAddBtn->setObjectName("actionBtn");
@@ -510,7 +510,7 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     /* Tabella candidature */
     m_trackerTable = new QTableWidget(0, 5, trackerPane);
     m_trackerTable->setHorizontalHeaderLabels({
-        "Azienda", "Ruolo", "Data invio", "Stato", "Note"
+        tr("Azienda"), tr("Ruolo"), tr("Data invio"), tr("Stato"), tr("Note")
     });
     m_trackerTable->horizontalHeader()->setStretchLastSection(true);
     m_trackerTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Interactive);
@@ -1249,7 +1249,7 @@ void LavoroPage::onAnalizzaUrlBtnClicked() {
     dlg->resize(540, 200);
     auto* dLay = new QVBoxLayout(dlg);
     dLay->addWidget(new QLabel(
-        "Incolla uno o pi\xc3\xb9 URL di annunci di lavoro (uno per riga):", dlg));
+        tr("Incolla uno o pi\xc3\xb9 URL di annunci di lavoro (uno per riga):"), dlg));
     auto* urlEdit = new QTextEdit(dlg);
     urlEdit->setPlaceholderText(
         "https://www.linkedin.com/jobs/...\n"
@@ -1288,7 +1288,7 @@ void LavoroPage::onAnalizzaCvBtnClicked() {
     dlg->resize(530, 330);
     auto* dLay = new QVBoxLayout(dlg);
     dLay->addWidget(new QLabel(
-        "Seleziona un'analisi predefinita (doppio clic = avvia subito):", dlg));
+        tr("Seleziona un'analisi predefinita (doppio clic = avvia subito):"), dlg));
     auto* listW = new QListWidget(dlg);
     listW->setMaximumHeight(140);
     const QStringList presets = {
@@ -1305,7 +1305,7 @@ void LavoroPage::onAnalizzaCvBtnClicked() {
     auto* promptEdit = new QLineEdit(dlg);
     promptEdit->setObjectName("chatInput");
     promptEdit->setPlaceholderText(
-        "Es: 'Cosa manca per essere assunto come programmatore junior?'");
+        tr("Es: 'Cosa manca per essere assunto come programmatore junior?'"));
     dLay->addWidget(promptEdit);
     /* itemClicked → popola promptEdit — context = dlg, cattura solo figli di dlg */
     connect(listW, &QListWidget::itemClicked, dlg,

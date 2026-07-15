@@ -61,7 +61,7 @@ RDKitWidget::RDKitWidget(AiClient* ai, QWidget* parent)
     lay->addWidget(medFrame);
 
     auto* descLbl = new QLabel(
-        "\xf0\x9f\x94\xac  <i>RDKit \xe2\x80\x94 Libreria open-source di chemioinformatica.</i>", this);
+        tr("\xf0\x9f\x94\xac  <i>RDKit \xe2\x80\x94 Libreria open-source di chemioinformatica.</i>"), this);
     descLbl->setObjectName("hintLabel");
     descLbl->setTextFormat(Qt::RichText);
     descLbl->setWordWrap(true);

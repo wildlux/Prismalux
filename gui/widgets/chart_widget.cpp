@@ -256,7 +256,7 @@ void ChartWidget::paintEvent(QPaintEvent*) {
 void ChartWidget::contextMenuEvent(QContextMenuEvent* ev) {
     QMenu menu(this);
     QAction* actSave = menu.addAction(
-        "\xf0\x9f\x96\xbc  Salva come PNG...");
+        tr("\xf0\x9f\x96\xbc  Salva come PNG..."));
     QAction* chosen = menu.exec(ev->globalPos());
     if (chosen == actSave) {
         QString path = QFileDialog::getSaveFileName(

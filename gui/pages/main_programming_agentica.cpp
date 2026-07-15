@@ -150,7 +150,7 @@ QWidget* ProgrammazionePage::buildAgenticaTaskGroup(QWidget* parent)
     monoFont.setPointSize(monoFontPt(11));
 
     auto* taskGroup = new QGroupBox(
-        "\xf0\x9f\x93\x9d  Descrizione del task (cosa vuoi costruire?)", parent);
+        tr("\xf0\x9f\x93\x9d  Descrizione del task (cosa vuoi costruire?)"), parent);
     taskGroup->setObjectName("cardGroup");
     auto* taskLay = new QVBoxLayout(taskGroup);
     taskLay->setContentsMargins(4, 8, 4, 4);
@@ -212,7 +212,7 @@ QWidget* ProgrammazionePage::buildAgenticaOutputGroup(QWidget* parent)
     monoFont.setPointSize(monoFontPt(11));
 
     auto* outGroup = new QGroupBox(
-        "\xf0\x9f\xa4\x96  Output agente (streaming)", parent);
+        tr("\xf0\x9f\xa4\x96  Output agente (streaming)"), parent);
     outGroup->setObjectName("cardGroup");
     auto* outLay = new QVBoxLayout(outGroup);
     outLay->setContentsMargins(4, 8, 4, 4);
@@ -233,15 +233,15 @@ QWidget* ProgrammazionePage::buildAgenticaOutputGroup(QWidget* parent)
     outBtnLay->setSpacing(8);
 
     m_btnAgentInsert = new QPushButton(
-        "\xe2\x86\x91  Apri in editor Programmazione", outBtnRow);
+        tr("\xe2\x86\x91  Apri in editor Programmazione"), outBtnRow);
     m_btnAgentInsert->setObjectName("actionBtn");
     m_btnAgentInsert->setEnabled(false);
     m_btnAgentInsert->setToolTip(
-        "Estrae il primo blocco codice e lo apre nel tab \xf0\x9f\x92\xbb Programmazione");
+        tr("Estrae il primo blocco codice e lo apre nel tab \xf0\x9f\x92\xbb Programmazione"));
     outBtnLay->addWidget(m_btnAgentInsert);
 
     auto* btnClearAgent = new QPushButton(
-        "\xf0\x9f\x97\x91  Pulisci output", outBtnRow);
+        tr("\xf0\x9f\x97\x91  Pulisci output"), outBtnRow);
     btnClearAgent->setObjectName("actionBtn");
     outBtnLay->addWidget(btnClearAgent);
     outBtnLay->addStretch(1);

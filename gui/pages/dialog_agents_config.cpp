@@ -942,7 +942,7 @@ void AgentsConfigDialog::setupUI() {
 
     /* ── Checkbox Controller LLM (spostato qui dalla toolbar principale) ── */
     m_controllerChk = new QCheckBox(
-        "\xf0\x9f\x94\x8d  Abilita Controller LLM post-agente", this);
+        tr("\xf0\x9f\x94\x8d  Abilita Controller LLM post-agente"), this);
     m_controllerChk->setObjectName("cardDesc");
     m_controllerChk->setChecked(true);
     m_controllerChk->setToolTip(

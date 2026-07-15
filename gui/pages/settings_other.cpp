@@ -784,11 +784,11 @@ QWidget* ImpostazioniPage::buildMcpTab()
     /* ── 1. MCP configurati in Claude Code ─────────────────────── */
     {
         auto* box  = new QGroupBox(
-            "\xf0\x9f\x93\x8b  MCP configurati in Claude Code  (~/.claude/settings.json)");
+            tr("\xf0\x9f\x93\x8b  MCP configurati in Claude Code  (~/.claude/settings.json)"));
         auto* blay = new QVBoxLayout(box);
 
         auto* table = new QTableWidget(0, 3);
-        table->setHorizontalHeaderLabels({"Nome", "Tipo", "Comando / Args"});
+        table->setHorizontalHeaderLabels({tr("Nome"), tr("Tipo"), tr("Comando / Args")});
         table->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
         table->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
         table->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
@@ -856,9 +856,9 @@ QWidget* ImpostazioniPage::buildMcpTab()
         btnLay2->setSpacing(6);
 
         auto* btnExport = new QPushButton(
-            "\xf0\x9f\x92\xbe  Esporta lista MCP...");
+            tr("\xf0\x9f\x92\xbe  Esporta lista MCP..."));
         auto* btnImport = new QPushButton(
-            "\xf0\x9f\x93\x82  Importa lista MCP...");
+            tr("\xf0\x9f\x93\x82  Importa lista MCP..."));
         auto* fbkIo = new QLabel;
         fbkIo->setStyleSheet("font-size: 11px;");
         btnExport->setObjectName("actionBtn");
@@ -938,7 +938,7 @@ QWidget* ImpostazioniPage::buildMcpTab()
     /* ── 2. MCP Locali Prismalux ────────────────────────────────── */
     {
         auto* box  = new QGroupBox(
-            "\xf0\x9f\x8f\xa0  MCP Locali Prismalux  (pronti da usare)");
+            tr("\xf0\x9f\x8f\xa0  MCP Locali Prismalux  (pronti da usare)"));
         auto* blay = new QVBoxLayout(box);
 
         struct McpLocal {
@@ -987,7 +987,7 @@ QWidget* ImpostazioniPage::buildMcpTab()
             btns->setSpacing(4);
 
             auto* btnAgg = new QPushButton(
-                "\xe2\x9e\x95  Aggiungi a Claude");
+                tr("\xe2\x9e\x95  Aggiungi a Claude"));
             btnAgg->setObjectName("actionBtn");
             btnAgg->setFixedWidth(dpiScale(165));
             btns->addWidget(btnAgg);
@@ -997,7 +997,7 @@ QWidget* ImpostazioniPage::buildMcpTab()
             if (c.port != 0) {
                 proc = new QProcess(card);
                 auto* btnStart = new QPushButton(
-                    "\xe2\x96\xb6  Avvia server");
+                    tr("\xe2\x96\xb6  Avvia server"));
                 btnStart->setObjectName("actionBtn");
                 btnStart->setFixedWidth(dpiScale(165));
                 btns->addWidget(btnStart);
@@ -1050,7 +1050,7 @@ QWidget* ImpostazioniPage::buildMcpTab()
     /* ── 2b. Ollama in locale ──────────────────────────────────── */
     {
         auto* box  = new QGroupBox(
-            "\xf0\x9f\xa6\x99  Ollama in locale \xe2\x80\x94 usa i modelli locali in Claude Code");
+            tr("\xf0\x9f\xa6\x99  Ollama in locale \xe2\x80\x94 usa i modelli locali in Claude Code"));
         auto* blay = new QVBoxLayout(box);
 
         auto* desc = new QLabel(
@@ -1113,7 +1113,7 @@ QWidget* ImpostazioniPage::buildMcpTab()
     /* ── 3. Aggiungi MCP personalizzato ─────────────────────────── */
     {
         auto* box  = new QGroupBox(
-            "\xe2\x9e\x95  Aggiungi MCP personalizzato a Claude Code");
+            tr("\xe2\x9e\x95  Aggiungi MCP personalizzato a Claude Code"));
         auto* form = new QFormLayout(box);
         form->setSpacing(8);
 
@@ -1125,10 +1125,10 @@ QWidget* ImpostazioniPage::buildMcpTab()
         editCmd->setPlaceholderText(tr("es. python3   oppure   npx"));
         auto* editArgs = new QLineEdit;
         editArgs->setPlaceholderText(
-            "es. /percorso/server.py   (separati da spazio)");
+            tr("es. /percorso/server.py   (separati da spazio)"));
         auto* editEnv = new QLineEdit;
         editEnv->setPlaceholderText(
-            "es. API_KEY=abc TOKEN=xyz   (opzionale)");
+            tr("es. API_KEY=abc TOKEN=xyz   (opzionale)"));
 
         form->addRow("Nome:", editNome);
         form->addRow("Tipo:", cmbTipo);
@@ -1137,7 +1137,7 @@ QWidget* ImpostazioniPage::buildMcpTab()
         form->addRow("Env:", editEnv);
 
         auto* btnSalva = new QPushButton(
-            "\xf0\x9f\x92\xbe  Salva in settings.json");
+            tr("\xf0\x9f\x92\xbe  Salva in settings.json"));
         btnSalva->setObjectName("actionBtn");
         auto* fbk = new QLabel;
 
@@ -1189,7 +1189,7 @@ QWidget* ImpostazioniPage::buildMcpTab()
     /* ── 4. MCP Popolari (hub ufficiale) ────────────────────────── */
     {
         auto* box  = new QGroupBox(
-            "\xf0\x9f\x8c\x90  MCP Popolari  (copia il comando e installalo nel terminale)");
+            tr("\xf0\x9f\x8c\x90  MCP Popolari  (copia il comando e installalo nel terminale)"));
         auto* blay = new QVBoxLayout(box);
 
         auto* intro = new QLabel(
@@ -1299,7 +1299,7 @@ QWidget* ImpostazioniPage::buildMcpTab()
 
     auto* onbRow = new QHBoxLayout;
     auto* onbBtn = new QPushButton(
-        "\xf0\x9f\x8d\xba  Mostra di nuovo il messaggio di benvenuto", page);
+        tr("\xf0\x9f\x8d\xba  Mostra di nuovo il messaggio di benvenuto"), page);
     onbBtn->setToolTip(
         "Reimposta il flag di primo avvio: alla prossima apertura\n"
         "di Prismalux apparir\xc3\xa0 di nuovo la schermata di benvenuto.");
@@ -1327,7 +1327,7 @@ QWidget* ImpostazioniPage::buildAiMemoryTab()
     vbox->setSpacing(10);
 
     auto* titleLbl = new QLabel(
-        "<b>" "\xf0\x9f\xa7\xa0" " Memoria AI — storia versionata</b>", w);
+        tr("<b>" "\xf0\x9f\xa7\xa0" " Memoria AI — storia versionata</b>"), w);
     titleLbl->setTextFormat(Qt::RichText);
     vbox->addWidget(titleLbl);
 

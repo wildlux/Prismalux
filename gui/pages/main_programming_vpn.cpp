@@ -864,7 +864,7 @@ QWidget* ProgrammazionePage::buildVpnTab(QWidget* parent)
 
     /* ── Editor config / script ── */
     auto* cfgGroup = new QGroupBox(
-        "\xf0\x9f\x93\x9d  Configurazione (modificabile)", w);
+        tr("\xf0\x9f\x93\x9d  Configurazione (modificabile)"), w);
     auto* cfgLay   = new QVBoxLayout(cfgGroup);
     m_vpnConfig = new QTextEdit(cfgGroup);
     m_vpnConfig->setFont(QFont("JetBrains Mono,Fira Code,Consolas,Monospace", 9));
@@ -881,31 +881,31 @@ QWidget* ProgrammazionePage::buildVpnTab(QWidget* parent)
     actHL->setSpacing(8);
 
     auto* btnGen   = new QPushButton(
-        "\xf0\x9f\xa4\x96  Migliora con AI", actRow);
+        tr("\xf0\x9f\xa4\x96  Migliora con AI"), actRow);
     btnGen->setObjectName("actionBtn");
     auto* btnApply = new QPushButton(
-        "\xe2\x9a\xa1  Applica / Esegui", actRow);
+        tr("\xe2\x9a\xa1  Applica / Esegui"), actRow);
     btnApply->setObjectName("actionBtn");
     auto* btnCopy  = new QPushButton(
-        "\xf0\x9f\x93\x8b  Copia", actRow);
+        tr("\xf0\x9f\x93\x8b  Copia"), actRow);
     auto* btnStop  = new QPushButton(
-        "\xe2\x8f\xb9  Stop", actRow);
+        tr("\xe2\x8f\xb9  Stop"), actRow);
     btnStop->setProperty("danger", true);
     btnStop->setEnabled(false);
 
     m_vpnGenKeysBtn = new QPushButton(
-        "\xf0\x9f\x94\x91  Genera chiavi n2n", actRow);
+        tr("\xf0\x9f\x94\x91  Genera chiavi n2n"), actRow);
     m_vpnGenKeysBtn->setToolTip(tr("Genera community name e PSK casuali per n2n"));
     m_vpnGenKeysBtn->setVisible(false);
 
     m_vpnValidateBtn = new QPushButton(
-        "\xf0\x9f\x94\x8d  Valida config", actRow);
+        tr("\xf0\x9f\x94\x8d  Valida config"), actRow);
     m_vpnValidateBtn->setToolTip(
         tr("Simula e valida la configurazione senza avviare la VPN\n"
            "Controlla: placeholder, binari, porte, raggiungibilita' server"));
 
     auto* btnImport = new QPushButton(
-        "\xf0\x9f\x93\x82  Importa", actRow);
+        tr("\xf0\x9f\x93\x82  Importa"), actRow);
     btnImport->setToolTip(tr("Carica un file di configurazione VPN esistente"));
 
     actHL->addWidget(btnGen);
@@ -933,7 +933,7 @@ QWidget* ProgrammazionePage::buildVpnTab(QWidget* parent)
 
     /* ── Log output ── */
     auto* logGroup = new QGroupBox(
-        "\xf0\x9f\x93\x9f  Output comandi", w);
+        tr("\xf0\x9f\x93\x9f  Output comandi"), w);
     auto* logLay   = new QVBoxLayout(logGroup);
     m_vpnLog = new QTextEdit(logGroup);
     m_vpnLog->setReadOnly(true);

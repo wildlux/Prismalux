@@ -309,7 +309,7 @@ void AgentiPage::buildToolbarLLMSelector(QHBoxLayout* toolLay, QWidget* toolbar)
     m_btnRegen = new QPushButton(tr("\xf0\x9f\x94\x84 Rigenera"), toolbar);
     m_btnRegen->setObjectName("actionBtn");
     m_btnRegen->setToolTip(
-        "Reinvia l'ultimo messaggio utente con il modello appena selezionato");
+        tr("Reinvia l'ultimo messaggio utente con il modello appena selezionato"));
     m_btnRegen->setVisible(false);
     toolLay->addWidget(m_btnRegen);
     connect(m_btnRegen, &QPushButton::clicked, this, &AgentiPage::onBtnRegenClicked);
@@ -706,7 +706,7 @@ void AgentiPage::onRagDropZoneEnter()
 {
     if (m_ragDropZone)
         m_ragDropZone->setText(
-            "\xf0\x9f\x93\x84  Rilascia per indicizzare nel RAG...");
+            tr("\xf0\x9f\x93\x84  Rilascia per indicizzare nel RAG..."));
 }
 
 void AgentiPage::onRagDropZoneLeave()

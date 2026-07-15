@@ -99,7 +99,7 @@ void ProgrammazionePage::buildInnerTabs()
 {
     /* Titolo nella tab bar */
     auto* titleCorner = new QLabel(
-        "\xf0\x9f\x92\xbb  Codifica", m_innerTabs);
+        tr("\xf0\x9f\x92\xbb  Codifica"), m_innerTabs);
     titleCorner->setObjectName("pageTitle");
     titleCorner->setContentsMargins(4, 0, 16, 0);
     m_innerTabs->setCornerWidget(titleCorner, Qt::TopLeftCorner);

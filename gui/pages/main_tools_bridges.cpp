@@ -55,22 +55,22 @@ QWidget* StrumentiPage::buildBlenderRow()
     auto* blenderPingBtn = new QPushButton(tr("\xf0\x9f\x94\x97  Verifica"), row);
     blenderPingBtn->setObjectName("actionBtn");
     blenderPingBtn->setToolTip(
-        "Testa la connessione TCP al bridge Blender (porta 9001 default)");
+        tr("Testa la connessione TCP al bridge Blender (porta 9001 default)"));
     blenderPingBtn->setFixedWidth(dpiScale(100));
 
     m_blenderStatusLbl = new QLabel(tr("\xe2\x9a\xaa  Non connesso"), row);
     m_blenderStatusLbl->setObjectName("hintLabel");
 
     m_blenderExecBtn = new QPushButton(
-        "\xe2\x96\xb6  Esegui in Blender", row);
+        tr("\xe2\x96\xb6  Esegui in Blender"), row);
     m_blenderExecBtn->setObjectName("actionBtn");
     m_blenderExecBtn->setToolTip(
-        "Invia il codice Python generato a Blender via bridge MCP");
+        tr("Invia il codice Python generato a Blender via bridge MCP"));
     m_blenderExecBtn->setFixedWidth(dpiScale(160));
     m_blenderExecBtn->setEnabled(false);
 
     auto* blenderHelpBtn = new QPushButton(
-        "\xf0\x9f\x9b\x9f \xf0\x9f\x94\xa7  Aiuto", row);
+        tr("\xf0\x9f\x9b\x9f \xf0\x9f\x94\xa7  Aiuto"), row);
     blenderHelpBtn->setObjectName("actionBtn");
     blenderHelpBtn->setFixedWidth(dpiScale(90));
 
@@ -136,7 +136,7 @@ QWidget* StrumentiPage::buildOfficeRow()
     m_officeStartBtn = new QPushButton(tr("\xe2\x96\xb6  Avvia bridge"), row);
     m_officeStartBtn->setObjectName("actionBtn");
     m_officeStartBtn->setToolTip(
-        "Avvia il bridge Python che si connette a LibreOffice via UNO API");
+        tr("Avvia il bridge Python che si connette a LibreOffice via UNO API"));
     m_officeStartBtn->setFixedWidth(dpiScale(120));
 
     m_officeStatusLbl = new QLabel(tr("\xe2\x9a\xaa  Bridge non avviato"), row);
@@ -145,12 +145,12 @@ QWidget* StrumentiPage::buildOfficeRow()
     m_officeExecBtn = new QPushButton(tr("\xf0\x9f\x96\xa5  Esegui in Office"), row);
     m_officeExecBtn->setObjectName("actionBtn");
     m_officeExecBtn->setToolTip(
-        "Invia il codice Python UNO generato a LibreOffice tramite bridge");
+        tr("Invia il codice Python UNO generato a LibreOffice tramite bridge"));
     m_officeExecBtn->setFixedWidth(dpiScale(160));
     m_officeExecBtn->setEnabled(false);
 
     auto* officeHelpBtn = new QPushButton(
-        "\xf0\x9f\x9b\x9f \xf0\x9f\x94\xa7  Aiuto", row);
+        tr("\xf0\x9f\x9b\x9f \xf0\x9f\x94\xa7  Aiuto"), row);
     officeHelpBtn->setObjectName("actionBtn");
     officeHelpBtn->setFixedWidth(dpiScale(90));
 
@@ -218,22 +218,22 @@ QWidget* StrumentiPage::buildFreecadRow()
     auto* freecadPingBtn = new QPushButton(tr("\xf0\x9f\x94\x97  Verifica"), row);
     freecadPingBtn->setObjectName("actionBtn");
     freecadPingBtn->setToolTip(
-        "Testa la connessione TCP al bridge FreeCAD (porta 9876 default)");
+        tr("Testa la connessione TCP al bridge FreeCAD (porta 9876 default)"));
     freecadPingBtn->setFixedWidth(dpiScale(100));
 
     m_freecadStatusLbl = new QLabel(tr("\xe2\x9a\xaa  Non connesso"), row);
     m_freecadStatusLbl->setObjectName("hintLabel");
 
     m_freecadExecBtn = new QPushButton(
-        "\xf0\x9f\x94\xa9  Esegui in FreeCAD", row);
+        tr("\xf0\x9f\x94\xa9  Esegui in FreeCAD"), row);
     m_freecadExecBtn->setObjectName("actionBtn");
     m_freecadExecBtn->setToolTip(
-        "Invia il codice Python FreeCAD generato via bridge MCP");
+        tr("Invia il codice Python FreeCAD generato via bridge MCP"));
     m_freecadExecBtn->setFixedWidth(dpiScale(170));
     m_freecadExecBtn->setEnabled(false);
 
     auto* freecadHelpBtn = new QPushButton(
-        "\xf0\x9f\x9b\x9f \xf0\x9f\x94\xa7  Aiuto", row);
+        tr("\xf0\x9f\x9b\x9f \xf0\x9f\x94\xa7  Aiuto"), row);
     freecadHelpBtn->setObjectName("actionBtn");
     freecadHelpBtn->setFixedWidth(dpiScale(90));
 
@@ -297,7 +297,7 @@ QWidget* StrumentiPage::buildSketchRow()
     lay->addWidget(iconLbl);
 
     auto* sketchFileBtn = new QPushButton(
-        "\xf0\x9f\x93\x82  Carica disegno / PDF", row);
+        tr("\xf0\x9f\x93\x82  Carica disegno / PDF"), row);
     sketchFileBtn->setObjectName("actionBtn");
     sketchFileBtn->setFixedWidth(dpiScale(190));
     lay->addWidget(sketchFileBtn);
@@ -308,11 +308,11 @@ QWidget* StrumentiPage::buildSketchRow()
 
     m_sketchNotes = new QLineEdit(row);
     m_sketchNotes->setPlaceholderText(
-        "Quote / note  es: 50x30x10mm, acciaio, foro \xc3\x98 8...");
+        tr("Quote / note  es: 50x30x10mm, acciaio, foro \xc3\x98 8..."));
     lay->addWidget(m_sketchNotes, 1);
 
     m_btnSketchGen = new QPushButton(
-        "\xf0\x9f\x8f\x97  Genera modello 3D", row);
+        tr("\xf0\x9f\x8f\x97  Genera modello 3D"), row);
     m_btnSketchGen->setObjectName("actionBtn");
     m_btnSketchGen->setFixedWidth(dpiScale(170));
     lay->addWidget(m_btnSketchGen);
@@ -342,7 +342,7 @@ QWidget* StrumentiPage::buildCloudCompareRow()
     btnLay->addStretch(1);
 
     auto* openBtn = new QPushButton(
-        "\xf0\x9f\x94\xb5  Apri CloudCompare", btnRow);
+        tr("\xf0\x9f\x94\xb5  Apri CloudCompare"), btnRow);
     openBtn->setObjectName("actionBtn");
     openBtn->setToolTip(tr("Avvia CloudCompare se installato sul sistema"));
     connect(openBtn, &QPushButton::clicked, row, []() {
@@ -787,7 +787,7 @@ void StrumentiPage::onFreecadPingTimeout()
     if (m_freecadPingSock &&
         m_freecadPingSock->state() != QAbstractSocket::ConnectedState) {
         m_freecadStatusLbl->setText(
-            "\xe2\x9d\x8c  Timeout \xe2\x80\x94 FreeCAD non risponde");
+            tr("\xe2\x9d\x8c  Timeout \xe2\x80\x94 FreeCAD non risponde"));
         LogBus::post("\xe2\x9d\x8c Strumenti: FreeCAD timeout connessione.");
         m_freecadPingSock->abort();
         m_freecadPingSock->deleteLater();

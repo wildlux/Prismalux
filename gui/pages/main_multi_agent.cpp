@@ -122,7 +122,7 @@ QWidget* AgentiMultiPage::buildInputBar()
     /* Riga 1: titolo */
     auto* titleRow = new QHBoxLayout;
     auto* title = new QLabel(
-        "\xf0\x9f\x95\xb8  <b>Multi-Agente</b> — Decomposizione + Memoria a Grafo", bar);
+        tr("\xf0\x9f\x95\xb8  <b>Multi-Agente</b> — Decomposizione + Memoria a Grafo"), bar);
     title->setTextFormat(Qt::RichText);
     title->setObjectName("cardDesc");
     titleRow->addWidget(title, 1);
@@ -145,7 +145,7 @@ QWidget* AgentiMultiPage::buildInputBar()
     auto* btnRow = new QHBoxLayout;
 
     m_btnDecompose = new QPushButton(
-        "\xf0\x9f\x9a\x80  Decomponsi + Esegui", bar);  /* 🚀 */
+        tr("\xf0\x9f\x9a\x80  Decomponsi + Esegui"), bar);  /* 🚀 */
     m_btnDecompose->setObjectName("actionBtn");
     m_btnDecompose->setProperty("highlight", "true");
     m_btnDecompose->setMinimumHeight(dpiScale(32));
@@ -198,7 +198,7 @@ QWidget* AgentiMultiPage::buildTaskPanel()
     lay->addWidget(m_taskList, 1);
 
     auto* hint = new QLabel(
-        "<small style='color:#64748b'>Clicca un task per vedere il risultato</small>",
+        tr("<small style='color:#64748b'>Clicca un task per vedere il risultato</small>"),
         panel);
     hint->setTextFormat(Qt::RichText);
     lay->addWidget(hint);
@@ -220,7 +220,7 @@ QWidget* AgentiMultiPage::buildOutputPanel()
     m_outputLog->setReadOnly(true);
     m_outputLog->setLineWrapMode(QPlainTextEdit::WidgetWidth);
     m_outputLog->setPlaceholderText(
-        "L'output dei sub-agenti e la sintesi finale appariranno qui...");
+        tr("L'output dei sub-agenti e la sintesi finale appariranno qui..."));
     m_outputTabs->addTab(m_outputLog, tr("\xf0\x9f\x93\x9d  Risultato"));  /* 📝 */
 
     /* Tab 2: Grafo DOT */
@@ -263,7 +263,7 @@ QWidget* AgentiMultiPage::buildMemoryBar()
     lay->addWidget(m_memStats, 1);
 
     m_btnExportTxt = new QPushButton(
-        "\xf0\x9f\x93\x84  Esporta TXT", bar);  /* 📄 */
+        tr("\xf0\x9f\x93\x84  Esporta TXT"), bar);  /* 📄 */
     m_btnExportTxt->setObjectName("navBtn");
     m_btnExportTxt->setFixedHeight(dpiScale(24));
     m_btnExportTxt->setToolTip(tr("Salva snapshot testuale della memoria condivisa"));
@@ -272,7 +272,7 @@ QWidget* AgentiMultiPage::buildMemoryBar()
     lay->addWidget(m_btnExportTxt);
 
     auto* btnBackupMem = new QPushButton(
-        "\xf0\x9f\x92\xbe  Backup", bar);  /* 💾 */
+        tr("\xf0\x9f\x92\xbe  Backup"), bar);  /* 💾 */
     btnBackupMem->setObjectName("navBtn");
     btnBackupMem->setFixedHeight(dpiScale(24));
     btnBackupMem->setToolTip(tr("Esegue subito un backup del DB GraphMemory"));
@@ -282,7 +282,7 @@ QWidget* AgentiMultiPage::buildMemoryBar()
     lay->addWidget(btnBackupMem);
 
     m_btnClearMem = new QPushButton(
-        "\xf0\x9f\x97\x91  Svuota Grafo", bar);  /* 🗑 */
+        tr("\xf0\x9f\x97\x91  Svuota Grafo"), bar);  /* 🗑 */
     m_btnClearMem->setObjectName("navBtn");
     m_btnClearMem->setFixedHeight(dpiScale(24));
     m_btnClearMem->setToolTip(tr("Cancella tutta la memoria a grafo (irreversibile)"));

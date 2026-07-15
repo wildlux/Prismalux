@@ -135,7 +135,7 @@ void MainWindow::onHWUpdated(SysSnapshot snap) {
                                 .arg((int)maxTemp));
                         mb->setTextFormat(Qt::RichText);
                         auto* btnStop = mb->addButton(
-                            "\xf0\x9f\x9b\x91  Ferma AI", QMessageBox::AcceptRole);
+                            tr("\xf0\x9f\x9b\x91  Ferma AI"), QMessageBox::AcceptRole);
                         mb->addButton(tr("Continua"), QMessageBox::RejectRole);
                         mb->setAttribute(Qt::WA_DeleteOnClose);
                         connect(mb, &QMessageBox::finished, this,

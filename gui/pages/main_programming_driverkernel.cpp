@@ -80,7 +80,7 @@ void ProgrammazionePage::buildDriverNvidiaSubTab(QTabWidget* tabs)
     m_driverOutput->setReadOnly(true);
     m_driverOutput->setObjectName("codeOutput");
     m_driverOutput->setPlaceholderText(
-        "L'output dei comandi apparir\xc3\xa0 qui...");
+        tr("L'output dei comandi apparir\xc3\xa0 qui..."));
     vl->addWidget(m_driverOutput, 1);
 
     auto* btnRow = new QWidget(w);
@@ -89,13 +89,13 @@ void ProgrammazionePage::buildDriverNvidiaSubTab(QTabWidget* tabs)
     bl->setSpacing(8);
 
     auto* btnDetect   = new QPushButton(
-        "\xf0\x9f\x94\x8d  Rilevamento GPU", btnRow);
+        tr("\xf0\x9f\x94\x8d  Rilevamento GPU"), btnRow);
     auto* btnDownload = new QPushButton(
-        "\xf0\x9f\x93\xa6  Scarica Driver", btnRow);
+        tr("\xf0\x9f\x93\xa6  Scarica Driver"), btnRow);
     auto* btnGuide    = new QPushButton(
-        "\xf0\x9f\x92\xa1  Guida AI", btnRow);
+        tr("\xf0\x9f\x92\xa1  Guida AI"), btnRow);
     auto* btnDkms     = new QPushButton(
-        "\xf0\x9f\x94\x84  Reinstalla DKMS", btnRow);
+        tr("\xf0\x9f\x94\x84  Reinstalla DKMS"), btnRow);
 
     bl->addWidget(btnDetect);
     bl->addWidget(btnDownload);
@@ -141,7 +141,7 @@ void ProgrammazionePage::buildDriverAmdSubTab(QTabWidget* tabs)
     outAmd->setReadOnly(true);
     outAmd->setObjectName("codeOutput");
     outAmd->setPlaceholderText(
-        "L'output dei comandi apparir\xc3\xa0 qui...");
+        tr("L'output dei comandi apparir\xc3\xa0 qui..."));
     vl->addWidget(outAmd, 1);
 
     auto* btnRow = new QWidget(w);
@@ -150,11 +150,11 @@ void ProgrammazionePage::buildDriverAmdSubTab(QTabWidget* tabs)
     bl->setSpacing(8);
 
     auto* btnDetect   = new QPushButton(
-        "\xf0\x9f\x94\x8d  Rilevamento GPU", btnRow);
+        tr("\xf0\x9f\x94\x8d  Rilevamento GPU"), btnRow);
     auto* btnDownload = new QPushButton(
-        "\xf0\x9f\x93\xa6  Scarica ROCm", btnRow);
+        tr("\xf0\x9f\x93\xa6  Scarica ROCm"), btnRow);
     auto* btnGuide    = new QPushButton(
-        "\xf0\x9f\x92\xa1  Guida AI", btnRow);
+        tr("\xf0\x9f\x92\xa1  Guida AI"), btnRow);
 
     bl->addWidget(btnDetect);
     bl->addWidget(btnDownload);
@@ -199,7 +199,7 @@ void ProgrammazionePage::buildDriverKernelSubTab(QTabWidget* tabs)
     outKernel->setReadOnly(true);
     outKernel->setObjectName("codeOutput");
     outKernel->setPlaceholderText(
-        "L'output dei comandi apparir\xc3\xa0 qui...");
+        tr("L'output dei comandi apparir\xc3\xa0 qui..."));
     vl->addWidget(outKernel, 1);
 
     auto* btnRow = new QWidget(w);
@@ -208,13 +208,13 @@ void ProgrammazionePage::buildDriverKernelSubTab(QTabWidget* tabs)
     bl->setSpacing(8);
 
     auto* btnVer    = new QPushButton(
-        "\xf0\x9f\x94\x8d  Versione attuale", btnRow);
+        tr("\xf0\x9f\x94\x8d  Versione attuale"), btnRow);
     auto* btnList   = new QPushButton(
-        "\xf0\x9f\x93\x8b  Lista kernel", btnRow);
+        tr("\xf0\x9f\x93\x8b  Lista kernel"), btnRow);
     auto* btnGuide  = new QPushButton(
-        "\xf0\x9f\x92\xa1  Compila Kernel (AI)", btnRow);
+        tr("\xf0\x9f\x92\xa1  Compila Kernel (AI)"), btnRow);
     auto* btnSafety = new QPushButton(
-        "\xe2\x9a\xa0  Nota sicurezza", btnRow);
+        tr("\xe2\x9a\xa0  Nota sicurezza"), btnRow);
 
     bl->addWidget(btnVer);
     bl->addWidget(btnList);
@@ -304,7 +304,7 @@ void ProgrammazionePage::buildDriverUsbSubTab(QTabWidget* tabs)
 
     /* Status server */
     m_camServerStatus = new QLabel(
-        "\xe2\x97\x8f  Server non avviato", leftWidget);
+        tr("\xe2\x97\x8f  Server non avviato"), leftWidget);
     m_camServerStatus->setStyleSheet("color: #888; font-size: 12px;");
     vl->addWidget(m_camServerStatus);
 
@@ -436,7 +436,7 @@ void ProgrammazionePage::buildDriverUsbSubTab(QTabWidget* tabs)
         vl->addWidget(sep);
 
         auto* wibyLbl = new QLabel(
-            "<b>\xf0\x9f\x8e\xa5 WIBY Smart Camera \xe2\x80\x94 PTZ LAN (192.168.1.222)</b>",
+            tr("<b>\xf0\x9f\x8e\xa5 WIBY Smart Camera \xe2\x80\x94 PTZ LAN (192.168.1.222)</b>"),
             leftWidget);
         wibyLbl->setTextFormat(Qt::RichText);
         wibyLbl->setWordWrap(true);
@@ -448,19 +448,19 @@ void ProgrammazionePage::buildDriverUsbSubTab(QTabWidget* tabs)
         crl->setContentsMargins(0, 0, 0, 0);
         crl->setSpacing(4);
         auto* btnWibyDiscover = new QPushButton(
-            "\xf0\x9f\x94\x8d Cerca LAN", connRow);
+            tr("\xf0\x9f\x94\x8d Cerca LAN"), connRow);
         auto* btnWibyConn = new QPushButton(
-            "\xf0\x9f\x94\x97 Connetti", connRow);
+            tr("\xf0\x9f\x94\x97 Connetti"), connRow);
         btnWibyConn->setObjectName("primaryButton");
         auto* btnWibyDisc = new QPushButton(
-            "\xe2\x9c\x96 Disco.", connRow);
+            tr("\xe2\x9c\x96 Disco."), connRow);
         crl->addWidget(btnWibyDiscover);
         crl->addWidget(btnWibyConn);
         crl->addWidget(btnWibyDisc);
         vl->addWidget(connRow);
 
         m_wibyStatusLbl = new QLabel(
-            "\xe2\x97\x8f  Non connesso", leftWidget);
+            tr("\xe2\x97\x8f  Non connesso"), leftWidget);
         m_wibyStatusLbl->setStyleSheet("color:#888; font-size:12px;");
         vl->addWidget(m_wibyStatusLbl);
 
@@ -604,14 +604,14 @@ void ProgrammazionePage::buildDriverUsbSubTab(QTabWidget* tabs)
             srl->setContentsMargins(0, 0, 0, 0);
             srl->setSpacing(4);
             auto* btnGetUrl = new QPushButton(
-                "\xf0\x9f\x93\xa1 Ottieni URL", streamRow);
+                tr("\xf0\x9f\x93\xa1 Ottieni URL"), streamRow);
             m_wibyStreamUrl = new QLineEdit(streamRow);
             m_wibyStreamUrl->setPlaceholderText(tr("URL HLS o RTSP..."));
             auto* btnStartStream = new QPushButton(
-                "\xe2\x96\xb6 Avvia viewer", streamRow);
+                tr("\xe2\x96\xb6 Avvia viewer"), streamRow);
             btnStartStream->setObjectName("primaryButton");
             auto* btnStopStream = new QPushButton(
-                "\xe2\x96\xa0 Ferma", streamRow);
+                tr("\xe2\x96\xa0 Ferma"), streamRow);
             srl->addWidget(btnGetUrl);
             srl->addWidget(m_wibyStreamUrl, 1);
             srl->addWidget(btnStartStream);
@@ -629,7 +629,7 @@ void ProgrammazionePage::buildDriverUsbSubTab(QTabWidget* tabs)
         /* ── Firmware offline ── */
         {
             auto* btnFwGuide = new QPushButton(
-                "\xf0\x9f\x93\x96 Guida: firmware offline (OpenIPC + UART)",
+                tr("\xf0\x9f\x93\x96 Guida: firmware offline (OpenIPC + UART)"),
                 leftWidget);
             vl->addWidget(btnFwGuide);
             connect(btnFwGuide, &QPushButton::clicked,
@@ -658,12 +658,12 @@ void ProgrammazionePage::buildDriverUsbSubTab(QTabWidget* tabs)
             mrl->setContentsMargins(0,0,0,0);
             mrl->setSpacing(4);
             auto* btnMitmStart = new QPushButton(
-                "\xf0\x9f\x95\xb5 Avvia MITM", mitmRow);
+                tr("\xf0\x9f\x95\xb5 Avvia MITM"), mitmRow);
             btnMitmStart->setObjectName("primaryButton");
             auto* btnMitmStop = new QPushButton(
-                "\xe2\x96\xa0 Ferma", mitmRow);
+                tr("\xe2\x96\xa0 Ferma"), mitmRow);
             m_wibyMitmStatus = new QLabel(
-                "\xe2\x97\x8f  Inattivo", mitmRow);
+                tr("\xe2\x97\x8f  Inattivo"), mitmRow);
             m_wibyMitmStatus->setStyleSheet("color:#888;font-size:12px;");
             mrl->addWidget(btnMitmStart);
             mrl->addWidget(btnMitmStop);
@@ -693,7 +693,7 @@ void ProgrammazionePage::buildDriverUsbSubTab(QTabWidget* tabs)
     m_camPreviewLbl->setStyleSheet(
         "background:#111; color:#555; border-radius:6px;");
     m_camPreviewLbl->setText(
-        "Nessun feed \xe2\x80\x94 avvia il server e premi \xf0\x9f\x94\x97 Connetti");
+        tr("Nessun feed \xe2\x80\x94 avvia il server e premi \xf0\x9f\x94\x97 Connetti"));
     rvl->addWidget(m_camPreviewLbl, 1);
 
     m_usbOutput = new QTextEdit(rightWidget);
@@ -701,7 +701,7 @@ void ProgrammazionePage::buildDriverUsbSubTab(QTabWidget* tabs)
     m_usbOutput->setObjectName("codeOutput");
     m_usbOutput->setFixedHeight(dpiScale(110));
     m_usbOutput->setPlaceholderText(
-        "L'output dei comandi USB apparir\xc3\xa0 qui...");
+        tr("L'output dei comandi USB apparir\xc3\xa0 qui..."));
     rvl->addWidget(m_usbOutput);
 
     hl->addWidget(leftScroll);
@@ -739,7 +739,7 @@ void ProgrammazionePage::buildDriverReKernelSubTab(QTabWidget* tabs)
         rl->addWidget(new QLabel(tr("\xf0\x9f\x93\x81  Target:"), row));
         m_reTargetEdit = new QLineEdit(row);
         m_reTargetEdit->setPlaceholderText(
-            "/path/to/module.ko   oppure   nome-simbolo-da-cercare");
+            tr("/path/to/module.ko   oppure   nome-simbolo-da-cercare"));
         auto* btnBrowse = new QPushButton(tr("\xf0\x9f\x93\x82  Sfoglia"), row);
         btnBrowse->setFixedWidth(dpiScale(90));
         rl->addWidget(m_reTargetEdit, 1);
@@ -847,7 +847,7 @@ void ProgrammazionePage::buildDriverReKernelSubTab(QTabWidget* tabs)
         rl->setSpacing(6);
 
         auto* btnAiAnalyze = new QPushButton(
-            "\xf0\x9f\xa4\x96  Analisi AI \xe2\x80\x94 spiega output", row);
+            tr("\xf0\x9f\xa4\x96  Analisi AI \xe2\x80\x94 spiega output"), row);
         btnAiAnalyze->setObjectName("primaryButton");
         auto* btnClear = new QPushButton(tr("\xf0\x9f\x97\x91  Pulisci"), row);
         btnClear->setToolTip(tr("Pulisce l'output del reverse engineering"));

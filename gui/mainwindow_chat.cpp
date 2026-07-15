@@ -521,7 +521,7 @@ void MainWindow::showOnboardingWizard()
      * comportamento sicuro (wizard mostrato una sola volta). Chi la toglie
      * ESPLICITAMENTE vuole rivederlo al prossimo riavvio — è una scelta. */
     auto* dontShow = new QCheckBox(
-        "Non mostrare pi\xc3\xb9 al prossimo riavvio", dlg);
+        tr("Non mostrare pi\xc3\xb9 al prossimo riavvio"), dlg);
     dontShow->setChecked(true);
     vlay->addWidget(dontShow);
     m_onbDontShow = dontShow;

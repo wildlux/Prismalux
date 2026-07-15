@@ -44,7 +44,7 @@ public:
         headerLay->setSpacing(8);
 
         auto* title = new QLabel(
-            "\xf0\x9f\x90\xb3  <b>Container Docker</b>", header);
+            tr("\xf0\x9f\x90\xb3  <b>Container Docker</b>"), header);
         title->setObjectName("cardTitle");
         title->setTextFormat(Qt::RichText);
         headerLay->addWidget(title, 1);
@@ -379,7 +379,7 @@ private slots:
 
         if (!dir.isEmpty()) {
             auto* recreateBtn = new QPushButton(
-                "\xf0\x9f\x94\x84  Ricrea ora (docker compose)", note->parentWidget());
+                tr("\xf0\x9f\x94\x84  Ricrea ora (docker compose)"), note->parentWidget());
             recreateBtn->setObjectName("actionBtn");
             recreateBtn->setProperty("containerName", name);
             recreateBtn->setProperty("composeDir", dir);

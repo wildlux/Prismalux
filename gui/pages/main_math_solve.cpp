@@ -666,13 +666,13 @@ QWidget* MatematicaPage::buildSolveTab()
     lay->setSpacing(8);
 
     lay->addWidget(new QLabel(
-        "<b>Risolvi un'equazione, disequazione o espressione PASSO PER PASSO (stile Derive):</b>", w));
+        tr("<b>Risolvi un'equazione, disequazione o espressione PASSO PER PASSO (stile Derive):</b>"), w));
 
     /* Riga input + tipo */
     auto* inputRow = new QHBoxLayout;
     m_solveInput = new QLineEdit(w);
     m_solveInput->setPlaceholderText(
-        "Inserisci equazione o espressione: es. x\xc2\xb2 + 5x + 6 = 0,  2x > 4,  sin(x)/x");
+        tr("Inserisci equazione o espressione: es. x\xc2\xb2 + 5x + 6 = 0,  2x > 4,  sin(x)/x"));
     m_solveInput->setMinimumWidth(320);
     inputRow->addWidget(m_solveInput, 1);
 
@@ -713,7 +713,7 @@ QWidget* MatematicaPage::buildSolveTab()
     auto* btnRow = new QHBoxLayout;
 
     m_btnSolve = new QPushButton(
-        "\xf0\x9f\x94\xa2  Risolvi passo per passo", w);   /* 🔢 */
+        tr("\xf0\x9f\x94\xa2  Risolvi passo per passo"), w);   /* 🔢 */
     m_btnSolve->setObjectName("actionBtn");
     m_btnSolve->setProperty("highlight", "true");
     connect(m_btnSolve, &QPushButton::clicked, this, &MatematicaPage::onSolveClicked);

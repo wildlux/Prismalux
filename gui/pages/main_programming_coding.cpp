@@ -256,7 +256,7 @@ QWidget* ProgrammazionePage::buildOutputColumn(QWidget* parent)
     rightLay->addWidget(outputGroup, 1);
 
     auto* chartGroup = new QGroupBox(
-        "\xf0\x9f\x93\x88  Grafico \xe2\x80\x94 output numerico", rightCol);
+        tr("\xf0\x9f\x93\x88  Grafico \xe2\x80\x94 output numerico"), rightCol);
     chartGroup->setObjectName("cardGroup");
     auto* chartLay = new QVBoxLayout(chartGroup);
     chartLay->setContentsMargins(4, 8, 4, 4);
@@ -340,10 +340,10 @@ QWidget* ProgrammazionePage::buildAiPanel(QWidget* parent,
     m_btnSend->setObjectName("m_btnSend");
 
     m_btnInsert = new QPushButton(
-        "\xe2\x86\x91  Inserisci in editor", aiInputRow);
+        tr("\xe2\x86\x91  Inserisci in editor"), aiInputRow);
     m_btnInsert->setObjectName("actionBtn");
     m_btnInsert->setToolTip(
-        "Estrae il primo blocco di codice dalla risposta AI e lo inserisce nell’editor");
+        tr("Estrae il primo blocco di codice dalla risposta AI e lo inserisce nell’editor"));
     m_btnInsert->setEnabled(false);
 
     outBtnCloseAi = new QPushButton("\xe2\x9c\x95", aiInputRow);
@@ -926,14 +926,14 @@ void ProgrammazionePage::runLint()
     } else if (ext == "cpp" || ext == "c") {
         if (QStandardPaths::findExecutable("clang-tidy").isEmpty()) {
             if (m_status) m_status->setText(
-                "\xe2\x9a\xa0  clang-tidy non trovato — installa: sudo apt install clang-tidy");
+                tr("\xe2\x9a\xa0  clang-tidy non trovato — installa: sudo apt install clang-tidy"));
             return;
         }
         cfg = { "clang-tidy", {"-checks=*,-fuchsia-*"}, true };
     } else if (ext == "js") {
         if (QStandardPaths::findExecutable("eslint").isEmpty()) {
             if (m_status) m_status->setText(
-                "\xe2\x9a\xa0  eslint non trovato — installa: npm install -g eslint");
+                tr("\xe2\x9a\xa0  eslint non trovato — installa: npm install -g eslint"));
             return;
         }
         cfg = { "eslint", {"--no-eslintrc", "--rule", "no-unused-vars:warn"}, true };
@@ -997,7 +997,7 @@ void ProgrammazionePage::runLint()
             [this, proc, tmp](QProcess::ProcessError err) {
         if (err == QProcess::FailedToStart) {
             if (m_status) m_status->setText(
-                "\xe2\x9d\x8c  Linter non avviabile — verifica installazione");
+                tr("\xe2\x9d\x8c  Linter non avviabile — verifica installazione"));
             proc->deleteLater();
             tmp->deleteLater();
         }

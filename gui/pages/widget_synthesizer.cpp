@@ -209,7 +209,7 @@ void SintetizzatoreWidget::buildLayout()
 QLabel* SintetizzatoreWidget::buildTitle()
 {
     auto* lbl = new QLabel(
-        "\xf0\x9f\x8e\xb5  <b>Sintetizzatore Toni Puri</b>", this);
+        tr("\xf0\x9f\x8e\xb5  <b>Sintetizzatore Toni Puri</b>"), this);
     lbl->setTextFormat(Qt::RichText);
     lbl->setObjectName("sectionTitle");
     return lbl;
@@ -228,7 +228,7 @@ QWidget* SintetizzatoreWidget::buildSplitter()
 QWidget* SintetizzatoreWidget::buildProgrammatoreCard(QWidget* parent)
 {
     auto* box = new QGroupBox(
-        "\xf0\x9f\x8e\xb9  Programmatore Toni", parent);
+        tr("\xf0\x9f\x8e\xb9  Programmatore Toni"), parent);
     auto* lay = new QVBoxLayout(box);
     lay->setSpacing(8);
     lay->addLayout(buildParametriGrid(box));
@@ -244,7 +244,7 @@ QWidget* SintetizzatoreWidget::buildProgrammatoreCard(QWidget* parent)
 QWidget* SintetizzatoreWidget::buildAssemblatoreCard(QWidget* parent)
 {
     auto* box = new QGroupBox(
-        "\xf0\x9f\x93\x8a  Assemblatore Visuale \xe2\x80\x94 Oscilloscopio", parent);
+        tr("\xf0\x9f\x93\x8a  Assemblatore Visuale \xe2\x80\x94 Oscilloscopio"), parent);
     auto* lay = new QVBoxLayout(box);
     lay->setSpacing(8);
     m_canvas = new OscoCanvas(box);
@@ -301,10 +301,10 @@ QHBoxLayout* SintetizzatoreWidget::buildAzioniRow(QWidget* parent)
     auto* addBtn  = new QPushButton(tr("+ Aggiungi"), parent);
     addBtn->setObjectName("actionBtn");
     auto* prevBtn = new QPushButton(
-        "\xf0\x9f\x94\x8a  Ascolta", parent);
+        tr("\xf0\x9f\x94\x8a  Ascolta"), parent);
     prevBtn->setObjectName("actionBtn");
     auto* remBtn  = new QPushButton(
-        "\xf0\x9f\x97\x91  Rimuovi", parent);
+        tr("\xf0\x9f\x97\x91  Rimuovi"), parent);
     row->addWidget(addBtn);
     row->addWidget(prevBtn);
     row->addWidget(remBtn);
@@ -319,10 +319,10 @@ QHBoxLayout* SintetizzatoreWidget::buildSalvaRow(QWidget* parent)
 {
     auto* row        = new QHBoxLayout();
     auto* saveSeqBtn = new QPushButton(
-        "\xf0\x9f\x92\xbe  Salva sequenza", parent);
+        tr("\xf0\x9f\x92\xbe  Salva sequenza"), parent);
     saveSeqBtn->setObjectName("actionBtn");
     auto* loadSeqBtn = new QPushButton(
-        "\xf0\x9f\x93\x82  Carica sequenza", parent);
+        tr("\xf0\x9f\x93\x82  Carica sequenza"), parent);
     loadSeqBtn->setObjectName("actionBtn");
     row->addWidget(saveSeqBtn);
     row->addWidget(loadSeqBtn);
@@ -336,12 +336,12 @@ QHBoxLayout* SintetizzatoreWidget::buildControlRow(QWidget* parent)
 {
     auto* row    = new QHBoxLayout();
     m_playBtn = new QPushButton(
-        "\xe2\x96\xb6  Riproduci sequenza", parent);
+        tr("\xe2\x96\xb6  Riproduci sequenza"), parent);
     m_playBtn->setObjectName("actionBtn");
     m_stopBtn = new QPushButton(tr("\xe2\x8f\xb9  Stop"), parent);
     m_stopBtn->setEnabled(false);
     auto* saveWavBtn = new QPushButton(
-        "\xf0\x9f\x92\xbe  Salva WAV", parent);
+        tr("\xf0\x9f\x92\xbe  Salva WAV"), parent);
     saveWavBtn->setObjectName("actionBtn");
     m_statusLbl = new QLabel(tr("Aggiungi toni e premi Riproduci"), parent);
     m_statusLbl->setObjectName("hintLabel");
@@ -433,7 +433,7 @@ void SintetizzatoreWidget::onPlaySequenza()
 {
     if (m_seq.isEmpty()) {
         m_statusLbl->setText(
-            "\xe2\x9a\xa0  Aggiungi almeno un tono alla sequenza");
+            tr("\xe2\x9a\xa0  Aggiungi almeno un tono alla sequenza"));
         return;
     }
     playWav(m_seq, QString("Sequenza %1 toni").arg(m_seq.size()));
@@ -449,7 +449,7 @@ void SintetizzatoreWidget::playWav(const QVector<Tono>& toni, const QString& lab
     QFile f(m_tmpWav);
     if (!f.open(QFile::WriteOnly)) {
         m_statusLbl->setText(
-            "\xe2\x9d\x8c  Impossibile scrivere file temporaneo");
+            tr("\xe2\x9d\x8c  Impossibile scrivere file temporaneo"));
         return;
     }
     f.write(makeWav(toni));

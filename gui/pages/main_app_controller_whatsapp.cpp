@@ -55,7 +55,7 @@ QWidget* AppControllerPage::buildWhatsAppTab()
 
     /* ── GroupBox Configurazione bridge ── */
     auto* cfgGroup = new QGroupBox(
-        "\xf0\x9f\x94\xa7  Configurazione bridge", w);
+        tr("\xf0\x9f\x94\xa7  Configurazione bridge"), w);
     auto* cfgLay = new QVBoxLayout(cfgGroup);
     cfgLay->setSpacing(dpiScale(6));
 
@@ -65,7 +65,7 @@ QWidget* AppControllerPage::buildWhatsAppTab()
     m_waBridgeUrlEdit = new QLineEdit(cfgGroup);
     m_waBridgeUrlEdit->setPlaceholderText(tr("http://localhost:3000"));
     auto* saveBridgeBtn = new QPushButton(
-        "\xf0\x9f\x92\xbe  Salva", cfgGroup);
+        tr("\xf0\x9f\x92\xbe  Salva"), cfgGroup);
     saveBridgeBtn->setObjectName("actionBtn");
     saveBridgeBtn->setFixedWidth(dpiScale(80));
     bridgeRow->addWidget(bridgeLbl);
@@ -87,7 +87,7 @@ QWidget* AppControllerPage::buildWhatsAppTab()
 
     /* ── GroupBox Contatti promozionali ── */
     auto* promoGroup = new QGroupBox(
-        "\xf0\x9f\x93\xa3  Contatti promozionali", w);
+        tr("\xf0\x9f\x93\xa3  Contatti promozionali"), w);
     auto* promoLay = new QVBoxLayout(promoGroup);
     promoLay->setSpacing(dpiScale(6));
 
@@ -105,11 +105,11 @@ QWidget* AppControllerPage::buildWhatsAppTab()
     m_waPromoContactEdit = new QLineEdit(promoGroup);
     m_waPromoContactEdit->setPlaceholderText(tr("+393331234567"));
     auto* waAddBtn = new QPushButton(
-        "\xe2\x9e\x95  Aggiungi", promoGroup);
+        tr("\xe2\x9e\x95  Aggiungi"), promoGroup);
     waAddBtn->setObjectName("actionBtn");
     waAddBtn->setFixedWidth(dpiScale(100));
     auto* waRemoveBtn = new QPushButton(
-        "\xe2\x9e\x96  Rimuovi", promoGroup);
+        tr("\xe2\x9e\x96  Rimuovi"), promoGroup);
     waRemoveBtn->setObjectName("actionBtn");
     waRemoveBtn->setFixedWidth(dpiScale(100));
     promoAddRow->addWidget(m_waPromoContactEdit, 1);
@@ -126,12 +126,12 @@ QWidget* AppControllerPage::buildWhatsAppTab()
     m_waPromoMsgEdit = new QTextEdit(promoGroup);
     m_waPromoMsgEdit->setFixedHeight(dpiScale(60));
     m_waPromoMsgEdit->setPlaceholderText(
-        "Testo del messaggio promozionale...");
+        tr("Testo del messaggio promozionale..."));
     promoLay->addWidget(m_waPromoMsgEdit);
 
     auto* promoCtrlRow = new QHBoxLayout;
     auto* waSendAllBtn = new QPushButton(
-        "\xf0\x9f\x93\xa4  Invia a tutti", promoGroup);
+        tr("\xf0\x9f\x93\xa4  Invia a tutti"), promoGroup);
     waSendAllBtn->setObjectName("actionBtn");
     m_waPromoStatusLbl = new QLabel("", promoGroup);
     m_waPromoStatusLbl->setObjectName("statusLabel");
@@ -143,7 +143,7 @@ QWidget* AppControllerPage::buildWhatsAppTab()
 
     /* ── GroupBox Bot AI Rispondente ── */
     auto* botGroup = new QGroupBox(
-        "\xf0\x9f\xa4\x96  Bot AI Rispondente", w);
+        tr("\xf0\x9f\xa4\x96  Bot AI Rispondente"), w);
     auto* botLay = new QVBoxLayout(botGroup);
     botLay->setSpacing(dpiScale(6));
 
@@ -167,22 +167,22 @@ QWidget* AppControllerPage::buildWhatsAppTab()
     botLay->addLayout(wlRow);
 
     m_waAutoReplyCheck = new QCheckBox(
-        "Abilita auto-risposta AI ai messaggi in entrata", botGroup);
+        tr("Abilita auto-risposta AI ai messaggi in entrata"), botGroup);
     m_waAutoReplyCheck->setChecked(true);
     botLay->addWidget(m_waAutoReplyCheck);
 
     auto* botCtrlRow = new QHBoxLayout;
     m_waBotStartBtn = new QPushButton(
-        "\xf0\x9f\x9f\xa2  Avvia Bot", botGroup);
+        tr("\xf0\x9f\x9f\xa2  Avvia Bot"), botGroup);
     m_waBotStartBtn->setObjectName("actionBtn");
     m_waBotStartBtn->setFixedWidth(dpiScale(120));
     m_waBotStopBtn = new QPushButton(
-        "\xf0\x9f\x94\xb4  Ferma Bot", botGroup);
+        tr("\xf0\x9f\x94\xb4  Ferma Bot"), botGroup);
     m_waBotStopBtn->setObjectName("actionBtn");
     m_waBotStopBtn->setFixedWidth(dpiScale(120));
     m_waBotStopBtn->setEnabled(false);
     m_waBotStatusLbl = new QLabel(
-        "\xe2\x9a\xab  Bot non attivo", botGroup);
+        tr("\xe2\x9a\xab  Bot non attivo"), botGroup);
     m_waBotStatusLbl->setObjectName("statusLabel");
     botCtrlRow->addWidget(m_waBotStartBtn);
     botCtrlRow->addWidget(m_waBotStopBtn);
@@ -196,7 +196,7 @@ QWidget* AppControllerPage::buildWhatsAppTab()
     m_waBotLog->setOpenLinks(false);
     m_waBotLog->setMinimumHeight(dpiScale(120));
     m_waBotLog->setPlaceholderText(
-        "I messaggi ricevuti/inviati dal bot appariranno qui...");
+        tr("I messaggi ricevuti/inviati dal bot appariranno qui..."));
     connect(m_waBotLog, &QTextBrowser::anchorClicked,
             this, &AppControllerPage::onPipLinkClicked);
     botLogLay->addWidget(m_waBotLog);
@@ -295,19 +295,19 @@ void AppControllerPage::onWaSendPromoClicked()
     const QString bridgeUrl = m_waBridgeUrlEdit->text().trimmed();
     if (bridgeUrl.isEmpty()) {
         m_waPromoStatusLbl->setText(
-            "\xe2\x9d\x8c  Inserisci l\xe2\x80\x99" "URL del bridge.");
+            tr("\xe2\x9d\x8c  Inserisci l\xe2\x80\x99" "URL del bridge."));
         return;
     }
     const QString msg = m_waPromoMsgEdit->toPlainText().trimmed();
     if (msg.isEmpty()) {
         m_waPromoStatusLbl->setText(
-            "\xe2\x9d\x8c  Scrivi il messaggio prima di inviare.");
+            tr("\xe2\x9d\x8c  Scrivi il messaggio prima di inviare."));
         return;
     }
     const int total = m_waContactList->count();
     if (total == 0) {
         m_waPromoStatusLbl->setText(
-            "\xe2\x9d\x8c  Nessun contatto in lista.");
+            tr("\xe2\x9d\x8c  Nessun contatto in lista."));
         return;
     }
 
@@ -358,7 +358,7 @@ void AppControllerPage::onWaBotStartClicked()
     const QString bridgeUrl = m_waBridgeUrlEdit->text().trimmed();
     if (bridgeUrl.isEmpty()) {
         m_waBotStatusLbl->setText(
-            "\xe2\x9d\x8c  Inserisci l\xe2\x80\x99" "URL del bridge prima di avviare.");
+            tr("\xe2\x9d\x8c  Inserisci l\xe2\x80\x99" "URL del bridge prima di avviare."));
         return;
     }
 

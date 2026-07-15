@@ -120,7 +120,7 @@ CodeInterpreterWidget::CodeInterpreterWidget(AiClient* ai, QWidget* parent)
 
     /* ── Descrizione ── */
     auto* inputGroup = new QGroupBox(
-        "\xf0\x9f\x93\x9d  Descrizione — cosa deve fare il codice:", this);
+        tr("\xf0\x9f\x93\x9d  Descrizione — cosa deve fare il codice:"), this);
     auto* inputLay = new QVBoxLayout(inputGroup);
     inputLay->setContentsMargins(4, 4, 4, 4);
     m_input = new QTextEdit(inputGroup);
@@ -136,14 +136,14 @@ CodeInterpreterWidget::CodeInterpreterWidget(AiClient* ai, QWidget* parent)
     auto* btnLay = new QHBoxLayout;
     btnLay->setSpacing(6);
     m_btnRun  = new QPushButton(
-        "\xe2\x9a\xa1  Genera e Esegui con AI", this);
+        tr("\xe2\x9a\xa1  Genera e Esegui con AI"), this);
     m_btnRun->setObjectName("primaryBtn");
     m_btnStop = new QPushButton(tr("\xe2\x8f\xb9  Stop"), this);
     m_btnStop->setEnabled(false);
     m_btnCopyCode = new QPushButton(
-        "\xf0\x9f\x93\x8b  Copia codice", this);
+        tr("\xf0\x9f\x93\x8b  Copia codice"), this);
     m_btnClear = new QPushButton(
-        "\xf0\x9f\x97\x91  Pulisci", this);
+        tr("\xf0\x9f\x97\x91  Pulisci"), this);
     btnLay->addWidget(m_btnRun);
     btnLay->addWidget(m_btnStop);
     btnLay->addStretch();
@@ -156,7 +156,7 @@ CodeInterpreterWidget::CodeInterpreterWidget(AiClient* ai, QWidget* parent)
 
     /* Pannello codice */
     auto* codeGroup = new QGroupBox(
-        "\xf0\x9f\x92\xbb  Codice generato:", splitter);
+        tr("\xf0\x9f\x92\xbb  Codice generato:"), splitter);
     auto* codeLay = new QVBoxLayout(codeGroup);
     codeLay->setContentsMargins(4, 4, 4, 4);
     m_codeView = new QPlainTextEdit(codeGroup);
@@ -167,12 +167,12 @@ CodeInterpreterWidget::CodeInterpreterWidget(AiClient* ai, QWidget* parent)
         m_codeView->setFont(f);
     }
     m_codeView->setPlaceholderText(
-        "Il codice generato dall'AI apparir\xc3\xa0 qui.");
+        tr("Il codice generato dall'AI apparir\xc3\xa0 qui."));
     codeLay->addWidget(m_codeView);
 
     /* Pannello output + immagine */
     auto* outGroup = new QGroupBox(
-        "\xf0\x9f\x93\x9f  Output:", splitter);
+        tr("\xf0\x9f\x93\x9f  Output:"), splitter);
     auto* outLay = new QVBoxLayout(outGroup);
     outLay->setContentsMargins(4, 4, 4, 4);
     m_output = new QTextEdit(outGroup);
@@ -204,7 +204,7 @@ CodeInterpreterWidget::CodeInterpreterWidget(AiClient* ai, QWidget* parent)
 
     /* ── Barra di stato ── */
     m_status = new QLabel(
-        "Pronto. Descrivi cosa vuoi che il codice faccia.", this);
+        tr("Pronto. Descrivi cosa vuoi che il codice faccia."), this);
     m_status->setWordWrap(true);
     m_status->setStyleSheet("color:#aaa;font-size:11px;");
     mainLay->addWidget(m_status);
@@ -237,7 +237,7 @@ CodeInterpreterWidget::CodeInterpreterWidget(AiClient* ai, QWidget* parent)
         if (!code.isEmpty()) {
             QApplication::clipboard()->setText(code);
             m_status->setText(
-                "\xf0\x9f\x93\x8b  Codice copiato negli appunti.");
+                tr("\xf0\x9f\x93\x8b  Codice copiato negli appunti."));
         }
     });
 
@@ -288,7 +288,7 @@ void CodeInterpreterWidget::runGenerate()
     const QString desc = m_input->toPlainText().trimmed();
     if (desc.isEmpty()) {
         m_status->setText(
-            "\xe2\x9d\x8c  Scrivi una descrizione prima di generare.");
+            tr("\xe2\x9d\x8c  Scrivi una descrizione prima di generare."));
         return;
     }
 
@@ -306,7 +306,7 @@ void CodeInterpreterWidget::runGenerate()
         sc->hide();
 
     m_status->setText(
-        "\xf0\x9f\xa4\x96  AI sta generando il codice...");
+        tr("\xf0\x9f\xa4\x96  AI sta generando il codice..."));
 
     /* Sceglie il modello selezionato nella combo */
     QString model = m_modelCombo->currentData(Qt::UserRole).toString();
@@ -563,7 +563,7 @@ void CodeInterpreterWidget::requestFix(const QString& code,
     connectAI([this, attempt](const QString& fixedCode){
         if (fixedCode.isEmpty()) {
             m_status->setText(
-                "\xe2\x9d\x8c  L'AI non ha prodotto una correzione valida.");
+                tr("\xe2\x9d\x8c  L'AI non ha prodotto una correzione valida."));
             setRunning(false);
             return;
         }

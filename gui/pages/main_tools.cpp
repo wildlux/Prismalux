@@ -302,7 +302,7 @@ QWidget* StrumentiPage::buildCatScrollArea()
     m_cronBtn->setCheckable(true);
     m_cronBtn->setObjectName("strCatBtn");
     m_cronBtn->setToolTip(
-        "Pianifica comandi periodici con il Cron Scheduler integrato");
+        tr("Pianifica comandi periodici con il Cron Scheduler integrato"));
     catLay->addWidget(m_cronBtn);
 
     /* Cambio categoria */
@@ -471,7 +471,7 @@ QWidget* StrumentiPage::buildCronPanel()
     auto* cl = new QVBoxLayout(m_cronPanel);
     cl->setContentsMargins(16, 16, 16, 16);
     auto* lbl = new QLabel(
-        "\xe2\x8f\xb3  Caricamento Cron Scheduler in corso...");
+        tr("\xe2\x8f\xb3  Caricamento Cron Scheduler in corso..."));
     lbl->setTextFormat(Qt::RichText);
     lbl->setWordWrap(true);
     lbl->setObjectName("hintLabel");
@@ -539,7 +539,7 @@ QWidget* StrumentiPage::buildPdfRow()
     auto* pdfBtn = new QPushButton(tr("\xf0\x9f\x93\x84  Carica PDF"), row);
     pdfBtn->setObjectName("actionBtn");
     pdfBtn->setToolTip(
-        "Seleziona un file PDF da usare come contesto per la generazione AI");
+        tr("Seleziona un file PDF da usare come contesto per la generazione AI"));
     pdfBtn->setFixedWidth(dpiScale(130));
 
     m_pdfPathLbl = new QLabel(tr("Nessun PDF caricato"), row);
