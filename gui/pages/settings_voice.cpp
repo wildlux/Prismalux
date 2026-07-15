@@ -594,26 +594,6 @@ QWidget* ImpostazioniPage::buildVoceTab()
    ══════════════════════════════════════════════════════════════ */
 QWidget* ImpostazioniPage::buildTrascriviTab()
 {
-    /* ── Modelli disponibili ── */
-    struct ModelInfo {
-        QString id;       /* nome file senza estensione */
-        QString label;    /* nome leggibile */
-        int     sizeMb;
-        QString desc;
-    };
-    static const ModelInfo kModels[] = {
-        { "ggml-tiny",     "Tiny",    39,   "Velocissimo, meno preciso" },
-        { "ggml-base",     "Base",    74,   "Buon compromesso velocit\xc3\xa0/precisione" },
-        { "ggml-small",    "Small",  141,   "Consigliato — bilanciato" },
-        { "ggml-medium",   "Medium", 462,   "Alta precisione, pi\xc3\xb9 lento" },
-        { "ggml-large-v3", "Large", 1550,   "Massima precisione" },
-    };
-    static constexpr int N = int(sizeof kModels / sizeof kModels[0]);
-
-    const QString hfBase =
-        "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/";
-    const QString modelsDir = SttWhisper::whisperModelsDir();
-
     /* ── Colonna destra: STT Whisper (nessun scroll interno) ── */
     auto* inner = new QGroupBox(
         tr("\xf0\x9f\x8e\xa4  Trascrizione \xe2\x80\x94 Whisper STT"));
@@ -622,6 +602,18 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
     ilay->setContentsMargins(14, 10, 14, 10);
     ilay->setSpacing(8);
 
+    buildTrascriviModeSection(inner, ilay);      /* Sez. 0: modalitÃ  whisper/LLM */
+    buildTrascriviBinSection(inner, ilay);       /* Sez. 1: binario whisper-cli + compilazione */
+    buildTrascriviModelSections(inner, ilay);    /* Sez. 2+3: modello attivo + griglia download */
+    buildTrascriviHttpSection(inner, ilay);      /* Sez. 4b: server Whisper HTTP */
+    buildTrascriviDiarizeSection(inner, ilay);   /* Sez. 4c: diarizzazione speaker */
+    buildTrascriviNoteDepsSection(inner, ilay);  /* Sez. 4+5: note + dipendenze Python */
+    buildTrascriviMicSection(inner, ilay);       /* Sez. 6: livello microfono */
+    return inner;
+}
+
+void ImpostazioniPage::buildTrascriviModeSection(QGroupBox* inner, QVBoxLayout* ilay)
+{
     /* ══════════════════════════════════════════
        Sezione 0: Modalità trascrizione (N11)
        Radio: whisper locale | LLM via Ollama
@@ -808,7 +800,10 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
 
         ilay->addWidget(secMode);
     }
+}
 
+void ImpostazioniPage::buildTrascriviBinSection(QGroupBox* inner, QVBoxLayout* ilay)
+{
     /* ══════════════════════════════════════════
        Sezione 1: stato binario whisper-cli
        ══════════════════════════════════════════ */
@@ -1053,6 +1048,29 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
             });
         });
     });
+}
+
+void ImpostazioniPage::buildTrascriviModelSections(QGroupBox* inner, QVBoxLayout* ilay)
+{
+    /* ── Modelli disponibili ── */
+    struct ModelInfo {
+        QString id;       /* nome file senza estensione */
+        QString label;    /* nome leggibile */
+        int     sizeMb;
+        QString desc;
+    };
+    static const ModelInfo kModels[] = {
+        { "ggml-tiny",     "Tiny",    39,   "Velocissimo, meno preciso" },
+        { "ggml-base",     "Base",    74,   "Buon compromesso velocit\xc3\xa0/precisione" },
+        { "ggml-small",    "Small",  141,   "Consigliato — bilanciato" },
+        { "ggml-medium",   "Medium", 462,   "Alta precisione, pi\xc3\xb9 lento" },
+        { "ggml-large-v3", "Large", 1550,   "Massima precisione" },
+    };
+    static constexpr int N = int(sizeof kModels / sizeof kModels[0]);
+
+    const QString hfBase =
+        "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/";
+    const QString modelsDir = SttWhisper::whisperModelsDir();
 
     /* ══════════════════════════════════════════
        Sezione 2: modello attivo + selettore
@@ -1257,7 +1275,10 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
     }
 
     ilay->addWidget(secModels);
+}
 
+void ImpostazioniPage::buildTrascriviHttpSection(QGroupBox* inner, QVBoxLayout* ilay)
+{
     /* ══════════════════════════════════════════
        Sezione 4b: server Whisper HTTP (opzionale)
        Consente di usare faster-whisper-server o
@@ -1338,7 +1359,10 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
             });
 
     ilay->addWidget(secHttp);
+}
 
+void ImpostazioniPage::buildTrascriviDiarizeSection(QGroupBox* inner, QVBoxLayout* ilay)
+{
     /* ══════════════════════════════════════════
        Sezione 4c: diarizzazione speaker
        ══════════════════════════════════════════ */
@@ -1455,7 +1479,10 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
 
         ilay->addWidget(secDiar);
     }
+}
 
+void ImpostazioniPage::buildTrascriviNoteDepsSection(QGroupBox* inner, QVBoxLayout* ilay)
+{
     /* ══════════════════════════════════════════
        Sezione 4: nota lingua + test rapido
        ══════════════════════════════════════════ */
@@ -1504,7 +1531,10 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
         ilay->addWidget(depPanel);
         QTimer::singleShot(200, depPanel, &DepCheckPanel::runAllChecks);
     }
+}
 
+void ImpostazioniPage::buildTrascriviMicSection(QGroupBox* inner, QVBoxLayout* ilay)
+{
     /* ══════════════════════════════════════════
        Sezione 6: livello microfono reale
        Richiede Qt6::Multimedia (QAudioSource).
@@ -1567,7 +1597,6 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
 #endif
 
     ilay->addWidget(secMic);
-    return inner;
 }
 
 /* ══════════════════════════════════════════════════════════════

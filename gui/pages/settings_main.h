@@ -38,6 +38,8 @@ class QProgressBar;
 class QComboBox;
 class QButtonGroup;
 class QTextEdit;
+class QGroupBox;
+class QVBoxLayout;
 class ToggleSwitch;
 
 /* ══════════════════════════════════════════════════════════════
@@ -208,6 +210,14 @@ private:
     QWidget* buildTestTab();
     QWidget* buildVoceTab();
     QWidget* buildTrascriviTab();
+    /* Sezioni di buildTrascriviTab (D-35: estrazione meccanica, una per card) */
+    void buildTrascriviModeSection(QGroupBox* inner, QVBoxLayout* ilay);
+    void buildTrascriviBinSection(QGroupBox* inner, QVBoxLayout* ilay);
+    void buildTrascriviModelSections(QGroupBox* inner, QVBoxLayout* ilay);
+    void buildTrascriviHttpSection(QGroupBox* inner, QVBoxLayout* ilay);
+    void buildTrascriviDiarizeSection(QGroupBox* inner, QVBoxLayout* ilay);
+    void buildTrascriviNoteDepsSection(QGroupBox* inner, QVBoxLayout* ilay);
+    void buildTrascriviMicSection(QGroupBox* inner, QVBoxLayout* ilay);
     QWidget* buildGraficoTab(GraficoCanvas* canvas);
     QWidget* buildAiLocaleTab();
     QWidget* buildRagTab();
