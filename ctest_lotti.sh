@@ -9,12 +9,14 @@
 # Config (variabili d'ambiente):
 #   LOTTO=10     test per lotto
 #   SOGLIA=70    °C: sopra questa temperatura si aspetta prima di partire col lotto
+#   ESCLUDI=""   regex ctest -E per saltare suite (es. "SttWhisper|PerceptorScripts")
 #   BUILD=gui/build_tests   (build canonica dei test — build_gui ha BUILD_TESTS=OFF)
 
 set -u
 BUILD="${BUILD:-gui/build_tests}"
 LOTTO="${LOTTO:-10}"
 SOGLIA="${SOGLIA:-70}"
+ESCLUDI="${ESCLUDI:-}"
 cd "$(dirname "$0")/$BUILD" || { echo "❌  cartella $BUILD non trovata (build prima con cmake)"; exit 1; }
 
 # numeri reali dei test (non partono necessariamente da 1)
@@ -39,7 +41,11 @@ esegui_lotto() {
     da=$(( (n-1)*LOTTO )); quanti=$LOTTO
     lista=$(IFS=,; echo "${NUMERI[*]:$da:$quanti}")
     echo "══ Lotto $n/$NLOTTI ($(echo "$lista" | tr ',' ' ' | wc -w) test di $TOT) — CPU $(temp_cpu)°C ══"
-    nice -n19 ctest -I "0,0,,${lista}" -j1 --output-on-failure
+    if [ -n "$ESCLUDI" ]; then
+        nice -n19 ctest -I "0,0,,${lista}" -E "$ESCLUDI" -j1 --output-on-failure
+    else
+        nice -n19 ctest -I "0,0,,${lista}" -j1 --output-on-failure
+    fi
 }
 
 case "${1:-}" in
