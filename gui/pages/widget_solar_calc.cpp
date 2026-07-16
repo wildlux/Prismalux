@@ -278,9 +278,9 @@ SolarCalcWidget::SolarCalcWidget(QWidget* parent)
     auto* pwmFrm   = new QFormLayout(pwmGroup);
     pwmFrm->setSpacing(5);
     auto* pwmDesc = new QLabel(
-        "<small>Abbassa la tensione del pannello a quella<br>"
+        tr("<small>Abbassa la tensione del pannello a quella<br>"
         "della batteria. Semplice, economico,<br>"
-        "ma spreca la differenza di tensione.</small>", pwmGroup);
+        "ma spreca la differenza di tensione.</small>"), pwmGroup);
     pwmDesc->setTextFormat(Qt::RichText);
     pwmFrm->addRow(pwmDesc);
 
@@ -701,8 +701,8 @@ void SolarCalcWidget::onCalcolaClicked()
     if (eTot <= 0) {
         m_resBox->setVisible(false);
         m_totLbl->setText(
-            "<span style='color:#f44336;'>"
-            "\xe2\x9d\x8c  Inserisci almeno un carico con potenza > 0 W</span>");
+            tr("<span style='color:#f44336;'>"
+            "\xe2\x9d\x8c  Inserisci almeno un carico con potenza > 0 W</span>"));
         m_totLbl->setTextFormat(Qt::RichText);
         return;
     }

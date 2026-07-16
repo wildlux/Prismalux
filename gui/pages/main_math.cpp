@@ -173,10 +173,10 @@ MatematicaPage::MatematicaPage(AiClient* ai, QWidget* parent)
     m_output->setLineWrapMode(QPlainTextEdit::NoWrap);
     m_output->setMaximumBlockCount(50000);
     m_output->setPlaceholderText(
-        "I risultati appariranno qui.\n\n"
+        tr("I risultati appariranno qui.\n\n"
         "\xcf\x80 = 3.14159265358979323846...\n"
         "e = 2.71828182845904523536...\n"
-        "\xcf\x86 = 1.61803398874989484820...");
+        "\xcf\x86 = 1.61803398874989484820..."));
     outLay->addWidget(m_output, 1);
 
     /* ── Pannello LaTeX (rendering KaTeX) — visibile solo se l'utente lo attiva ── */

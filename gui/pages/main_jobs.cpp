@@ -585,8 +585,8 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     m_lavoroLog->setObjectName("chatLog");
     m_lavoroLog->setReadOnly(true);
     m_lavoroLog->setPlaceholderText(
-        "Lettera di candidatura via email.\n"
-        "Seleziona un'offerta e clicca \"Genera Lettera con AI\".");
+        tr("Lettera di candidatura via email.\n"
+        "Seleziona un'offerta e clicca \"Genera Lettera con AI\"."));
     m_lavoroLog->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(m_lavoroLog, &QTextEdit::customContextMenuRequested,
             this, &LavoroPage::onLavoroLogContextMenu);
@@ -605,8 +605,8 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     m_coverLog->setObjectName("chatLog");
     m_coverLog->setReadOnly(true);
     m_coverLog->setPlaceholderText(
-        "Cover Letter professionale da allegare alla candidatura.\n"
-        "Clicca \"Genera Cover Letter\" dopo aver selezionato un'offerta.");
+        tr("Cover Letter professionale da allegare alla candidatura.\n"
+        "Clicca \"Genera Cover Letter\" dopo aver selezionato un'offerta."));
     m_coverLog->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(m_coverLog, &QTextEdit::customContextMenuRequested,
             this, &LavoroPage::onCoverLogContextMenu);

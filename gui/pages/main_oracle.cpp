@@ -646,9 +646,9 @@ static bool _oracoloAskChartDest(QWidget* parent) {
     QMessageBox dlg(parent);
     dlg.setWindowTitle(QObject::tr("Dove mostrare il grafico?"));
     dlg.setText(
-        "\xf0\x9f\x93\x88  \xc3\x88 stata rilevata una formula o un insieme di punti.\n\n"
+        QObject::tr("\xf0\x9f\x93\x88  \xc3\x88 stata rilevata una formula o un insieme di punti.\n\n"
         "Vuoi mostrare il grafico <b>qui</b> nella bolla oppure aprire la sezione "
-        "<b>Grafico</b> dove puoi zoomare, esportare e personalizzarlo?");
+        "<b>Grafico</b> dove puoi zoomare, esportare e personalizzarlo?"));
     dlg.setTextFormat(Qt::RichText);
     dlg.setIcon(QMessageBox::Question);
     auto* btnQui  = dlg.addButton(QObject::tr("  \xf0\x9f\x96\xbc  Questa scheda  "), QMessageBox::AcceptRole);

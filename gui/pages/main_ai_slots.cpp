@@ -109,10 +109,10 @@ void AgentiPage::onCmbLLMIndexChanged(int idx)
             m_toolChk->setToolTip(tr("%1 non supporta function calling — tools disabilitati").arg(mdl));
         } else {
             m_toolChk->setToolTip(
-                "Abilita il function calling (Ollama tool use) nella prossima risposta.\n"
+                tr("Abilita il function calling (Ollama tool use) nella prossima risposta.\n"
                 "Il modello pu\xc3\xb2 chiamare: leggi_file, lista_file, calc, cerca_web, python.\n"
                 "Richiede un modello tool-capable (qwen3, llama3.1, mistral-nemo...).\n"
-                "In modalit\xc3\xa0 Agente Autonomo i tool sono sempre attivi.");
+                "In modalit\xc3\xa0 Agente Autonomo i tool sono sempre attivi."));
         }
     }
 
@@ -191,8 +191,8 @@ void AgentiPage::onModeToggleToggled(bool autoOn)
     }
 
     m_btnRun->setText(autoOn
-        ? "\xf0\x9f\xa4\x96  Avvia Agente"
-        : "\xf0\x9f\x93\xa4 Invia");
+        ? tr("\xf0\x9f\xa4\x96  Avvia Agente")
+        : tr("\xf0\x9f\x93\xa4 Invia"));
     if (m_modeBtn) m_modeBtn->setActionText(m_btnRun->text());
 }
 
@@ -586,13 +586,13 @@ void AgentiPage::onLogAnchorClicked(const QUrl& url)
 
         auto* dlg2 = new QDialog(this);
         dlg2->setWindowTitle(useSandbox
-            ? "\xf0\x9f\x90\xb3  Esegui codice in sandbox Docker?"
-            : "\xe2\x9a\xa0  Esegui codice generato dall\xe2\x80\x99" "AI?");
+            ? tr("\xf0\x9f\x90\xb3  Esegui codice in sandbox Docker?")
+            : tr("\xe2\x9a\xa0  Esegui codice generato dall\xe2\x80\x99" "AI?"));
         dlg2->setMinimumSize(660, 460);
         auto* lay2 = new QVBoxLayout(dlg2);
         auto* warn2 = new QLabel(useSandbox
-            ? "\xf0\x9f\x90\xb3  Il codice verr\xc3\xa0 eseguito in un container Docker isolato."
-            : "\xe2\x9a\xa0  Codice Python generato dall\xe2\x80\x99" "AI — verifica prima di procedere.",
+            ? tr("\xf0\x9f\x90\xb3  Il codice verr\xc3\xa0 eseguito in un container Docker isolato.")
+            : tr("\xe2\x9a\xa0  Codice Python generato dall\xe2\x80\x99" "AI — verifica prima di procedere."),
             dlg2);
         warn2->setWordWrap(true);
         warn2->setStyleSheet(useSandbox
@@ -812,9 +812,9 @@ void AgentiPage::onLogAnchorClicked(const QUrl& url)
         dlgLay->setSpacing(10);
 
         auto* hint = new QLabel(
-            "<small>\xe2\x84\xb9  Modifica il testo. <b>Invia come task</b> lo carica nel campo "
+            tr("<small>\xe2\x84\xb9  Modifica il testo. <b>Invia come task</b> lo carica nel campo "
             "input pronto per essere rielaborato dall'AI. "
-            "<b>Aggiorna bolla</b> sostituisce il testo nel log.</small>");
+            "<b>Aggiorna bolla</b> sostituisce il testo nel log.</small>"));
         hint->setWordWrap(true);
         dlgLay->addWidget(hint);
 
@@ -1455,8 +1455,8 @@ void AgentiPage::_ingestRagFiles(const QList<QUrl>& urls)
                     if (QFile::copy(path, dest)) {
                         if (m_ragStatusLbl)
                             m_ragStatusLbl->setText(
-                                "\xf0\x9f\x93\x84  Copiato in RAG/ \xe2\x80\x94 "
-                                "il documento \xc3\xa8 ora persistente");
+                                tr("\xf0\x9f\x93\x84  Copiato in RAG/ \xe2\x80\x94 "
+                                "il documento \xc3\xa8 ora persistente"));
                     }
                 }
             }

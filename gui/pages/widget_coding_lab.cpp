@@ -31,9 +31,9 @@ CodingLabWidget::CodingLabWidget(AiClient* ai, QWidget* parent)
     /* ── Descrizione task ── */
     m_descInput = new QTextEdit(this);
     m_descInput->setPlaceholderText(
-        "Es: \"Fammi un programma che calcola i numeri primi fino a 100\"\n"
+        tr("Es: \"Fammi un programma che calcola i numeri primi fino a 100\"\n"
         "    \"Ordina questa lista di nomi in ordine alfabetico\"\n"
-        "    \"Scrivi una funzione che controlla se una stringa è palindroma\"");
+        "    \"Scrivi una funzione che controlla se una stringa è palindroma\""));
     m_descInput->setMaximumHeight(90);
     QFont f = m_descInput->font();
     f.setPointSize(12);

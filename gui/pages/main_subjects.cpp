@@ -66,7 +66,7 @@ SubjectTutorWidget::SubjectTutorWidget(AiClient* ai, const QString& subject,
     m_log->setObjectName("chatLog");
     m_log->setReadOnly(true);
     m_log->setPlaceholderText(
-        QString("\xf0\x9f\x9b\x8f\xef\xb8\x8f  Tutor \xe2\x80\x94 %1\n\nClicca un argomento nell'albero a sinistra\n"
+        tr("\xf0\x9f\x9b\x8f\xef\xb8\x8f  Tutor \xe2\x80\x94 %1\n\nClicca un argomento nell'albero a sinistra\n"
                 "oppure scrivi una domanda libera qui sotto.").arg(subject));
     rightL->addWidget(m_log, 1);
 

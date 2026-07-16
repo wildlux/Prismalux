@@ -95,8 +95,8 @@ SshManagerWidget::SshManagerWidget(QWidget* parent)
     useRow->addWidget(useBtn);
     useRow->addStretch();
     auto* hintLbl = new QLabel(
-        "<small><i>Seleziona una riga e premi 'Usa selezionato' "
-        "oppure fai doppio clic</i></small>", discBox);
+        tr("<small><i>Seleziona una riga e premi 'Usa selezionato' "
+        "oppure fai doppio clic</i></small>"), discBox);
     hintLbl->setTextFormat(Qt::RichText);
     useRow->addWidget(hintLbl);
     discLay->addLayout(useRow);

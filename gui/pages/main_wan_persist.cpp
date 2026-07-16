@@ -317,14 +317,14 @@ QWidget* LanWanPage::buildWanComputeTab()
         diffLbl->setTextFormat(Qt::RichText);
         diffLbl->setWordWrap(true);
         diffLbl->setText(
-            "<b>\xf0\x9f\x96\xa7 WAN Compute</b> (porta 11600) \xe2\x80\x94 "
+            tr("<b>\xf0\x9f\x96\xa7 WAN Compute</b> (porta 11600) \xe2\x80\x94 "
             "distribuisce <b>task generici</b> (shell, Python, file I/O, matplotlib, LLM) "
             "su macchine qualsiasi della rete. "
             "Usa per pipeline AI/automatizzazione, batch script, job creativi.<br>"
             "<b>\xf0\x9f\x94\xac Sci Compute</b> (porta 11601) \xe2\x80\x94 "
             "distribuisce <b>Work Unit scientifiche</b> (BLAST, GROMACS, SymPy, R, SciPy) "
             "con heartbeat, credit counter e aggregatore risultati BOINC-style. "
-            "Usa per ricerca computazionale e bioinformatica.");
+            "Usa per ricerca computazionale e bioinformatica."));
         vlay->addWidget(diffLbl);
     }
 
@@ -337,8 +337,8 @@ QWidget* LanWanPage::buildWanComputeTab()
     auto* sciRb   = new QRadioButton(
         tr("\xf0\x9f\x94\xac  Calcolo Scientifico (BOINC-like)"));
     sciRb->setToolTip(
-        "Distribuisci task scientifici (BLAST, GROMACS, R, Python SciPy...)\n"
-        "sui nodi della rete VPN (Tailscale consigliato)");
+        tr("Distribuisci task scientifici (BLAST, GROMACS, R, Python SciPy...)\n"
+        "sui nodi della rete VPN (Tailscale consigliato)"));
     localRb->setChecked(true);
     auto* execGrp = new QButtonGroup(execModeRow);
     execGrp->addButton(localRb, 0);
@@ -418,8 +418,8 @@ QWidget* LanWanPage::buildWanComputeTab()
     m_wanSrvStatusLbl->setStyleSheet("color:gray;");
     m_wanSimBtn = new QPushButton(tr("\xe2\x9a\x97\xef\xb8\x8f  Prova in locale"));  // ⚗️
     m_wanSimBtn->setToolTip(
-        "Avvia server + connette un nodo virtuale sullo stesso PC.\n"
-        "Permette di testare il sistema senza altri computer.");
+        tr("Avvia server + connette un nodo virtuale sullo stesso PC.\n"
+        "Permette di testare il sistema senza altri computer."));
     m_wanExposeAllCheck = new QCheckBox(tr("\xe2\x9a\xa0\xef\xb8\x8f  Esponi su tutte le interfacce"));
     m_wanExposeAllCheck->setChecked(false);
     m_wanExposeAllCheck->setToolTip(
@@ -502,7 +502,7 @@ QWidget* LanWanPage::buildWanComputeTab()
     m_wanVpnNoteLbl->setWordWrap(true);
     m_wanVpnNoteLbl->setTextFormat(Qt::RichText);
     m_wanVpnNoteLbl->setText(
-        "<span style='color:#60a5fa;font-size:11px;'>"
+        tr("<span style='color:#60a5fa;font-size:11px;'>"
         "\xf0\x9f\x94\x92 <b>Consiglio sicurezza per reti con pi\xc3\xb9 PC</b><br>"
         "Usa <b>WireGuard</b> su tutti i worker: cifra il traffico WAN e "
         "limita l\xe2\x80\x99" "accesso ai soli peer autorizzati.<br>"
@@ -510,7 +510,7 @@ QWidget* LanWanPage::buildWanComputeTab()
         "cos\xc3\xac la porta 11600 \xc3\xa8 raggiungibile solo dai PC nella VPN.<br>"
         "Con token WAN + WireGuard la sicurezza \xc3\xa8 doppia: "
         "prima il tunnel cifrato, poi l\xe2\x80\x99" "autenticazione."
-        "</span>"
+        "</span>")
     );
     m_wanVpnNoteLbl->setVisible(false);
     srvLay->addWidget(m_wanVpnNoteLbl);
@@ -528,8 +528,8 @@ QWidget* LanWanPage::buildWanComputeTab()
     m_wanDecomposeInput = new QTextEdit;
     m_wanDecomposeInput->setMinimumHeight(dpiScale(56));
     m_wanDecomposeInput->setPlaceholderText(
-        "es. \"Analizza il mercato delle app fitness in Italia e crea una strategia di lancio\"\n"
-        "es. \"Scrivi un articolo scientifico sull\xe2\x80\x99intelligenza artificiale distribuita\"");
+        tr("es. \"Analizza il mercato delle app fitness in Italia e crea una strategia di lancio\"\n"
+        "es. \"Scrivi un articolo scientifico sull\xe2\x80\x99intelligenza artificiale distribuita\""));
     decompLay->addWidget(m_wanDecomposeInput, 1);
 
     /* Destra: bottone + stato (colonna fissa) */
@@ -600,7 +600,7 @@ QWidget* LanWanPage::buildWanComputeTab()
         workerGuide->setTextFormat(Qt::RichText);
         workerGuide->setWordWrap(true);
         workerGuide->setText(
-            "<b>\xf0\x9f\x96\xa5  Come aggiungere un nodo worker:</b>"
+            tr("<b>\xf0\x9f\x96\xa5  Come aggiungere un nodo worker:</b>"
             "<ol style='margin:4px 0 0 16px; padding:0;'>"
             "<li>Installa Python 3.10+ sul nodo remoto.</li>"
             "<li>Copia <b>MCPs/wan_worker/wan_worker.py</b> sul nodo "
@@ -614,7 +614,7 @@ QWidget* LanWanPage::buildWanComputeTab()
             "una volta connesso.</li>"
             "<li>Per nodi su reti diverse (internet/ufficio) attiva la VPN "
             "nella tab Programmazione \xe2\x86\x92 Rete.</li>"
-            "</ol>");
+            "</ol>"));
         srvLay->addWidget(workerGuide);
     }
 
@@ -891,8 +891,8 @@ QWidget* LanWanPage::buildWanComputeTab()
 #endif
     m_wanCliShellCheck = new QCheckBox(tr("\xe2\x9a\xa0\xef\xb8\x8f  Permetti shell (rischio RCE)"), cliSecRow);
     m_wanCliShellCheck->setToolTip(
-        "Se spuntato, questo nodo eseguirà comandi bash/python ricevuti dal server.\n"
-        "Abilita SOLO su reti fidate con token auth impostato.");
+        tr("Se spuntato, questo nodo eseguirà comandi bash/python ricevuti dal server.\n"
+        "Abilita SOLO su reti fidate con token auth impostato."));
     cliSecLay->addWidget(cliTokenLbl);
     cliSecLay->addWidget(m_wanCliTokenEdit, 1);
     cliSecLay->addWidget(m_wanCliTlsCheck);

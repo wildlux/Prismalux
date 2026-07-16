@@ -323,9 +323,9 @@ QWidget* ModGiochiWidget::buildGodotTab()
     /* Input */
     m_godotInput = new QTextEdit(w);
     m_godotInput->setPlaceholderText(
-        "Descrivi cosa vuoi fare in Godot...\n"
+        tr("Descrivi cosa vuoi fare in Godot...\n"
         "Es: 'Crea un personaggio che si muove con WASD e salta con spazio'\n"
-        "Es: 'Shader che simula acqua con onde'");
+        "Es: 'Shader che simula acqua con onde'"));
     m_godotInput->setFixedHeight(dpiScale(80));
     lay->addWidget(m_godotInput);
 
@@ -712,9 +712,9 @@ QWidget* ModGiochiWidget::buildGameModdingTab()
 
     /* Descrizione */
     auto* descLbl = new QLabel(
-        "\xf0\x9f\x8e\xae  <i>Game Modding AI \xe2\x80\x94 Genera script, plugin e mod per "
+        tr("\xf0\x9f\x8e\xae  <i>Game Modding AI \xe2\x80\x94 Genera script, plugin e mod per "
         "GTA V, Skyrim, Terraria, WoW, Noita, Minecraft, Stardew Valley e RimWorld. "
-        "Scegli il gioco, il tipo di mod e descrivi cosa vuoi creare.</i>", w);
+        "Scegli il gioco, il tipo di mod e descrivi cosa vuoi creare.</i>"), w);
     descLbl->setObjectName("hintLabel");
     descLbl->setTextFormat(Qt::RichText);
     descLbl->setWordWrap(true);

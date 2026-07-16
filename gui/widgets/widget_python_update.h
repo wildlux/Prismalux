@@ -70,11 +70,11 @@ public:
         lay->addWidget(header);
 
         auto* descLbl = new QLabel(
-            "Solo i pacchetti richiesti da Prismalux (requirements.txt). "
+            tr("Solo i pacchetti richiesti da Prismalux (requirements.txt). "
             "Puoi modificare \xe2\x80\x9cVersione target\xe2\x80\x9d per un downgrade: "
             "prima di ogni modifica la versione attuale viene salvata e "
             "ripristinata automaticamente se il modulo non si importa più "
-            "dopo l'installazione.", this);
+            "dopo l'installazione."), this);
         descLbl->setObjectName("cardDesc");
         descLbl->setWordWrap(true);
         lay->addWidget(descLbl);

@@ -125,7 +125,7 @@ void LanWanPage::onWanDecomposeBtnClicked()
                 m_wanDecomposeBtn->setEnabled(true);
                 if (m_wanDecomposeStatusLbl)
                     m_wanDecomposeStatusLbl->setText(
-                        "\xe2\x9d\x8c  Errore: " + msg.left(80));
+                        tr("\xe2\x9d\x8c  Errore: ") + msg.left(80));
                 LogBus::post("\xe2\x9d\x8c LAN WAN: WAN decomposizione errore AI: " + msg.left(80));
             });
 

@@ -213,8 +213,8 @@ void OpenCodePage::setServerState(bool running) {
     m_running = running;
     m_startBtn->setEnabled(true);
     m_startBtn->setText(running
-        ? "\xf0\x9f\x94\xb4  Ferma OpenCode"
-        : "\xf0\x9f\x9f\xa2  Avvia OpenCode");
+        ? tr("\xf0\x9f\x94\xb4  Ferma OpenCode")
+        : tr("\xf0\x9f\x9f\xa2  Avvia OpenCode"));
     m_statusLbl->setText(running
         ? "\xe2\x97\x8f  Online"
         : "\xe2\x97\x8f  Offline");

@@ -60,7 +60,7 @@ MultimediaPage::MultimediaPage(AiClient* ai, QWidget* parent)
 
     auto* tabs = new QTabWidget(this);
     tabs->addTab(buildAudioTab(),           "\xf0\x9f\x8e\xb5  Audio AI");         /* 🎵 */
-    tabs->addTab(buildSDTab(),             "\xf0\x9f\x8e\xa8  Genera Immagini");  /* 🎨 */
+    tabs->addTab(buildSDTab(),             tr("\xf0\x9f\x8e\xa8  Genera Immagini"));  /* 🎨 */
     tabs->addTab(buildGraphvizTab(),       "\xf0\x9f\x95\xb8  Mappe concettuali"); /* 🕸 */
     tabs->addTab(buildOsmMapTab(),         "\xf0\x9f\x97\xba  Mappa OSM");         /* 🗺 */
     tabs->addTab(buildSintetizzatoreTab(), "\xf0\x9f\x94\x8a  Sintetizzatore");    /* 🔊 */
@@ -193,8 +193,8 @@ QWidget* MultimediaPage::buildAudioTab()
     m_audioTranscript = new QTextEdit(transcriptGroup);
     m_audioTranscript->setObjectName("chatLog");
     m_audioTranscript->setPlaceholderText(
-        "La trascrizione Whisper appare qui...\n\n"
-        "Puoi anche incollare direttamente il testo da analizzare.");
+        tr("La trascrizione Whisper appare qui...\n\n"
+        "Puoi anche incollare direttamente il testo da analizzare."));
     tgLay->addWidget(m_audioTranscript);
     splitter->addWidget(transcriptGroup);
 
@@ -246,11 +246,11 @@ QWidget* MultimediaPage::buildGraphvizTab()
     vl->addWidget(title);
 
     auto* hint = new QLabel(
-        "Descrivi il grafo in italiano oppure incolla codice DOT direttamente.<br>"
+        tr("Descrivi il grafo in italiano oppure incolla codice DOT direttamente.<br>"
         "L\xe2\x80\x99" "AI genera il DOT language e Graphviz produce l\xe2\x80\x99"
         "immagine.<br>"
         "<span style='color:#94a3b8;'>"
-        "Installazione: <code>sudo apt install graphviz</code></span>", panel);
+        "Installazione: <code>sudo apt install graphviz</code></span>"), panel);
     hint->setWordWrap(true);
     hint->setTextFormat(Qt::RichText);
     hint->setObjectName("hintLabel");
@@ -258,9 +258,9 @@ QWidget* MultimediaPage::buildGraphvizTab()
 
     m_graphvizInput = new QTextEdit(panel);
     m_graphvizInput->setPlaceholderText(
-        "Es: \"Crea una mappa concettuale dei pianeti del sistema solare\"\n"
+        tr("Es: \"Crea una mappa concettuale dei pianeti del sistema solare\"\n"
         "oppure incolla direttamente codice DOT:\n"
-        "  digraph G { A -> B; B -> C; }");
+        "  digraph G { A -> B; B -> C; }"));
     m_graphvizInput->setObjectName("chatInput");
     m_graphvizInput->setFixedHeight(dpiScale(120));
     vl->addWidget(m_graphvizInput);
@@ -274,8 +274,8 @@ QWidget* MultimediaPage::buildGraphvizTab()
         tr("\xf0\x9f\xa4\x96\xf0\x9f\x96\xbc  Genera e renderizza grafico DOT"), btnRow);
     btnGenerate->setObjectName("actionBtn");
     btnGenerate->setToolTip(
-        "Genera il codice DOT con l\xe2\x80\x99" "AI e lo renderizza.\n"
-        "Se il testo \xc3\xa8 gi\xc3\xa0 codice DOT valido, lo renderizza direttamente.");
+        tr("Genera il codice DOT con l\xe2\x80\x99" "AI e lo renderizza.\n"
+        "Se il testo \xc3\xa8 gi\xc3\xa0 codice DOT valido, lo renderizza direttamente."));
 
     bl->addWidget(btnGenerate);
     bl->addStretch(1);
@@ -608,7 +608,7 @@ void MultimediaPage::onGraphvizProcFinished(int code, QProcess::ExitStatus)
         const QString err =
             QString::fromLocal8Bit(m_graphvizProc->readAllStandardError());
         m_graphvizStatus->setText(
-            "\xe2\x9d\x8c  Errore Graphviz: " + err.left(200) +
+            tr("\xe2\x9d\x8c  Errore Graphviz: ") + err.left(200) +
             "\n\xe2\x84\xb9  Installa: sudo apt install graphviz");
         LogBus::post("\xe2\x9d\x8c Graphviz: Errore Graphviz: " + err.left(200));
     }
@@ -748,8 +748,8 @@ QWidget* MultimediaPage::buildOcrTab()
     btnVenv->setObjectName("navBtn");
     btnVenv->setFixedHeight(dpiScale(28));
     btnVenv->setToolTip(
-        "Crea Frameworks/opencv/venv/ con cv2 + pytesseract isolati.\n"
-        "Consigliato: evita conflitti con i pacchetti di sistema.");
+        tr("Crea Frameworks/opencv/venv/ con cv2 + pytesseract isolati.\n"
+        "Consigliato: evita conflitti con i pacchetti di sistema."));
     connect(btnVenv, &QPushButton::clicked, panel, [btnVenv]{
         const QString script = OpencvUtils::setupVenvScript();
         const QString path   = OpencvUtils::venvDir() + "/../setup_venv.sh";
@@ -856,8 +856,8 @@ QWidget* MultimediaPage::buildOcrTab()
         tr("\xf0\x9f\x93\xb9  Carica video"), ctrlRow);  /* 📹 */
     btnVideo->setObjectName("actionBtn");
     btnVideo->setToolTip(
-        "Carica un video registrato (MP4, AVI, MOV, MKV)\n"
-        "Estrae automaticamente un frame ogni N secondi");
+        tr("Carica un video registrato (MP4, AVI, MOV, MKV)\n"
+        "Estrae automaticamente un frame ogni N secondi"));
     connect(btnVideo, &QPushButton::clicked,
             this, &MultimediaPage::onOcrLoadVideoClicked);
     cl->addWidget(btnVideo);
@@ -992,8 +992,8 @@ QWidget* MultimediaPage::buildOcrTab()
     m_ocrText = new QTextEdit(textBox);
     m_ocrText->setObjectName("chatLog");
     m_ocrText->setPlaceholderText(
-        "Il testo rilevato dalla webcam apparir\xc3\xa0 qui...\n\n"
-        "Punta la camera su un manuale o documento stampato.");
+        tr("Il testo rilevato dalla webcam apparir\xc3\xa0 qui...\n\n"
+        "Punta la camera su un manuale o documento stampato."));
     tbLay->addWidget(m_ocrText);
     splitter->addWidget(textBox);
 
@@ -1917,14 +1917,14 @@ QWidget* MultimediaPage::buildOsmMapTab()
     panelLay->addWidget(titleLbl);
 
     auto* hintLbl = new QLabel(
-        "<small>"
+        tr("<small>"
         "<b>Click sinistro</b> = aggiungi tappa.<br>"
         "<b>Click destro</b> = menu (Partenza / Tappa).<br>"
         "Cerca citt\xc3\xa0 → scegli Partenza o Tappa.<br>"
         "<b>Doppio clic</b> su una tappa = rinominala.<br>"
         "Ogni tappa mostra subito la sua \xe2\x9b\xb0 quota, "
         "prima ancora di calcolare il percorso."
-        "</small>", panel);
+        "</small>"), panel);
     hintLbl->setObjectName("hintLabel");
     hintLbl->setTextFormat(Qt::RichText);
     hintLbl->setWordWrap(true);
@@ -2242,7 +2242,7 @@ QWidget* MultimediaPage::buildOsmMapTab()
             if (reply->error() != QNetworkReply::NoError) {
                 if (m_osmRouteInfo)
                     m_osmRouteInfo->setText(
-                        "\xe2\x9d\x8c  Errore rete: " + reply->errorString());
+                        tr("\xe2\x9d\x8c  Errore rete: ") + reply->errorString());
                 LogBus::post("\xe2\x9d\x8c Mappa OSM: Errore rete: " + reply->errorString());
                 return;
             }
@@ -2361,7 +2361,7 @@ QWidget* MultimediaPage::buildOsmMapTab()
             if (rep->error() != QNetworkReply::NoError) {
                 if (m_osmWeatherLbl)
                     m_osmWeatherLbl->setText(
-                        "<small>Errore meteo: " + rep->errorString() + "</small>");
+                        tr("<small>Errore meteo: ") + rep->errorString() + "</small>");
                 return;
             }
             const QJsonObject cur =

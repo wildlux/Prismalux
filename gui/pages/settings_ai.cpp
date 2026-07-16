@@ -255,14 +255,14 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
 
         /* ── Hint descrittivo ── */
         auto* hintLbl = new QLabel(
-            "<small>"
+            tr("<small>"
             "<b>Off</b>: nessun ragionamento interno (pi\xc3\xb9 veloce). "  /* più */
             "<b>Auto</b>: il classificatore decide per ogni domanda (default). "
             "<b>On</b>: ragionamento sempre attivo sui modelli compatibili "
             "(qwen3, deepseek-r1, qwq).<br>"
             "<b>Budget</b>: moltiplicatore dei token di risposta quando il thinking \xc3\xa8 attivo "  /* è */
             "(1\xc3\x97 = base, 2\xc3\x97 = default, 4\xc3\x97 = risposta molto elaborata)."
-            "</small>",
+            "</small>"),
             thinkGroup);
         hintLbl->setObjectName("hintLabel");
         hintLbl->setWordWrap(true);
@@ -616,9 +616,9 @@ QWidget* ImpostazioniPage::buildDipendenzeTab()
     outer->addWidget(title);
 
     auto* desc = new QLabel(
-        "Librerie e strumenti necessari o opzionali. "
+        tr("Librerie e strumenti necessari o opzionali. "
         "Premi \xc2\xab Verifica tutto \xc2\xbb per controllare "
-        "cosa \xc3\xa8 disponibile nel sistema.");
+        "cosa \xc3\xa8 disponibile nel sistema."));
     desc->setWordWrap(true);
     desc->setObjectName("hintLabel");
     outer->addWidget(desc);
@@ -923,8 +923,8 @@ QWidget* ImpostazioniPage::buildPythonDepsTab()
     outer->addWidget(titleLbl);
 
     auto* descLbl = new QLabel(
-        "Installa solo i moduli che servono al tuo flusso di lavoro. "
-        "Premi <b>Verifica stato</b> per controllare cosa manca.", page);
+        tr("Installa solo i moduli che servono al tuo flusso di lavoro. "
+        "Premi <b>Verifica stato</b> per controllare cosa manca."), page);
     descLbl->setWordWrap(true);
     descLbl->setObjectName("hintLabel");
     outer->addWidget(descLbl);
@@ -1250,10 +1250,10 @@ QWidget* ImpostazioniPage::buildRagTab()
 
     /* ── [M2] Warning privacy ── */
     auto* privacyLbl = new QLabel(
-        "\xe2\x9a\xa0\xef\xb8\x8f  <b>Attenzione privacy</b>: i chunk indicizzati (frammenti di testo dai tuoi "
+        tr("\xe2\x9a\xa0\xef\xb8\x8f  <b>Attenzione privacy</b>: i chunk indicizzati (frammenti di testo dai tuoi "
         "documenti) vengono salvati in chiaro in <code>~/.prismalux_rag.json</code>. "
         "Non indicizzare documenti riservati (dichiarazioni fiscali, dati medici) "
-        "se non sei l'unico utente di questo sistema.");
+        "se non sei l'unico utente di questo sistema."));
     privacyLbl->setWordWrap(true);
     privacyLbl->setTextFormat(Qt::RichText);
     privacyLbl->setObjectName("hintLabel");
@@ -1386,9 +1386,9 @@ QWidget* ImpostazioniPage::buildRagTab()
             jlChk->setChecked(AppConfig::s().value(P::SK::kRagJlTransform, true).toBool());
         }
         jlChk->setToolTip(
-            "Riduce la dimensionalit\xc3\xa0 dei vettori di embedding mantenendo le distanze.\n"
+            tr("Riduce la dimensionalit\xc3\xa0 dei vettori di embedding mantenendo le distanze.\n"
             "Migliora le performance di ricerca RAG con grandi basi di conoscenza.\n"
-            "Consigliata: attiva.");
+            "Consigliata: attiva."));
 
         auto* jlHint = new QLabel(
             "Comprime i vettori di embedding riducendo i tempi di ricerca senza "
@@ -1439,10 +1439,10 @@ QWidget* ImpostazioniPage::buildRagTab()
     downloadBtn->setObjectName("actionBtn");
     downloadBtn->setFixedHeight(dpiScale(32));
     downloadBtn->setToolTip(
-        "Scarica automaticamente da Agenzia delle Entrate:\n"
+        tr("Scarica automaticamente da Agenzia delle Entrate:\n"
         "  \xe2\x80\xa2 Istruzioni 730/2026\n"
         "  \xe2\x80\xa2 Fascicolo 2 Persone Fisiche 2026\n"
-        "Salvati in ~/prismalux_rag_docs/ e pronti per il RAG.");
+        "Salvati in ~/prismalux_rag_docs/ e pronti per il RAG."));
     rightCol->addWidget(downloadBtn);
 
     /* ── Modello embedding ── */
@@ -1559,8 +1559,8 @@ QWidget* ImpostazioniPage::buildRagTab()
         embedCardLay->addLayout(embedGrid);
 
         auto* embedHint = new QLabel(
-            "\xe2\x9a\xa0\xef\xb8\x8f  I modelli chat (qwen3, llama, ecc.) NON supportano /api/embeddings "
-            "e non devono essere usati qui.", embedCard);
+            tr("\xe2\x9a\xa0\xef\xb8\x8f  I modelli chat (qwen3, llama, ecc.) NON supportano /api/embeddings "
+            "e non devono essere usati qui."), embedCard);
         embedHint->setObjectName("hintLabel");
         embedHint->setWordWrap(true);
         embedHint->setStyleSheet("color:#f59e0b;");
@@ -1584,8 +1584,8 @@ QWidget* ImpostazioniPage::buildRagTab()
     m_btnStopIndex->setFixedHeight(dpiScale(32));
     m_btnStopIndex->setEnabled(false);   /* abilitato solo durante indexing */
     m_btnStopIndex->setToolTip(
-        "Interrompe l'indicizzazione in corso dopo il chunk attuale.\n"
-        "I chunk già completati vengono salvati.");
+        tr("Interrompe l'indicizzazione in corso dopo il chunk attuale.\n"
+        "I chunk già completati vengono salvati."));
     btnRow->addWidget(m_btnStopIndex);
 
     m_ragReindexBtn = new QPushButton(tr("\xf0\x9f\x94\x84  Reindicizza ora"));
@@ -2223,7 +2223,7 @@ QWidget* ImpostazioniPage::buildSandboxTab()
                         QString("\xe2\x9c\x85  %1 scaricata con successo.").arg(img));
                 } else {
                     pullStatus->setText(
-                        QString("\xe2\x9d\x8c  Errore: %1").arg(out.left(120)));
+                        tr("\xe2\x9d\x8c  Errore: %1").arg(out.left(120)));
                     LogBus::post("\xe2\x9d\x8c Sandbox: docker pull fallito: " + out.left(120));
                 }
             });
@@ -2244,12 +2244,12 @@ QWidget* ImpostazioniPage::buildSandboxTab()
         info->setObjectName("hintLabel");
         info->setWordWrap(true);
         info->setText(
-            "\xf0\x9f\x94\x92  <b>Isolamento garantito dal container:</b><br>"
+            tr("\xf0\x9f\x94\x92  <b>Isolamento garantito dal container:</b><br>"
             "\xe2\x80\xa2 <b>Rete disabilitata</b> — nessuna connessione a internet<br>"
             "\xe2\x80\xa2 <b>Nessun volume</b> — il codice non pu\xc3\xb2 leggere/scrivere file locali<br>"
             "\xe2\x80\xa2 <b>Limite processi</b> — max 64 PID (anti fork-bomb)<br>"
             "\xe2\x80\xa2 <b>Container effimero</b> — distrutto automaticamente al termine (--rm)<br>"
-            "\xe2\x80\xa2 <b>pip install non disponibile</b> con sandbox attivo (rete assente)");
+            "\xe2\x80\xa2 <b>pip install non disponibile</b> con sandbox attivo (rete assente)"));
         info->setTextFormat(Qt::RichText);
         lay->addWidget(info);
     }

@@ -115,8 +115,8 @@ BiocondaWidget::BiocondaWidget(AiClient* ai, QWidget* parent)
 
     m_input = new QTextEdit(this);
     m_input->setPlaceholderText(
-        "Descrivi la pipeline bioinformatica da creare...\n"
-        "Es: 'Pipeline di allineamento WGS: FASTQ input, output BAM sorted e indexed'");
+        tr("Descrivi la pipeline bioinformatica da creare...\n"
+        "Es: 'Pipeline di allineamento WGS: FASTQ input, output BAM sorted e indexed'"));
     m_input->setFixedHeight(dpiScale(80));
     lay->addWidget(m_input);
 

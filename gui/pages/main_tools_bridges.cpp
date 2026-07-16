@@ -184,13 +184,13 @@ QWidget* StrumentiPage::buildOfficeHintRow()
     lbl->setOpenExternalLinks(true);
     lbl->setWordWrap(true);
     lbl->setText(
-        "\xf0\x9f\x93\xa6 <b>Vuoi controllare Microsoft Office/365 via MCP?</b> "
+        tr("\xf0\x9f\x93\xa6 <b>Vuoi controllare Microsoft Office/365 via MCP?</b> "
         "Installa un server MCP dedicato: cerca <b>office365 MCP</b> su "
         "<a href='https://github.com/modelcontextprotocol/servers'>"
         "github.com/modelcontextprotocol/servers</a> "
         "oppure su npm (<code>npm install -g mcp-server-office365</code>), "
         "poi registralo con: <code>claude mcp add office365 node /path/to/server.js</code>. "
-        "\xe2\x86\x92 Il bridge Python qui sopra funziona gi\xc3\xa0 con LibreOffice senza MCP.");
+        "\xe2\x86\x92 Il bridge Python qui sopra funziona gi\xc3\xa0 con LibreOffice senza MCP."));
     lay->addWidget(lbl);
     row->setVisible(false);
     return row;
@@ -360,7 +360,7 @@ QWidget* StrumentiPage::buildCloudCompareRow()
     banner->setWordWrap(true);
     banner->setAlignment(Qt::AlignCenter);
     banner->setText(
-        "<b>\xf0\x9f\x94\xb5 CloudCompare \xe2\x80\x94 bridge AI in sviluppo</b><br><br>"
+        tr("<b>\xf0\x9f\x94\xb5 CloudCompare \xe2\x80\x94 bridge AI in sviluppo</b><br><br>"
         "Il bridge AI non \xc3\xa8 ancora stabile. Nel frattempo puoi aprire CloudCompare "
         "direttamente con il pulsante sopra.<br><br>"
         "<b>Installa CloudCompare:</b><br>"
@@ -372,7 +372,7 @@ QWidget* StrumentiPage::buildCloudCompareRow()
         "\xe2\x80\xa2 Demo sperimentale: "
         "<a href='https://github.com/truebelief/CloudCompareMCP'>CloudCompareMCP</a><br>"
         "\xe2\x80\xa2 Wrapper Python ufficiale: "
-        "<a href='https://github.com/CloudCompare/CloudComPy'>CloudComPy</a>");
+        "<a href='https://github.com/CloudCompare/CloudComPy'>CloudComPy</a>"));
     lay->addWidget(banner);
     row->setVisible(false);
     return row;

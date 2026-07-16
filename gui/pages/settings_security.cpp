@@ -371,11 +371,11 @@ QWidget* ImpostazioniPage::buildSicurezzaWanTab()
     certLay->addWidget(fpRow);
 
     auto* certInfoLbl = new QLabel(
-        "<small style='color:#888;'>"
+        tr("<small style='color:#888;'>"
         "Il fingerprint viene generato all\xe2\x80\x99 avvio del server WAN con TLS attivo.<br>"
         "Per rigenerarlo manualmente: clicca \xe2\x80\x9cRigenera certificato\xe2\x80\x9d qui sotto.<br>"
         "<b>Dopo la rigenerazione devi ridistribuire il pin a tutti i worker.</b>"
-        "</small>");
+        "</small>"));
     certInfoLbl->setWordWrap(true);
     certInfoLbl->setTextFormat(Qt::RichText);
     certLay->addWidget(certInfoLbl);
@@ -386,25 +386,25 @@ QWidget* ImpostazioniPage::buildSicurezzaWanTab()
 
     auto* regenBtn = new QPushButton(tr("\xf0\x9f\x94\x84  Rigenera certificato"));
     regenBtn->setToolTip(
-        "Elimina server.crt e server.key e ne genera una nuova coppia.\n"
+        tr("Elimina server.crt e server.key e ne genera una nuova coppia.\n"
         "Aggiorna automaticamente wan_cert.pin.\n"
-        "ATTENZIONE: i worker con il vecchio pin non potranno più connettersi.");
+        "ATTENZIONE: i worker con il vecchio pin non potranno più connettersi."));
     connect(regenBtn, &QPushButton::clicked, regenBtn, [regenBtn, fpEdit](){
         secDoRegenCert(regenBtn, fpEdit);
     });
 
     auto* exportPinBtn = new QPushButton(tr("\xf0\x9f\x93\xa4  Esporta pin per worker"));
     exportPinBtn->setToolTip(
-        "Salva wan_cert.pin in una posizione a scelta.\n"
-        "Copialo sul worker come ~/.prismalux/wan_server.pin");
+        tr("Salva wan_cert.pin in una posizione a scelta.\n"
+        "Copialo sul worker come ~/.prismalux/wan_server.pin"));
     connect(exportPinBtn, &QPushButton::clicked, exportPinBtn, [exportPinBtn](){
         secDoExportPin(exportPinBtn);
     });
 
     auto* importPinBtn = new QPushButton(tr("\xf0\x9f\x93\xa5  Importa pin server (lato worker)"));
     importPinBtn->setToolTip(
-        "Carica il pin del server su questo PC come wan_server.pin.\n"
-        "Da usare quando questo PC è il WORKER che si connette a un server remoto.");
+        tr("Carica il pin del server su questo PC come wan_server.pin.\n"
+        "Da usare quando questo PC è il WORKER che si connette a un server remoto."));
     connect(importPinBtn, &QPushButton::clicked, importPinBtn, [importPinBtn](){
         secDoImportPin(importPinBtn);
     });
@@ -446,13 +446,13 @@ QWidget* ImpostazioniPage::buildSicurezzaWanTab()
     vpnLay->setSpacing(8);
 
     auto* vpnInfoLbl = new QLabel(
-        "<small style='color:#888;'>"
+        tr("<small style='color:#888;'>"
         "WireGuard cifra tutto il traffico WAN a livello di rete — "
         "complementare al TLS della porta 11600.<br>"
         "Genera una coppia di chiavi, condividi la pubkey con il server VPN "
         "e usa la chiave privata nel file wg0.conf del worker.<br>"
         "<b>La chiave privata viene salvata in ~/.prismalux/wireguard_private.key (0600)</b>."
-        "</small>");
+        "</small>"));
     vpnInfoLbl->setWordWrap(true);
     vpnInfoLbl->setTextFormat(Qt::RichText);
     vpnLay->addWidget(vpnInfoLbl);
@@ -501,8 +501,8 @@ QWidget* ImpostazioniPage::buildSicurezzaWanTab()
 
     auto* exportConfBtn = new QPushButton(tr("\xf0\x9f\x93\x84  Genera wg0.conf (worker)"));
     exportConfBtn->setToolTip(
-        "Genera un file di configurazione WireGuard client da completare.\n"
-        "Richiede: IP del server VPN, pubkey del server, IP assegnato al worker.");
+        tr("Genera un file di configurazione WireGuard client da completare.\n"
+        "Richiede: IP del server VPN, pubkey del server, IP assegnato al worker."));
     connect(exportConfBtn, &QPushButton::clicked, exportConfBtn, [exportConfBtn, pubkeyEdit](){
         secDoExportWgConf(exportConfBtn, pubkeyEdit);
     });

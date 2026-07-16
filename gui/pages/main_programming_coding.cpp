@@ -210,9 +210,9 @@ QWidget* ProgrammazionePage::buildEditorColumn(QWidget* parent)
     m_editor->setTabStopDistance(32);
     m_editor->setLineWrapMode(QPlainTextEdit::NoWrap);
     m_editor->setPlaceholderText(
-        "# Scrivi il codice qui,\n"
+        tr("# Scrivi il codice qui,\n"
         "# oppure usa \xf0\x9f\xa4\x96 Chiedi all’AI per generarlo.\n"
-        "# Trascina un file qui per aprirlo.");
+        "# Trascina un file qui per aprirlo."));
     m_editor->setAcceptDrops(true);
     m_editor->installEventFilter(new EditorFileDropFilter(m_editor));
     editorLay->addWidget(m_editor);
@@ -364,8 +364,8 @@ QWidget* ProgrammazionePage::buildAiPanel(QWidget* parent,
     m_aiOutput->setMinimumHeight(100);
     m_aiOutput->setMaximumHeight(220);
     m_aiOutput->setPlaceholderText(
-        "Qui apparir\xc3\xa0 la risposta dell’AI.\n\n"
-        "Scrivi la tua richiesta sopra e premi Invia.");
+        tr("Qui apparir\xc3\xa0 la risposta dell’AI.\n\n"
+        "Scrivi la tua richiesta sopra e premi Invia."));
     aiLay->addWidget(m_aiOutput);
 
     m_aiPanel->hide();
@@ -968,7 +968,7 @@ void ProgrammazionePage::runLint()
 
         if (out.isEmpty() && exitCode == 0) {
             if (m_status) m_status->setText(
-                "\xe2\x9c\x85  Nessun problema trovato (" + m_lang->currentText() + ")");
+                tr("\xe2\x9c\x85  Nessun problema trovato (") + m_lang->currentText() + ")");
             m_diffGroup->setVisible(false);
             return;
         }
@@ -1027,12 +1027,12 @@ void ProgrammazionePage::onAutoFixToggled(bool on)
     dlg.setWindowTitle(tr("Loop Fix — Esecuzione automatica di codice AI"));
     dlg.setIcon(QMessageBox::Warning);
     dlg.setText(
-        "<b>Loop Fix eseguir\xc3\xa0 automaticamente il codice</b><br>"
+        tr("<b>Loop Fix eseguir\xc3\xa0 automaticamente il codice</b><br>"
         "generato dall'AI con i tuoi privilegi utente.<br><br>"
         "Assicurati di usare questa funzione <b>solo con AI di cui ti fidi</b> "
         "e con codice che non accede a dati sensibili o al filesystem.<br><br>"
         "Il loop si ferma automaticamente dopo il numero di tentativi indicato dallo slider "
-        "o se rileva un errore intenzionale (SyntaxError custom).");
+        "o se rileva un errore intenzionale (SyntaxError custom)."));
     dlg.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
     dlg.button(QMessageBox::Ok)->setText(tr("Ho capito, abilita"));
     dlg.button(QMessageBox::Cancel)->setText(tr("Annulla"));
@@ -1271,7 +1271,7 @@ void ProgrammazionePage::onProcFinished(int code, QProcess::ExitStatus /*status*
     } else {
         m_lastError = m_fullOutput.right(2000);
         if (m_status)
-            m_status->setText(QString("\xe2\x9d\x8c  Errore (exit %1).").arg(code));
+            m_status->setText(tr("\xe2\x9d\x8c  Errore (exit %1).").arg(code));
         LogBus::post(QString("\xe2\x9d\x8c Programmazione: Processo uscito con errore (exit %1).").arg(code));
 
         /* Loop Fix automatico */

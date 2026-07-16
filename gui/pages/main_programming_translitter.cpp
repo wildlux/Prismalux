@@ -70,8 +70,8 @@ QWidget* ProgrammazionePage::buildTranslitter(QWidget* parent)
 
     /* Riga stato */
     auto* statusLbl = new QLabel(
-        "\xf0\x9f\x94\x80  Inserisci il codice e premi "
-        "\xe2\x80\x9c" "Traduci" "\xe2\x80\x9d.", w);
+        tr("\xf0\x9f\x94\x80  Inserisci il codice e premi "
+        "\xe2\x80\x9c" "Traduci" "\xe2\x80\x9d."), w);
     statusLbl->setObjectName("statusLabel");
     lay->addWidget(statusLbl);
 
@@ -169,11 +169,11 @@ QWidget* ProgrammazionePage::buildTrSplitter(QWidget* parent)
     m_trInput->setFont(monoFont);
     m_trInput->setObjectName("trCodeEditor");
     m_trInput->setPlaceholderText(
-        "Incolla qui il codice da tradurre...\n\n"
+        tr("Incolla qui il codice da tradurre...\n\n"
         "Esempio C:\n"
         "  int somma(int a, int b) {\n"
         "      return a + b;\n"
-        "  }");
+        "  }"));
     srcLay->addWidget(m_trInput, 1);
 
     auto* btnFromEditor = new QPushButton(

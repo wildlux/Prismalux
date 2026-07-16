@@ -456,8 +456,8 @@ QWidget* StrumentiPage::buildOutputArea()
     m_output->setObjectName("chatLog");
     m_output->setReadOnly(true);
     m_output->setPlaceholderText(
-        "L'output dell'AI appare qui...\n\n"
-        "\xf0\x9f\x8d\xba  Invocazione riuscita. Gli dei ascoltano.");
+        tr("L'output dell'AI appare qui...\n\n"
+        "\xf0\x9f\x8d\xba  Invocazione riuscita. Gli dei ascoltano."));
     return m_output;
 }
 

@@ -264,7 +264,7 @@ void MainWindow::onBackendBtnClicked()
         actInfo->setEnabled(false);
 
         auto* actStop = menu->addAction(
-            QString("\xf0\x9f\x94\xb4  Ferma server  :%1").arg(m_serverPort));
+            tr("\xf0\x9f\x94\xb4  Ferma server  :%1").arg(m_serverPort));
         connect(actStop, &QAction::triggered, this, &MainWindow::stopLlamaServer);
     } else {
         auto* actLSrv = menu->addAction(
@@ -511,8 +511,8 @@ void MainWindow::onNewChatClicked()
         QMessageBox dlg(this);
         dlg.setWindowTitle(tr("\xf0\x9f\x93\xbc  Salva chat"));
         dlg.setText(
-            "<b>\xf0\x9f\x93\xbc  Vuoi salvare questa chat?</b><br><br>"
-            "La conversazione attuale verr\xc3\xa0 persa se non la salvi.");
+            tr("<b>\xf0\x9f\x93\xbc  Vuoi salvare questa chat?</b><br><br>"
+            "La conversazione attuale verr\xc3\xa0 persa se non la salvi."));
         dlg.setIcon(QMessageBox::Question);
         QPushButton* btnSalva  = dlg.addButton(
             tr("\xf0\x9f\x93\xbc  Salva"), QMessageBox::AcceptRole);

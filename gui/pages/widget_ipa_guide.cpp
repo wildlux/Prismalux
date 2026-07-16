@@ -287,11 +287,11 @@ void IpaGuideWidget::buildComposeBar(QVBoxLayout* lay)
     barLay->setSpacing(dpiScale(6));
 
     auto* title = new QLabel(
-        "  \xf0\x9f\xa7\xa9  <b>Componi una parola</b>"
+        tr("  \xf0\x9f\xa7\xa9  <b>Componi una parola</b>"
         "  <span style='color:gray;font-size:11px;'>"
         "Tocca un fonema nella tabella sopra per aggiungerlo qui \xc2\xb7 "
         "suono sintetico approssimato, fonemi concatenati senza coarticolazione naturale"
-        "</span>", bar);
+        "</span>"), bar);
     title->setTextFormat(Qt::RichText);
     title->setWordWrap(true);
     barLay->addWidget(title);

@@ -108,11 +108,11 @@ QWidget* AppControllerPage::buildTelegramTab()
     s1Lay->setSpacing(dpiScale(6));
 
     auto* step1Hint = new QLabel(
-        "Il token identifica il tuo bot presso Telegram. "
+        tr("Il token identifica il tuo bot presso Telegram. "
         "Ottienilo cos\xc3\xac:\n"
         "  1. Apri Telegram e cerca <b>@BotFather</b>\n"
         "  2. Scrivi <code>/newbot</code> e segui le istruzioni\n"
-        "  3. Copia il token (formato: <code>7123456789:AAF-xxxx</code>)",
+        "  3. Copia il token (formato: <code>7123456789:AAF-xxxx</code>)"),
         step1);
     step1Hint->setObjectName("hintLabel");
     step1Hint->setTextFormat(Qt::RichText);
@@ -149,11 +149,11 @@ QWidget* AppControllerPage::buildTelegramTab()
     s2Lay->setSpacing(dpiScale(6));
 
     auto* step2Hint = new QLabel(
-        "Inserisci gli <b>ID numerici</b> Telegram delle persone autorizzate, "
+        tr("Inserisci gli <b>ID numerici</b> Telegram delle persone autorizzate, "
         "separati da virgola.<br>"
         "<b>Se lasci vuoto</b>, il bot risponde a chiunque gli scriva.<br>"
         "Per trovare il tuo ID: apri Telegram e scrivi a "
-        "<b>@userinfobot</b> \xe2\x80\x94 risponde con il tuo ID numerico.",
+        "<b>@userinfobot</b> \xe2\x80\x94 risponde con il tuo ID numerico."),
         step2);
     step2Hint->setObjectName("hintLabel");
     step2Hint->setTextFormat(Qt::RichText);
@@ -223,7 +223,7 @@ QWidget* AppControllerPage::buildTelegramTab()
     s3Lay->setSpacing(dpiScale(6));
 
     auto* step3Hint = new QLabel(
-        "<b>Come aggiungere un destinatario:</b><br><br>"
+        tr("<b>Come aggiungere un destinatario:</b><br><br>"
         "<span style='color:#f87171;'>"
         "\xe2\x9a\xa0  <b>@username NON funziona per gli utenti privati.</b>"
         "</span> Telegram richiede l\xe2\x80\x99<b>ID numerico</b> del contatto.<br><br>"
@@ -235,7 +235,7 @@ QWidget* AppControllerPage::buildTelegramTab()
         "<b>Canali e gruppi pubblici:</b> usa l\xe2\x80\x99ID negativo "
         "(es. <code>-1001234567890</code>) oppure <code>@nome_canale</code>. "
         "Per trovare l\xe2\x80\x99ID di un gruppo: aggiungi <b>@userinfobot</b> "
-        "al gruppo e scrivi <code>/id</code>.",
+        "al gruppo e scrivi <code>/id</code>."),
         step3);
     step3Hint->setObjectName("hintLabel");
     step3Hint->setTextFormat(Qt::RichText);

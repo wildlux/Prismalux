@@ -166,10 +166,10 @@ QWidget* PersonalizzaPage::buildLlamaStudio() {
     auto* backComp = new QPushButton(tr("← Menu llama"), compPg);
     backComp->setObjectName("actionBtn");
     connect(backComp, &QPushButton::clicked, this, &PersonalizzaPage::onBackCompClicked);
-    auto* compTitle = new QLabel(binExists ? "\xf0\x9f\x94\x84  Aggiorna llama.cpp"
-                                           : "\xf0\x9f\x94\xa8  Compila llama.cpp", compPg);
+    auto* compTitle = new QLabel(binExists ? tr("\xf0\x9f\x94\x84  Aggiorna llama.cpp")
+                                           : tr("\xf0\x9f\x94\xa8  Compila llama.cpp"), compPg);
     compTitle->setObjectName("cardTitle");
-    m_llamaCompBtn = new QPushButton(binExists ? "\xf0\x9f\x94\x84  Aggiorna" : "\xe2\x96\xb6  Compila", compPg);
+    m_llamaCompBtn = new QPushButton(binExists ? tr("\xf0\x9f\x94\x84  Aggiorna") : tr("\xe2\x96\xb6  Compila"), compPg);
     m_llamaCompBtn->setObjectName("actionBtn");
     m_llamaStopBtn = new QPushButton(tr("\xe2\x8f\xb9  Ferma"), compPg);
     m_llamaStopBtn->setObjectName("actionBtn");
@@ -459,12 +459,12 @@ QWidget* PersonalizzaPage::buildLlamaStudio() {
             auto* ico = new QLabel("\xf0\x9f\x94\xa8", m_firstLaunchBanner);
             ico->setStyleSheet("font-size:22px;");
             auto* txt = new QLabel(
-                "<b style='color:#fbbf24;'>Primo avvio: llama.cpp non \xc3\xa8 compilato</b><br>"
+                tr("<b style='color:#fbbf24;'>Primo avvio: llama.cpp non \xc3\xa8 compilato</b><br>"
                 "<span style='color:#d1d5db;font-size:11px;'>"
                 "Clicca <b>Compila ora</b> per scaricare e compilare llama.cpp automaticamente. "
                 "Richiede: git, cmake, gcc/g++ (Linux) o MSYS2 (Windows). "
                 "Operazione una tantum (~5-15 min)."
-                "</span>", m_firstLaunchBanner);
+                "</span>"), m_firstLaunchBanner);
             txt->setWordWrap(true); txt->setTextFormat(Qt::RichText);
             auto* compNowBtn = new QPushButton(tr("\xf0\x9f\x94\xa8  Compila ora"), m_firstLaunchBanner);
             compNowBtn->setObjectName("actionBtn");

@@ -336,13 +336,13 @@ QWidget* AppControllerPage::buildBlenderTab()
     /* ── Input ── */
     m_blenderInput = new QTextEdit(w);
     m_blenderInput->setPlaceholderText(
-        "Descrivi cosa fare in Blender — es.:\n"
+        tr("Descrivi cosa fare in Blender — es.:\n"
         "  Crea una sfera rossa metallica con roughness 0.1\n"
         "  Aggiungi modifier Subdivision level 2 al cubo\n"
         "  Imposta render Cycles 256 sample, output PNG 1920x1080\n"
         "  Crea materiale PBR con texture diffuse e normal map\n"
         "  Aggiungi una HDRI e tre luci area\n"
-        "  Esporta la scena in GLB");
+        "  Esporta la scena in GLB"));
     m_blenderInput->setMaximumHeight(dpiScale(80));
     m_blenderInput->setMinimumHeight(dpiScale(60));
     lay->addWidget(m_blenderInput);
@@ -381,10 +381,10 @@ QWidget* AppControllerPage::buildBlenderTab()
     m_blenderCodeEdit = new QTextEdit(w);
     m_blenderCodeEdit->setObjectName("outputView");
     m_blenderCodeEdit->setPlaceholderText(
-        "# Il codice Python generato dall'AI apparirà qui.\n"
+        tr("# Il codice Python generato dall'AI apparirà qui.\n"
         "# Puoi anche scrivere direttamente codice bpy:\n"
         "import bpy\n"
-        "bpy.ops.mesh.primitive_cube_add(size=2, location=(0, 0, 0))");
+        "bpy.ops.mesh.primitive_cube_add(size=2, location=(0, 0, 0))"));
     m_blenderCodeEdit->setFont(QFont("Monospace", 10));
     m_blenderCodeEdit->setMinimumHeight(dpiScale(120));
     lay->addWidget(m_blenderCodeEdit, 1);

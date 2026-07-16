@@ -465,9 +465,9 @@ QWidget* ManutenzioneePage::buildConfigFmt()
     fmtLay->setSpacing(8);
 
     auto* fmtDesc = new QLabel(
-        "Formato del file di configurazione <b>~/.prismalux_config</b>.<br>"
+        tr("Formato del file di configurazione <b>~/.prismalux_config</b>.<br>"
         "<b>JSON</b>: standard, leggibile dai tool esterni.<br>"
-        "<b>TOON</b>: flat <code>chiave: valore</code>, -12% dimensione, stessa velocit\xc3\xa0.",
+        "<b>TOON</b>: flat <code>chiave: valore</code>, -12% dimensione, stessa velocit\xc3\xa0."),
         grpFmt);
     fmtDesc->setObjectName("cardDesc");
     fmtDesc->setWordWrap(true);
@@ -556,10 +556,10 @@ QWidget* ManutenzioneePage::buildHardwarePage()
 QLabel* ManutenzioneePage::buildZramWarningBanner(QWidget* parent)
 {
     m_zramWarnLbl = new QLabel(
-        "\xe2\x9a\xa0  <b>RAM libera bassa (&lt;20%)</b> \xe2\x80\x94 "
+        tr("\xe2\x9a\xa0  <b>RAM libera bassa (&lt;20%)</b> \xe2\x80\x94 "
         "attiva zRAM per guadagnare ~30-40% di memoria effettiva:<br>"
         "<code>sudo systemctl enable --now systemd-zram-setup@zram0</code><br>"
-        "Oppure usa i pulsanti <b>Abilita zRAM</b> qui sotto \xe2\x86\x93", parent);
+        "Oppure usa i pulsanti <b>Abilita zRAM</b> qui sotto \xe2\x86\x93"), parent);
     m_zramWarnLbl->setTextFormat(Qt::RichText);
     m_zramWarnLbl->setWordWrap(true);
     m_zramWarnLbl->setStyleSheet(
@@ -606,14 +606,14 @@ QGroupBox* ManutenzioneePage::buildRamOptGroup(QWidget* parent)
 
     auto* ramDesc = new QLabel(
 #ifdef Q_OS_WIN
-        "<b>Windows</b>: Memory Compression \xc3\xa8 integrata nel sistema "
+        tr("<b>Windows</b>: Memory Compression \xc3\xa8 integrata nel sistema "
         "(Windows 10/11). Attivandola il kernel comprime automaticamente "
-        "le pagine RAM poco usate. Non richiede riavvio.",
+        "le pagine RAM poco usate. Non richiede riavvio."),
 #else
-        "<b>Linux</b>: zRAM crea un dispositivo swap compresso in RAM. "
+        tr("<b>Linux</b>: zRAM crea un dispositivo swap compresso in RAM. "
         "Algoritmo <b>zstd</b> (Meta/Facebook). "
         "<i>Singola</i>: 1 device, 50% RAM, lz4. "
-        "<i>Doppia</i>: compatta + 2 device zstd (75% RAM).",
+        "<i>Doppia</i>: compatta + 2 device zstd (75% RAM)."),
 #endif
         grp);
     ramDesc->setObjectName("cardDesc");
@@ -724,17 +724,17 @@ QGroupBox* ManutenzioneePage::buildComputeModeGroup(QWidget* parent)
         b->setMinimumWidth(140);
     }
     m_btnGpu->setToolTip(
-        "Tutti i layer su GPU dedicata (NVIDIA/AMD).\n"
+        tr("Tutti i layer su GPU dedicata (NVIDIA/AMD).\n"
         "Massima velocit\xc3\xa0 se il modello entra in VRAM.\n"
-        "num_gpu = layer count reale del modello.");
+        "num_gpu = layer count reale del modello."));
     m_btnCpu->setToolTip(
         "Tutti i layer su CPU (RAM di sistema).\n"
         "Pi\xc3\xb9 lento, nessun consumo di VRAM.\n"
         "num_gpu = 0.");
     m_btnMisto->setToolTip(
-        "Riempie la GPU dedicata al massimo della sua VRAM,\n"
+        tr("Riempie la GPU dedicata al massimo della sua VRAM,\n"
         "i layer rimanenti vanno su CPU/RAM.\n"
-        "num_gpu = min(layer_model, layer_capacity_NVIDIA).");
+        "num_gpu = min(layer_model, layer_capacity_NVIDIA)."));
     m_btnDoppia->setToolTip(
         "GPU dedicata (NVIDIA) + Intel iGPU insieme.\n"
         "Richiede llama-server compilato con CUDA+SYCL.\n"
@@ -815,7 +815,7 @@ QGroupBox* ManutenzioneePage::buildNpuGroup(QWidget* parent)
     }
 #endif
     npuStatusLbl->setText(found.isEmpty()
-        ? "\xe2\x9d\x8c  Nessuna NPU rilevata (o driver non installato)"
+        ? tr("\xe2\x9d\x8c  Nessuna NPU rilevata (o driver non installato)")
         : found.join("\n"));
 
     auto* btnIntelNpu = new QPushButton(
@@ -828,9 +828,9 @@ QGroupBox* ManutenzioneePage::buildNpuGroup(QWidget* parent)
 
     auto* npuHintRow = new QHBoxLayout;
     auto* npuHint = new QLabel(
-        "\xe2\x84\xb9  AMD NPU (XDNA): usa <b>https://github.com/amd/iron</b> "
+        tr("\xe2\x84\xb9  AMD NPU (XDNA): usa <b>https://github.com/amd/iron</b> "
         "\xe2\x80\x94 attualmente in beta, stabilit\xc3\xa0 non garantita.\n"
-        "Intel NPU: stabile, richiede <code>pip install intel-npu-acceleration-library</code>.",
+        "Intel NPU: stabile, richiede <code>pip install intel-npu-acceleration-library</code>."),
         grp);
     npuHint->setWordWrap(true);
     npuHint->setTextFormat(Qt::RichText);
@@ -1124,7 +1124,7 @@ void ManutenzioneePage::applyComputeMode(const QString& mode)
             if (guard->m_computeInfo) {
                 if (gpuLayers >= total)
                     guard->m_computeInfo->setText(
-                        QString("\xe2\x9c\x85  <b>Misto</b> — tutti i %1 layer su GPU "
+                        tr("\xe2\x9c\x85  <b>Misto</b> — tutti i %1 layer su GPU "
                                 "(il modello entra interamente in VRAM: valuta modalit\xc3\xa0 GPU pura).")
                         .arg(gpuLayers));
                 else
@@ -1163,7 +1163,7 @@ void ManutenzioneePage::applyComputeMode(const QString& mode)
             } else {
                 /* llama-server: mostra comando completo con split ottimale */
                 m_computeInfo->setText(
-                    QString("\xe2\x9c\x85  <b>Doppia GPU (llama-server CUDA+SYCL)</b><br>"
+                    tr("\xe2\x9c\x85  <b>Doppia GPU (llama-server CUDA+SYCL)</b><br>"
                             "Avvia llama-server con:<br>"
                             "<code>llama-server --device CUDA0,SYCL0 "
                             "--tensor-split %1,%2 -ngl 99 -m modello.gguf</code><br>"

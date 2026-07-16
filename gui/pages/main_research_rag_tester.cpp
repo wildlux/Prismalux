@@ -35,10 +35,10 @@ QWidget* RicercaPage::buildRagTesterTab()
 
     /* Titolo */
     auto* titleLbl = new QLabel(
-        "\xf0\x9f\xa7\xaa  <b>Test Comprensione RAG</b> "
+        tr("\xf0\x9f\xa7\xaa  <b>Test Comprensione RAG</b> "
         "\xe2\x80\x94 "
         "Verifica che l'AI abbia letto e compreso i documenti. "
-        "Genera domande reali <b>e a trabocchetto</b>, poi valuta le risposte.", page);
+        "Genera domande reali <b>e a trabocchetto</b>, poi valuta le risposte."), page);
     titleLbl->setObjectName("sectionTitle");
     titleLbl->setTextFormat(Qt::RichText);
     titleLbl->setWordWrap(true);
@@ -151,8 +151,8 @@ QWidget* RicercaPage::buildRagTesterTab()
     m_ragTesterQuestions = new QTextEdit(qGrp);
     m_ragTesterQuestions->setReadOnly(true);
     m_ragTesterQuestions->setPlaceholderText(
-        "Le domande appariranno qui dopo aver premuto \"Genera domande\".\n"
-        "Le domande trabocchetto sono contrassegnate con [TRABOCCHETTO].");
+        tr("Le domande appariranno qui dopo aver premuto \"Genera domande\".\n"
+        "Le domande trabocchetto sono contrassegnate con [TRABOCCHETTO]."));
     m_ragTesterQuestions->setMinimumHeight(180);
     qLay->addWidget(m_ragTesterQuestions);
     rightLay->addWidget(qGrp);
@@ -165,8 +165,8 @@ QWidget* RicercaPage::buildRagTesterTab()
     m_ragTesterAnswers = new QTextEdit(aGrp);
     m_ragTesterAnswers->setReadOnly(true);
     m_ragTesterAnswers->setPlaceholderText(
-        "Le risposte appariranno qui dopo \"Esegui test\".\n"
-        "La valutazione finale apparirà dopo \"Valuta risposte\".");
+        tr("Le risposte appariranno qui dopo \"Esegui test\".\n"
+        "La valutazione finale apparirà dopo \"Valuta risposte\"."));
     m_ragTesterAnswers->setMinimumHeight(220);
     aLay->addWidget(m_ragTesterAnswers);
     rightLay->addWidget(aGrp, 1);
@@ -306,7 +306,7 @@ void RicercaPage::onRagTesterGenClicked()
             holder->deleteLater();
             if (m_ragTesterStatus)
                 m_ragTesterStatus->setText(
-                    "\xe2\x9d\x8c  Errore analisi immagine: " + err);
+                    tr("\xe2\x9d\x8c  Errore analisi immagine: ") + err);
             if (m_ragTesterGenBtn) m_ragTesterGenBtn->setEnabled(true);
         });
         m_ai->chat(sysVis, "Descrivi questa immagine.", {}, AiClient::QuerySimple);

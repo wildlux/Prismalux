@@ -406,8 +406,8 @@ void SintetizzatoreWidget::refreshList()
     if (sel >= 0 && sel < m_seqList->count())
         m_seqList->setCurrentRow(sel);
     m_statusLbl->setText(m_seq.isEmpty()
-        ? "Aggiungi toni e premi Riproduci"
-        : QString("%1 toni in sequenza").arg(m_seq.size()));
+        ? tr("Aggiungi toni e premi Riproduci")
+        : tr("%1 toni in sequenza").arg(m_seq.size()));
 }
 
 void SintetizzatoreWidget::onSeqSel()

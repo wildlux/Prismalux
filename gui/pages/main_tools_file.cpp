@@ -117,8 +117,8 @@ QWidget* StrumentiFilePage::buildFileSearchTab()
 
     m_fileSearchOut = new QTextBrowser(panel);
     m_fileSearchOut->setPlaceholderText(
-        "I file trovati appariranno qui...\n\n"
-        "Suggerimento: usa termini precisi (nomi funzioni, variabili, argomenti)");
+        tr("I file trovati appariranno qui...\n\n"
+        "Suggerimento: usa termini precisi (nomi funzioni, variabili, argomenti)"));
     m_fileSearchOut->setOpenLinks(false);
     m_fileSearchOut->setMinimumHeight(120);
     m_fileSearchOut->setStyleSheet(
@@ -222,8 +222,8 @@ QWidget* StrumentiFilePage::buildWikiTab()
 
     m_wikiContent = new QTextBrowser(panel);
     m_wikiContent->setPlaceholderText(
-        "Il testo dell\xe2\x80\x99" "articolo Wikipedia appare qui...\n\n"
-        "Suggerimento: usa titoli precisi (es. \"Fisica quantistica\" e non \"fisica\")");
+        tr("Il testo dell\xe2\x80\x99" "articolo Wikipedia appare qui...\n\n"
+        "Suggerimento: usa titoli precisi (es. \"Fisica quantistica\" e non \"fisica\")"));
     m_wikiContent->setOpenLinks(false);
     m_wikiContent->setMinimumHeight(120);
     m_wikiContent->setStyleSheet(
@@ -276,8 +276,8 @@ QWidget* StrumentiFilePage::buildDatiTab()
 
     auto* hintRow0 = new QHBoxLayout;
     auto* hintLbl = new QLabel(
-        "\xe2\x84\xb9  Formati supportati: XLSX, XLS, CSV, ODS\n"
-        "Excel richiede <code>pip install openpyxl</code> (gi\xc3\xa0 in requirements.txt)",
+        tr("\xe2\x84\xb9  Formati supportati: XLSX, XLS, CSV, ODS\n"
+        "Excel richiede <code>pip install openpyxl</code> (gi\xc3\xa0 in requirements.txt)"),
         panel);
     hintLbl->setTextFormat(Qt::RichText);
     hintLbl->setObjectName("hintLabel");
@@ -342,8 +342,8 @@ QWidget* StrumentiFilePage::buildDatiTab()
     m_datiPreview->setReadOnly(true);
     m_datiPreview->setFont(QFont("Monospace", 9));
     m_datiPreview->setPlaceholderText(
-        "L'anteprima del foglio appare qui...\n\n"
-        "Carica un file Excel, CSV o ODS per iniziare.");
+        tr("L'anteprima del foglio appare qui...\n\n"
+        "Carica un file Excel, CSV o ODS per iniziare."));
     pgLay->addWidget(m_datiPreview);
     splitter->addWidget(previewGroup);
 
@@ -355,8 +355,8 @@ QWidget* StrumentiFilePage::buildDatiTab()
     m_datiOutput->setObjectName("chatLog");
     m_datiOutput->setReadOnly(true);
     m_datiOutput->setPlaceholderText(
-        "L'analisi AI appare qui...\n\n"
-        "Clicca 'Analizza con AI' dopo aver caricato i dati.");
+        tr("L'analisi AI appare qui...\n\n"
+        "Clicca 'Analizza con AI' dopo aver caricato i dati."));
     ogLay->addWidget(m_datiOutput);
     splitter->addWidget(outputGroup);
 
@@ -384,8 +384,8 @@ QWidget* StrumentiFilePage::buildPdfTab()
     vbox->setSpacing(8);
 
     auto* titleLbl = new QLabel(
-        "<b>\xf0\x9f\x93\x84  Analisi PDF</b> \xe2\x80\x94 "
-        "Carica un PDF e analizzalo con AI", panel);
+        tr("<b>\xf0\x9f\x93\x84  Analisi PDF</b> \xe2\x80\x94 "
+        "Carica un PDF e analizzalo con AI"), panel);
     titleLbl->setTextFormat(Qt::RichText);
     vbox->addWidget(titleLbl);
 
@@ -405,10 +405,10 @@ QWidget* StrumentiFilePage::buildPdfTab()
 
     auto* hintRow1 = new QHBoxLayout;
     auto* hintLbl = new QLabel(
-        "\xe2\x84\xb9  Richiede <code>pdftotext</code> (poppler-utils) "
+        tr("\xe2\x84\xb9  Richiede <code>pdftotext</code> (poppler-utils) "
         "oppure Python <code>pdfplumber</code>.<br>"
         "Installa: <code>sudo apt install poppler-utils</code> "
-        "oppure <code>pip install pdfplumber</code>",
+        "oppure <code>pip install pdfplumber</code>"),
         panel);
     hintLbl->setTextFormat(Qt::RichText);
     hintLbl->setObjectName("hintLabel");
@@ -453,8 +453,8 @@ QWidget* StrumentiFilePage::buildPdfTab()
     m_pdfOutput->setObjectName("chatLog");
     m_pdfOutput->setReadOnly(true);
     m_pdfOutput->setPlaceholderText(
-        "Il risultato dell'analisi appare qui...\n\n"
-        "Carica un PDF e clicca 'Analizza con AI'.");
+        tr("Il risultato dell'analisi appare qui...\n\n"
+        "Carica un PDF e clicca 'Analizza con AI'."));
     vbox->addWidget(m_pdfOutput, 1);
 
     connect(fileBtn,    &QPushButton::clicked,
@@ -545,8 +545,8 @@ QWidget* StrumentiFilePage::buildWordTab()
     m_wordOutputEdit->setObjectName("chatLog");
     m_wordOutputEdit->setReadOnly(true);
     m_wordOutputEdit->setPlaceholderText(
-        "Il risultato dell'analisi appare qui...\n\n"
-        "Carica un file di testo e clicca 'Analizza con AI'.");
+        tr("Il risultato dell'analisi appare qui...\n\n"
+        "Carica un file di testo e clicca 'Analizza con AI'."));
     vbox->addWidget(m_wordOutputEdit, 1);
 
     connect(fileBtn,    &QPushButton::clicked,

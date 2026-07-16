@@ -243,14 +243,13 @@ void McpManagerPage::buildUi()
     m_prepareBtn = new QPushButton(QString::fromUtf8("\xf0\x9f\x90\x8d  Prepara ambiente (venv)"), this);
     m_venvLbl    = new QLabel(this);
     m_venvLbl->setWordWrap(true);
-    m_refreshBtn  = new QPushButton(QString::fromUtf8("\xf0\x9f\x94\x84  Aggiorna stato"), this);
-    m_testAllBtn  = new QPushButton(QString::fromUtf8("\xf0\x9f\xa7\xaa  Testa tutti"), this);
+    m_refreshBtn  = new QPushButton(tr("\xf0\x9f\x94\x84  Aggiorna stato"), this);
+    m_testAllBtn  = new QPushButton(tr("\xf0\x9f\xa7\xaa  Testa tutti"), this);
     m_testAllBtn->setToolTip(QString::fromUtf8(
         "Esegue lo smoke test JSON-RPC su tutti i plugin MCP in sequenza.\n"
         "I risultati compaiono nel log centralizzato sottostante."));
     m_testMcpCallBtn = new QPushButton(QString::fromUtf8("\xf0\x9f\xa7\xaa  Testa mcp_call"), this);
-    m_testMcpCallBtn->setToolTip(QString::fromUtf8(
-        "Verifica che tutti i plugin siano raggiungibili con la stessa risoluzione\n"
+    m_testMcpCallBtn->setToolTip(tr("Verifica che tutti i plugin siano raggiungibili con la stessa risoluzione\n"
         "python usata da mcp_call: venv plugin \xe2\x86\x92 venv condiviso \xe2\x86\x92 python3.\n"
         "Usa questo test dopo aver aggiunto nuovi plugin o cambiato il venv."));
     topRow->addWidget(m_prepareBtn);
@@ -362,8 +361,7 @@ void McpManagerPage::rebuildList()
             auto* guideBtn = new QPushButton(QString::fromUtf8("\xe2\x84\xb9"), rowW);
             guideBtn->setFlat(true);
             guideBtn->setFixedWidth(dpiScale(28));
-            guideBtn->setToolTip(QString::fromUtf8(
-                "Mostra istruzioni di configurazione per questo MCP"));
+            guideBtn->setToolTip(tr("Mostra istruzioni di configurazione per questo MCP"));
             guideBtn->setProperty("mcpName", name);
             guideBtn->setProperty("mcpGuide", guide);
             connect(guideBtn, &QPushButton::clicked,
@@ -408,8 +406,7 @@ void McpManagerPage::updateVenvLabel()
         m_venvLbl->setText(QString::fromUtf8("\xe2\x9c\x85 Ambiente pronto: ") + venvDir());
         m_venvLbl->setStyleSheet("color: #2e7d32;");
     } else {
-        m_venvLbl->setText(QString::fromUtf8(
-            "\xe2\x9a\xa0\xef\xb8\x8f Ambiente non creato \xe2\x80\x94 premi \"Prepara ambiente\"."));
+        m_venvLbl->setText(tr("\xe2\x9a\xa0\xef\xb8\x8f Ambiente non creato \xe2\x80\x94 premi \"Prepara ambiente\"."));
         m_venvLbl->setStyleSheet("color: #b26a00;");
     }
 }

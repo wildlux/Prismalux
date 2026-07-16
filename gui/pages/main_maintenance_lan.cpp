@@ -130,9 +130,9 @@ QWidget* ManutenzioneePage::buildLanServer()
         tr("\xf0\x9f\x94\x92  Genera certificato TLS self-signed"), tlsGroup);
     m_tlsGenBtn->setObjectName("actionBtn");
     m_tlsGenBtn->setToolTip(
-        "Genera ~/.prismalux/lan_cert.pem e ~/.prismalux/lan_key.pem\n"
+        tr("Genera ~/.prismalux/lan_cert.pem e ~/.prismalux/lan_key.pem\n"
         "tramite openssl (RSA 2048, 365 giorni).\n"
-        "Richiede openssl installato sul sistema.");
+        "Richiede openssl installato sul sistema."));
 
     m_tlsEnableCheck = new QCheckBox(
         tr("\xf0\x9f\x94\x92  Abilita TLS (richiede certificato)"), tlsGroup);
@@ -141,8 +141,8 @@ QWidget* ManutenzioneePage::buildLanServer()
         m_tlsEnableCheck->setChecked(s.value("lan/tls_enabled", false).toBool());
     }
     m_tlsEnableCheck->setToolTip(
-        "Se attivo, il server LAN usa HTTPS/WSS invece di HTTP.\n"
-        "Genera prima il certificato con il pulsante a sinistra.");
+        tr("Se attivo, il server LAN usa HTTPS/WSS invece di HTTP.\n"
+        "Genera prima il certificato con il pulsante a sinistra."));
 
     tlsCtrlLay->addWidget(m_tlsGenBtn);
     tlsCtrlLay->addWidget(m_tlsEnableCheck);

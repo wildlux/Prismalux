@@ -55,9 +55,9 @@ MonitorPanel::MonitorPanel(AiClient* ai, HardwareMonitor* hw, QWidget* parent)
     topLay->setContentsMargins(0,0,0,0); topLay->setSpacing(10);
 
     auto* title = new QLabel(
-        "<b>\xf0\x9f\x93\x8a Monitor Attivit\xc3\xa0 AI</b>"
+        tr("<b>\xf0\x9f\x93\x8a Monitor Attivit\xc3\xa0 AI</b>"
         " &nbsp;<span style='color:#888; font-size:11px;'>"
-        "— ogni inferenza viene misurata e valutata</span>",
+        "— ogni inferenza viene misurata e valutata</span>"),
         topBar);
     topLay->addWidget(title, 1);
 

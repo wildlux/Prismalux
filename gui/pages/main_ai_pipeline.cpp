@@ -1966,8 +1966,8 @@ bool AgentiPage::_fpConfirmExecDialog(const ExecCode& ec, const QString& pyCode,
 {
             auto* dlg = new QDialog(this);
             dlg->setWindowTitle(useSandbox
-                ? "\xf0\x9f\x90\xb3  Esegui codice in sandbox Docker?"
-                : "\xe2\x9a\xa0  Esegui codice generato dall\xe2\x80\x99" "AI?");
+                ? tr("\xf0\x9f\x90\xb3  Esegui codice in sandbox Docker?")
+                : tr("\xe2\x9a\xa0  Esegui codice generato dall\xe2\x80\x99" "AI?"));
             dlg->setMinimumSize(660, 460);
             auto* lay = new QVBoxLayout(dlg);
 

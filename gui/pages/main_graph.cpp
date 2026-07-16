@@ -744,9 +744,9 @@ QWidget* GraficoPage::buildLeftPanel() {
         m_smithCustom->setFont(QFont("JetBrains Mono,Fira Code,Consolas", 9));
         m_smithCustom->setFixedHeight(dpiScale(80));
         m_smithCustom->setPlaceholderText(
-            "Inserisci numeri interi \xe2\x89\xa5 2\n"
+            tr("Inserisci numeri interi \xe2\x89\xa5 2\n"
             "Uno per riga, o separati da spazi/virgole.\n"
-            "Es:  3  7  13  21  34  55  89");
+            "Es:  3  7  13  21  34  55  89"));
         fl->addRow(m_smithCustom);
 
         m_btnSmithFile = new QPushButton(
@@ -754,8 +754,8 @@ QWidget* GraficoPage::buildLeftPanel() {
         m_btnSmithFile->setObjectName("actionBtn");
         m_btnSmithFile->setFixedHeight(dpiScale(28));
         m_btnSmithFile->setToolTip(
-            "Apri un file di testo con numeri interi >= 2.\n"
-            "Formati accettati: uno per riga, separati da spazi o virgole.");
+            tr("Apri un file di testo con numeri interi >= 2.\n"
+            "Formati accettati: uno per riga, separati da spazi o virgole."));
         connect(m_btnSmithFile, &QPushButton::clicked, this, &GraficoPage::onSmithFileClicked);
         fl->addRow(m_btnSmithFile);
 
@@ -905,8 +905,8 @@ QWidget* GraficoPage::buildLeftPanel() {
     imgLay->addWidget(imgTitleLbl);
 
     auto* imgHintLbl = new QLabel(
-        "Carica un grafico cartesiano.\n"
-        "Il modello vision estrae la formula y = f(x).", m_imgSection);
+        tr("Carica un grafico cartesiano.\n"
+        "Il modello vision estrae la formula y = f(x)."), m_imgSection);
     imgHintLbl->setObjectName("hintLabel");
     imgHintLbl->setWordWrap(true);
     imgHintLbl->setFont(QFont("Inter,Ubuntu,sans-serif", 8));

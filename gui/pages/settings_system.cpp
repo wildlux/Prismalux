@@ -333,9 +333,9 @@ QWidget* ImpostazioniPage::buildPuliziaTab()
     lay->addWidget(ttl);
 
     auto* intro = new QLabel(
-        "Rimuovi file temporanei, output vecchi e artefatti di build "
+        tr("Rimuovi file temporanei, output vecchi e artefatti di build "
         "che non sono pi\xc3\xb9 necessari. "
-        "Ogni sezione mostra la dimensione stimata prima di procedere.", w);
+        "Ogni sezione mostra la dimensione stimata prima di procedere."), w);
     intro->setObjectName("cardDesc");
     intro->setWordWrap(true);
     lay->addWidget(intro);
@@ -652,8 +652,8 @@ QWidget* ImpostazioniPage::buildPuliziaTab()
             gl->addWidget(lbl);
         }
         auto* note = new QLabel(
-            "Necessarie per compilare llama-server localmente (tab Personalizza \xe2\x86\x92 llama.cpp Studio). "
-            "Rimuovi manualmente solo se non usi pi\xc3\xb9 llama.cpp locale.",
+            tr("Necessarie per compilare llama-server localmente (tab Personalizza \xe2\x86\x92 llama.cpp Studio). "
+            "Rimuovi manualmente solo se non usi pi\xc3\xb9 llama.cpp locale."),
             grp);
         note->setObjectName("hintLabel");
         note->setWordWrap(true);
@@ -670,9 +670,9 @@ QWidget* ImpostazioniPage::buildPuliziaTab()
         gl->setSpacing(6);
 
         auto* desc = new QLabel(
-            "Crea un backup ZIP dei database SQLite (<b>graph_memory.db</b>, "
+            tr("Crea un backup ZIP dei database SQLite (<b>graph_memory.db</b>, "
             "<b>rag_graph.db</b>, <b>chat_history.db</b>) e del log di accesso. "
-            "I file vengono copiati nella cartella scelta con timestamp nel nome.",
+            "I file vengono copiati nella cartella scelta con timestamp nel nome."),
             grp);
         desc->setObjectName("cardDesc");
         desc->setTextFormat(Qt::RichText);
@@ -735,10 +735,10 @@ QWidget* ImpostazioniPage::buildPuliziaTab()
         gl->setSpacing(6);
 
         auto* desc = new QLabel(
-            "Verifica che file sensibili non siano esposti: "
+            tr("Verifica che file sensibili non siano esposti: "
             "<code>.env</code> in <code>.gitignore</code>, "
             "permessi <code>0600</code> su token LAN, "
-            "nessun segreto in chiaro nei settings Qt.",
+            "nessun segreto in chiaro nei settings Qt."),
             grp);
         desc->setObjectName("cardDesc");
         desc->setTextFormat(Qt::RichText);
@@ -886,10 +886,10 @@ QWidget* ImpostazioniPage::buildSistemaConsigliTab()
 
     /* ── Nota finale ─────────────────────────────────────────── */
     auto* nota = new QLabel(
-        "<p style='color:gray;font-size:small;'>"
+        tr("<p style='color:gray;font-size:small;'>"
         "\xf0\x9f\x92\xa1 <b>Consiglio:</b> Inizia sempre dalla pulizia fisica &mdash; "
         "\xc3\xa8 gratuita e risolve il 90% dei casi di surriscaldamento sui laptop."
-        "</p>");
+        "</p>"));
     nota->setWordWrap(true);
     vlay->addWidget(nota);
 

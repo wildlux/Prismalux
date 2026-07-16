@@ -62,8 +62,7 @@ void MainWindow::onContextUsage(int usedTok, int maxTok)
     m_ctxLbl->setText(QString::fromUtf8("\xf0\x9f\xa7\xa0 %1").arg(fmtK(usedTok)));
     m_ctxLbl->setStyleSheet(
         QString("QLabel#ctxLabel{color:%1;font-size:11px;padding:0 4px;}").arg(col));
-    m_ctxLbl->setToolTip(QString::fromUtf8(
-        "\xf0\x9f\xa7\xa0  Token gia' consumati in questa chat\n"
+    m_ctxLbl->setToolTip(tr("\xf0\x9f\xa7\xa0  Token gia' consumati in questa chat\n"
         "Consumati: %1 su %2 (num_ctx) \xe2\x80\x94 restano %3 liberi (barra CTX)\n"
         "Conteggia storia chat compressa + documenti RAG della chat.")
         .arg(fmtK(usedTok), fmtK(maxTok), fmtK(freeTok)));

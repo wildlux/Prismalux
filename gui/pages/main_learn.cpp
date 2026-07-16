@@ -393,7 +393,7 @@ void ImparaPage::onQuizError(const QString& e) {
     disconnect(m_quizFinConn);
     disconnect(m_quizErrConn);
     m_quizBusy = false;
-    m_quizQuestion->setText(QString("\xe2\x9d\x8c  Errore: %1\n\nRiprova o cambia modello.").arg(e));
+    m_quizQuestion->setText(tr("\xe2\x9d\x8c  Errore: %1\n\nRiprova o cambia modello.").arg(e));
     m_quizGen->setEnabled(true);
 }
 
@@ -676,7 +676,7 @@ void ImparaPage::nextQuestion() {
 void ImparaPage::endSession() {
     saveSession();
     m_quizQuestion->setText(
-        QString("🏁  Quiz completato!\n\n"
+        tr("🏁  Quiz completato!\n\n"
                 "Materia: %1  |  Difficoltà: %2\n"
                 "✅ Corrette: %3 / %4  |  ❌ Sbagliate: %5\n\n"
                 "Il risultato è stato salvato nella Dashboard.")
@@ -753,12 +753,12 @@ void ImparaPage::onReviewWrongAnswers()
 
     /* Introduzione dolce */
     auto* introLbl = new QLabel(
-        "\xf0\x9f\x92\xaa  <b>Ripassiamo insieme le domande che ti hanno messo in difficolt\xc3\xa0:</b><br>"
+        tr("\xf0\x9f\x92\xaa  <b>Ripassiamo insieme le domande che ti hanno messo in difficolt\xc3\xa0:</b><br>"
         "<small style='color:#888;'>"
         "Verde = risposta corretta &nbsp; \xe2\x80\xa2 &nbsp; "
         "Rosso = risposta data &nbsp; \xe2\x80\xa2 &nbsp; "
         "Leggi la spiegazione per capire perch\xc3\xa9."
-        "</small>",
+        "</small>"),
         dlg);
     introLbl->setTextFormat(Qt::RichText);
     introLbl->setObjectName("cardDesc");

@@ -163,8 +163,8 @@ void AgentiPage::buildToolbarExportSection(QHBoxLayout* toolLay, QWidget* toolba
     m_btnKnowledge = new QPushButton(tr("\xf0\x9f\x93\x96  Memoria"), toolbar);  /* 📖 */
     m_btnKnowledge->setObjectName("actionBtn");
     m_btnKnowledge->setToolTip(
-        "Salva risposta in user_knowledge.md\n"
-        "Il testo viene iniettato nel context di ogni sessione AI futura.");
+        tr("Salva risposta in user_knowledge.md\n"
+        "Il testo viene iniettato nel context di ogni sessione AI futura."));
     toolLay->addWidget(m_btnKnowledge);
     connect(m_btnKnowledge, &QPushButton::clicked, this, &AgentiPage::onSaveKnowledge);
 
@@ -213,9 +213,9 @@ void AgentiPage::buildToolbarVoiceLoop(QHBoxLayout* toolLay, QWidget* toolbar)
     m_btnVoiceLoop->setChecked(false);
     m_btnVoiceLoop->setStyleSheet(kVoiceOff);
     m_btnVoiceLoop->setToolTip(
-        "Conversazione vocale continua (loop)\n"
+        tr("Conversazione vocale continua (loop)\n"
         "Parla \xe2\x80\x94 AI risponde \xe2\x80\x94 ascolta \xe2\x80\x94 riparla\n"
-        "Richiede whisper.cpp + TTS configurati nelle Impostazioni");
+        "Richiede whisper.cpp + TTS configurati nelle Impostazioni"));
     toolLay->addWidget(m_btnVoiceLoop);
     connect(m_btnVoiceLoop, &QPushButton::toggled, this, &AgentiPage::onVoiceLoopToggled);
 }
@@ -336,8 +336,8 @@ void AgentiPage::buildChatLog(QVBoxLayout* lay)
     m_log->setOpenExternalLinks(false);
     m_log->document()->setDefaultStyleSheet("body { color:#e2e8f0; }");
     m_log->setPlaceholderText(
-        "L'output degli agenti appare qui...\n\n"
-        "\xf0\x9f\x8d\xba Invocazione riuscita. Gli dei ascoltano.");
+        tr("L'output degli agenti appare qui...\n\n"
+        "\xf0\x9f\x8d\xba Invocazione riuscita. Gli dei ascoltano."));
     lay->addWidget(m_log, 1);
 
     connect(m_log->verticalScrollBar(), &QScrollBar::valueChanged,
@@ -451,8 +451,8 @@ QPushButton* AgentiPage::buildInputActionButtons(QGridLayout* inputGrid, QWidget
     m_btnRun->setProperty("bigBtn", "true");
     m_btnRun->setVisible(false);   /* hub ovale TriModeButton è l'azione visiva */
     m_btnRun->setToolTip(
-        "Risposta immediata con contesto RAG \xe2\x80\x94 1 solo agente (Invio)\n"
-        "Stop da fermo \xe2\x86\x92 cambia modalit\xc3\xa0 (Invia \xe2\x86\x94 Avvia)");
+        tr("Risposta immediata con contesto RAG \xe2\x80\x94 1 solo agente (Invio)\n"
+        "Stop da fermo \xe2\x86\x92 cambia modalit\xc3\xa0 (Invia \xe2\x86\x94 Avvia)"));
     m_btnRun->setAccessibleName(tr("Avvia o ferma la risposta AI"));
     tagExec(m_btnRun, "\xf0\x9f\x93\xa4", "Invia");
 
@@ -500,9 +500,9 @@ void AgentiPage::buildInputRagToggle(QGridLayout* inputGrid, QWidget* inputArea)
     m_btnToolsToggle->setCheckable(true);
     m_btnToolsToggle->setObjectName("actionBtn");
     m_btnToolsToggle->setToolTip(
-        "Apri/chiudi i Tool Veloci (Function Tools).\n"
+        tr("Apri/chiudi i Tool Veloci (Function Tools).\n"
         "Eseguiti in-process, risposta < 1ms.\n"
-        "Calcola, cerca online, leggi file, Python, RAG\xe2\x80\xa6");
+        "Calcola, cerca online, leggi file, Python, RAG\xe2\x80\xa6"));
     inputGrid->addWidget(m_btnToolsToggle, 0, 3);
     connect(m_btnToolsToggle, &QPushButton::toggled,
             this, &AgentiPage::onToolsPanelToggle);
@@ -511,9 +511,9 @@ void AgentiPage::buildInputRagToggle(QGridLayout* inputGrid, QWidget* inputArea)
     m_btnMcpToggle->setCheckable(true);
     m_btnMcpToggle->setObjectName("actionBtn");
     m_btnMcpToggle->setToolTip(
-        "Apri/chiudi i Tool Lenti \xe2\x80\x94 MCP Plugin.\n"
+        tr("Apri/chiudi i Tool Lenti \xe2\x80\x94 MCP Plugin.\n"
         "Avviati come processo separato (JSON-RPC 2.0 stdio).\n"
-        "Latenza maggiore ma accesso a strumenti esterni.");
+        "Latenza maggiore ma accesso a strumenti esterni."));
     inputGrid->addWidget(m_btnMcpToggle, 1, 3);
     connect(m_btnMcpToggle, &QPushButton::toggled,
             this, &AgentiPage::onMcpPanelToggle);
@@ -592,8 +592,8 @@ void AgentiPage::buildRagPanel(QVBoxLayout* lay)
     row2Lay->setSpacing(8);
 
     m_ragDropZone = new QLabel(
-        "\xf0\x9f\x93\x84  Trascina qui PDF / .txt / .md\n"
-        "per indicizzarli nel RAG",
+        tr("\xf0\x9f\x93\x84  Trascina qui PDF / .txt / .md\n"
+        "per indicizzarli nel RAG"),
         row2);
     m_ragDropZone->setObjectName("ragDropZone");
     m_ragDropZone->setAlignment(Qt::AlignCenter);
@@ -713,8 +713,8 @@ void AgentiPage::onRagDropZoneLeave()
 {
     if (m_ragDropZone && !m_ragIngesting)
         m_ragDropZone->setText(
-            "\xf0\x9f\x93\x84  Trascina qui PDF / .txt / .md\n"
-            "per indicizzarli nel RAG");
+            tr("\xf0\x9f\x93\x84  Trascina qui PDF / .txt / .md\n"
+            "per indicizzarli nel RAG"));
 }
 
 void AgentiPage::onRagIngestionDone()
@@ -722,8 +722,8 @@ void AgentiPage::onRagIngestionDone()
     m_ragIngesting = false;
     if (m_ragDropZone)
         m_ragDropZone->setText(
-            "\xf0\x9f\x93\x84  Trascina qui PDF / .txt / .md\n"
-            "per indicizzarli nel RAG");
+            tr("\xf0\x9f\x93\x84  Trascina qui PDF / .txt / .md\n"
+            "per indicizzarli nel RAG"));
     if (m_ragStatusLbl)
         m_ragStatusLbl->setText(tr("\xe2\x9c\x85  Indicizzato nel RAG"));
     /* Nasconde il messaggio dopo 3 secondi via slot nominato */
@@ -748,7 +748,7 @@ void AgentiPage::buildHintFooter(QVBoxLayout* lay)
         QByteArray("cosa sai fare?").toBase64(
             QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals));
     auto* hintLbl = new QLabel(
-        QString("\xe2\x8c\xa8  <b>Invio</b> = esegui &nbsp;\xc2\xb7&nbsp; "
+        tr("\xe2\x8c\xa8  <b>Invio</b> = esegui &nbsp;\xc2\xb7&nbsp; "
         "<b>Shift+Invio</b> = a capo &nbsp;\xc2\xb7&nbsp; "
         "<b>Stop da fermo</b> = cambia Chat \xe2\x86\x94 Avvia<br>"
         "\xf0\x9f\x92\xa1  Chiedi <a href='prova:%1' style='color:#3b82f6;"

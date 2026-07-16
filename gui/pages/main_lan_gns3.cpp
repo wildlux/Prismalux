@@ -323,8 +323,8 @@ void LanWanPage::onGns3ProcFinished(int code, QProcess::ExitStatus)
     auto* proc = qobject_cast<QProcess*>(sender());
     if (m_gns3Progress) m_gns3Progress->hide();
     m_gns3StatusLbl->setText(code == 0
-        ? "\xe2\x9c\x85  Completato"
-        : "\xe2\x9d\x8c  Terminato con errore");
+        ? tr("\xe2\x9c\x85  Completato")
+        : tr("\xe2\x9d\x8c  Terminato con errore"));
     if (code != 0) LogBus::post(QString("\xe2\x9d\x8c LAN WAN: GNS3 script terminato con errore (exit %1).").arg(code));
     m_gns3ExecBtn->setEnabled(true);
     if (m_gns3ExecProc == proc) m_gns3ExecProc = nullptr;
@@ -397,10 +397,10 @@ QWidget* LanWanPage::buildGNS3Tab()
 
     auto* hintRowGns = new QHBoxLayout;
     auto* hintLbl = new QLabel(
-        "\xf0\x9f\x8c\x90 <b>GNS3 MCP:</b> simulatore reti. "
+        tr("\xf0\x9f\x8c\x90 <b>GNS3 MCP:</b> simulatore reti. "
         "Avvia GNS3 (porta 3080 di default) e installa: "
         "<code>pip install gns3fy requests</code><br>"
-        "Plugin: <a href='https://github.com/ChistokhinSV/gns3-mcp'>gns3-mcp</a>", w);
+        "Plugin: <a href='https://github.com/ChistokhinSV/gns3-mcp'>gns3-mcp</a>"), w);
     hintLbl->setObjectName("hintLabel");
     hintLbl->setOpenExternalLinks(true);
     hintLbl->setWordWrap(true);
@@ -433,9 +433,9 @@ QWidget* LanWanPage::buildGNS3Tab()
 
     m_gns3Input = new QTextEdit(w);
     m_gns3Input->setPlaceholderText(
-        "Descrivi la rete da simulare...\n"
+        tr("Descrivi la rete da simulare...\n"
         "Es: 'Crea una topologia con 2 router Cisco e 3 PC in una LAN'\n"
-        "Es: 'Configura OSPF tra R1 e R2 con redistribuzione statica'");
+        "Es: 'Configura OSPF tra R1 e R2 con redistribuzione statica'"));
     m_gns3Input->setFixedHeight(dpiScale(80));
     lay->addWidget(m_gns3Input);
 
@@ -588,8 +588,8 @@ void LanWanPage::onAdbProcFinished(int code, QProcess::ExitStatus)
 
     if (success) {
         m_adbStatusLbl->setText(
-            "\xe2\x9c\x85  APK installato con successo! "
-            "Cerca \"Prismalux\" nel cassetto app.");
+            tr("\xe2\x9c\x85  APK installato con successo! "
+            "Cerca \"Prismalux\" nel cassetto app."));
         m_adbStatusLbl->setStyleSheet("color:#4caf50;font-size:11px;");
     } else if (log.contains("INSTALL_FAILED_UPDATE_INCOMPATIBLE")) {
         m_adbStatusLbl->setText(

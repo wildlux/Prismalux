@@ -215,8 +215,8 @@ StableDiffusionWidget::StableDiffusionWidget(QWidget* parent)
     m_imgLabel = new QLabel(m_imgScroll);
     m_imgLabel->setAlignment(Qt::AlignCenter);
     m_imgLabel->setText(
-        "<span style='color:#555;'>"
-        "L'immagine generata apparer\xc3\xa0 qui.</span>");
+        tr("<span style='color:#555;'>"
+        "L'immagine generata apparer\xc3\xa0 qui.</span>"));
     m_imgLabel->setTextFormat(Qt::RichText);
     m_imgScroll->setWidget(m_imgLabel);
     imgLay->addWidget(m_imgScroll, 1);

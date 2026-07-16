@@ -128,8 +128,8 @@ void AgentiPage::onSaveKnowledge()
 
     /* Intestazione */
     auto* titleLbl = new QLabel(
-        "<b>Salva in <code>user_knowledge.md</code></b><br>"
-        "<small>Scegli sezione e inserisci il testo da memorizzare.</small>",
+        tr("<b>Salva in <code>user_knowledge.md</code></b><br>"
+        "<small>Scegli sezione e inserisci il testo da memorizzare.</small>"),
         dlg);
     titleLbl->setTextFormat(Qt::RichText);
     lay->addWidget(titleLbl);
@@ -162,9 +162,9 @@ void AgentiPage::onSaveKnowledge()
     /* Area testo */
     auto* edit = new QTextEdit(dlg);
     edit->setPlaceholderText(
-        "Inserisci il testo da salvare. Puoi usare Markdown.\n"
+        tr("Inserisci il testo da salvare. Puoi usare Markdown.\n"
         "Per 'ragionamenti' e 'contesto' includi una data:\n"
-        "**2026-05-06** — ...");
+        "**2026-05-06** — ..."));
     edit->setPlainText(preText);
     lay->addWidget(edit, 1);
 

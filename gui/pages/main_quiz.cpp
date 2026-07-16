@@ -116,8 +116,8 @@ QWidget* buildGeneraTab(QuizPage* self,
     output->setObjectName("chatLog");
     output->setReadOnly(true);
     output->setPlaceholderText(
-        "Il quiz generato appare qui...\n\n"
-        "Suggerimento: puoi usare l\xe2\x80\x99" "argomento in italiano o in inglese.");
+        QObject::tr("Il quiz generato appare qui...\n\n"
+        "Suggerimento: puoi usare l\xe2\x80\x99" "argomento in italiano o in inglese."));
     lay->addWidget(output, 1);
 
     return w;
@@ -255,8 +255,8 @@ QWidget* buildGiocaTab(QuizPage* self,
     aLay->setContentsMargins(24, 24, 24, 24);
     aLay->addStretch(1);
     auto* avvisoLbl = new QLabel(
-        "\xe2\x9a\xa0\xef\xb8\x8f  Per usare questa scheda,\n"
-        "prima genera un quiz dalla scheda \"\xf0\x9f\x8e\xaf Genera\".",
+        QObject::tr("\xe2\x9a\xa0\xef\xb8\x8f  Per usare questa scheda,\n"
+        "prima genera un quiz dalla scheda \"\xf0\x9f\x8e\xaf Genera\"."),
         avvisoPage);
     avvisoLbl->setObjectName("cardDesc");
     avvisoLbl->setAlignment(Qt::AlignCenter);
@@ -884,8 +884,8 @@ void QuizPage::loadDashboard() {
     QFile f(path);
     if (!f.exists() || !f.open(QIODevice::ReadOnly)) {
         auto* msg = new QLabel(
-            "\xf0\x9f\x93\xad  Nessun quiz ancora completato.\n\n"
-            "Completa almeno un quiz (nella scheda Impara) per vedere le statistiche qui.",
+            tr("\xf0\x9f\x93\xad  Nessun quiz ancora completato.\n\n"
+            "Completa almeno un quiz (nella scheda Impara) per vedere le statistiche qui."),
             m_dashContent);
         msg->setObjectName("cardDesc");
         msg->setWordWrap(true);

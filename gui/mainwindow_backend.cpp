@@ -58,8 +58,8 @@ void MainWindow::showServerDialog()
     lay->setSpacing(10);
 
     lay->addWidget(new QLabel(
-        "<b>Seleziona modello</b> \xe2\x80\x94 il server parte in background,<br>"
-        "il backend viene commutato automaticamente.", dlg));
+        tr("<b>Seleziona modello</b> \xe2\x80\x94 il server parte in background,<br>"
+        "il backend viene commutato automaticamente."), dlg));
 
     lay->addWidget(buildServerHwBanner(dlg));
 
@@ -333,9 +333,9 @@ QWidget* MainWindow::buildServerMathSection(QWidget* parent,
         if (!mathOn) { lblMathStatus->hide(); btnMathDl->hide(); return; }
         if (mathPaths.isEmpty()) {
             lblMathStatus->setText(
-                "<span style='color:#ff5252;'>"
+                tr("<span style='color:#ff5252;'>"
                 "\xe2\x9a\xa0  Nessun modello matematico trovato in models/.<br>"
-                "Scarica Qwen2.5-Math-72B (Q4_K_M ~40 GB) o Qwen2.5-Math-7B (Q4_K_M ~4.7 GB).</span>");
+                "Scarica Qwen2.5-Math-72B (Q4_K_M ~40 GB) o Qwen2.5-Math-7B (Q4_K_M ~4.7 GB).</span>"));
             lblMathStatus->show(); btnMathDl->show();
         } else {
             lblMathStatus->setText(
@@ -472,11 +472,11 @@ static void showMathDownloadDialog(QWidget* parent, const QString& modelsDir) {
             "<span style='color:#5a5f80;font-size:11px;'>" + m.description + "</span>", box));
 
         auto* rq4 = new QRadioButton(
-            QString("Q4_K_M  %1  — carica tutto in RAM%2")
+            QObject::tr("Q4_K_M  %1  — carica tutto in RAM%2")
             .arg(m.sizeQ4)
             .arg(m.name.contains("72B") ? "  ✅ consigliato per Xeon 64 GB" : ""), box);
         auto* rq8 = new QRadioButton(
-            QString("Q8_0    %1  — qualità massima, richiede NVMe SSD%2")
+            QObject::tr("Q8_0    %1  — qualità massima, richiede NVMe SSD%2")
             .arg(m.sizeQ8)
             .arg(m.name.contains("72B") ? " (mmap automatico)" : ""), box);
 

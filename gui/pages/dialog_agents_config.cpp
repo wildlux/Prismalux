@@ -783,8 +783,8 @@ void AgentsConfigDialog::setupUI() {
         m_cmbMode = new QComboBox(modeRow);
         m_cmbMode->setMinimumWidth(dpiScale(220));
         m_cmbMode->setToolTip(
-            "Seleziona la modalit\xc3\xa0 di esecuzione del Team MOE AI.\n"
-            "Preset: pre-configura i ruoli degli agenti per la disciplina scelta.");
+            tr("Seleziona la modalit\xc3\xa0 di esecuzione del Team MOE AI.\n"
+            "Preset: pre-configura i ruoli degli agenti per la disciplina scelta."));
         m_cmbMode->addItems({
             "\xf0\x9f\x94\x81  Pipeline standard",          /* 0 */
             "\xe2\x9a\x96  Motore Byzantino",               /* 1 */
@@ -813,8 +813,8 @@ void AgentsConfigDialog::setupUI() {
         auto* sharedLbl = new QLabel(tr("\xf0\x9f\x93\x82  RAG condiviso (tutti gli agenti):"), sharedRow);
         sharedLbl->setObjectName("cardDesc");
         sharedLbl->setToolTip(
-            "Documenti caricati qui sono visibili a TUTTI gli agenti della pipeline.\n"
-            "Usa il RAG per agente per contesti specifici al singolo ruolo.");
+            tr("Documenti caricati qui sono visibili a TUTTI gli agenti della pipeline.\n"
+            "Usa il RAG per agente per contesti specifici al singolo ruolo."));
         m_sharedRag = new RagDropWidget(sharedRow);
         m_sharedRag->setToolTip(
             "Trascina file o cartelle per fornire contesto comune a tutti gli agenti.\n"
@@ -965,7 +965,7 @@ void AgentsConfigDialog::setupUI() {
         pLay->addWidget(m_presetNameEdit, 2);
 
         auto* saveBtn = new QPushButton(
-            QString::fromUtf8("\xf0\x9f\x92\xbe  Salva"), presetBox);
+            tr("\xf0\x9f\x92\xbe  Salva"), presetBox);
         saveBtn->setObjectName("SecondaryBtn");
         pLay->addWidget(saveBtn);
 
@@ -978,7 +978,7 @@ void AgentsConfigDialog::setupUI() {
         pLay->addWidget(m_presetLoadCombo, 3);
 
         auto* loadBtn = new QPushButton(
-            QString::fromUtf8("\xf0\x9f\x93\x82  Carica"), presetBox);
+            tr("\xf0\x9f\x93\x82  Carica"), presetBox);
         loadBtn->setObjectName("SecondaryBtn");
         pLay->addWidget(loadBtn);
 
@@ -1123,7 +1123,7 @@ void RagDropWidget::onFetchUrlReplyFinished()
     if (reply == m_fetchReply) m_fetchReply = nullptr;
 
     if (reply->error() != QNetworkReply::NoError) {
-        m_lbl->setText(QString("\xe2\x9d\x8c  Errore: %1")
+        m_lbl->setText(tr("\xe2\x9d\x8c  Errore: %1")
                        .arg(reply->errorString()));
         emit webFetchDone(url, false);
         QTimer::singleShot(3000, this, &RagDropWidget::onLabelRestoreTimer);

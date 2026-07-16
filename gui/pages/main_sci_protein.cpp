@@ -203,8 +203,8 @@ SciProteinWidget::SciProteinWidget(QWidget* parent)
     m_btnDock->setObjectName("actionBtn");
     m_btnDock->setEnabled(false);
     m_btnDock->setToolTip(
-        "Crea automaticamente una Work Unit AutoDock Vina\n"
-        "nel sistema BOINC con questa struttura come recettore");
+        tr("Crea automaticamente una Work Unit AutoDock Vina\n"
+        "nel sistema BOINC con questa struttura come recettore"));
     actRow->addWidget(m_btnDownload, 1);
     actRow->addWidget(m_btnDock, 1);
     leftLay->addLayout(actRow);
@@ -231,8 +231,8 @@ SciProteinWidget::SciProteinWidget(QWidget* parent)
     m_viewer3d->setReadOnly(true);
     m_viewer3d->setObjectName("codeEdit");
     m_viewer3d->setPlaceholderText(
-        "Viewer 3D non disponibile (richiede Qt6::WebEngineWidgets).\n"
-        "Il testo PDB verrà mostrato qui.");
+        tr("Viewer 3D non disponibile (richiede Qt6::WebEngineWidgets).\n"
+        "Il testo PDB verrà mostrato qui."));
     splitter->addWidget(m_viewer3d);
 #endif
 
@@ -356,8 +356,8 @@ void SciProteinWidget::onEsmFoldReply(QNetworkReply* reply)
     const QString pdb = QString::fromUtf8(reply->readAll()).trimmed();
     if (!pdb.startsWith("ATOM") && !pdb.startsWith("REMARK") && !pdb.startsWith("MODEL")) {
         m_foldStatus->setText(
-            "<span style='color:#ef4444'>\xe2\x9d\x8c  Risposta API non valida."
-            " Riprova tra qualche secondo.</span>");
+            tr("<span style='color:#ef4444'>\xe2\x9d\x8c  Risposta API non valida."
+            " Riprova tra qualche secondo.</span>"));
         appendLog("ESMFold: risposta non PDB (" + pdb.left(80) + ")");
         LogBus::post("\xe2\x9d\x8c SciProtein: ESMFold risposta non PDB.");
         return;

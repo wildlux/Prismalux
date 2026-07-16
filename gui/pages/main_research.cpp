@@ -127,7 +127,7 @@ RicercaPage::RicercaPage(AiClient* ai, QWidget* parent)
     tabs->addTab(buildBrevettoTab(),          "\xf0\x9f\x94\x8f  Brevetto");
     tabs->addTab(buildDocTecnicoTab(),        "\xf0\x9f\x93\x8b  Doc Tecnico");
     /* ── Gruppo 2: Cerca ── */
-    tabs->addTab(buildCercaLetteraturaTab(),  "\xf0\x9f\x94\x8d  Cerca Paper/Brevetti");
+    tabs->addTab(buildCercaLetteraturaTab(),  tr("\xf0\x9f\x94\x8d  Cerca Paper/Brevetti"));
     /* Lavoro spostato in UtilityPage [5] */
     /* Cytoscape/RDKit/Bioconda/Avogadro/RAB\xe2\x82\x80-L/BLHM \xe2\x86\x92 BioinformaticaPage [7] */
     /* ── Gruppo 5: Analisi eventi ── */
@@ -254,8 +254,8 @@ QWidget* RicercaPage::buildPaperTab()
     cmbLingua->addItems({"English", "Italiano"});
     auto* editAbstract = new QTextEdit;
     editAbstract->setPlaceholderText(
-        "Descrivi l'idea, l'approccio e i risultati principali.\n"
-        "L'AI espanderà tutto in un paper completo.");
+        tr("Descrivi l'idea, l'approccio e i risultati principali.\n"
+        "L'AI espanderà tutto in un paper completo."));
     editAbstract->setFixedHeight(dpiScale(140));
 
     form->addRow("Titolo:",    editTitolo);
@@ -291,8 +291,8 @@ QWidget* RicercaPage::buildPaperTab()
     auto* outEdit = new QTextEdit;
     outEdit->setReadOnly(false);
     outEdit->setPlaceholderText(
-        "L'output del paper apparirà qui.\n"
-        "Puoi modificarlo dopo la generazione.");
+        tr("L'output del paper apparirà qui.\n"
+        "Puoi modificarlo dopo la generazione."));
     outEdit->setFont(QFont("Monospace", 10));
 
     outLay->addWidget(makeOutputBar(outEdit, "Paper Scientifico", page, this));
@@ -384,13 +384,13 @@ QWidget* RicercaPage::buildBrevettoTab()
     });
     auto* editProblema = new QLineEdit;
     editProblema->setPlaceholderText(
-        "es. Ridurre la complessità computazionale O(n²) "
-        "dei transformer per query ontologiche");
+        tr("es. Ridurre la complessità computazionale O(n²) "
+        "dei transformer per query ontologiche"));
     auto* editDesc = new QTextEdit;
     editDesc->setPlaceholderText(
-        "Descrivi l'invenzione in dettaglio:\n"
+        tr("Descrivi l'invenzione in dettaglio:\n"
         "come funziona, cosa la distingue dallo stato dell'arte,\n"
-        "applicazioni pratiche.");
+        "applicazioni pratiche."));
     editDesc->setFixedHeight(dpiScale(140));
 
     form->addRow("Titolo:", editTitolo);
@@ -424,9 +424,9 @@ QWidget* RicercaPage::buildBrevettoTab()
     auto* outEdit = new QTextEdit;
     outEdit->setReadOnly(false);
     outEdit->setPlaceholderText(
-        "Il testo del brevetto apparirà qui.\n"
+        tr("Il testo del brevetto apparirà qui.\n"
         "Sezioni: Titolo, Campo, Background, Sommario, "
-        "Descrizione dettagliata, Rivendicazioni, Abstract.");
+        "Descrizione dettagliata, Rivendicazioni, Abstract."));
     outEdit->setFont(QFont("Monospace", 10));
 
     outLay->addWidget(makeOutputBar(outEdit, "Brevetto", page, this));
@@ -516,10 +516,10 @@ QWidget* RicercaPage::buildDocTecnicoTab()
     });
     auto* editDesc   = new QTextEdit;
     editDesc->setPlaceholderText(
-        "Descrivi il progetto/sistema:\n"
+        tr("Descrivi il progetto/sistema:\n"
         "- Cosa fa\n- Come funziona\n"
         "- Dati e risultati misurati\n"
-        "- Specifiche tecniche rilevanti");
+        "- Specifiche tecniche rilevanti"));
     editDesc->setFixedHeight(dpiScale(150));
 
     form->addRow("Nome progetto:", editNome);
@@ -552,9 +552,9 @@ QWidget* RicercaPage::buildDocTecnicoTab()
     auto* outEdit = new QTextEdit;
     outEdit->setReadOnly(false);
     outEdit->setPlaceholderText(
-        "Il documento tecnico apparirà qui.\n"
+        tr("Il documento tecnico apparirà qui.\n"
         "Sezioni: Sommario Esecutivo, Introduzione, Architettura, "
-        "Specifiche, Calcoli, Risultati, Limitazioni, Conclusioni.");
+        "Specifiche, Calcoli, Risultati, Limitazioni, Conclusioni."));
     outEdit->setFont(QFont("Monospace", 10));
 
     outLay->addWidget(makeOutputBar(outEdit, "Documento Tecnico", page, this));
@@ -843,8 +843,8 @@ static void runSciScript(const QString& code, bool isBash,
             QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
             parent, [statusLbl, execBtn](int code2, QProcess::ExitStatus){
             statusLbl->setText(code2 == 0
-                ? "\xe2\x9c\x85  Completato"
-                : "\xe2\x9d\x8c  Terminato con errore");
+                ? QObject::tr("\xe2\x9c\x85  Completato")
+                : QObject::tr("\xe2\x9d\x8c  Terminato con errore"));
             execBtn->setEnabled(true);
         });
         QObject::connect(procRef, &QProcess::errorOccurred,
@@ -879,9 +879,9 @@ QWidget* RicercaPage::buildCercaLetteraturaTab()
     lay->setSpacing(6);
 
     auto* desc = new QLabel(
-        "\xf0\x9f\x94\x8d  <b>Cerca Paper e Brevetti</b> \xe2\x80\x94 "
+        tr("\xf0\x9f\x94\x8d  <b>Cerca Paper e Brevetti</b> \xe2\x80\x94 "
         "Ricerca su <b>arXiv</b>, <b>Semantic Scholar</b> e <b>USPTO</b> "
-        "senza account o API key. Poi analizza i risultati con AI.", w);
+        "senza account o API key. Poi analizza i risultati con AI."), w);
     desc->setObjectName("hintLabel");
     desc->setWordWrap(true);
     desc->setTextFormat(Qt::RichText);
@@ -1093,9 +1093,9 @@ void RicercaPage::onLitReplyFinished()
             (reply->error() == QNetworkReply::OperationCanceledError);
         m_litStatus->setText(
             isTimeout
-            ? "\xe2\x8f\xb1  Timeout (15s) \xe2\x80\x94 premi Cerca per ritentare"
-            : "\xe2\x9d\x8c  Errore: " + reply->errorString()
-              + " \xe2\x80\x94 premi Cerca per ritentare");
+            ? tr("\xe2\x8f\xb1  Timeout (15s) \xe2\x80\x94 premi Cerca per ritentare")
+            : tr("\xe2\x9d\x8c  Errore: ") + reply->errorString()
+              + tr(" \xe2\x80\x94 premi Cerca per ritentare"));
         if (!isTimeout)
             LogBus::post("\xe2\x9d\x8c Ricerca: Errore rete: " + reply->errorString());
         return;
@@ -1259,10 +1259,10 @@ QWidget* RicercaPage::buildAnalisiPage()
 
     /* ── Descrizione ── */
     auto* introLbl = new QLabel(
-        "<b>\xf0\x9f\x8c\x8c  Analisi Fenomeni</b>"
+        tr("<b>\xf0\x9f\x8c\x8c  Analisi Fenomeni</b>"
         "  <span style='color:gray;font-size:11px;'>"
         "L'AI valuta se un evento \xc3\xa8 realmente accaduto sulla base delle fonti."
-        "</span>");
+        "</span>"));
     introLbl->setTextFormat(Qt::RichText);
     root->addWidget(introLbl);
 
@@ -1297,10 +1297,10 @@ QWidget* RicercaPage::buildAnalisiPage()
     auto* evtLay   = new QVBoxLayout(evtGroup);
     m_analisiEventEdit = new QTextEdit;
     m_analisiEventEdit->setPlaceholderText(
-        "Descrivi l\xe2\x80\x99" "evento nel dettaglio:\n"
+        tr("Descrivi l\xe2\x80\x99" "evento nel dettaglio:\n"
         "- cosa \xc3\xa8 stato osservato / riportato\n"
         "- quando, dove, da chi\n"
-        "- eventuali effetti fisici o testimonianze");
+        "- eventuali effetti fisici o testimonianze"));
     m_analisiEventEdit->setMinimumHeight(120);
     evtLay->addWidget(m_analisiEventEdit);
 
@@ -1308,11 +1308,11 @@ QWidget* RicercaPage::buildAnalisiPage()
     auto* srcLay   = new QVBoxLayout(srcGroup);
     m_analisiSrcEdit = new QTextEdit;
     m_analisiSrcEdit->setPlaceholderText(
-        "Incolla qui le tue fonti:\n"
+        tr("Incolla qui le tue fonti:\n"
         "- link ad articoli scientifici o giornali\n"
         "- estratti di testo, PDF, rapporti ufficiali\n"
         "- citazioni di testimoni o esperti\n"
-        "(se non hai fonti, scrivi: nessuna fonte disponibile)");
+        "(se non hai fonti, scrivi: nessuna fonte disponibile)"));
     m_analisiSrcEdit->setMinimumHeight(120);
     srcLay->addWidget(m_analisiSrcEdit);
 
@@ -1395,14 +1395,14 @@ QWidget* RicercaPage::buildAnalisiPage()
     m_analisiOutput->setReadOnly(false);
     m_analisiOutput->setFont(QFont("Monospace", 10));
     m_analisiOutput->setPlaceholderText(
-        "Il risultato dell\xe2\x80\x99" "analisi AI apparir\xc3\xa0 qui.\n\n"
+        tr("Il risultato dell\xe2\x80\x99" "analisi AI apparir\xc3\xa0 qui.\n\n"
         "La risposta include:\n"
         "  \xf0\x9f\x93\x8a  Probabilit\xc3\xa0 (0-100%)\n"
         "  \xe2\x9c\x85  Evidenze a supporto\n"
         "  \xe2\x9d\x8c  Elementi contraddittori\n"
         "  \xf0\x9f\x94\xac  Spiegazione scientifica pi\xc3\xb9 probabile\n"
         "  \xf0\x9f\x94\x80  Ipotesi alternativa\n"
-        "  \xe2\x9a\x96  Verdetto motivato");
+        "  \xe2\x9a\x96  Verdetto motivato"));
     root->addWidget(makeOutputBar(m_analisiOutput, "Analisi Fenomeni", page, this));
     root->addWidget(m_analisiOutput, 1);
 
@@ -1713,8 +1713,8 @@ QWidget* RicercaPage::buildRagGrafoTab()
     topLay->setSpacing(8);
 
     auto* titleLbl = new QLabel(
-        "\xf0\x9f\x95\xb8  <b>Grafo della Conoscenza RAG</b>"
-        " — entit\xc3\xa0 e relazioni estratte dai tuoi documenti",  /* entità */
+        tr("\xf0\x9f\x95\xb8  <b>Grafo della Conoscenza RAG</b>"
+        " — entit\xc3\xa0 e relazioni estratte dai tuoi documenti"),  /* entità */
         topBar);
     titleLbl->setTextFormat(Qt::RichText);
     titleLbl->setObjectName("cardDesc");
@@ -1742,8 +1742,8 @@ QWidget* RicercaPage::buildRagGrafoTab()
     m_ragRunBtn->setObjectName("actionBtn");
     m_ragRunBtn->setProperty("highlight", "true");
     m_ragRunBtn->setToolTip(
-        "Scansiona ~/prismalux_rag_docs/ e Prismalux/RAG/,"
-        " estrae entit\xc3\xa0 e relazioni con LLM");
+        tr("Scansiona ~/prismalux_rag_docs/ e Prismalux/RAG/,"
+        " estrae entit\xc3\xa0 e relazioni con LLM"));
     connect(m_ragRunBtn, &QPushButton::clicked, this, &RicercaPage::onRagRunClicked);
     ctrlLay->addWidget(m_ragRunBtn);
 
@@ -1858,8 +1858,8 @@ QWidget* RicercaPage::buildRagGrafoTab()
     m_ragImgLbl = new QLabel(imgScroll);
     m_ragImgLbl->setAlignment(Qt::AlignCenter);
     m_ragImgLbl->setText(
-        "<p style='color:#64748b'>Il grafo apparir\xc3\xa0 qui dopo l'analisi.<br>"
-        "Richiede <b>graphviz</b> installato: <code>sudo apt install graphviz</code></p>");
+        tr("<p style='color:#64748b'>Il grafo apparir\xc3\xa0 qui dopo l'analisi.<br>"
+        "Richiede <b>graphviz</b> installato: <code>sudo apt install graphviz</code></p>"));
     m_ragImgLbl->setTextFormat(Qt::RichText);
     imgScroll->setWidget(m_ragImgLbl);
     vizTabs->addTab(imgScroll, tr("\xf0\x9f\x96\xbc  Grafo"));  /* 🖼 */
@@ -2045,7 +2045,7 @@ void RicercaPage::onRagGraphFinished(const RagGraphStats& stats)
 
     if (m_ragStatus)
         m_ragStatus->setText(
-            QString("\xe2\x9c\x85  Completato: %1 file, %2 entit\xc3\xa0, %3 relazioni.")
+            tr("\xe2\x9c\x85  Completato: %1 file, %2 entit\xc3\xa0, %3 relazioni.")
             .arg(stats.processedFiles)
             .arg(stats.totalEntities)
             .arg(stats.totalRelations));
@@ -2328,8 +2328,8 @@ void RicercaPage::onSdsReadyRead()
 void RicercaPage::onSdsProcFinished(int code, QProcess::ExitStatus /*status*/)
 {
     m_sdsStatus->setText(code == 0
-        ? "\xe2\x9c\x85  Completato"
-        : QString("\xe2\x9d\x8c  Uscito con codice %1").arg(code));
+        ? tr("\xe2\x9c\x85  Completato")
+        : tr("\xe2\x9d\x8c  Uscito con codice %1").arg(code));
     m_sdsRunBtn->setEnabled(true);
     m_sdsStopBtn->setEnabled(false);
     if (m_sdsProc) { m_sdsProc->deleteLater(); m_sdsProc = nullptr; }

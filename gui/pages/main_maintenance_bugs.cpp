@@ -46,9 +46,9 @@ QWidget* ManutenzioneePage::buildBugTracker()
 
     /* Descrizione */
     auto* desc = new QLabel(
-        "\xf0\x9f\x94\x8d  <b>Analizzatore Bug Modelli</b> \xe2\x80\x94 "
+        tr("\xf0\x9f\x94\x8d  <b>Analizzatore Bug Modelli</b> \xe2\x80\x94 "
         "Cerca bug noti per il modello su <b>GitHub Issues</b> e <b>Reddit r/LocalLLaMA</b>, "
-        "li analizza con AI ed estrae fix ai parametri Ollama applicabili subito.", w);
+        "li analizza con AI ed estrae fix ai parametri Ollama applicabili subito."), w);
     desc->setObjectName("hintLabel");
     desc->setWordWrap(true);
     desc->setTextFormat(Qt::RichText);
@@ -97,10 +97,10 @@ QWidget* ManutenzioneePage::buildBugTracker()
     m_bugLog->setObjectName("chatLog");
     m_bugLog->setOpenExternalLinks(true);
     m_bugLog->setPlaceholderText(
-        "Seleziona un modello e premi \"\xf0\x9f\x94\x8d Cerca bug\" per avviare l'analisi.\n\n"
+        tr("Seleziona un modello e premi \"\xf0\x9f\x94\x8d Cerca bug\" per avviare l'analisi.\n\n"
         "Fonti: GitHub Issues (ollama/ollama, ggerganov/llama.cpp) \xe2\x80\xa2 Reddit r/LocalLLaMA\n\n"
         "I fix trovati vengono salvati in ~/.prismalux/model_params.json\n"
-        "e applicati automaticamente alle chiamate Ollama successive.");
+        "e applicati automaticamente alle chiamate Ollama successive."));
     logLay->addWidget(m_bugLog, 1);
 
     lay->addWidget(logGroup, 1);
@@ -116,8 +116,8 @@ QWidget* ManutenzioneePage::buildBugTracker()
     m_btnApplyFix->setObjectName("actionBtn");
     m_btnApplyFix->setEnabled(false);
     m_btnApplyFix->setToolTip(
-        "Salva i parametri suggeriti in model_params.json.\n"
-        "Verranno usati automaticamente nelle prossime chiamate a questo modello.");
+        tr("Salva i parametri suggeriti in model_params.json.\n"
+        "Verranno usati automaticamente nelle prossime chiamate a questo modello."));
     fixLay->addWidget(m_btnApplyFix);
 
     auto* btnClearFix = new QPushButton(
@@ -423,7 +423,7 @@ void ManutenzioneePage::onClearBugFixClicked()
     f.close();
     if (!all.contains(model)) {
         if (m_bugStatusLbl) m_bugStatusLbl->setText(
-            QString("\xe2\x84\xb9  Nessun fix salvato per <b>%1</b>.").arg(model));
+            tr("\xe2\x84\xb9  Nessun fix salvato per <b>%1</b>.").arg(model));
         return;
     }
     all.remove(model);

@@ -53,10 +53,10 @@ QWidget* AppControllerPage::buildCloudCompareTab()
     m_ccStatusLbl->setWordWrap(false);
     if (detected.isEmpty()) {
         m_ccStatusLbl->setText(
-            "<span style='color:#f87171;'>"
+            tr("<span style='color:#f87171;'>"
             "\xe2\x9d\x8c  Non trovato in PATH  "  /* ❌ */
             "\xe2\x80\x94 <a href='https://www.danielgm.net/cc/'>Scarica</a>"
-            "</span>");
+            "</span>"));
         m_ccStatusLbl->setOpenExternalLinks(true);
     } else {
         m_ccStatusLbl->setText(

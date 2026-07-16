@@ -42,11 +42,11 @@ QWidget* AppControllerPage::buildWhatsAppTab()
     lay->setSpacing(dpiScale(8));
 
     auto* descLbl = new QLabel(
-        "\xf0\x9f\x92\xac  <i>WhatsApp Bot locale \xe2\x80\x94 "
+        tr("\xf0\x9f\x92\xac  <i>WhatsApp Bot locale \xe2\x80\x94 "
         "Collega WhatsApp a Prismalux tramite bridge whatsapp-mcp "
         "(<a href='https://github.com/lharries/whatsapp-mcp'>"
         "github.com/lharries/whatsapp-mcp</a>). "
-        "Nessun account Business richiesto.</i>", w);
+        "Nessun account Business richiesto.</i>"), w);
     descLbl->setObjectName("hintLabel");
     descLbl->setTextFormat(Qt::RichText);
     descLbl->setWordWrap(true);
@@ -74,9 +74,9 @@ QWidget* AppControllerPage::buildWhatsAppTab()
     cfgLay->addLayout(bridgeRow);
 
     auto* bridgeHintLbl = new QLabel(
-        "\xf0\x9f\x94\x92  Avvia prima il bridge: "
+        tr("\xf0\x9f\x94\x92  Avvia prima il bridge: "
         "<code>cd whatsapp-mcp && npm start</code>. "
-        "Scansiona il QR con WhatsApp \xe2\x86\x92 Dispositivi collegati.",
+        "Scansiona il QR con WhatsApp \xe2\x86\x92 Dispositivi collegati."),
         cfgGroup);
     bridgeHintLbl->setObjectName("hintLabel");
     bridgeHintLbl->setTextFormat(Qt::RichText);
@@ -92,9 +92,9 @@ QWidget* AppControllerPage::buildWhatsAppTab()
     promoLay->setSpacing(dpiScale(6));
 
     auto* promoHintLbl = new QLabel(
-        "<i>Inserisci i numeri con prefisso internazionale "
+        tr("<i>Inserisci i numeri con prefisso internazionale "
         "(es. +393331234567). Il bridge invier\xc3\xa0 i messaggi tramite "
-        "whatsapp-mcp POST /send.</i>",
+        "whatsapp-mcp POST /send.</i>"),
         promoGroup);
     promoHintLbl->setObjectName("hintLabel");
     promoHintLbl->setTextFormat(Qt::RichText);
@@ -148,9 +148,9 @@ QWidget* AppControllerPage::buildWhatsAppTab()
     botLay->setSpacing(dpiScale(6));
 
     auto* botHint = new QLabel(
-        "<i>Quando il bot \xc3\xa8 attivo, ascolta i messaggi in entrata dal bridge "
+        tr("<i>Quando il bot \xc3\xa8 attivo, ascolta i messaggi in entrata dal bridge "
         "e risponde automaticamente con l\xe2\x80\x99" "AI locale. "
-        "Solo i numeri in whitelist ricevono risposta.</i>",
+        "Solo i numeri in whitelist ricevono risposta.</i>"),
         botGroup);
     botHint->setObjectName("hintLabel");
     botHint->setTextFormat(Qt::RichText);

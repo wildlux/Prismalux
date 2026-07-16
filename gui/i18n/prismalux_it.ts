@@ -16,6 +16,11 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Descrivi un compito complesso che richiede più agenti specializzati...
+Es: «Analizza le ultime ricerche su GraphRAG, compara gli approcci e scrivi un report con codice Python»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🚀  Decomponsi + Esegui</source>
         <translation type="unfinished"></translation>
     </message>
@@ -141,6 +146,14 @@ Continuare?</source>
     <name>AgentiPage</name>
     <message>
         <source>Scrivi un task o una domanda...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🐳  Esegui codice in sandbox Docker?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⚠  Esegui codice generato dall’AI?</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -273,6 +286,25 @@ Immagini: .png .jpg .jpeg .gif .webp</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Abilita il function calling (Ollama tool use) nella prossima risposta.
+Il modello può chiamare: leggi_file, lista_file, calc, cerca_web, python.
+Richiede un modello tool-capable (qwen3, llama3.1, mistral-nemo...).
+In modalità Agente Autonomo i tool sono sempre attivi.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🐳  Il codice verrà eseguito in un container Docker isolato.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⚠  Codice Python generato dall’AI — verifica prima di procedere.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;small&gt;ℹ  Modifica il testo. &lt;b&gt;Invia come task&lt;/b&gt; lo carica nel campo input pronto per essere rielaborato dall&apos;AI. &lt;b&gt;Aggiorna bolla&lt;/b&gt; sostituisce il testo nel log.&lt;/small&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Invia come task ▶</source>
         <translation type="unfinished"></translation>
     </message>
@@ -302,6 +334,10 @@ Immagini: .png .jpg .jpeg .gif .webp</source>
     </message>
     <message>
         <source>🎤 Trascrivi parlato</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📄  Copiato in RAG/ — il documento è ora persistente</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -337,11 +373,21 @@ Immagini: .png .jpg .jpeg .gif .webp</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>&lt;b&gt;Salva in &lt;code&gt;user_knowledge.md&lt;/code&gt;&lt;/b&gt;&lt;br&gt;&lt;small&gt;Scegli sezione e inserisci il testo da memorizzare.&lt;/small&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Sezione:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Modalità:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Inserisci il testo da salvare. Puoi usare Markdown.
+Per &apos;ragionamenti&apos; e &apos;contesto&apos; includi una data:
+**2026-05-06** — ...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -425,6 +471,11 @@ Immagini: .png .jpg .jpeg .gif .webp</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Salva risposta in user_knowledge.md
+Il testo viene iniettato nel context di ogni sessione AI futura.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🏛  Etimo</source>
         <translation type="unfinished"></translation>
     </message>
@@ -438,6 +489,12 @@ Immagini: .png .jpg .jpeg .gif .webp</source>
     </message>
     <message>
         <source>Mostra/nascondi suggerimenti</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Conversazione vocale continua (loop)
+Parla — AI risponde — ascolta — riparla
+Richiede whisper.cpp + TTS configurati nelle Impostazioni</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -481,6 +538,12 @@ Immagini: .png .jpg .jpeg .gif .webp</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>L&apos;output degli agenti appare qui...
+
+🍺 Invocazione riuscita. Gli dei ascoltano.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>📈  Apri nel Grafico</source>
         <translation type="unfinished"></translation>
     </message>
@@ -498,6 +561,11 @@ Immagini: .png .jpg .jpeg .gif .webp</source>
     </message>
     <message>
         <source>Campo messaggio chat</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Risposta immediata con contesto RAG — 1 solo agente (Invio)
+Stop da fermo → cambia modalità (Invia ↔ Avvia)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -543,11 +611,28 @@ Immagini:  .png .jpg .jpeg .gif .webp (richiede modello vision)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Apri/chiudi i Tool Veloci (Function Tools).
+Eseguiti in-process, risposta &lt; 1ms.
+Calcola, cerca online, leggi file, Python, RAG…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🔌  Tool Lenti (MCP)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Apri/chiudi i Tool Lenti — MCP Plugin.
+Avviati come processo separato (JSON-RPC 2.0 stdio).
+Latenza maggiore ma accesso a strumenti esterni.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🧠  Memoria persistente</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📄  Trascina qui PDF / .txt / .md
+per indicizzarli nel RAG</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -564,6 +649,10 @@ Immagini:  .png .jpg .jpeg .gif .webp (richiede modello vision)</source>
     </message>
     <message>
         <source>✅  Indicizzato nel RAG</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⌨  &lt;b&gt;Invio&lt;/b&gt; = esegui &amp;nbsp;·&amp;nbsp; &lt;b&gt;Shift+Invio&lt;/b&gt; = a capo &amp;nbsp;·&amp;nbsp; &lt;b&gt;Stop da fermo&lt;/b&gt; = cambia Chat ↔ Avvia&lt;br&gt;💡  Chiedi &lt;a href=&apos;prova:%1&apos; style=&apos;color:#3b82f6;text-decoration:none;&apos;&gt;&lt;b&gt;«Cosa sai fare?»&lt;/b&gt;&lt;/a&gt; per l&apos;elenco di tutto quello che posso fare</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -663,7 +752,17 @@ Immagini:  .png .jpg .jpeg .gif .webp (richiede modello vision)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Seleziona la modalità di esecuzione del Team MOE AI.
+Preset: pre-configura i ruoli degli agenti per la disciplina scelta.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>📂  RAG condiviso (tutti gli agenti):</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Documenti caricati qui sono visibili a TUTTI gli agenti della pipeline.
+Usa il RAG per agente per contesti specifici al singolo ruolo.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -672,6 +771,14 @@ Immagini:  .png .jpg .jpeg .gif .webp (richiede modello vision)</source>
     </message>
     <message>
         <source>Nome preset...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>💾  Salva</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📂  Carica</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -748,6 +855,10 @@ Immagini:  .png .jpg .jpeg .gif .webp (richiede modello vision)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>&lt;span style=&apos;color:#f87171;&apos;&gt;❌  Non trovato in PATH  — &lt;a href=&apos;https://www.danielgm.net/cc/&apos;&gt;Scarica&lt;/a&gt;&lt;/span&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🚀  Azioni</source>
         <translation type="unfinished"></translation>
     </message>
@@ -796,6 +907,10 @@ Immagini:  .png .jpg .jpeg .gif .webp (richiede modello vision)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>💬  &lt;i&gt;WhatsApp Bot locale — Collega WhatsApp a Prismalux tramite bridge whatsapp-mcp (&lt;a href=&apos;https://github.com/lharries/whatsapp-mcp&apos;&gt;github.com/lharries/whatsapp-mcp&lt;/a&gt;). Nessun account Business richiesto.&lt;/i&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🔧  Configurazione bridge</source>
         <translation type="unfinished"></translation>
     </message>
@@ -812,7 +927,15 @@ Immagini:  .png .jpg .jpeg .gif .webp (richiede modello vision)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>🔒  Avvia prima il bridge: &lt;code&gt;cd whatsapp-mcp &amp;&amp; npm start&lt;/code&gt;. Scansiona il QR con WhatsApp → Dispositivi collegati.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>📣  Contatti promozionali</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;i&gt;Inserisci i numeri con prefisso internazionale (es. +393331234567). Il bridge invierà i messaggi tramite whatsapp-mcp POST /send.&lt;/i&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -841,6 +964,10 @@ Immagini:  .png .jpg .jpeg .gif .webp (richiede modello vision)</source>
     </message>
     <message>
         <source>🤖  Bot AI Rispondente</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;i&gt;Quando il bot è attivo, ascolta i messaggi in entrata dal bridge e risponde automaticamente con l’AI locale. Solo i numeri in whitelist ricevono risposta.&lt;/i&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -912,6 +1039,13 @@ Immagini:  .png .jpg .jpeg .gif .webp (richiede modello vision)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Il token identifica il tuo bot presso Telegram. Ottienilo così:
+  1. Apri Telegram e cerca &lt;b&gt;@BotFather&lt;/b&gt;
+  2. Scrivi &lt;code&gt;/newbot&lt;/code&gt; e segui le istruzioni
+  3. Copia il token (formato: &lt;code&gt;7123456789:AAF-xxxx&lt;/code&gt;)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Token:</source>
         <translation type="unfinished"></translation>
     </message>
@@ -925,6 +1059,10 @@ Immagini:  .png .jpg .jpeg .gif .webp (richiede modello vision)</source>
     </message>
     <message>
         <source>🛡  Passo 2 — Chi può scrivere al bot</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Inserisci gli &lt;b&gt;ID numerici&lt;/b&gt; Telegram delle persone autorizzate, separati da virgola.&lt;br&gt;&lt;b&gt;Se lasci vuoto&lt;/b&gt;, il bot risponde a chiunque gli scriva.&lt;br&gt;Per trovare il tuo ID: apri Telegram e scrivi a &lt;b&gt;@userinfobot&lt;/b&gt; — risponde con il tuo ID numerico.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -961,6 +1099,10 @@ Immagini:  .png .jpg .jpeg .gif .webp (richiede modello vision)</source>
     </message>
     <message>
         <source>📤  Passo 3 — Invia messaggio a destinatari</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;b&gt;Come aggiungere un destinatario:&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;span style=&apos;color:#f87171;&apos;&gt;⚠  &lt;b&gt;@username NON funziona per gli utenti privati.&lt;/b&gt;&lt;/span&gt; Telegram richiede l’&lt;b&gt;ID numerico&lt;/b&gt; del contatto.&lt;br&gt;&lt;br&gt;&lt;b&gt;Come ottenere l’ID di un utente privato:&lt;/b&gt;&lt;br&gt;1. Chiedi al contatto di aprire il tuo bot su Telegram e inviare &lt;code&gt;/start&lt;/code&gt;&lt;br&gt;2. Il suo ID numerico apparirà nel log qui sopra: &lt;code&gt;📩 [123456789] /start&lt;/code&gt;&lt;br&gt;3. Copia quel numero e incollalo nel campo qui sotto&lt;br&gt;&lt;br&gt;&lt;b&gt;Canali e gruppi pubblici:&lt;/b&gt; usa l’ID negativo (es. &lt;code&gt;-1001234567890&lt;/code&gt;) oppure &lt;code&gt;@nome_canale&lt;/code&gt;. Per trovare l’ID di un gruppo: aggiungi &lt;b&gt;@userinfobot&lt;/b&gt; al gruppo e scrivi &lt;code&gt;/id&lt;/code&gt;.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1060,6 +1202,16 @@ Immagini:  .png .jpg .jpeg .gif .webp (richiede modello vision)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Descrivi cosa fare in FreeCAD — es.:
+  Crea un box 50x30x10 mm con foro passante da 6 mm
+  Analisi FEM statica: vincola Face1, forza 500 N su Face2, acciaio S235
+  Esegui CalculiX e mostra max Von Mises e spostamento
+  Aggiungi raccordo R2 su tutti gli spigoli verticali
+  Importa file STEP e assegna materiale alluminio 6061
+  Esporta rendering OBJ per Blender</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>▶  Genera codice AI</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1120,6 +1272,12 @@ Immagini:  .png .jpg .jpeg .gif .webp (richiede modello vision)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Descrivi il circuito o l&apos;operazione PCB da eseguire...
+Es: &apos;Crea un circuito LED con resistore da 470Ω alimentato a 5V&apos;
+Es: &apos;Posiziona un ESP32 con connettore USB-C e antenna Wi-Fi&apos;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🤖  Genera script</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1129,6 +1287,10 @@ Immagini:  .png .jpg .jpeg .gif .webp (richiede modello vision)</source>
     </message>
     <message>
         <source>🔄  Invio a KiCAD...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🤖  &lt;i&gt;TinyMCP — Bridge AI per la programmazione di microcontrollori Arduino, ESP32 e STM32. Genera codice C/C++ tramite AI, lo compila e lo flasha direttamente sul dispositivo via porta seriale.&lt;/i&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1164,7 +1326,18 @@ Immagini:  .png .jpg .jpeg .gif .webp (richiede modello vision)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Descrivi il programma da generare per il microcontrollore...
+Es: &apos;Fai lampeggiare 3 LED in sequenza con intervallo 500ms&apos;
+Es: &apos;Leggi temperatura da DHT22 e invia via UART ogni secondo&apos;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🤖  Genera codice</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Il codice C++/Python per microcontrollore apparirà qui...
+Dopo la generazione premi &apos;Flash MCU&apos; per caricare sulla scheda.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1216,6 +1389,16 @@ Immagini:  .png .jpg .jpeg .gif .webp (richiede modello vision)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>⚠  Modulo &lt;b&gt;obsws-python&lt;/b&gt; non installato — OBS MCP non sarà disponibile.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Descrivi cosa vuoi fare in OBS...
+Es: &apos;Avvia la registrazione e cambia scena su Gameplay&apos;
+Es: &apos;Silenzia il microfono e abbassa il volume del desktop al 50%&apos;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Script Python OBS apparirà qui...</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1260,7 +1443,24 @@ Immagini:  .png .jpg .jpeg .gif .webp (richiede modello vision)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Descrivi cosa fare in Blender — es.:
+  Crea una sfera rossa metallica con roughness 0.1
+  Aggiungi modifier Subdivision level 2 al cubo
+  Imposta render Cycles 256 sample, output PNG 1920x1080
+  Crea materiale PBR con texture diffuse e normal map
+  Aggiungi una HDRI e tre luci area
+  Esporta la scena in GLB</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Output AI apparirà qui...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source># Il codice Python generato dall&apos;AI apparirà qui.
+# Puoi anche scrivere direttamente codice bpy:
+import bpy
+bpy.ops.mesh.primitive_cube_add(size=2, location=(0, 0, 0))</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1281,6 +1481,10 @@ Immagini:  .png .jpg .jpeg .gif .webp (richiede modello vision)</source>
     </message>
     <message>
         <source>🎨  Installazione Blender MCP</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🤖  &lt;b&gt;Dev Agent LangGraph&lt;/b&gt; — &lt;i&gt;Descrivi un task in linguaggio naturale: l’agente legge i file, genera una patch, compila e si auto-corregge.&lt;/i&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1336,6 +1540,10 @@ Immagini:  .png .jpg .jpeg .gif .webp (richiede modello vision)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>&lt;i&gt;Backup in &lt;code&gt;~/.prismalux/devagent_history/&lt;/code&gt;.&lt;br&gt;Seleziona uno snapshot e clicca Ripristina.&lt;/i&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Seleziona uno snapshot da ripristinare</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1364,7 +1572,18 @@ Immagini:  .png .jpg .jpeg .gif .webp (richiede modello vision)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>git fetch origin &amp;&amp; git reset --hard origin/master
+Scarica l&apos;ultimo commit da GitHub e sovrascrive il worktree locale.
+⚠  Annulla TUTTE le modifiche locali non committate.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Commit:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Seleziona un commit e clicca &quot;Ripristina al commit&quot; per
+riportare i file modificati dal Dev Agent a quello stato.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1432,6 +1651,14 @@ Immagini:  .png .jpg .jpeg .gif .webp (richiede modello vision)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>🟢  Completato</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔴  Fallito</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>⏪  Ripristino commit...</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1445,6 +1672,10 @@ Immagini:  .png .jpg .jpeg .gif .webp (richiede modello vision)</source>
     </message>
     <message>
         <source>📤  Applico stash...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📄  &lt;i&gt;Office Suite — Suite di produttività per la creazione di documenti di testo, fogli di calcolo e presentazioni. Compatibile con LibreOffice e Microsoft Office tramite bridge Python-UNO.&lt;/i&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1468,6 +1699,14 @@ Immagini:  .png .jpg .jpeg .gif .webp (richiede modello vision)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>📦 &lt;b&gt;Bridge Office:&lt;/b&gt; il bridge Python locale controlla LibreOffice via UNO. Clicca &lt;b&gt;Avvia bridge&lt;/b&gt; per avviarlo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Descrivi il documento da creare (es. &apos;Lettera di presentazione professionale&apos;, &apos;Foglio Excel con budget mensile&apos;)...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Output AI e Office apparirà qui...</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1485,6 +1724,10 @@ Immagini:  .png .jpg .jpeg .gif .webp (richiede modello vision)</source>
     </message>
     <message>
         <source>⏹  Ferma bridge</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>✅  Pronto: </source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1528,6 +1771,12 @@ Immagini:  .png .jpg .jpeg .gif .webp (richiede modello vision)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Descrivi l&apos;argomento per cui vuoi generare carte Anki...
+Es: &apos;Algoritmi di ordinamento (bubble sort, merge sort, quicksort)&apos;
+Es: &apos;Vocabolario inglese — verbi irregolari comuni&apos;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🤖  Genera carte</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1553,6 +1802,10 @@ Immagini:  .png .jpg .jpeg .gif .webp (richiede modello vision)</source>
     </message>
     <message>
         <source>🐍  Moduli Python</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Apri Impostazioni → Moduli Python per installare i moduli necessari</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1608,6 +1861,11 @@ Immagini:  .png .jpg .jpeg .gif .webp (richiede modello vision)</source>
     </message>
     <message>
         <source>Modello:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Descrivi la molecola da modellare...
+Es: &apos;Genera la struttura 3D ottimizzata dell&apos;acido acetilsalicilico (aspirina)&apos;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1671,6 +1929,11 @@ Asse X = dimensione input n, Asse Y = operazioni (scala log-cubica).</source>
     </message>
     <message>
         <source>Modello:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Descrivi la pipeline bioinformatica da creare...
+Es: &apos;Pipeline di allineamento WGS: FASTQ input, output BAM sorted e indexed&apos;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1899,6 +2162,10 @@ Asse X = dimensione input n, Asse Y = operazioni (scala log-cubica).</source>
 <context>
     <name>CodeInterpreterWidget</name>
     <message>
+        <source>🧪 &lt;b&gt;Code Interpreter&lt;/b&gt;  &lt;span style=&apos;color:#888;font-size:11px;&apos;&gt;Descrivi → AI genera Python → Esegui → Fix automatico (max 3 tentativi)&lt;/span&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Modello AI per la generazione</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1963,11 +2230,35 @@ Asse X = dimensione input n, Asse Y = operazioni (scala log-cubica).</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>❌  L&apos;AI non ha prodotto codice valido. Riprova con una descrizione più precisa.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>❌  Errore AI: </source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>✅  Completato  ·  %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>❌  Fallito dopo %1 tentativi. Prova una descrizione diversa.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔄  Errore — AI corregge (tentativo %1/%2)...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>❌  Fallito.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>❌  Fallito dopo %1 tentativi.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔄  Errore Docker — AI corregge (%1/%2)...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1977,6 +2268,12 @@ Asse X = dimensione input n, Asse Y = operazioni (scala log-cubica).</source>
 </context>
 <context>
     <name>CodingLabWidget</name>
+    <message>
+        <source>Es: &quot;Fammi un programma che calcola i numeri primi fino a 100&quot;
+    &quot;Ordina questa lista di nomi in ordine alfabetico&quot;
+    &quot;Scrivi una funzione che controlla se una stringa è palindroma&quot;</source>
+        <translation type="unfinished"></translation>
+    </message>
     <message>
         <source>🚀  Genera &amp; Testa</source>
         <translation type="unfinished"></translation>
@@ -2065,11 +2362,20 @@ Asse X = dimensione input n, Asse Y = operazioni (scala log-cubica).</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>🔬 &lt;b&gt;Cytoscape MCP:&lt;/b&gt; analisi reti biologiche e sociali. Avvia Cytoscape (abilita CyREST su porta 1234).&lt;br&gt;Installa: &lt;code&gt;pip install py2cytoscape requests&lt;/code&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Analisi:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Modello:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Descrivi la rete da analizzare...
+Es: &apos;Crea un grafo di interazione proteica con 10 proteine e mostra i hub&apos;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2458,6 +2764,20 @@ Formato risposta (SOLO JSON, nessun altro testo):
     </message>
 </context>
 <context>
+    <name>FormulaBlock</name>
+    <message>
+        <source>Rimuovi blocco</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>FormulaBuilderWidget</name>
+    <message>
+        <source>Trascina i simboli qui  ↓</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>GraficoCanvas</name>
     <message>
         <source>🖼  Salva come PNG...</source>
@@ -2555,7 +2875,18 @@ Formato risposta (SOLO JSON, nessun altro testo):
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Inserisci numeri interi ≥ 2
+Uno per riga, o separati da spazi/virgole.
+Es:  3  7  13  21  34  55  89</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>📂  Carica sequenza da file (.txt)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Apri un file di testo con numeri interi &gt;= 2.
+Formati accettati: uno per riga, separati da spazi o virgole.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2576,6 +2907,11 @@ Formato risposta (SOLO JSON, nessun altro testo):
     </message>
     <message>
         <source>🔍  Grafico → Formula  [vision AI]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Carica un grafico cartesiano.
+Il modello vision estrae la formula y = f(x).</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2898,6 +3234,10 @@ Formato risposta (SOLO JSON, nessun altro testo):
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>&lt;small&gt;&lt;i&gt;ℹ  Inserisci la dose per litro indicata dal produttore del fertilizzante.&lt;br&gt;Esempio Flora Series: A=5 ml/L, B=5 ml/L a regime vegetativo.&lt;/i&gt;&lt;/small&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Schema impianto DWC</source>
         <translation type="unfinished"></translation>
     </message>
@@ -2943,6 +3283,10 @@ Formato risposta (SOLO JSON, nessun altro testo):
     </message>
     <message>
         <source>Nessuna misurazione registrata.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;small&gt;&lt;i&gt;ℹ  Clicca &apos;+ Aggiungi&apos; per inserire una nuova riga, poi modifica i valori direttamente nella tabella. Il log viene salvato automaticamente.&lt;/i&gt;&lt;/small&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3053,6 +3397,12 @@ Fai una domanda sulla materia selezionata.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>❌  Errore: %1
+
+Riprova o cambia modello.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>📝  Quiz Interattivi</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3106,7 +3456,20 @@ Riprova.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>🏁  Quiz completato!
+
+Materia: %1  |  Difficoltà: %2
+✅ Corrette: %3 / %4  |  ❌ Sbagliate: %5
+
+Il risultato è stato salvato nella Dashboard.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>▶  Nuovo Quiz</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>💪  &lt;b&gt;Ripassiamo insieme le domande che ti hanno messo in difficoltà:&lt;/b&gt;&lt;br&gt;&lt;small style=&apos;color:#888;&apos;&gt;Verde = risposta corretta &amp;nbsp; • &amp;nbsp; Rosso = risposta data &amp;nbsp; • &amp;nbsp; Leggi la spiegazione per capire perché.&lt;/small&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3163,6 +3526,10 @@ Completa almeno un quiz per vedere le statistiche qui.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Rimuovi file temporanei, output vecchi e artefatti di build che non sono più necessari. Ogni sezione mostra la dimensione stimata prima di procedere.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🗑  Pulisci</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3183,7 +3550,15 @@ Completa almeno un quiz per vedere le statistiche qui.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Necessarie per compilare llama-server localmente (tab Personalizza → llama.cpp Studio). Rimuovi manualmente solo se non usi più llama.cpp locale.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>💾  Backup dati Prismalux</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Crea un backup ZIP dei database SQLite (&lt;b&gt;graph_memory.db&lt;/b&gt;, &lt;b&gt;rag_graph.db&lt;/b&gt;, &lt;b&gt;chat_history.db&lt;/b&gt;) e del log di accesso. I file vengono copiati nella cartella scelta con timestamp nel nome.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3199,6 +3574,10 @@ Completa almeno un quiz per vedere le statistiche qui.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Verifica che file sensibili non siano esposti: &lt;code&gt;.env&lt;/code&gt; in &lt;code&gt;.gitignore&lt;/code&gt;, permessi &lt;code&gt;0600&lt;/code&gt; su token LAN, nessun segreto in chiaro nei settings Qt.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🔍  Esegui audit ora</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3211,11 +3590,19 @@ Completa almeno un quiz per vedere le statistiche qui.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>&lt;p style=&apos;color:gray;font-size:small;&apos;&gt;💡 &lt;b&gt;Consiglio:&lt;/b&gt; Inizia sempre dalla pulizia fisica &amp;mdash; è gratuita e risolve il 90% dei casi di surriscaldamento sui laptop.&lt;/p&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Output test appare qui...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>🔬  &lt;b&gt;Casi testati:&lt;/b&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🤖  LLM Consigliati  —  &lt;span style=&apos;color:#94a3b8;font-size:12px;font-weight:normal;&apos;&gt;Seleziona gestore e categoria, poi clicca per installare.&lt;/span&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3260,6 +3647,14 @@ Completa almeno un quiz per vedere le statistiche qui.</source>
     </message>
     <message>
         <source>⬇  Scarica</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;b style=&apos;color:#60a5fa;font-size:13px;&apos;&gt;🖥  Configurazione consigliata: Xeon + 64 GB RAM&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b style=&apos;color:#93c5fd;&apos;&gt;Strategia ottimale per la tua macchina:&lt;/b&gt;&lt;br&gt;•  Usa &lt;b&gt;CPU pura&lt;/b&gt; (ignora la GPU AMD lenta): &lt;code style=&apos;background:#0f172a;padding:1px 5px;border-radius:3px;color:#4ade80;&apos;&gt;set OLLAMA_NUM_GPU=0 &amp;amp;&amp;amp; ollama serve&lt;/code&gt;&lt;br&gt;•  Con 64 GB RAM puoi caricare modelli da &lt;b&gt;20-44 GB&lt;/b&gt; senza toccare la VRAM&lt;br&gt;•  Il Xeon ha spesso &lt;b&gt;AVX-512&lt;/b&gt;: verifica con &lt;code style=&apos;background:#0f172a;padding:1px 5px;border-radius:3px;color:#4ade80;&apos;&gt;wmic cpu get name&lt;/code&gt; e cerca E5/E7/Scalable/Gold/Silver&lt;br&gt;&lt;br&gt;&lt;b style=&apos;color:#93c5fd;&apos;&gt;Modelli raccomandati (in ordine di priorità):&lt;/b&gt;&lt;br&gt;★  &lt;b&gt;Qwen2.5-Coder-32B Q5&lt;/b&gt; (~22 GB) — coding top, ~4-6 token/s su Xeon&lt;br&gt;★  &lt;b&gt;DeepSeek-R1-32B Q5&lt;/b&gt; (~22 GB) — ragionamento/matematica avanzata&lt;br&gt;★  &lt;b&gt;Mixtral 8x7B Q4&lt;/b&gt; (~26 GB) — generico veloce (MoE attiva 2/8 esperti)&lt;br&gt;       &lt;b&gt;Llama-3.1-70B Q4&lt;/b&gt; (~40 GB) — massima qualità, ~1-2 token/s&lt;br&gt;&lt;br&gt;&lt;b style=&apos;color:#93c5fd;&apos;&gt;Pipeline multi-agente consigliata su Xeon 64 GB:&lt;/b&gt;&lt;br&gt;•  Agente 1 (Ricercatore): &lt;b&gt;deepseek-r1:14b&lt;/b&gt; — veloce per analisi&lt;br&gt;•  Agenti 2-3 (Programmatori): &lt;b&gt;deepseek-coder-v2:16b&lt;/b&gt; — potente e leggero&lt;br&gt;•  Agente 5 (Tester): &lt;b&gt;qwen2.5-coder:32b&lt;/b&gt; — massima precisione sul codice&lt;br&gt;•  Agente 6 (Ottimizzatore): &lt;b&gt;qwen3:30b&lt;/b&gt; — qualità di ragionamento superiore&lt;br&gt;&lt;br&gt;&lt;span style=&apos;color:#64748b;font-size:11px;&apos;&gt;Nota: modelli con ★ sono testati e ottimizzati per CPU Xeon multi-core.&lt;/span&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;b style=&apos;color:#f87171;&apos;&gt;⚠  Modelli con problemi noti (da evitare)&lt;/b&gt;&lt;br&gt;&lt;b style=&apos;color:#fca5a5;&apos;&gt;qwen3.5:0.8b&lt;/b&gt; — thinking loop infinito su Ollama: genera solo pensiero interno, message.content sempre vuoto anche con 2048 token. Prismalux mostra un errore esplicito se lo selezioni. &lt;span style=&apos;color:#94a3b8;&apos;&gt;Alternative: llama3.2:3b (~50 tok/s, 80% matematica) oppure deepseek-r1:1.5b (~41 tok/s).&lt;/span&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3320,6 +3715,10 @@ Completa almeno un quiz per vedere le statistiche qui.</source>
     </message>
     <message>
         <source>&lt;span style=&apos;color:#94a3b8;&apos;&gt;Seleziona una riga per i dettagli.&lt;/span&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;span style=&apos;color:#64748b;font-size:11px;&apos;&gt;Temperature testate: 0.1 – 0.3 – 0.5 – 0.7 – 0.9 – 1.1  •  2 run per punto  •  5 domande (identità, geo, aritmetica, auto-desc, cultura)&lt;br&gt;Causa score 0 qwen3: &lt;b&gt;think:false mancante nello script Python&lt;/b&gt; + language bias (modello Alibaba, reasoning in cinese).&lt;/span&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3443,11 +3842,19 @@ Completa almeno un quiz per vedere le statistiche qui.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>💡  Usa Piper TTS per qualità superiore: installa in &lt;b&gt;Impostazioni → Personalizza → Piper&lt;/b&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🇮🇹  &lt;b&gt;Voci Italiane disponibili&lt;/b&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Voce attiva:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Scarica %1.onnx (~%2 MB) da HuggingFace</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3535,6 +3942,10 @@ Completa almeno un quiz per vedere le statistiche qui.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>❌  Nessun sintetizzatore trovato. Installa Piper (sopra) oppure: &lt;code&gt;sudo apt install espeak-ng&lt;/code&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🎤  Trascrizione — Whisper STT</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3548,6 +3959,10 @@ Completa almeno un quiz per vedere le statistiche qui.</source>
     </message>
     <message>
         <source>🤖  LLM audio via Ollama (sperimentale)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔬  Seleziona un modello Ollama con capacità audio.&lt;br&gt;&lt;small style=&apos;color:#f59e0b;&apos;&gt;⚠  Attualmente nessun modello Ollama supporta audio nativo.&lt;br&gt;Quando disponibili, appariranno nel selettore qui sotto.&lt;/small&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3588,6 +4003,10 @@ Completa almeno un quiz per vedere le statistiche qui.</source>
     </message>
     <message>
         <source>🔨  Scarica e compila whisper.cpp da sorgente</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>❌  Non trovato. Installa con:&lt;br&gt;&lt;code&gt;sudo apt install whisper-cpp&lt;/code&gt;&amp;nbsp;&amp;nbsp;oppure&amp;nbsp;&amp;nbsp;&lt;code&gt;sudo dnf install whisper-cpp&lt;/code&gt;&lt;br&gt;Oppure compila da sorgente: &lt;code&gt;git clone https://github.com/ggml-org/whisper.cpp &amp;amp;&amp;amp; cd whisper.cpp &amp;amp;&amp;amp; cmake -B build &amp;amp;&amp;amp; cmake --build build -j$(nproc)&lt;/code&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3639,7 +4058,15 @@ Completa almeno un quiz per vedere le statistiche qui.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>⚠  Modello non ancora scaricato. Usa il pulsante ↓&#xa0;Scarica qui sotto.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Seleziona:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Scarica %1.bin (~%2 MB) da HuggingFace</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3683,6 +4110,10 @@ Completa almeno un quiz per vedere le statistiche qui.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>✅  URL salvato. Le trascrizioni useranno il server HTTP.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Abilita diarizzazione dopo trascrizione</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3696,6 +4127,10 @@ Completa almeno un quiz per vedere le statistiche qui.</source>
     </message>
     <message>
         <source>💡  &lt;b&gt;Note&lt;/b&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>•  La trascrizione avviene &lt;b&gt;offline&lt;/b&gt; sul dispositivo &amp;mdash; nessun dato inviato a server esterni.&lt;br&gt;•  La lingua predefinita è &lt;b&gt;Italiano&lt;/b&gt;. whisper.cpp supporta oltre 99 lingue.&lt;br&gt;•  Requisiti: &lt;code&gt;arecord&lt;/code&gt; (pacchetto &lt;i&gt;alsa-utils&lt;/i&gt;) per la registrazione microfono.&lt;br&gt;•  Il modello &lt;b&gt;Small&lt;/b&gt; (~141 MB) offre il miglior equilibrio velocità/precisione per l’italiano.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3849,6 +4284,10 @@ Clic centrale: copia il nome negli appunti</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>&lt;small&gt;&lt;b&gt;Off&lt;/b&gt;: nessun ragionamento interno (più veloce). &lt;b&gt;Auto&lt;/b&gt;: il classificatore decide per ogni domanda (default). &lt;b&gt;On&lt;/b&gt;: ragionamento sempre attivo sui modelli compatibili (qwen3, deepseek-r1, qwq).&lt;br&gt;&lt;b&gt;Budget&lt;/b&gt;: moltiplicatore dei token di risposta quando il thinking è attivo (1× = base, 2× = default, 4× = risposta molto elaborata).&lt;/small&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>📖  Memoria persistente (Knowledge)</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3873,11 +4312,19 @@ Clic centrale: copia il nome negli appunti</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Librerie e strumenti necessari o opzionali. Premi « Verifica tutto » per controllare cosa è disponibile nel sistema.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🔍  Verifica tutto</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>🖥 Apri terminale</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Installa solo i moduli che servono al tuo flusso di lavoro. Premi &lt;b&gt;Verifica stato&lt;/b&gt; per controllare cosa manca.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3902,6 +4349,10 @@ Clic centrale: copia il nome negli appunti</source>
     </message>
     <message>
         <source>🔍  RAG — Recupero Documenti Aumentato</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⚠️  &lt;b&gt;Attenzione privacy&lt;/b&gt;: i chunk indicizzati (frammenti di testo dai tuoi documenti) vengono salvati in chiaro in &lt;code&gt;~/.prismalux_rag.json&lt;/code&gt;. Non indicizzare documenti riservati (dichiarazioni fiscali, dati medici) se non sei l&apos;unico utente di questo sistema.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3933,7 +4384,20 @@ Clic centrale: copia il nome negli appunti</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Riduce la dimensionalità dei vettori di embedding mantenendo le distanze.
+Migliora le performance di ricerca RAG con grandi basi di conoscenza.
+Consigliata: attiva.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>📥  Scarica documenti ufficiali consigliati (AdE 2026)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Scarica automaticamente da Agenzia delle Entrate:
+  • Istruzioni 730/2026
+  • Fascicolo 2 Persone Fisiche 2026
+Salvati in ~/prismalux_rag_docs/ e pronti per il RAG.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3949,7 +4413,16 @@ Clic centrale: copia il nome negli appunti</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>⚠️  I modelli chat (qwen3, llama, ecc.) NON supportano /api/embeddings e non devono essere usati qui.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>⏹  Ferma indicizzazione</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Interrompe l&apos;indicizzazione in corso dopo il chunk attuale.
+I chunk già completati vengono salvati.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -4132,6 +4605,14 @@ Aumenta a 512+ per elaborazioni numeriche intensive.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>❌  Errore: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔒  &lt;b&gt;Isolamento garantito dal container:&lt;/b&gt;&lt;br&gt;• &lt;b&gt;Rete disabilitata&lt;/b&gt; — nessuna connessione a internet&lt;br&gt;• &lt;b&gt;Nessun volume&lt;/b&gt; — il codice non può leggere/scrivere file locali&lt;br&gt;• &lt;b&gt;Limite processi&lt;/b&gt; — max 64 PID (anti fork-bomb)&lt;br&gt;• &lt;b&gt;Container effimero&lt;/b&gt; — distrutto automaticamente al termine (--rm)&lt;br&gt;• &lt;b&gt;pip install non disponibile&lt;/b&gt; con sandbox attivo (rete assente)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>✅  Salvato</source>
         <translation type="unfinished"></translation>
     </message>
@@ -4156,7 +4637,17 @@ Aumenta a 512+ per elaborazioni numeriche intensive.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>&lt;small style=&apos;color:#888;&apos;&gt;Il fingerprint viene generato all’ avvio del server WAN con TLS attivo.&lt;br&gt;Per rigenerarlo manualmente: clicca “Rigenera certificato” qui sotto.&lt;br&gt;&lt;b&gt;Dopo la rigenerazione devi ridistribuire il pin a tutti i worker.&lt;/b&gt;&lt;/small&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🔄  Rigenera certificato</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Elimina server.crt e server.key e ne genera una nuova coppia.
+Aggiorna automaticamente wan_cert.pin.
+ATTENZIONE: i worker con il vecchio pin non potranno più connettersi.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -4164,7 +4655,17 @@ Aumenta a 512+ per elaborazioni numeriche intensive.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Salva wan_cert.pin in una posizione a scelta.
+Copialo sul worker come ~/.prismalux/wan_server.pin</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>📥  Importa pin server (lato worker)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Carica il pin del server su questo PC come wan_server.pin.
+Da usare quando questo PC è il WORKER che si connette a un server remoto.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -4181,6 +4682,10 @@ Aumenta a 512+ per elaborazioni numeriche intensive.</source>
     </message>
     <message>
         <source>🛡  Chiavi WireGuard VPN</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;small style=&apos;color:#888;&apos;&gt;WireGuard cifra tutto il traffico WAN a livello di rete — complementare al TLS della porta 11600.&lt;br&gt;Genera una coppia di chiavi, condividi la pubkey con il server VPN e usa la chiave privata nel file wg0.conf del worker.&lt;br&gt;&lt;b&gt;La chiave privata viene salvata in ~/.prismalux/wireguard_private.key (0600)&lt;/b&gt;.&lt;/small&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -4205,6 +4710,11 @@ Aumenta a 512+ per elaborazioni numeriche intensive.</source>
     </message>
     <message>
         <source>📄  Genera wg0.conf (worker)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Genera un file di configurazione WireGuard client da completare.
+Richiede: IP del server VPN, pubkey del server, IP assegnato al worker.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -4461,6 +4971,10 @@ menù orizzontale a pulsanti con categorie.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Premi 📋 per copiare il comando npx/uvx negli appunti. Poi aggiungilo con la sezione &quot;Aggiungi MCP personalizzato&quot; sopra.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Copia: </source>
         <translation type="unfinished"></translation>
     </message>
@@ -4469,7 +4983,16 @@ menù orizzontale a pulsanti con categorie.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Reimposta il flag di primo avvio: alla prossima apertura
+di Prismalux apparirà di nuovo la schermata di benvenuto.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>&lt;b&gt;🧠 Memoria AI — storia versionata&lt;/b&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;small&gt;Ogni preferenza appresa e feedback 👍👎 viene salvato come commit Git in &lt;code&gt;~/.ai-memory/&lt;/code&gt;.&lt;br&gt;Seleziona un commit e usa &lt;b&gt;Ripristina&lt;/b&gt; per tornare alle preferenze di quella versione.&lt;/small&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -4521,6 +5044,10 @@ menù orizzontale a pulsanti con categorie.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>📥  &lt;b&gt;Importa da AI esterne&lt;/b&gt;&lt;br&gt;&lt;small&gt;Carica un file JSON esportato da ChatGPT o Claude (export dati account), oppure un JSON generico {&quot;role&quot;,&quot;content&quot;} (DeepSeek, Qwen e altri, se esportato con strumenti terzi — non hanno un export ufficiale proprio). Le conversazioni finiscono nello storico chat locale.&lt;/small&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>📥  Importa da AI esterne</source>
         <translation type="unfinished"></translation>
     </message>
@@ -4541,7 +5068,17 @@ menù orizzontale a pulsanti con categorie.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Ollama non raggiungibile o nessun modello installato.
+Avvia Ollama e riprova.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>0 modelli</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Nessun file .gguf trovato.
+Scarica un modello dalla scheda LLM.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -4565,6 +5102,10 @@ menù orizzontale a pulsanti con categorie.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>⚠  Errore: </source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>⏳  Interruzione in corso dopo il chunk corrente...</source>
         <translation type="unfinished"></translation>
     </message>
@@ -4573,7 +5114,19 @@ menù orizzontale a pulsanti con categorie.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>✅  Indice già aggiornato — nessun file modificato.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⏳  Estrazione testo da %1 file nuovi/modificati...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🌫  Nessun contenuto trovato nella cartella.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>❌  &lt;b&gt;Embedding falliti&lt;/b&gt; (%1 errori). Il modello &lt;b&gt;%2&lt;/b&gt; non supporta &lt;code&gt;/api/embeddings&lt;/code&gt;.&lt;br&gt;Installa il modello embedding: &lt;code&gt;ollama pull embeddinggemma&lt;/code&gt;&lt;br&gt;Poi verifica il campo &lt;b&gt;Modello embedding&lt;/b&gt; qui sopra e ripeti l&apos;indicizzazione.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -4589,7 +5142,15 @@ menù orizzontale a pulsanti con categorie.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Daemon raggiungibile: &lt;code&gt;%1&lt;/code&gt;&lt;br&gt;Il codice AI verrà eseguito in un container effimero (rete disabilitata, nessun volume, max RAM configurabile).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🔴  Docker installato ma non avviato</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Il binario c&apos;è ma il servizio/socket non risponde (spesso “mascherato” dopo un&apos;installazione manuale).&lt;br&gt;Il codice sarà eseguito con Python locale (permessi utente) finché non lo sblocchi.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -4601,12 +5162,20 @@ menù orizzontale a pulsanti con categorie.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Docker non trovato sul sistema.&lt;br&gt;Il codice sarà eseguito con Python locale (permessi utente).&lt;br&gt;&lt;b&gt;Per installare Docker:&lt;/b&gt; &lt;code&gt;sudo apt install docker.io &amp;amp;&amp;amp; sudo systemctl start docker&lt;/code&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>⏳  Richiesta autorizzazione amministratore...</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
     <name>IpaGuideWidget</name>
+    <message>
+        <source>  🧩  &lt;b&gt;Componi una parola&lt;/b&gt;  &lt;span style=&apos;color:gray;font-size:11px;&apos;&gt;Tocca un fonema nella tabella sopra per aggiungerlo qui · suono sintetico approssimato, fonemi concatenati senza coarticolazione naturale&lt;/span&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
     <message>
         <source>▶ Ascolta</source>
         <translation type="unfinished"></translation>
@@ -4628,6 +5197,10 @@ menù orizzontale a pulsanti con categorie.</source>
     <name>LanWanPage</name>
     <message>
         <source>⏳  MasterAgent in elaborazione…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>❌  Errore: </source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -4683,6 +5256,14 @@ menù orizzontale a pulsanti con categorie.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>✅  Completato</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>❌  Terminato con errore</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>GNS3 REST API:</source>
         <translation type="unfinished"></translation>
     </message>
@@ -4699,6 +5280,10 @@ menù orizzontale a pulsanti con categorie.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>🌐 &lt;b&gt;GNS3 MCP:&lt;/b&gt; simulatore reti. Avvia GNS3 (porta 3080 di default) e installa: &lt;code&gt;pip install gns3fy requests&lt;/code&gt;&lt;br&gt;Plugin: &lt;a href=&apos;https://github.com/ChistokhinSV/gns3-mcp&apos;&gt;gns3-mcp&lt;/a&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Copia comando pip negli appunti</source>
         <translation type="unfinished"></translation>
     </message>
@@ -4712,6 +5297,12 @@ menù orizzontale a pulsanti con categorie.</source>
     </message>
     <message>
         <source>Modello:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Descrivi la rete da simulare...
+Es: &apos;Crea una topologia con 2 router Cisco e 3 PC in una LAN&apos;
+Es: &apos;Configura OSPF tra R1 e R2 con redistribuzione statica&apos;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -4744,6 +5335,10 @@ menù orizzontale a pulsanti con categorie.</source>
     </message>
     <message>
         <source>🔌  Installa APK via USB  (adb)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>✅  APK installato con successo! Cerca &quot;Prismalux&quot; nel cassetto app.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -4924,6 +5519,10 @@ Condividilo con %1.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>&lt;br&gt;&lt;span style=&apos;font-size:13px;&apos;&gt;&lt;b&gt;📱  Connetti l’app Android&lt;/b&gt;&lt;/span&gt;&lt;br&gt;&lt;span style=&apos;font-size:12px;&apos;&gt;1. Avvia &lt;b&gt;PrismaluxMobile&lt;/b&gt; sul telefono&lt;br&gt;2. Apri &lt;b&gt;Impostazioni&lt;/b&gt; → &lt;b&gt;📷 Scansiona QR&lt;/b&gt;&lt;br&gt;3. Punta la fotocamera sul QR &lt;b&gt;App Android&lt;/b&gt; (destra)&lt;br&gt;&lt;span style=&apos;color:gray;font-size:11px;&apos;&gt;IP + Porta + Token configurati in automatico.&lt;/span&gt;&lt;/span&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Copia URL negli appunti</source>
         <translation type="unfinished"></translation>
     </message>
@@ -4968,6 +5567,10 @@ Condividilo con %1.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>&lt;b&gt;🖧 WAN Compute&lt;/b&gt; (porta 11600) — distribuisce &lt;b&gt;task generici&lt;/b&gt; (shell, Python, file I/O, matplotlib, LLM) su macchine qualsiasi della rete. Usa per pipeline AI/automatizzazione, batch script, job creativi.&lt;br&gt;&lt;b&gt;🔬 Sci Compute&lt;/b&gt; (porta 11601) — distribuisce &lt;b&gt;Work Unit scientifiche&lt;/b&gt; (BLAST, GROMACS, SymPy, R, SciPy) con heartbeat, credit counter e aggregatore risultati BOINC-style. Usa per ricerca computazionale e bioinformatica.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🧠  Solo questo PC</source>
         <translation type="unfinished"></translation>
     </message>
@@ -4977,6 +5580,11 @@ Condividilo con %1.</source>
     </message>
     <message>
         <source>🔬  Calcolo Scientifico (BOINC-like)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Distribuisci task scientifici (BLAST, GROMACS, R, Python SciPy...)
+sui nodi della rete VPN (Tailscale consigliato)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -4993,6 +5601,11 @@ Condividilo con %1.</source>
     </message>
     <message>
         <source>⚫  Server fermo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Avvia server + connette un nodo virtuale sullo stesso PC.
+Permette di testare il sistema senza altri computer.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -5032,7 +5645,16 @@ Condividilo con %1.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>&lt;span style=&apos;color:#60a5fa;font-size:11px;&apos;&gt;🔒 &lt;b&gt;Consiglio sicurezza per reti con più PC&lt;/b&gt;&lt;br&gt;Usa &lt;b&gt;WireGuard&lt;/b&gt; su tutti i worker: cifra il traffico WAN e limita l’accesso ai soli peer autorizzati.&lt;br&gt;Configura il server WAN su &lt;code&gt;10.0.0.1&lt;/code&gt; (IP WireGuard) invece di &lt;code&gt;0.0.0.0&lt;/code&gt;, così la porta 11600 è raggiungibile solo dai PC nella VPN.&lt;br&gt;Con token WAN + WireGuard la sicurezza è doppia: prima il tunnel cifrato, poi l’autenticazione.&lt;/span&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🧠  Scrivi un compito — l’AI lo divide in agenti automaticamente</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>es. &quot;Analizza il mercato delle app fitness in Italia e crea una strategia di lancio&quot;
+es. &quot;Scrivi un articolo scientifico sull’intelligenza artificiale distribuita&quot;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -5050,6 +5672,10 @@ e premi &quot;Crea agenti&quot;</source>
     </message>
     <message>
         <source>Carica un compito d’esempio casuale per ispirarti.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;b&gt;🖥  Come aggiungere un nodo worker:&lt;/b&gt;&lt;ol style=&apos;margin:4px 0 0 16px; padding:0;&apos;&gt;&lt;li&gt;Installa Python 3.10+ sul nodo remoto.&lt;/li&gt;&lt;li&gt;Copia &lt;b&gt;MCPs/wan_worker/wan_worker.py&lt;/b&gt; sul nodo oppure clona il repo Prismalux.&lt;/li&gt;&lt;li&gt;Avvia il worker: &lt;tt&gt;python3 wan_worker.py --host IP_SERVER --port 11600 --token TOKEN --name NomeNodo&lt;/tt&gt;&lt;br&gt;(IP_SERVER = IP della macchina con Prismalux; TOKEN = token mostrato nella sezione Autenticazione sopra).&lt;/li&gt;&lt;li&gt;Il nodo appare automaticamente nella tabella qui sotto una volta connesso.&lt;/li&gt;&lt;li&gt;Per nodi su reti diverse (internet/ufficio) attiva la VPN nella tab Programmazione → Rete.&lt;/li&gt;&lt;/ol&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -5206,6 +5832,11 @@ e premi &quot;Crea agenti&quot;</source>
     </message>
     <message>
         <source>⚠️  Permetti shell (rischio RCE)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Se spuntato, questo nodo eseguirà comandi bash/python ricevuti dal server.
+Abilita SOLO su reti fidate con token auth impostato.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -5471,7 +6102,17 @@ Il server avvierà in modalità TCP non cifrata.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Lettera di candidatura via email.
+Seleziona un&apos;offerta e clicca &quot;Genera Lettera con AI&quot;.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>📄  Cover Letter</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cover Letter professionale da allegare alla candidatura.
+Clicca &quot;Genera Cover Letter&quot; dopo aver selezionato un&apos;offerta.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -5737,6 +6378,10 @@ Cosa vuoi fare con questo campo?</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>&lt;b&gt;Seleziona modello&lt;/b&gt; — il server parte in background,&lt;br&gt;il backend viene commutato automaticamente.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>▶  Avvia</source>
         <translation type="unfinished"></translation>
     </message>
@@ -5766,6 +6411,10 @@ Cosa vuoi fare con questo campo?</source>
     </message>
     <message>
         <source>⬇  Scarica modello matematico da Hugging Face</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;span style=&apos;color:#ff5252;&apos;&gt;⚠  Nessun modello matematico trovato in models/.&lt;br&gt;Scarica Qwen2.5-Math-72B (Q4_K_M ~40 GB) o Qwen2.5-Math-7B (Q4_K_M ~4.7 GB).&lt;/span&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -5801,6 +6450,10 @@ Cosa vuoi fare con questo campo?</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>🔴  Ferma server  :%1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🦙⚡️  Avvia llama-server...</source>
         <translation type="unfinished"></translation>
     </message>
@@ -5826,6 +6479,10 @@ Cosa vuoi fare con questo campo?</source>
     </message>
     <message>
         <source>📼  Salva chat</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;b&gt;📼  Vuoi salvare questa chat?&lt;/b&gt;&lt;br&gt;&lt;br&gt;La conversazione attuale verrà persa se non la salvi.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -6046,6 +6703,14 @@ Verde &lt; 1s  ·  Arancio 1-3s  ·  Rosso &gt; 3s</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>EMERGENZA RAM
+1. Scarica modello corrente dalla RAM (keep_alive=0)
+2. Ferma tutti i modelli Ollama
+3. Libera cache kernel (richiede password admin)
+Diventa giallo se RAM &gt; 40%, rosso se &gt; 75%.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Cambia backend AI — un click per passare da Ollama a llama-server e viceversa</source>
         <translation type="unfinished"></translation>
     </message>
@@ -6075,6 +6740,12 @@ Verde &lt; 1s  ·  Arancio 1-3s  ·  Rosso &gt; 3s</source>
     </message>
     <message>
         <source>(interrogo Ollama...)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🧠  Token gia&apos; consumati in questa chat
+Consumati: %1 su %2 (num_ctx) — restano %3 liberi (barra CTX)
+Conteggia storia chat compressa + documenti RAG della chat.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -6145,7 +6816,18 @@ Verde &lt; 1s  ·  Arancio 1-3s  ·  Rosso &gt; 3s</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Genera ~/.prismalux/lan_cert.pem e ~/.prismalux/lan_key.pem
+tramite openssl (RSA 2048, 365 giorni).
+Richiede openssl installato sul sistema.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🔒  Abilita TLS (richiede certificato)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Se attivo, il server LAN usa HTTPS/WSS invece di HTTP.
+Genera prima il certificato con il pulsante a sinistra.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -6231,6 +6913,18 @@ Il vecchio token viene invalidato immediatamente se il server è attivo.</source
     </message>
     <message>
         <source>Una volta — il:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Salva</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Aggiungi</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⏰  &lt;b&gt;Cron Prismalux&lt;/b&gt; — Pianifica prompt AI che vengono eseguiti automaticamente mentre Prismalux è aperto. I risultati vengono mostrati nel log.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -6462,7 +7156,15 @@ Il vecchio token viene invalidato immediatamente se il server è attivo.</source
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Formato del file di configurazione &lt;b&gt;~/.prismalux_config&lt;/b&gt;.&lt;br&gt;&lt;b&gt;JSON&lt;/b&gt;: standard, leggibile dai tool esterni.&lt;br&gt;&lt;b&gt;TOON&lt;/b&gt;: flat &lt;code&gt;chiave: valore&lt;/code&gt;, -12% dimensione, stessa velocità.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Converti e salva ▶</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⚠  &lt;b&gt;RAM libera bassa (&amp;lt;20%)&lt;/b&gt; — attiva zRAM per guadagnare ~30-40% di memoria effettiva:&lt;br&gt;&lt;code&gt;sudo systemctl enable --now systemd-zram-setup@zram0&lt;/code&gt;&lt;br&gt;Oppure usa i pulsanti &lt;b&gt;Abilita zRAM&lt;/b&gt; qui sotto ↓</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -6479,6 +7181,14 @@ Il vecchio token viene invalidato immediatamente se il server è attivo.</source
     </message>
     <message>
         <source>Premi &quot;🔍 Rileva&quot; per controllare lo stato della compressione RAM.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;b&gt;Windows&lt;/b&gt;: Memory Compression è integrata nel sistema (Windows 10/11). Attivandola il kernel comprime automaticamente le pagine RAM poco usate. Non richiede riavvio.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;b&gt;Linux&lt;/b&gt;: zRAM crea un dispositivo swap compresso in RAM. Algoritmo &lt;b&gt;zstd&lt;/b&gt; (Meta/Facebook). &lt;i&gt;Singola&lt;/i&gt;: 1 device, 50% RAM, lz4. &lt;i&gt;Doppia&lt;/i&gt;: compatta + 2 device zstd (75% RAM).</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -6534,6 +7244,18 @@ Il vecchio token viene invalidato immediatamente se il server è attivo.</source
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Tutti i layer su GPU dedicata (NVIDIA/AMD).
+Massima velocità se il modello entra in VRAM.
+num_gpu = layer count reale del modello.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Riempie la GPU dedicata al massimo della sua VRAM,
+i layer rimanenti vanno su CPU/RAM.
+num_gpu = min(layer_model, layer_capacity_NVIDIA).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>⏳  In attesa rilevamento hardware...</source>
         <translation type="unfinished"></translation>
     </message>
@@ -6554,7 +7276,16 @@ Il vecchio token viene invalidato immediatamente se il server è attivo.</source
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>❌  Nessuna NPU rilevata (o driver non installato)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🔵  Installa intel-npu-acceleration-library</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>ℹ  AMD NPU (XDNA): usa &lt;b&gt;https://github.com/amd/iron&lt;/b&gt; — attualmente in beta, stabilità non garantita.
+Intel NPU: stabile, richiede &lt;code&gt;pip install intel-npu-acceleration-library&lt;/code&gt;.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -6571,6 +7302,14 @@ Il vecchio token viene invalidato immediatamente se il server è attivo.</source
     </message>
     <message>
         <source>⏳  &lt;b&gt;Misto&lt;/b&gt;: recupero layer count dal modello...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>✅  &lt;b&gt;Misto&lt;/b&gt; — tutti i %1 layer su GPU (il modello entra interamente in VRAM: valuta modalità GPU pura).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>✅  &lt;b&gt;Doppia GPU (llama-server CUDA+SYCL)&lt;/b&gt;&lt;br&gt;Avvia llama-server con:&lt;br&gt;&lt;code&gt;llama-server --device CUDA0,SYCL0 --tensor-split %1,%2 -ngl 99 -m modello.gguf&lt;/code&gt;&lt;br&gt;Rapporto: NVIDIA %3 MB / Intel %4 MB = &lt;b&gt;%5 MB combinati&lt;/b&gt;&lt;br&gt;Budget netto (KV ~200 MB + RAG ~270 MB): ~%6 MB</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -6662,6 +7401,10 @@ Il vecchio token viene invalidato immediatamente se il server è attivo.</source
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>🔍  &lt;b&gt;Analizzatore Bug Modelli&lt;/b&gt; — Cerca bug noti per il modello su &lt;b&gt;GitHub Issues&lt;/b&gt; e &lt;b&gt;Reddit r/LocalLLaMA&lt;/b&gt;, li analizza con AI ed estrae fix ai parametri Ollama applicabili subito.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🤖  Modello:</source>
         <translation type="unfinished"></translation>
     </message>
@@ -6678,7 +7421,21 @@ Il vecchio token viene invalidato immediatamente se il server è attivo.</source
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Seleziona un modello e premi &quot;🔍 Cerca bug&quot; per avviare l&apos;analisi.
+
+Fonti: GitHub Issues (ollama/ollama, ggerganov/llama.cpp) • Reddit r/LocalLLaMA
+
+I fix trovati vengono salvati in ~/.prismalux/model_params.json
+e applicati automaticamente alle chiamate Ollama successive.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>✅  Applica fix suggeriti</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Salva i parametri suggeriti in model_params.json.
+Verranno usati automaticamente nelle prossime chiamate a questo modello.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -6707,6 +7464,10 @@ Il vecchio token viene invalidato immediatamente se il server è attivo.</source
     </message>
     <message>
         <source>ℹ  Nessun fix salvato per questo modello.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>ℹ  Nessun fix salvato per &lt;b&gt;%1&lt;/b&gt;.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -6778,6 +7539,14 @@ Il vecchio token viene invalidato immediatamente se il server è attivo.</source
     </message>
     <message>
         <source>Mostra/nascondi il pannello di rendering LaTeX per l&apos;ultima risposta AI</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>I risultati appariranno qui.
+
+π = 3.14159265358979323846...
+e = 2.71828182845904523536...
+φ = 1.61803398874989484820...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -7119,6 +7888,20 @@ Il vecchio token viene invalidato immediatamente se il server è attivo.</source
 <context>
     <name>McpManagerPage</name>
     <message>
+        <source>🔄  Aggiorna stato</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🧪  Testa tutti</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Verifica che tutti i plugin siano raggiungibili con la stessa risoluzione
+python usata da mcp_call: venv plugin → venv condiviso → python3.
+Usa questo test dopo aver aggiunto nuovi plugin o cambiato il venv.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Log operazioni MCP…</source>
         <translation type="unfinished"></translation>
     </message>
@@ -7140,6 +7923,14 @@ Il vecchio token viene invalidato immediatamente se il server è attivo.</source
     </message>
     <message>
         <source>Smoke test JSON-RPC (initialize + tools/list)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Mostra istruzioni di configurazione per questo MCP</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⚠️ Ambiente non creato — premi &quot;Prepara ambiente&quot;.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -7194,6 +7985,12 @@ Il vecchio token viene invalidato immediatamente se il server è attivo.</source
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Descrivi cosa vuoi fare in Godot...
+Es: &apos;Crea un personaggio che si muove con WASD e salta con spazio&apos;
+Es: &apos;Shader che simula acqua con onde&apos;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🤖  Genera GDScript</source>
         <translation type="unfinished"></translation>
     </message>
@@ -7211,6 +8008,10 @@ Il vecchio token viene invalidato immediatamente se il server è attivo.</source
     </message>
     <message>
         <source>❌  Impossibile salvare il file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🎮  &lt;i&gt;Game Modding AI — Genera script, plugin e mod per GTA V, Skyrim, Terraria, WoW, Noita, Minecraft, Stardew Valley e RimWorld. Scegli il gioco, il tipo di mod e descrivi cosa vuoi creare.&lt;/i&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -7451,6 +8252,10 @@ Deve essere installato in Ollama (ollama pull &lt;nome&gt;).</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>&lt;b&gt;📊 Monitor Attività AI&lt;/b&gt; &amp;nbsp;&lt;span style=&apos;color:#888; font-size:11px;&apos;&gt;— ogni inferenza viene misurata e valutata&lt;/span&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>In attesa...</source>
         <translation type="unfinished"></translation>
     </message>
@@ -7654,6 +8459,10 @@ Se la somiglianza supera la soglia, Tesseract viene saltato (~5ms invece di ~1-2
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>🎨  Genera Immagini</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>📂  Carica audio</source>
         <translation type="unfinished"></translation>
     </message>
@@ -7670,6 +8479,12 @@ Se la somiglianza supera la soglia, Tesseract viene saltato (~5ms invece di ~1-2
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>La trascrizione Whisper appare qui...
+
+Puoi anche incollare direttamente il testo da analizzare.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🤖  Analisi AI</source>
         <translation type="unfinished"></translation>
     </message>
@@ -7682,7 +8497,22 @@ Se la somiglianza supera la soglia, Tesseract viene saltato (~5ms invece di ~1-2
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Descrivi il grafo in italiano oppure incolla codice DOT direttamente.&lt;br&gt;L’AI genera il DOT language e Graphviz produce l’immagine.&lt;br&gt;&lt;span style=&apos;color:#94a3b8;&apos;&gt;Installazione: &lt;code&gt;sudo apt install graphviz&lt;/code&gt;&lt;/span&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Es: &quot;Crea una mappa concettuale dei pianeti del sistema solare&quot;
+oppure incolla direttamente codice DOT:
+  digraph G { A -&gt; B; B -&gt; C; }</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🤖🖼  Genera e renderizza grafico DOT</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Genera il codice DOT con l’AI e lo renderizza.
+Se il testo è già codice DOT valido, lo renderizza direttamente.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -7706,7 +8536,16 @@ Se la somiglianza supera la soglia, Tesseract viene saltato (~5ms invece di ~1-2
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>❌  Errore Graphviz: </source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🐍  Installa venv OpenCV</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Crea Frameworks/opencv/venv/ con cv2 + pytesseract isolati.
+Consigliato: evita conflitti con i pacchetti di sistema.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -7715,6 +8554,11 @@ Se la somiglianza supera la soglia, Tesseract viene saltato (~5ms invece di ~1-2
     </message>
     <message>
         <source>📹  Carica video</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Carica un video registrato (MP4, AVI, MOV, MKV)
+Estrae automaticamente un frame ogni N secondi</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -7731,6 +8575,12 @@ Se la somiglianza supera la soglia, Tesseract viene saltato (~5ms invece di ~1-2
     </message>
     <message>
         <source>📄  Testo OCR rilevato</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Il testo rilevato dalla webcam apparirà qui...
+
+Punta la camera su un manuale o documento stampato.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -7775,6 +8625,10 @@ Se la somiglianza supera la soglia, Tesseract viene saltato (~5ms invece di ~1-2
     </message>
     <message>
         <source>🗺  &lt;b&gt;Mappa OSM&lt;/b&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;small&gt;&lt;b&gt;Click sinistro&lt;/b&gt; = aggiungi tappa.&lt;br&gt;&lt;b&gt;Click destro&lt;/b&gt; = menu (Partenza / Tappa).&lt;br&gt;Cerca città → scegli Partenza o Tappa.&lt;br&gt;&lt;b&gt;Doppio clic&lt;/b&gt; su una tappa = rinominala.&lt;br&gt;Ogni tappa mostra subito la sua ⛰ quota, prima ancora di calcolare il percorso.&lt;/small&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -7916,6 +8770,10 @@ ripartire da A.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>❌  Errore rete: </source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>&lt;small&gt;Altimetria non disponibile.&lt;/small&gt;</source>
         <translation type="unfinished"></translation>
     </message>
@@ -7925,6 +8783,10 @@ ripartire da A.</source>
     </message>
     <message>
         <source>&lt;small&gt;Caricamento...&lt;/small&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;small&gt;Errore meteo: </source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -8114,6 +8976,10 @@ Dipendenze: ffmpeg (PATH) + Ollama con un modello vision (llava, moondream...)</
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>🔴  Ferma OpenCode</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>●  Errore avvio</source>
         <translation type="unfinished"></translation>
     </message>
@@ -8185,6 +9051,22 @@ Inietta automaticamente i chunk più rilevanti dalla base di conoscenza.</source
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>🔄  Aggiorna llama.cpp</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔨  Compila llama.cpp</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔄  Aggiorna</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>▶  Compila</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>⏹  Ferma</source>
         <translation type="unfinished"></translation>
     </message>
@@ -8233,6 +9115,10 @@ Inietta automaticamente i chunk più rilevanti dalla base di conoscenza.</source
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>&lt;b style=&apos;color:#fbbf24;&apos;&gt;Primo avvio: llama.cpp non è compilato&lt;/b&gt;&lt;br&gt;&lt;span style=&apos;color:#d1d5db;font-size:11px;&apos;&gt;Clicca &lt;b&gt;Compila ora&lt;/b&gt; per scaricare e compilare llama.cpp automaticamente. Richiede: git, cmake, gcc/g++ (Linux) o MSYS2 (Windows). Operazione una tantum (~5-15 min).&lt;/span&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🔨  Compila ora</source>
         <translation type="unfinished"></translation>
     </message>
@@ -8250,6 +9136,10 @@ Inietta automaticamente i chunk più rilevanti dalla base di conoscenza.</source
     </message>
     <message>
         <source>Elimina modello</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🦙  &lt;b&gt;llama-finetune&lt;/b&gt; — CPU+GPU nativo llama.cpp — nessuna GPU richiesta (ma consigliata).&lt;br&gt;Richiede: &lt;code&gt;llama-finetune&lt;/code&gt; compilato in &lt;code&gt;Prismalux/ENGINE_LLM/llama.cpp/build/bin/&lt;/code&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -8353,7 +9243,20 @@ Inietta automaticamente i chunk più rilevanti dalla base di conoscenza.</source
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>&lt;h3&gt;📖  Guida al Fine-tuning LoRA&lt;/h3&gt;&lt;h4&gt;Cos’è LoRA?&lt;/h4&gt;&lt;p&gt;Low-Rank Adaptation addestra solo una piccola matrice di aggiornamento invece dei pesi completi. Risultato: adattamento rapido con poca RAM/VRAM.&lt;/p&gt;&lt;h4&gt;Quando usarlo?&lt;/h4&gt;&lt;ul&gt;&lt;li&gt;Dominio specifico: medico, legale, ingegneristico&lt;/li&gt;&lt;li&gt;Stile di risposta personalizzato&lt;/li&gt;&lt;li&gt;Vocabolario tecnico specifico&lt;/li&gt;&lt;li&gt;Formato output fisso (JSON, report, ecc.)&lt;/li&gt;&lt;/ul&gt;&lt;h4&gt;Formato dataset (JSONL)&lt;/h4&gt;&lt;pre style=&apos;background:#1e293b;padding:8px;border-radius:4px;&apos;&gt;{&quot;text&quot;: &quot;### Domanda: Cosa è Python?\n### Risposta: Python è...&quot;}
+{&quot;text&quot;: &quot;### Domanda: Spiega LoRA...\n### Risposta: LoRA è...&quot;}&lt;/pre&gt;&lt;h4&gt;Strumenti alternativi&lt;/h4&gt;&lt;ul&gt;&lt;li&gt;&lt;b&gt;llama.cpp finetune&lt;/b&gt;: nessuna GPU richiesta, lento su CPU&lt;/li&gt;&lt;li&gt;&lt;b&gt;unsloth&lt;/b&gt;: 2-5× più veloce, richiede GPU NVIDIA&lt;/li&gt;&lt;li&gt;&lt;b&gt;axolotl&lt;/b&gt;: produzione, multi-GPU, config YAML&lt;/li&gt;&lt;li&gt;&lt;b&gt;LLaMA-Factory&lt;/b&gt;: UI web integrata, molti formati&lt;/li&gt;&lt;/ul&gt;&lt;p style=&apos;color:#94a3b8;&apos;&gt;Dopo il training, converti l’adapter in GGUF per usarlo con Ollama o llama-server.&lt;/p&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>📖  Guida</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Seleziona modello base</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Modelli GGUF (*.gguf)</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -8486,6 +9389,10 @@ Inietta automaticamente i chunk più rilevanti dalla base di conoscenza.</source
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>&lt;b&gt;💡 Quando serve la VPN:&lt;/b&gt; Se i nodi WAN Compute o Sci Compute si trovano su reti diverse (internet, ufficio remoto, casa), la VPN crea un tunnel cifrato che li fa sembrare sulla stessa LAN. In questo modo il WAN Compute (porta 11600) e il Sci Compute (porta 11601) restano raggiungibili e sicuri senza aprire porte sul router. Per nodi sulla stessa LAN la VPN non è necessaria.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>📝  Configurazione (modificabile)</source>
         <translation type="unfinished"></translation>
     </message>
@@ -8547,6 +9454,10 @@ Controlla: placeholder, binari, porte, raggiungibilita&apos; server</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>🔍  &lt;b&gt;Reverse Engineering&lt;/b&gt; — Carica un file compilato o offuscato: l&apos;AI analizza i byte, estrae le stringhe leggibili e ricostruisce il codice sorgente approssimativo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>📂  Carica file...</source>
         <translation type="unfinished"></translation>
     </message>
@@ -8592,6 +9503,12 @@ Controlla: placeholder, binari, porte, raggiungibilita&apos; server</source>
     </message>
     <message>
         <source>🤖  Codice sorgente ricostruito (streaming AI)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Il codice ricostruito dall&apos;AI apparià qui in streaming...
+
+Carica un file e premi 🔍 Analizza e Ricostruisci.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -8663,6 +9580,14 @@ Controlla: placeholder, binari, porte, raggiungibilita&apos; server</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>🔑  Permessi insufficienti. Clicca “Fix permessi” oppure esegui nel terminale: &lt;code&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>❌  pkexec non trovato. Esegui manualmente: sudo setcap cap_net_raw+eip </source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🔍  Lettura ARP cache...</source>
         <translation type="unfinished"></translation>
     </message>
@@ -8676,6 +9601,14 @@ Controlla: placeholder, binari, porte, raggiungibilita&apos; server</source>
     </message>
     <message>
         <source>⏹  Scansione interrotta.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🟡  Nessun host trovato.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>✅  %1 host online trovati con nmap.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -8877,6 +9810,10 @@ Premi Status per iniziare.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Scrivi un&apos;espressione Python e premi Invio...  ↑↓ per la cronologia</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🗑  Pulisci output</source>
         <translation type="unfinished"></translation>
     </message>
@@ -8913,6 +9850,10 @@ Premi Status per iniziare.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>&lt;b&gt;🟢 Driver NVIDIA&lt;/b&gt;&lt;br&gt;Gestisci i driver proprietari NVIDIA per Linux. &lt;code&gt;nvidia-smi&lt;/code&gt; mostra lo stato della GPU, i processi attivi e la versione del driver installato. DKMS garantisce che il modulo kernel venga ricompilato automaticamente dopo ogni aggiornamento del kernel.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>L&apos;output dei comandi apparirà qui...</source>
         <translation type="unfinished"></translation>
     </message>
@@ -8937,11 +9878,19 @@ Premi Status per iniziare.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>&lt;b&gt;🔴 Driver AMD&lt;/b&gt;&lt;br&gt;Il driver &lt;code&gt;amdgpu&lt;/code&gt; è già incluso nel kernel Linux e viene caricato automaticamente per le GPU AMD/Radeon. &lt;b&gt;ROCm&lt;/b&gt; è il framework AMD per compute GPU (ML/AI) e va installato separatamente. &lt;code&gt;lspci | grep VGA&lt;/code&gt; mostra la GPU rilevata dal sistema.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>📦  Scarica ROCm</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>🔴  Driver AMD</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;b&gt;🐧 Kernel Linux&lt;/b&gt;&lt;br&gt;Visualizza la versione kernel attiva con &lt;code&gt;uname -r&lt;/code&gt;. Su sistemi Debian/Ubuntu puoi elencare i kernel installati con &lt;code&gt;dpkg --list | grep linux-image&lt;/code&gt;. &lt;b&gt;Attenzione:&lt;/b&gt; compilare un kernel personalizzato è un&apos;operazione avanzata riservata a utenti esperti.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -9113,6 +10062,10 @@ Premi Status per iniziare.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>📡 &lt;b&gt;Stream&lt;/b&gt;: attiva &lt;i&gt;IoT Video Live&lt;/i&gt; su iot.tuya.com, premi &lt;b&gt;Ottieni URL&lt;/b&gt; oppure incolla HLS/RTSP.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>📡 Ottieni URL</source>
         <translation type="unfinished"></translation>
     </message>
@@ -9142,6 +10095,10 @@ Premi Status per iniziare.</source>
     </message>
     <message>
         <source>📹  USB &amp; Videocam LAN</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;b&gt;🔍 Reverse Engineering — Driver &amp;amp; Kernel&lt;/b&gt;&lt;br&gt;Analizza binari kernel, moduli &lt;code&gt;.ko&lt;/code&gt;, device driver: simboli ELF, disassembly, syscall tracing. Seleziona il target e usa gli strumenti, poi chiedi spiegazione all&apos;AI.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -9266,6 +10223,19 @@ Premi Status per iniziare.</source>
     </message>
     <message>
         <source>Pulisce l&apos;output del reverse engineering</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Seleziona un target e usa uno degli strumenti sopra...
+
+Esempi utili:
+  file /lib/modules/$(uname -r)/kernel/drivers/usb/serial/ch341.ko
+  readelf -a mio_driver.ko
+  nm --defined-only --demangle mio_driver.ko
+  strings -n 8 /usr/lib/firmware/rtl_bt/rtl8761b_fw.bin
+  modinfo snd_usb_audio
+  grep -i &lt;simbolo&gt; /proc/kallsyms
+</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -9421,6 +10391,12 @@ Premi Status per iniziare.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source># Scrivi il codice qui,
+# oppure usa 🤖 Chiedi all’AI per generarlo.
+# Trascina un file qui per aprirlo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>📟  Output</source>
         <translation type="unfinished"></translation>
     </message>
@@ -9442,6 +10418,12 @@ Premi Status per iniziare.</source>
     </message>
     <message>
         <source>Chiudi pannello AI</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Qui apparirà la risposta dell’AI.
+
+Scrivi la tua richiesta sopra e premi Invia.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -9481,11 +10463,19 @@ Premi Status per iniziare.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>✅  Nessun problema trovato (</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>❌  Linter non avviabile — verifica installazione</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Loop Fix — Esecuzione automatica di codice AI</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;b&gt;Loop Fix eseguirà automaticamente il codice&lt;/b&gt;&lt;br&gt;generato dall&apos;AI con i tuoi privilegi utente.&lt;br&gt;&lt;br&gt;Assicurati di usare questa funzione &lt;b&gt;solo con AI di cui ti fidi&lt;/b&gt; e con codice che non accede a dati sensibili o al filesystem.&lt;br&gt;&lt;br&gt;Il loop si ferma automaticamente dopo il numero di tentativi indicato dallo slider o se rileva un errore intenzionale (SyntaxError custom).</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -9509,6 +10499,10 @@ Premi Status per iniziare.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>❌  Errore (exit %1).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Tipo agente:</source>
         <translation type="unfinished"></translation>
     </message>
@@ -9529,7 +10523,27 @@ Premi Status per iniziare.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Descrivi il sistema che vuoi costruire...
+
+Esempi:
+  • &quot;Sistema RAG in Python che indicizza PDF e risponde a domande con citazioni&quot;
+  • &quot;Pipeline 3 agenti: Analista → Programmatore → Tester per un parser CSV&quot;
+  • &quot;Refactoring con pattern Strategy di questo codice C++&quot;
+  • &quot;Test unitari completi (pytest) per una classe BankAccount&quot;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🤖  Output agente (streaming)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>L&apos;output dell&apos;agente apparià qui in streaming...
+
+Scrivi il task sopra e premi ▶ Genera.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔀  Inserisci il codice e premi “Traduci”.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -9562,6 +10576,15 @@ Premi Status per iniziare.</source>
     </message>
     <message>
         <source>Codice sorgente</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Incolla qui il codice da tradurre...
+
+Esempio C:
+  int somma(int a, int b) {
+      return a + b;
+  }</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -9612,6 +10635,10 @@ Premi Status per iniziare.</source>
     </message>
     <message>
         <source>⬇  Aggiorna tutti</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Solo i pacchetti richiesti da Prismalux (requirements.txt). Puoi modificare “Versione target” per un downgrade: prima di ogni modifica la versione attuale viene salvata e ripristinata automaticamente se il modulo non si importa più dopo l&apos;installazione.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -9687,6 +10714,14 @@ Premi Status per iniziare.</source>
     </message>
     <message>
         <source>&lt;b&gt;Seleziona modello e variante di quantizzazione:&lt;/b&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Q4_K_M  %1  — carica tutto in RAM%2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Q8_0    %1  — qualità massima, richiede NVMe SSD%2</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -9766,6 +10801,12 @@ Premi Status per iniziare.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Il quiz generato appare qui...
+
+Suggerimento: puoi usare l’argomento in italiano o in inglese.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Domanda 1 / ?</source>
         <translation type="unfinished"></translation>
     </message>
@@ -9783,6 +10824,11 @@ Premi Status per iniziare.</source>
     </message>
     <message>
         <source>📖  Rivedi errori</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⚠️  Per usare questa scheda,
+prima genera un quiz dalla scheda &quot;🎯 Genera&quot;.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -9818,6 +10864,14 @@ Premi Status per iniziare.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>✅  Completato</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>❌  Terminato con errore</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🔄  Esecuzione...</source>
         <translation type="unfinished"></translation>
     </message>
@@ -9831,6 +10885,12 @@ Premi Status per iniziare.</source>
     </message>
     <message>
         <source>Dove mostrare il grafico?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📈  È stata rilevata una formula o un insieme di punti.
+
+Vuoi mostrare il grafico &lt;b&gt;qui&lt;/b&gt; nella bolla oppure aprire la sezione &lt;b&gt;Grafico&lt;/b&gt; dove puoi zoomare, esportare e personalizzarlo?</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -10098,6 +11158,12 @@ Premi Status per iniziare.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Compila i campi sopra e premi “Calcola TFR”.
+
+Oppure premi “Compila da RAG” per estrarre automaticamente i dati dalla tua Knowledge Base (Impostazioni → Memoria).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>✅  Reimpostato — riavvia Prismalux</source>
         <translation type="unfinished"></translation>
     </message>
@@ -10250,6 +11316,12 @@ Questa azione è irreversibile.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>📭  Nessun quiz ancora completato.
+
+Completa almeno un quiz (nella scheda Impara) per vedere le statistiche qui.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>📭  Nessun quiz ancora completato.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -10290,6 +11362,11 @@ Questa azione è irreversibile.</source>
     </message>
     <message>
         <source>Modello:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Descrivi la molecola o l&apos;analisi...
+Es: &apos;Calcola MW, LogP per la caffeina (SMILES: Cn1cnc2c1c(=O)n(c(=O)n2C)C)&apos;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -10384,6 +11461,10 @@ Pulsante 🌐 per caricare una pagina web.</source>
         <source>✖  Nessuno</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>❌  Errore: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>RamCalculatorWidget</name>
@@ -10403,9 +11484,17 @@ Pulsante 🌐 per caricare una pagina web.</source>
         <source>Risultato</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>ℹ Stima approssimativa: non tiene conto di architettura esatta, lunghezza reale del contesto caricato o overhead del sistema operativo. Aumenta “Overhead” per margini più prudenti.</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>RicercaPage</name>
+    <message>
+        <source>⭐  &lt;b&gt;Carta Astrale / Tema Natale&lt;/b&gt;  &lt;span style=&apos;color:gray;font-size:10px;&apos;&gt;Inserisci dati e consulta gli astri con AI.&lt;/span&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
     <message>
         <source>Dati natali</source>
         <translation type="unfinished"></translation>
@@ -10455,11 +11544,22 @@ Pulsante 🌐 per caricare una pagina web.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Domanda o focus facoltativo:
+es. &apos;Come sarà il 2025 per la mia carriera?&apos;
+oppure &apos;Cosa mi dice il tema natale sull’amore?&apos;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🖼  Salva immagine .png</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Salva la ruota astrale come file PNG ad alta risoluzione</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>L’interpretazione testuale apparerà qui.
+Compila i dati natali a sinistra e clicca ⭐ Leggi gli Astri.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -10495,6 +11595,11 @@ Pulsante 🌐 per caricare una pagina web.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>🔮  Analisi karmica apparerà qui.
+Inserisci i dati natali e clicca 🔮 Ruota Karmica.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Salva l&apos;analisi karmica in formato Markdown</source>
         <translation type="unfinished"></translation>
     </message>
@@ -10523,6 +11628,10 @@ Pulsante 🌐 per caricare una pagina web.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>🔍  Cerca Paper/Brevetti</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>es. BLHM: A Novel Hybrid LLM Architecture</source>
         <translation type="unfinished"></translation>
     </message>
@@ -10535,7 +11644,17 @@ Pulsante 🌐 per caricare una pagina web.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Descrivi l&apos;idea, l&apos;approccio e i risultati principali.
+L&apos;AI espanderà tutto in un paper completo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🚀  Genera Paper</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>L&apos;output del paper apparirà qui.
+Puoi modificarlo dopo la generazione.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -10547,7 +11666,22 @@ Pulsante 🌐 per caricare una pagina web.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>es. Ridurre la complessità computazionale O(n²) dei transformer per query ontologiche</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Descrivi l&apos;invenzione in dettaglio:
+come funziona, cosa la distingue dallo stato dell&apos;arte,
+applicazioni pratiche.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🔏  Genera Brevetto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Il testo del brevetto apparirà qui.
+Sezioni: Titolo, Campo, Background, Sommario, Descrizione dettagliata, Rivendicazioni, Abstract.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -10563,7 +11697,24 @@ Pulsante 🌐 per caricare una pagina web.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Descrivi il progetto/sistema:
+- Cosa fa
+- Come funziona
+- Dati e risultati misurati
+- Specifiche tecniche rilevanti</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>📋  Genera Documento</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Il documento tecnico apparirà qui.
+Sezioni: Sommario Esecutivo, Introduzione, Architettura, Specifiche, Calcoli, Risultati, Limitazioni, Conclusioni.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🔍  &lt;b&gt;Cerca Paper e Brevetti&lt;/b&gt; — Ricerca su &lt;b&gt;arXiv&lt;/b&gt;, &lt;b&gt;Semantic Scholar&lt;/b&gt; e &lt;b&gt;USPTO&lt;/b&gt; senza account o API key. Poi analizza i risultati con AI.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -10595,6 +11746,14 @@ Pulsante 🌐 per caricare una pagina web.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>⏱  Timeout (15s) — premi Cerca per ritentare</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source> — premi Cerca per ritentare</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🤖  Analisi AI...</source>
         <translation type="unfinished"></translation>
     </message>
@@ -10607,6 +11766,10 @@ Pulsante 🌐 per caricare una pagina web.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>&lt;b&gt;🌌  Analisi Fenomeni&lt;/b&gt;  &lt;span style=&apos;color:gray;font-size:11px;&apos;&gt;L&apos;AI valuta se un evento è realmente accaduto sulla base delle fonti.&lt;/span&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Categoria evento</source>
         <translation type="unfinished"></translation>
     </message>
@@ -10615,7 +11778,22 @@ Pulsante 🌐 per caricare una pagina web.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Descrivi l’evento nel dettaglio:
+- cosa è stato osservato / riportato
+- quando, dove, da chi
+- eventuali effetti fisici o testimonianze</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Fonti (URL, citazioni, testo grezzo)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Incolla qui le tue fonti:
+- link ad articoli scientifici o giornali
+- estratti di testo, PDF, rapporti ufficiali
+- citazioni di testimoni o esperti
+(se non hai fonti, scrivi: nessuna fonte disponibile)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -10643,11 +11821,31 @@ Pulsante 🌐 per caricare una pagina web.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Il risultato dell’analisi AI apparirà qui.
+
+La risposta include:
+  📊  Probabilità (0-100%)
+  ✅  Evidenze a supporto
+  ❌  Elementi contraddittori
+  🔬  Spiegazione scientifica più probabile
+  🔀  Ipotesi alternativa
+  ⚖  Verdetto motivato</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🕸  &lt;b&gt;Grafo della Conoscenza RAG&lt;/b&gt; — entità e relazioni estratte dai tuoi documenti</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Modello LLM per estrazione entità</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>🔄  Analizza RAG</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Scansiona ~/prismalux_rag_docs/ e Prismalux/RAG/, estrae entità e relazioni con LLM</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -10684,6 +11882,10 @@ Pulsante 🌐 per caricare una pagina web.</source>
     </message>
     <message>
         <source>Clicca un nodo per i dettagli...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;p style=&apos;color:#64748b&apos;&gt;Il grafo apparirà qui dopo l&apos;analisi.&lt;br&gt;Richiede &lt;b&gt;graphviz&lt;/b&gt; installato: &lt;code&gt;sudo apt install graphviz&lt;/code&gt;&lt;/p&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -10752,6 +11954,10 @@ Continuare?</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>✅  Completato: %1 file, %2 entità, %3 relazioni.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Grafo vuoto — indicizza documenti con &quot;Analizza Grafo&quot;</source>
         <translation type="unfinished"></translation>
     </message>
@@ -10773,6 +11979,18 @@ Continuare?</source>
     </message>
     <message>
         <source>⏹  Interrotto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>✅  Completato</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>❌  Uscito con codice %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🧪  &lt;b&gt;Test Comprensione RAG&lt;/b&gt; — Verifica che l&apos;AI abbia letto e compreso i documenti. Genera domande reali &lt;b&gt;e a trabocchetto&lt;/b&gt;, poi valuta le risposte.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -10812,7 +12030,17 @@ Continuare?</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Le domande appariranno qui dopo aver premuto &quot;Genera domande&quot;.
+Le domande trabocchetto sono contrassegnate con [TRABOCCHETTO].</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🤖  Risposte AI + Valutazione</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Le risposte appariranno qui dopo &quot;Esegui test&quot;.
+La valutazione finale apparirà dopo &quot;Valuta risposte&quot;.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -10841,6 +12069,10 @@ Continuare?</source>
     </message>
     <message>
         <source>🤖  Analisi immagine con AI...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>❌  Errore analisi immagine: </source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -11075,6 +12307,11 @@ Continuare?</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Carica FASTA/CSV/TXT e genera N Work Unit automaticamente
+max 500 WU per batch — usa {{INPUT}} nel template JSON</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>📋  Coda Work Units</source>
         <translation type="unfinished"></translation>
     </message>
@@ -11123,6 +12360,11 @@ Continuare?</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Aggrega tutti i risultati della pipeline (o della WU selezionata)
+Esporta in CSV / JSON / Testo concatenato</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Nome</source>
         <translation type="unfinished"></translation>
     </message>
@@ -11156,6 +12398,10 @@ Continuare?</source>
     </message>
     <message>
         <source>CPU ore</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;b&gt;🖥  Come aggiungere un nodo worker Sci Compute:&lt;/b&gt;&lt;ol style=&apos;margin:4px 0 4px 16px; padding:0;&apos;&gt;&lt;li&gt;Installa Python 3.10+ e le dipendenze dei tool scientifici necessari (es. &lt;tt&gt;blast+&lt;/tt&gt;, &lt;tt&gt;gromacs&lt;/tt&gt;, &lt;tt&gt;scipy&lt;/tt&gt;).&lt;/li&gt;&lt;li&gt;Copia &lt;b&gt;MCPs/sci_worker/sci_worker.py&lt;/b&gt; sul nodo remoto.&lt;/li&gt;&lt;li&gt;Avvia: &lt;tt&gt;python3 sci_worker.py --host IP_SERVER --port 11601 --token TOKEN --capabilities blast,gmx,python&lt;/tt&gt;&lt;/li&gt;&lt;li&gt;Il nodo appare qui sotto dopo la prima connessione. Il server assegna automaticamente le WU compatibili con le sue capability.&lt;/li&gt;&lt;/ol&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -11247,11 +12493,25 @@ MKTLLLTLVVVTIVCLDLGAV...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Crea automaticamente una Work Unit AutoDock Vina
+nel sistema BOINC con questa struttura come recettore</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Viewer 3D non disponibile (richiede Qt6::WebEngineWidgets).
+Il testo PDB verrà mostrato qui.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>&lt;span style=&apos;color:#ef4444&apos;&gt;Inserisci una sequenza amminoacidica.&lt;/span&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>🔄  Predizione in corso (30-120s)...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;span style=&apos;color:#ef4444&apos;&gt;❌  Risposta API non valida. Riprova tra qualche secondo.&lt;/span&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -11271,6 +12531,12 @@ MKTLLLTLVVVTIVCLDLGAV...</source>
     </message>
     <message>
         <source>■  Stop</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Incolla qui il codice da analizzare...
+
+Supportati: Python, C/C++, JavaScript, Java, PHP, Go, Rust, ecc.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -11354,7 +12620,15 @@ MKTLLLTLVVVTIVCLDLGAV...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>❌  Errore rete: </source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>❌  Risposta non valida da api.osv.dev</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>✅  Nessuna vulnerabilita&apos; trovata (</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -11484,6 +12758,10 @@ MKTLLLTLVVVTIVCLDLGAV...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>%1 toni in sequenza</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>⚠  Aggiungi almeno un tono alla sequenza</source>
         <translation type="unfinished"></translation>
     </message>
@@ -11595,6 +12873,10 @@ PWM tipico: 70-78%   MPPT tipico: 80-88%</source>
     </message>
     <message>
         <source>⚡  PWM</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;small&gt;Abbassa la tensione del pannello a quella&lt;br&gt;della batteria. Semplice, economico,&lt;br&gt;ma spreca la differenza di tensione.&lt;/small&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -11840,6 +13122,10 @@ Caduta tensione max ammessa: 3% della tensione sistema.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>&lt;span style=&apos;color:#f44336;&apos;&gt;❌  Inserisci almeno un carico con potenza &gt; 0 W&lt;/span&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Corrente uscita nominale: &lt;b&gt;%1 A&lt;/b&gt;</source>
         <translation type="unfinished"></translation>
     </message>
@@ -11918,6 +13204,10 @@ altrimenti fping). Scopre tutti gli host attivi.</source>
     </message>
     <message>
         <source>⬆  Usa selezionato</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;small&gt;&lt;i&gt;Seleziona una riga e premi &apos;Usa selezionato&apos; oppure fai doppio clic&lt;/i&gt;&lt;/small&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -12156,6 +13446,10 @@ altrimenti fping). Scopre tutti gli host attivi.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>&lt;span style=&apos;color:#555;&apos;&gt;L&apos;immagine generata apparerà qui.&lt;/span&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>💾  Salva PNG</source>
         <translation type="unfinished"></translation>
     </message>
@@ -12283,6 +13577,12 @@ altrimenti fping). Scopre tutti gli host attivi.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>I file trovati appariranno qui...
+
+Suggerimento: usa termini precisi (nomi funzioni, variabili, argomenti)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>argomento Wikipedia (es. &quot;Intelligenza artificiale&quot;, &quot;Alan Turing&quot;)</source>
         <translation type="unfinished"></translation>
     </message>
@@ -12299,11 +13599,22 @@ altrimenti fping). Scopre tutti gli host attivi.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Il testo dell’articolo Wikipedia appare qui...
+
+Suggerimento: usa titoli precisi (es. &quot;Fisica quantistica&quot; e non &quot;fisica&quot;)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>📂  Carica dati</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Nessun file caricato</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>ℹ  Formati supportati: XLSX, XLS, CSV, ODS
+Excel richiede &lt;code&gt;pip install openpyxl&lt;/code&gt; (già in requirements.txt)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -12331,11 +13642,31 @@ altrimenti fping). Scopre tutti gli host attivi.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>L&apos;anteprima del foglio appare qui...
+
+Carica un file Excel, CSV o ODS per iniziare.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>L&apos;analisi AI appare qui...
+
+Clicca &apos;Analizza con AI&apos; dopo aver caricato i dati.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;b&gt;📄  Analisi PDF&lt;/b&gt; — Carica un PDF e analizzalo con AI</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>📄  Carica PDF</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Nessun PDF caricato</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>ℹ  Richiede &lt;code&gt;pdftotext&lt;/code&gt; (poppler-utils) oppure Python &lt;code&gt;pdfplumber&lt;/code&gt;.&lt;br&gt;Installa: &lt;code&gt;sudo apt install poppler-utils&lt;/code&gt; oppure &lt;code&gt;pip install pdfplumber&lt;/code&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -12351,11 +13682,23 @@ altrimenti fping). Scopre tutti gli host attivi.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Il risultato dell&apos;analisi appare qui...
+
+Carica un PDF e clicca &apos;Analizza con AI&apos;.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>📂  Carica file</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>pip install python-docx odfpy</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Il risultato dell&apos;analisi appare qui...
+
+Carica un file di testo e clicca &apos;Analizza con AI&apos;.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -12426,6 +13769,10 @@ altrimenti fping). Scopre tutti gli host attivi.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>📦 &lt;b&gt;Vuoi controllare Microsoft Office/365 via MCP?&lt;/b&gt; Installa un server MCP dedicato: cerca &lt;b&gt;office365 MCP&lt;/b&gt; su &lt;a href=&apos;https://github.com/modelcontextprotocol/servers&apos;&gt;github.com/modelcontextprotocol/servers&lt;/a&gt; oppure su npm (&lt;code&gt;npm install -g mcp-server-office365&lt;/code&gt;), poi registralo con: &lt;code&gt;claude mcp add office365 node /path/to/server.js&lt;/code&gt;. → Il bridge Python qui sopra funziona già con LibreOffice senza MCP.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>FreeCAD:</source>
         <translation type="unfinished"></translation>
     </message>
@@ -12471,6 +13818,10 @@ altrimenti fping). Scopre tutti gli host attivi.</source>
     </message>
     <message>
         <source>Avvia CloudCompare se installato sul sistema</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;b&gt;🔵 CloudCompare — bridge AI in sviluppo&lt;/b&gt;&lt;br&gt;&lt;br&gt;Il bridge AI non è ancora stabile. Nel frattempo puoi aprire CloudCompare direttamente con il pulsante sopra.&lt;br&gt;&lt;br&gt;&lt;b&gt;Installa CloudCompare:&lt;/b&gt;&lt;br&gt;• Ubuntu/Debian: &lt;code&gt;sudo apt install cloudcompare&lt;/code&gt;&lt;br&gt;• Flatpak: &lt;code&gt;flatpak install flathub org.cloudcompare.CloudCompare&lt;/code&gt;&lt;br&gt;• Windows: scarica da &lt;a href=&apos;https://www.danielgm.net/cc/&apos;&gt;danielgm.net/cc&lt;/a&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;Bridge futuro (MCP):&lt;/b&gt;&lt;br&gt;• Demo sperimentale: &lt;a href=&apos;https://github.com/truebelief/CloudCompareMCP&apos;&gt;CloudCompareMCP&lt;/a&gt;&lt;br&gt;• Wrapper Python ufficiale: &lt;a href=&apos;https://github.com/CloudCompare/CloudComPy&apos;&gt;CloudComPy&lt;/a&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -12602,6 +13953,12 @@ altrimenti fping). Scopre tutti gli host attivi.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>L&apos;output dell&apos;AI appare qui...
+
+🍺  Invocazione riuscita. Gli dei ascoltano.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>⏳  Caricamento Cron Scheduler in corso...</source>
         <translation type="unfinished"></translation>
     </message>
@@ -12666,6 +14023,13 @@ altrimenti fping). Scopre tutti gli host attivi.</source>
     <name>SubjectTutorWidget</name>
     <message>
         <source>Doppio clic per spiegazione AI</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🛏️  Tutor — %1
+
+Clicca un argomento nell&apos;albero a sinistra
+oppure scrivi una domanda libera qui sotto.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -13606,6 +14970,10 @@ All&apos;avvio del server l&apos;elenco si riempie con i modelli installati.</so
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>1. Scegli interfaccia/porta e VLM qui sopra, poi premi &lt;b&gt;Avvia server&lt;/b&gt;.&lt;br&gt;2. Sullo stesso WiFi, inquadra questo QR col telefono (o apri l&apos;URL a mano).&lt;br&gt;3. Certificato self-signed: &lt;i&gt;Avanzate → Procedi&lt;/i&gt;.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Bersagli ArUco — scala reale</source>
         <translation type="unfinished"></translation>
     </message>
@@ -14131,6 +15499,10 @@ File statici NON serviti — esegui collectstatic</source>
     </message>
     <message>
         <source>Reimposta vista</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>➕  Aggiungi come Tappa: </source>
         <translation type="unfinished"></translation>
     </message>
     <message>

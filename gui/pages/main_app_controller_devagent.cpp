@@ -49,9 +49,9 @@ QWidget* AppControllerPage::buildDevAgentTab()
 
     /* ── Intestazione ── */
     auto* descLbl = new QLabel(
-        "\xf0\x9f\xa4\x96  <b>Dev Agent LangGraph</b> \xe2\x80\x94 "
+        tr("\xf0\x9f\xa4\x96  <b>Dev Agent LangGraph</b> \xe2\x80\x94 "
         "<i>Descrivi un task in linguaggio naturale: l\xe2\x80\x99"
-        "agente legge i file, genera una patch, compila e si auto-corregge.</i>",
+        "agente legge i file, genera una patch, compila e si auto-corregge.</i>"),
         w);
     descLbl->setObjectName("hintLabel");
     descLbl->setTextFormat(Qt::RichText);
@@ -180,8 +180,8 @@ QWidget* AppControllerPage::buildDevAgentTab()
     histLay->setSpacing(dpiScale(4));
 
     auto* histHint = new QLabel(
-        "<i>Backup in <code>~/.prismalux/devagent_history/</code>.<br>"
-        "Seleziona uno snapshot e clicca Ripristina.</i>", histGroup);
+        tr("<i>Backup in <code>~/.prismalux/devagent_history/</code>.<br>"
+        "Seleziona uno snapshot e clicca Ripristina.</i>"), histGroup);
     histHint->setObjectName("hintLabel");
     histHint->setTextFormat(Qt::RichText);
     histHint->setWordWrap(true);
@@ -226,9 +226,9 @@ QWidget* AppControllerPage::buildDevAgentTab()
         tr("\xf0\x9f\x8c\x90  Fetch + Reset da GitHub"), gitGroup);
     fetchResetBtn->setObjectName("actionBtn");
     fetchResetBtn->setToolTip(
-        "git fetch origin && git reset --hard origin/master\n"
+        tr("git fetch origin && git reset --hard origin/master\n"
         "Scarica l'ultimo commit da GitHub e sovrascrive il worktree locale.\n"
-        "\xe2\x9a\xa0  Annulla TUTTE le modifiche locali non committate.");
+        "\xe2\x9a\xa0  Annulla TUTTE le modifiche locali non committate."));
     fetchRow->addWidget(branchLbl);
     fetchRow->addWidget(m_devGitBranchEdit);
     fetchRow->addWidget(fetchResetBtn, 1);
@@ -241,8 +241,8 @@ QWidget* AppControllerPage::buildDevAgentTab()
     m_devGitLogList = new QListWidget(gitGroup);
     m_devGitLogList->setFixedHeight(dpiScale(90));
     m_devGitLogList->setToolTip(
-        "Seleziona un commit e clicca \"Ripristina al commit\" per\n"
-        "riportare i file modificati dal Dev Agent a quello stato.");
+        tr("Seleziona un commit e clicca \"Ripristina al commit\" per\n"
+        "riportare i file modificati dal Dev Agent a quello stato."));
     auto* gitLogRefresh = new QPushButton("\xf0\x9f\x94\x84", gitGroup);
     gitLogRefresh->setObjectName("actionBtn");
     gitLogRefresh->setFixedWidth(dpiScale(32));
@@ -665,7 +665,7 @@ void AppControllerPage::onDevAgentReadOutput()
                 icon + "  <b>" + (success ? "Completato" : "Fallito") + "</b>"
                 + (msg.isEmpty() ? "" : " \xe2\x80\x94 " + msg.toHtmlEscaped()));
             if (m_devStatusLbl) m_devStatusLbl->setText(
-                success ? "\xf0\x9f\x9f\xa2  Completato" : "\xf0\x9f\x94\xb4  Fallito");
+                success ? tr("\xf0\x9f\x9f\xa2  Completato") : tr("\xf0\x9f\x94\xb4  Fallito"));
         }
     }
 }

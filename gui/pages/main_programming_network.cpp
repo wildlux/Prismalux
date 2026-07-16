@@ -507,9 +507,9 @@ void ProgrammazionePage::onNetReadyReadStderr()
         const QString fix = QString("sudo setcap cap_net_raw+eip %1").arg(m_netTool);
         if (m_netStatus)
             m_netStatus->setText(
-                "\xf0\x9f\x94\x91  Permessi insufficienti. "
+                tr("\xf0\x9f\x94\x91  Permessi insufficienti. "
                 "Clicca \xe2\x80\x9c" "Fix permessi\xe2\x80\x9d"
-                " oppure esegui nel terminale: <code>" + fix + "</code>");
+                " oppure esegui nel terminale: <code>") + fix + "</code>");
         return;
     }
 
@@ -530,8 +530,8 @@ void ProgrammazionePage::netFixPermissions()
     if (pkexec.isEmpty()) {
         if (m_netStatus)
             m_netStatus->setText(
-                "\xe2\x9d\x8c  pkexec non trovato. Esegui manualmente: "
-                "sudo setcap cap_net_raw+eip " + m_netTool);
+                tr("\xe2\x9d\x8c  pkexec non trovato. Esegui manualmente: "
+                "sudo setcap cap_net_raw+eip ") + m_netTool);
         LogBus::post("\xe2\x9d\x8c Programmazione: pkexec non trovato.");
         return;
     }
@@ -840,8 +840,8 @@ void ProgrammazionePage::onLanNmapFinished(int /*code*/, QProcess::ExitStatus /*
     if (m_lanStatusLbl)
         m_lanStatusLbl->setText(
             count == 0
-            ? "\xf0\x9f\x9f\xa1  Nessun host trovato."
-            : QString("\xe2\x9c\x85  %1 host online trovati con nmap.").arg(count));
+            ? tr("\xf0\x9f\x9f\xa1  Nessun host trovato.")
+            : tr("\xe2\x9c\x85  %1 host online trovati con nmap.").arg(count));
     lanResetBtns();
     if (auto* p = qobject_cast<QProcess*>(sender())) { p->deleteLater(); m_lanProc = nullptr; }
 }

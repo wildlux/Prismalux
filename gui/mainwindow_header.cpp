@@ -153,11 +153,11 @@ void MainWindow::buildActionButtons(QHBoxLayout* lay)
     m_emergencyBtn = new QPushButton("🚨", hdr);
     m_emergencyBtn->setObjectName("emergencyBtn");
     m_emergencyBtn->setToolTip(
-        "EMERGENZA RAM\n"
+        tr("EMERGENZA RAM\n"
         "1. Scarica modello corrente dalla RAM (keep_alive=0)\n"
         "2. Ferma tutti i modelli Ollama\n"
         "3. Libera cache kernel (richiede password admin)\n"
-        "Diventa giallo se RAM > 40%, rosso se > 75%.");
+        "Diventa giallo se RAM > 40%, rosso se > 75%."));
     m_emergencyBtn->setFixedSize(dpiSize(42, 36));
     connect(m_emergencyBtn, &QPushButton::clicked, this, &MainWindow::onEmergencyRamClicked);
     lay->addWidget(m_emergencyBtn);

@@ -1193,8 +1193,8 @@ QWidget* ImpostazioniPage::buildMcpTab()
         auto* blay = new QVBoxLayout(box);
 
         auto* intro = new QLabel(
-            "Premi \xf0\x9f\x93\x8b per copiare il comando npx/uvx negli appunti. "
-            "Poi aggiungilo con la sezione \"Aggiungi MCP personalizzato\" sopra.");
+            tr("Premi \xf0\x9f\x93\x8b per copiare il comando npx/uvx negli appunti. "
+            "Poi aggiungilo con la sezione \"Aggiungi MCP personalizzato\" sopra."));
         intro->setWordWrap(true);
         intro->setStyleSheet("color: gray; font-size: 11px;");
         blay->addWidget(intro);
@@ -1301,8 +1301,8 @@ QWidget* ImpostazioniPage::buildMcpTab()
     auto* onbBtn = new QPushButton(
         tr("\xf0\x9f\x8d\xba  Mostra di nuovo il messaggio di benvenuto"), page);
     onbBtn->setToolTip(
-        "Reimposta il flag di primo avvio: alla prossima apertura\n"
-        "di Prismalux apparir\xc3\xa0 di nuovo la schermata di benvenuto.");
+        tr("Reimposta il flag di primo avvio: alla prossima apertura\n"
+        "di Prismalux apparir\xc3\xa0 di nuovo la schermata di benvenuto."));
     connect(onbBtn, &QPushButton::clicked, onbBtn,
             [onbBtn](){ settingsDoResetOnboarding(onbBtn); });
     onbRow->addWidget(onbBtn);
@@ -1332,9 +1332,9 @@ QWidget* ImpostazioniPage::buildAiMemoryTab()
     vbox->addWidget(titleLbl);
 
     auto* infoLbl = new QLabel(
-        "<small>Ogni preferenza appresa e feedback " "\xf0\x9f\x91\x8d\xf0\x9f\x91\x8e"
+        tr("<small>Ogni preferenza appresa e feedback " "\xf0\x9f\x91\x8d\xf0\x9f\x91\x8e"
         " viene salvato come commit Git in <code>~/.ai-memory/</code>.<br>"
-        "Seleziona un commit e usa <b>Ripristina</b> per tornare alle preferenze di quella versione.</small>",
+        "Seleziona un commit e usa <b>Ripristina</b> per tornare alle preferenze di quella versione.</small>"),
         w);
     infoLbl->setTextFormat(Qt::RichText);
     infoLbl->setWordWrap(true);
@@ -1457,11 +1457,11 @@ QWidget* ImpostazioniPage::buildFeedbackTab()
     vbox->addWidget(sep);
 
     auto* importLbl = new QLabel(
-        "\xf0\x9f\x93\xa5  <b>Importa da AI esterne</b><br>"
+        tr("\xf0\x9f\x93\xa5  <b>Importa da AI esterne</b><br>"
         "<small>Carica un file JSON esportato da ChatGPT o Claude (export dati "
         "account), oppure un JSON generico {\"role\",\"content\"} (DeepSeek, Qwen "
         "e altri, se esportato con strumenti terzi \xe2\x80\x94 non hanno un export "
-        "ufficiale proprio). Le conversazioni finiscono nello storico chat locale.</small>", w);
+        "ufficiale proprio). Le conversazioni finiscono nello storico chat locale.</small>"), w);
     importLbl->setTextFormat(Qt::RichText);
     importLbl->setWordWrap(true);
     vbox->addWidget(importLbl);

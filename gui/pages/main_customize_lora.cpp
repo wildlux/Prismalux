@@ -83,10 +83,10 @@ QWidget* PersonalizzaPage::buildLoraTab()
         tLay->setSpacing(10);
 
         auto* info = new QLabel(
-            "\xf0\x9f\xa6\x99  <b>llama-finetune</b> \xe2\x80\x94 "
+            tr("\xf0\x9f\xa6\x99  <b>llama-finetune</b> \xe2\x80\x94 "
             "CPU+GPU nativo llama.cpp \xe2\x80\x94 nessuna GPU richiesta (ma consigliata).<br>"
             "Richiede: <code>llama-finetune</code> compilato in "
-            "<code>Prismalux/ENGINE_LLM/llama.cpp/build/bin/</code>",
+            "<code>Prismalux/ENGINE_LLM/llama.cpp/build/bin/</code>"),
             tab);
         info->setWordWrap(true);
         info->setTextFormat(Qt::RichText);
@@ -305,7 +305,7 @@ QWidget* PersonalizzaPage::buildLoraTab()
         tLay->setSpacing(8);
 
         auto* guide = new QLabel(
-            "<h3>\xf0\x9f\x93\x96  Guida al Fine-tuning LoRA</h3>"
+            tr("<h3>\xf0\x9f\x93\x96  Guida al Fine-tuning LoRA</h3>"
             "<h4>Cos\xe2\x80\x99\xc3\xa8 LoRA?</h4>"
             "<p>Low-Rank Adaptation addestra solo una piccola matrice di aggiornamento "
             "invece dei pesi completi. Risultato: adattamento rapido con poca RAM/VRAM.</p>"
@@ -329,7 +329,7 @@ QWidget* PersonalizzaPage::buildLoraTab()
             "<li><b>LLaMA-Factory</b>: UI web integrata, molti formati</li>"
             "</ul>"
             "<p style='color:#94a3b8;'>Dopo il training, converti l\xe2\x80\x99"
-            "adapter in GGUF per usarlo con Ollama o llama-server.</p>",
+            "adapter in GGUF per usarlo con Ollama o llama-server.</p>"),
             tab);
         guide->setWordWrap(true);
         guide->setTextFormat(Qt::RichText);
@@ -358,8 +358,8 @@ QWidget* PersonalizzaPage::buildLoraTab()
 void PersonalizzaPage::onModelBtnClicked() {
     if (!m_loraModelEdit) return;
     const QString f = QFileDialog::getOpenFileName(
-        this, "Seleziona modello base", P::root(),
-        "Modelli GGUF (*.gguf)");
+        this, tr("Seleziona modello base"), P::root(),
+        tr("Modelli GGUF (*.gguf)"));
     if (!f.isEmpty()) m_loraModelEdit->setText(f);
 }
 

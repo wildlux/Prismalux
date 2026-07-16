@@ -476,7 +476,7 @@ void WorldMapWidget::onResultActivated(QListWidgetItem* item)
                 insertStartWaypoint(lat, lon);
             });
         menu.addAction(
-            "\xe2\x9e\x95  Aggiungi come Tappa: " + nm,
+            tr("\xe2\x9e\x95  Aggiungi come Tappa: ") + nm,
             this, [this, lat, lon] {
                 addWaypoint(lat, lon);
                 emit waypointAdded(m_waypointCoords.size() - 1, lat, lon);

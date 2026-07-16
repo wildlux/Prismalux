@@ -57,9 +57,9 @@ QWidget* ProgrammazionePage::buildReverseEngineering(QWidget* parent)
 void ProgrammazionePage::buildRevHeader(QVBoxLayout* lay, QWidget* w)
 {
     auto* desc = new QLabel(
-        "\xf0\x9f\x94\x8d  <b>Reverse Engineering</b> \xe2\x80\x94 "
+        tr("\xf0\x9f\x94\x8d  <b>Reverse Engineering</b> \xe2\x80\x94 "
         "Carica un file compilato o offuscato: l'AI analizza i byte, "
-        "estrae le stringhe leggibili e ricostruisce il codice sorgente approssimativo.", w);
+        "estrae le stringhe leggibili e ricostruisce il codice sorgente approssimativo."), w);
     desc->setObjectName("hintLabel");
     desc->setWordWrap(true);
     lay->addWidget(desc);
@@ -219,8 +219,8 @@ QWidget* ProgrammazionePage::buildRevOutputGroup(QWidget* parent,
     m_revOutput->setReadOnly(true);
     m_revOutput->setFont(monoFont);
     m_revOutput->setPlaceholderText(
-        "Il codice ricostruito dall'AI appari\xc3\xa0 qui in streaming...\n\n"
-        "Carica un file e premi \xf0\x9f\x94\x8d Analizza e Ricostruisci.");
+        tr("Il codice ricostruito dall'AI appari\xc3\xa0 qui in streaming...\n\n"
+        "Carica un file e premi \xf0\x9f\x94\x8d Analizza e Ricostruisci."));
     outLay->addWidget(m_revOutput, 1);
 
     auto* revBtnRow = new QWidget(outGroup);

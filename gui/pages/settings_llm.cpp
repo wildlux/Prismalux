@@ -1071,9 +1071,9 @@ QWidget* ImpostazioniPage::buildLlmConsigliatiTab()
 
     /* ── Titolo ── */
     auto* titleLbl = new QLabel(
-        "\xf0\x9f\xa4\x96  LLM Consigliati  \xe2\x80\x94  "
+        tr("\xf0\x9f\xa4\x96  LLM Consigliati  \xe2\x80\x94  "
         "<span style='color:#94a3b8;font-size:12px;font-weight:normal;'>"
-        "Seleziona gestore e categoria, poi clicca per installare.</span>", page);
+        "Seleziona gestore e categoria, poi clicca per installare.</span>"), page);
     titleLbl->setObjectName("sectionTitle");
     titleLbl->setTextFormat(Qt::RichText);
     mainLay->addWidget(titleLbl);
@@ -1380,7 +1380,7 @@ QWidget* ImpostazioniPage::buildLlmConsigliatiTab()
         "background:#0c1e3a;border:1px solid #1e3a5f;border-radius:8px;"
         "padding:12px 16px;color:#e2e8f0;font-size:12px;line-height:160%;");
     xeonLbl->setText(
-        "<b style='color:#60a5fa;font-size:13px;'>"
+        tr("<b style='color:#60a5fa;font-size:13px;'>"
         "\xf0\x9f\x96\xa5  Configurazione consigliata: Xeon + 64 GB RAM</b><br><br>"
 
         "<b style='color:#93c5fd;'>Strategia ottimale per la tua macchina:</b><br>"
@@ -1406,7 +1406,7 @@ QWidget* ImpostazioniPage::buildLlmConsigliatiTab()
 
         "<span style='color:#64748b;font-size:11px;'>"
         "Nota: modelli con \xe2\x98\x85 sono testati e ottimizzati per CPU Xeon multi-core."
-        "</span>");
+        "</span>"));
     xeonLay->addWidget(xeonLbl);
     mainLay->addWidget(xeonPanel);
 
@@ -1532,14 +1532,14 @@ QWidget* ImpostazioniPage::buildLlmConsigliatiTab()
         "background:#1a0505;border:1px solid #7f1d1d;"
         "border-radius:8px;padding:8px 14px;color:#e2e8f0;font-size:11px;");
     brokenLbl->setText(
-        "<b style='color:#f87171;'>\xe2\x9a\xa0  Modelli con problemi noti (da evitare)</b><br>"
+        tr("<b style='color:#f87171;'>\xe2\x9a\xa0  Modelli con problemi noti (da evitare)</b><br>"
         "<b style='color:#fca5a5;'>qwen3.5:0.8b</b> \xe2\x80\x94 "
         "thinking loop infinito su Ollama: genera solo pensiero interno, "
         "message.content sempre vuoto anche con 2048 token. "
         "Prismalux mostra un errore esplicito se lo selezioni. "
         "<span style='color:#94a3b8;'>Alternative: "
         "llama3.2:3b (~50 tok/s, 80% matematica) "
-        "oppure deepseek-r1:1.5b (~41 tok/s).</span>");
+        "oppure deepseek-r1:1.5b (~41 tok/s).</span>"));
     mainLay->addWidget(brokenLbl);
 
     return page;
@@ -1928,12 +1928,12 @@ QWidget* ImpostazioniPage::buildBenchmarkLocaleTab()
 
     /* ── Nota metodologia ── */
     auto* notaLbl = new QLabel(
-        "<span style='color:#64748b;font-size:11px;'>"
+        tr("<span style='color:#64748b;font-size:11px;'>"
         "Temperature testate: 0.1 \xe2\x80\x93 0.3 \xe2\x80\x93 0.5 \xe2\x80\x93 0.7 \xe2\x80\x93 0.9 \xe2\x80\x93 1.1  "
         "\xe2\x80\xa2  2 run per punto  \xe2\x80\xa2  5 domande (identit\xc3\xa0, geo, aritmetica, auto-desc, cultura)"
         "<br>Causa score 0 qwen3: <b>think:false mancante nello script Python</b> "
         "+ language bias (modello Alibaba, reasoning in cinese)."
-        "</span>", page);
+        "</span>"), page);
     notaLbl->setTextFormat(Qt::RichText);
     notaLbl->setWordWrap(true);
     mainLay->addWidget(notaLbl);

@@ -1024,7 +1024,7 @@ QWidget* LanWanPage::buildLanAndroidTab()
     qrInfoLbl->setWordWrap(true);
     qrInfoLbl->setAlignment(Qt::AlignLeft | Qt::AlignTop);
     qrInfoLbl->setText(
-        "<br>"
+        tr("<br>"
         "<span style='font-size:13px;'>"
         "<b>\xf0\x9f\x93\xb1  Connetti l\xe2\x80\x99" "app Android</b></span><br>"
         "<span style='font-size:12px;'>"
@@ -1033,7 +1033,7 @@ QWidget* LanWanPage::buildLanAndroidTab()
         "<b>\xf0\x9f\x93\xb7 Scansiona QR</b><br>"
         "3. Punta la fotocamera sul QR <b>App Android</b> (destra)<br>"
         "<span style='color:gray;font-size:11px;'>"
-        "IP + Porta + Token configurati in automatico.</span></span>");
+        "IP + Porta + Token configurati in automatico.</span></span>"));
     rightLay->addWidget(qrInfoLbl);
 
     /* ── Sotto: URL + pulsanti ── */

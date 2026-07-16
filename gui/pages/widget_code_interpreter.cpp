@@ -70,10 +70,10 @@ CodeInterpreterWidget::CodeInterpreterWidget(AiClient* ai, QWidget* parent)
 
     /* ── Intestazione ── */
     auto* titleLbl = new QLabel(
-        "\xf0\x9f\xa7\xaa <b>Code Interpreter</b>  "
+        tr("\xf0\x9f\xa7\xaa <b>Code Interpreter</b>  "
         "<span style='color:#888;font-size:11px;'>"
         "Descrivi \xe2\x86\x92 AI genera Python \xe2\x86\x92 Esegui \xe2\x86\x92 "
-        "Fix automatico (max 3 tentativi)</span>", this);
+        "Fix automatico (max 3 tentativi)</span>"), this);
     titleLbl->setTextFormat(Qt::RichText);
     mainLay->addWidget(titleLbl);
 
@@ -319,8 +319,8 @@ void CodeInterpreterWidget::runGenerate()
     connectAI([this](const QString& code){
         if (code.isEmpty()) {
             m_status->setText(
-                "\xe2\x9d\x8c  L'AI non ha prodotto codice valido. "
-                "Riprova con una descrizione pi\xc3\xb9 precisa.");
+                tr("\xe2\x9d\x8c  L'AI non ha prodotto codice valido. "
+                "Riprova con una descrizione pi\xc3\xb9 precisa."));
             setRunning(false);
             return;
         }
@@ -404,7 +404,7 @@ void CodeInterpreterWidget::executeStep(const QString& code, int attempt)
 
         if (exitCode == 0) {
             m_status->setText(
-                QString("\xe2\x9c\x85  Completato  \xc2\xb7  %1")
+                tr("\xe2\x9c\x85  Completato  \xc2\xb7  %1")
                 .arg(QDateTime::currentDateTime().toString("HH:mm:ss")));
             if (QFile::exists(m_imagePath))
                 showImage(m_imagePath);
@@ -416,13 +416,13 @@ void CodeInterpreterWidget::executeStep(const QString& code, int attempt)
 
             if (attempt >= kMaxAttempts) {
                 m_status->setText(
-                    QString("\xe2\x9d\x8c  Fallito dopo %1 tentativi. "
+                    tr("\xe2\x9d\x8c  Fallito dopo %1 tentativi. "
                             "Prova una descrizione diversa.").arg(attempt));
                 setRunning(false);
                 return;
             }
             m_status->setText(
-                QString("\xf0\x9f\x94\x84  Errore \xe2\x80\x94 AI corregge "
+                tr("\xf0\x9f\x94\x84  Errore \xe2\x80\x94 AI corregge "
                         "(tentativo %1/%2)...")
                 .arg(attempt + 1).arg(kMaxAttempts));
             requestFix(code, errSnippet, attempt);
@@ -449,7 +449,7 @@ void CodeInterpreterWidget::executeStepDocker(const QString& code, int attempt)
                 [this, attempt, code](int rc, const QString& out){
             if (!m_busy) return;
             if (rc == 0) {
-                m_status->setText(QString("\xe2\x9c\x85  Completato  \xc2\xb7  %1")
+                m_status->setText(tr("\xe2\x9c\x85  Completato  \xc2\xb7  %1")
                     .arg(QDateTime::currentDateTime().toString("HH:mm:ss")));
                 if (QFile::exists(m_imagePath)) showImage(m_imagePath);
                 setRunning(false);
@@ -506,11 +506,11 @@ void CodeInterpreterWidget::executeStepDocker(const QString& code, int attempt)
             const QStringList lines = fullOut.split('\n');
             const QString err = lines.mid(qMax(0, lines.size()-20)).join('\n').trimmed();
             if (attempt >= kMaxAttempts) {
-                m_status->setText(QString("\xe2\x9d\x8c  Fallito dopo %1 tentativi.").arg(attempt));
+                m_status->setText(tr("\xe2\x9d\x8c  Fallito dopo %1 tentativi.").arg(attempt));
                 setRunning(false);
                 return;
             }
-            m_status->setText(QString("\xf0\x9f\x94\x84  Errore Docker \xe2\x80\x94 AI corregge (%1/%2)...")
+            m_status->setText(tr("\xf0\x9f\x94\x84  Errore Docker \xe2\x80\x94 AI corregge (%1/%2)...")
                 .arg(attempt+1).arg(kMaxAttempts));
             requestFix(code, err, attempt);
         }

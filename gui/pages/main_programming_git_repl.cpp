@@ -599,8 +599,8 @@ QWidget* ProgrammazionePage::buildReplInputRow(QWidget* parent)
     m_replInput->setObjectName("chatInput");
     m_replInput->setFont(monoFont);
     m_replInput->setPlaceholderText(
-        "Scrivi un'espressione Python e premi Invio...  "
-        "\xe2\x86\x91\xe2\x86\x93 per la cronologia");
+        tr("Scrivi un'espressione Python e premi Invio...  "
+        "\xe2\x86\x91\xe2\x86\x93 per la cronologia"));
     m_replInput->setEnabled(false);
     inputLay->addWidget(m_replInput, 1);
 

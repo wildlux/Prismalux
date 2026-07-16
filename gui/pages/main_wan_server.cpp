@@ -192,7 +192,7 @@ void LanWanPage::onWanStartBtnClicked()
             if (!m_wanServer->listen(bindAddr, static_cast<quint16>(port))) {
                 m_wanStartBtn->setChecked(false);
                 m_wanSrvStatusLbl->setText(
-                    "\xe2\x9d\x8c  Errore: " + m_wanServer->errorString());
+                    tr("\xe2\x9d\x8c  Errore: ") + m_wanServer->errorString());
                 LogBus::post("\xe2\x9d\x8c LAN WAN: WAN server errore: " + m_wanServer->errorString());
                 m_wanSrvStatusLbl->setStyleSheet("color:#f44336;");
                 return;

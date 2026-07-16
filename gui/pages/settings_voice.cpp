@@ -198,8 +198,8 @@ QWidget* ImpostazioniPage::buildVoceTab()
 
     /* Nota qualità TTS */
     auto* lblFallback = new QLabel(
-        "\xf0\x9f\x92\xa1  Usa Piper TTS per qualit\xc3\xa0 superiore: "
-        "installa in <b>Impostazioni \xe2\x86\x92 Personalizza \xe2\x86\x92 Piper</b>",
+        tr("\xf0\x9f\x92\xa1  Usa Piper TTS per qualit\xc3\xa0 superiore: "
+        "installa in <b>Impostazioni \xe2\x86\x92 Personalizza \xe2\x86\x92 Piper</b>"),
         secPiper);
     lblFallback->setObjectName("cardDesc");
     lblFallback->setTextFormat(Qt::RichText);
@@ -278,7 +278,7 @@ QWidget* ImpostazioniPage::buildVoceTab()
             row);
         btnDl->setObjectName("actionBtn");
         btnDl->setToolTip(
-            QString("Scarica %1.onnx (~%2 MB) da HuggingFace")
+            tr("Scarica %1.onnx (~%2 MB) da HuggingFace")
             .arg(v.id).arg(v.sizeMb));
 
         rowLay->addWidget(lbl, 1);
@@ -576,9 +576,9 @@ QWidget* ImpostazioniPage::buildVoceTab()
         if (!QProcess::startDetached("espeak-ng", { "-l", "it", text })) {
             if (!QProcess::startDetached("spd-say", { "--lang", "it", "--", text })) {
                 lblTestStatus->setText(
-                    "\xe2\x9d\x8c  Nessun sintetizzatore trovato. "
+                    tr("\xe2\x9d\x8c  Nessun sintetizzatore trovato. "
                     "Installa Piper (sopra) oppure: "
-                    "<code>sudo apt install espeak-ng</code>");
+                    "<code>sudo apt install espeak-ng</code>"));
                 return;
             }
         }
@@ -658,10 +658,10 @@ void ImpostazioniPage::buildTrascriviModeSection(QGroupBox* inner, QVBoxLayout* 
         llmLay->setSpacing(6);
 
         auto* llmDesc = new QLabel(
-            "\xf0\x9f\x94\xac  Seleziona un modello Ollama con capacit\xc3\xa0 audio.<br>"
+            tr("\xf0\x9f\x94\xac  Seleziona un modello Ollama con capacit\xc3\xa0 audio.<br>"
             "<small style='color:#f59e0b;'>"
             "\xe2\x9a\xa0  Attualmente nessun modello Ollama supporta audio nativo.<br>"
-            "Quando disponibili, appariranno nel selettore qui sotto.</small>",
+            "Quando disponibili, appariranno nel selettore qui sotto.</small>"),
             llmPanel);
         llmDesc->setObjectName("cardDesc");
         llmDesc->setTextFormat(Qt::RichText);
@@ -847,14 +847,14 @@ void ImpostazioniPage::buildTrascriviBinSection(QGroupBox* inner, QVBoxLayout* i
         const QString b = SttWhisper::whisperBin();
         if (b.isEmpty()) {
             lblBin->setText(
-                "\xe2\x9d\x8c  Non trovato. Installa con:<br>"
+                tr("\xe2\x9d\x8c  Non trovato. Installa con:<br>"
                 "<code>sudo apt install whisper-cpp</code>"
                 "&nbsp;&nbsp;oppure&nbsp;&nbsp;"
                 "<code>sudo dnf install whisper-cpp</code><br>"
                 "Oppure compila da sorgente: "
                 "<code>git clone https://github.com/ggml-org/whisper.cpp &amp;&amp; "
                 "cd whisper.cpp &amp;&amp; cmake -B build &amp;&amp; "
-                "cmake --build build -j$(nproc)</code>");
+                "cmake --build build -j$(nproc)</code>"));
         } else {
             lblBin->setText(tr("\xe2\x9c\x85  Trovato: <code>") + b + "</code>");
         }
@@ -1130,8 +1130,8 @@ void ImpostazioniPage::buildTrascriviModelSections(QGroupBox* inner, QVBoxLayout
         const QString path = cmbModel->currentData().toString();
         if (!QFileInfo::exists(path)) {
             lblActivePath->setText(
-                "\xe2\x9a\xa0  Modello non ancora scaricato. "
-                "Usa il pulsante \xe2\x86\x93\xc2\xa0Scarica qui sotto.");
+                tr("\xe2\x9a\xa0  Modello non ancora scaricato. "
+                "Usa il pulsante \xe2\x86\x93\xc2\xa0Scarica qui sotto."));
             return;
         }
         SttWhisper::savePreferredModel(path);
@@ -1193,7 +1193,7 @@ void ImpostazioniPage::buildTrascriviModelSections(QGroupBox* inner, QVBoxLayout
             row);
         btnDl->setObjectName("actionBtn");
         btnDl->setToolTip(
-            QString("Scarica %1.bin (~%2 MB) da HuggingFace")
+            tr("Scarica %1.bin (~%2 MB) da HuggingFace")
                 .arg(m.id).arg(m.sizeMb));
 
         rowLay->addWidget(lbl, 1);
@@ -1345,8 +1345,8 @@ void ImpostazioniPage::buildTrascriviHttpSection(QGroupBox* inner, QVBoxLayout* 
                 hs.setValue(P::SK::kSttHttpUrl, url);
                 httpStatus->setText(
                     url.isEmpty()
-                    ? "\xe2\x9a\xa0  URL rimosso. Si user\xc3\xa0 whisper-cli locale."
-                    : "\xe2\x9c\x85  URL salvato. Le trascrizioni useranno il server HTTP.");
+                    ? tr("\xe2\x9a\xa0  URL rimosso. Si user\xc3\xa0 whisper-cli locale.")
+                    : tr("\xe2\x9c\x85  URL salvato. Le trascrizioni useranno il server HTTP."));
             });
 
     connect(httpClearBtn, &QPushButton::clicked, inner,
@@ -1499,14 +1499,14 @@ void ImpostazioniPage::buildTrascriviNoteDepsSection(QGroupBox* inner, QVBoxLayo
     secNoteLay->addWidget(noteTitle);
 
     auto* noteText = new QLabel(
-        "\xe2\x80\xa2  La trascrizione avviene <b>offline</b> sul dispositivo &mdash; "
+        tr("\xe2\x80\xa2  La trascrizione avviene <b>offline</b> sul dispositivo &mdash; "
         "nessun dato inviato a server esterni.<br>"
         "\xe2\x80\xa2  La lingua predefinita \xc3\xa8 <b>Italiano</b>. "
         "whisper.cpp supporta oltre 99 lingue.<br>"
         "\xe2\x80\xa2  Requisiti: <code>arecord</code> (pacchetto <i>alsa-utils</i>) "
         "per la registrazione microfono.<br>"
         "\xe2\x80\xa2  Il modello <b>Small</b> (~141 MB) offre il miglior equilibrio "
-        "velocit\xc3\xa0/precisione per l\xe2\x80\x99italiano.",
+        "velocit\xc3\xa0/precisione per l\xe2\x80\x99italiano."),
         secNote);
     noteText->setObjectName("cardDesc");
     noteText->setTextFormat(Qt::RichText);

@@ -86,9 +86,9 @@ CytoscapeWidget::CytoscapeWidget(AiClient* ai, QWidget* parent)
     lay->addWidget(connRow);
 
     auto* hintLbl = new QLabel(
-        "\xf0\x9f\x94\xac <b>Cytoscape MCP:</b> analisi reti biologiche e sociali. "
+        tr("\xf0\x9f\x94\xac <b>Cytoscape MCP:</b> analisi reti biologiche e sociali. "
         "Avvia Cytoscape (abilita CyREST su porta 1234).<br>"
-        "Installa: <code>pip install py2cytoscape requests</code>", this);
+        "Installa: <code>pip install py2cytoscape requests</code>"), this);
     hintLbl->setObjectName("hintLabel");
     hintLbl->setWordWrap(true);
     lay->addWidget(hintLbl);
@@ -110,8 +110,8 @@ CytoscapeWidget::CytoscapeWidget(AiClient* ai, QWidget* parent)
 
     m_input = new QTextEdit(this);
     m_input->setPlaceholderText(
-        "Descrivi la rete da analizzare...\n"
-        "Es: 'Crea un grafo di interazione proteica con 10 proteine e mostra i hub'");
+        tr("Descrivi la rete da analizzare...\n"
+        "Es: 'Crea un grafo di interazione proteica con 10 proteine e mostra i hub'"));
     m_input->setFixedHeight(dpiScale(80));
     lay->addWidget(m_input);
 

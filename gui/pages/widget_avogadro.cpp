@@ -94,8 +94,8 @@ AvogadroWidget::AvogadroWidget(AiClient* ai, QWidget* parent)
 
     m_input = new QTextEdit(this);
     m_input->setPlaceholderText(
-        "Descrivi la molecola da modellare...\n"
-        "Es: 'Genera la struttura 3D ottimizzata dell'acido acetilsalicilico (aspirina)'");
+        tr("Descrivi la molecola da modellare...\n"
+        "Es: 'Genera la struttura 3D ottimizzata dell'acido acetilsalicilico (aspirina)'"));
     m_input->setFixedHeight(dpiScale(80));
     lay->addWidget(m_input);
 

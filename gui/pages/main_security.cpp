@@ -148,8 +148,8 @@ SecurityAnalyzerPage::SecurityAnalyzerPage(AiClient* ai, QWidget* parent)
     m_codeInput = new QTextEdit(leftWidget);
     m_codeInput->setObjectName("chatLog");
     m_codeInput->setPlaceholderText(
-        "Incolla qui il codice da analizzare...\n\n"
-        "Supportati: Python, C/C++, JavaScript, Java, PHP, Go, Rust, ecc.");
+        tr("Incolla qui il codice da analizzare...\n\n"
+        "Supportati: Python, C/C++, JavaScript, Java, PHP, Go, Rust, ecc."));
     m_codeInput->setAcceptRichText(false);
     /* font monospaced per il codice */
     QFont mono("Monospace");
@@ -598,7 +598,7 @@ void SecurityAnalyzerPage::onOsvReply()
 
     if (reply->error() != QNetworkReply::NoError) {
         m_osvStatusLbl->setText(
-            "\xe2\x9d\x8c  Errore rete: " + reply->errorString());  /* ❌ */
+            tr("\xe2\x9d\x8c  Errore rete: ") + reply->errorString());  /* ❌ */
         m_osvOutput->append(
             "<p style='color:red'>\xe2\x9d\x8c  Errore: "  /* ❌ */
             + reply->errorString() + "</p>");
@@ -701,7 +701,7 @@ void SecurityAnalyzerPage::onOsvReply()
 
     if (m_osvVulnCount == 0) {
         m_osvStatusLbl->setText(
-            "\xe2\x9c\x85  Nessuna vulnerabilita' trovata ("  /* ✅ */
+            tr("\xe2\x9c\x85  Nessuna vulnerabilita' trovata (")  /* ✅ */
             + QString::number(safeCount) + " pacchetti).");
     } else {
         m_osvStatusLbl->setText(

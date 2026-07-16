@@ -316,13 +316,13 @@ QWidget* AppControllerPage::buildFreeCADTab()
     /* ── Input ── */
     m_freecadInput = new QTextEdit(w);
     m_freecadInput->setPlaceholderText(
-        "Descrivi cosa fare in FreeCAD — es.:\n"
+        tr("Descrivi cosa fare in FreeCAD — es.:\n"
         "  Crea un box 50x30x10 mm con foro passante da 6 mm\n"
         "  Analisi FEM statica: vincola Face1, forza 500 N su Face2, acciaio S235\n"
         "  Esegui CalculiX e mostra max Von Mises e spostamento\n"
         "  Aggiungi raccordo R2 su tutti gli spigoli verticali\n"
         "  Importa file STEP e assegna materiale alluminio 6061\n"
-        "  Esporta rendering OBJ per Blender");
+        "  Esporta rendering OBJ per Blender"));
     m_freecadInput->setMaximumHeight(dpiScale(80));
     m_freecadInput->setMinimumHeight(dpiScale(60));
     lay->addWidget(m_freecadInput);

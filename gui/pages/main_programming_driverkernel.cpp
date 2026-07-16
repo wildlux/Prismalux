@@ -66,12 +66,12 @@ void ProgrammazionePage::buildDriverNvidiaSubTab(QTabWidget* tabs)
     info->setTextFormat(Qt::RichText);
     info->setObjectName("hintLabel");
     info->setText(
-        "<b>\xf0\x9f\x9f\xa2 Driver NVIDIA</b><br>"
+        tr("<b>\xf0\x9f\x9f\xa2 Driver NVIDIA</b><br>"
         "Gestisci i driver proprietari NVIDIA per Linux. "
         "<code>nvidia-smi</code> mostra lo stato della GPU, i processi attivi "
         "e la versione del driver installato. "
         "DKMS garantisce che il modulo kernel venga ricompilato automaticamente "
-        "dopo ogni aggiornamento del kernel."
+        "dopo ogni aggiornamento del kernel.")
     );
     vl->addWidget(info);
 
@@ -128,12 +128,12 @@ void ProgrammazionePage::buildDriverAmdSubTab(QTabWidget* tabs)
     info->setTextFormat(Qt::RichText);
     info->setObjectName("hintLabel");
     info->setText(
-        "<b>\xf0\x9f\x94\xb4 Driver AMD</b><br>"
+        tr("<b>\xf0\x9f\x94\xb4 Driver AMD</b><br>"
         "Il driver <code>amdgpu</code> \xc3\xa8 gi\xc3\xa0 incluso nel kernel Linux "
         "e viene caricato automaticamente per le GPU AMD/Radeon. "
         "<b>ROCm</b> \xc3\xa8 il framework AMD per compute GPU (ML/AI) "
         "e va installato separatamente. "
-        "<code>lspci | grep VGA</code> mostra la GPU rilevata dal sistema."
+        "<code>lspci | grep VGA</code> mostra la GPU rilevata dal sistema.")
     );
     vl->addWidget(info);
 
@@ -186,12 +186,12 @@ void ProgrammazionePage::buildDriverKernelSubTab(QTabWidget* tabs)
     info->setTextFormat(Qt::RichText);
     info->setObjectName("hintLabel");
     info->setText(
-        "<b>\xf0\x9f\x90\xa7 Kernel Linux</b><br>"
+        tr("<b>\xf0\x9f\x90\xa7 Kernel Linux</b><br>"
         "Visualizza la versione kernel attiva con <code>uname -r</code>. "
         "Su sistemi Debian/Ubuntu puoi elencare i kernel installati con "
         "<code>dpkg --list | grep linux-image</code>. "
         "<b>Attenzione:</b> compilare un kernel personalizzato \xc3\xa8 un'operazione "
-        "avanzata riservata a utenti esperti."
+        "avanzata riservata a utenti esperti.")
     );
     vl->addWidget(info);
 
@@ -594,8 +594,8 @@ void ProgrammazionePage::buildDriverUsbSubTab(QTabWidget* tabs)
             hint->setObjectName("hintLabel");
             hint->setTextFormat(Qt::RichText);
             hint->setText(
-                "\xf0\x9f\x93\xa1 <b>Stream</b>: attiva <i>IoT Video Live</i> "
-                "su iot.tuya.com, premi <b>Ottieni URL</b> oppure incolla HLS/RTSP."
+                tr("\xf0\x9f\x93\xa1 <b>Stream</b>: attiva <i>IoT Video Live</i> "
+                "su iot.tuya.com, premi <b>Ottieni URL</b> oppure incolla HLS/RTSP.")
             );
             vl->addWidget(hint);
 
@@ -722,10 +722,10 @@ void ProgrammazionePage::buildDriverReKernelSubTab(QTabWidget* tabs)
     info->setTextFormat(Qt::RichText);
     info->setObjectName("hintLabel");
     info->setText(
-        "<b>\xf0\x9f\x94\x8d Reverse Engineering \xe2\x80\x94 Driver &amp; Kernel</b><br>"
+        tr("<b>\xf0\x9f\x94\x8d Reverse Engineering \xe2\x80\x94 Driver &amp; Kernel</b><br>"
         "Analizza binari kernel, moduli <code>.ko</code>, device driver: "
         "simboli ELF, disassembly, syscall tracing. "
-        "Seleziona il target e usa gli strumenti, poi chiedi spiegazione all'AI."
+        "Seleziona il target e usa gli strumenti, poi chiedi spiegazione all'AI.")
     );
     vl->addWidget(info);
 
@@ -868,14 +868,14 @@ void ProgrammazionePage::buildDriverReKernelSubTab(QTabWidget* tabs)
     m_reKernelOutput->setReadOnly(true);
     m_reKernelOutput->setObjectName("codeOutput");
     m_reKernelOutput->setPlaceholderText(
-        "Seleziona un target e usa uno degli strumenti sopra...\n\n"
+        tr("Seleziona un target e usa uno degli strumenti sopra...\n\n"
         "Esempi utili:\n"
         "  file /lib/modules/$(uname -r)/kernel/drivers/usb/serial/ch341.ko\n"
         "  readelf -a mio_driver.ko\n"
         "  nm --defined-only --demangle mio_driver.ko\n"
         "  strings -n 8 /usr/lib/firmware/rtl_bt/rtl8761b_fw.bin\n"
         "  modinfo snd_usb_audio\n"
-        "  grep -i <simbolo> /proc/kallsyms\n"
+        "  grep -i <simbolo> /proc/kallsyms\n")
     );
     vl->addWidget(m_reKernelOutput, 1);
 

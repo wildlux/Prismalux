@@ -70,8 +70,8 @@ void AiScriptWidget::runSciScript(const QString& code, bool isBash,
             QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
             parent, [statusLbl, execBtn](int code2, QProcess::ExitStatus){
                 statusLbl->setText(code2 == 0
-                    ? "\xe2\x9c\x85  Completato"
-                    : "\xe2\x9d\x8c  Terminato con errore");
+                    ? QObject::tr("\xe2\x9c\x85  Completato")
+                    : QObject::tr("\xe2\x9d\x8c  Terminato con errore"));
                 execBtn->setEnabled(true);
             });
         QObject::connect(procRef, &QProcess::errorOccurred, parent,

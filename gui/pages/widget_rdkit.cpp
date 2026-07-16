@@ -110,8 +110,8 @@ RDKitWidget::RDKitWidget(AiClient* ai, QWidget* parent)
 
     m_input = new QTextEdit(this);
     m_input->setPlaceholderText(
-        "Descrivi la molecola o l'analisi...\n"
-        "Es: 'Calcola MW, LogP per la caffeina (SMILES: Cn1cnc2c1c(=O)n(c(=O)n2C)C)'");
+        tr("Descrivi la molecola o l'analisi...\n"
+        "Es: 'Calcola MW, LogP per la caffeina (SMILES: Cn1cnc2c1c(=O)n(c(=O)n2C)C)'"));
     m_input->setFixedHeight(dpiScale(80));
     lay->addWidget(m_input);
 

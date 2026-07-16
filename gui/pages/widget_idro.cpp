@@ -390,9 +390,9 @@ IdroWidget::IdroWidget(QWidget* parent)
     dosiFrm->addRow(calcDosiBtn);
 
     auto* dosiNote = new QLabel(
-        "<small><i>\xe2\x84\xb9  Inserisci la dose per litro indicata dal "  /* ℹ */
+        tr("<small><i>\xe2\x84\xb9  Inserisci la dose per litro indicata dal "  /* ℹ */
         "produttore del fertilizzante.<br>"
-        "Esempio Flora Series: A=5 ml/L, B=5 ml/L a regime vegetativo.</i></small>",
+        "Esempio Flora Series: A=5 ml/L, B=5 ml/L a regime vegetativo.</i></small>"),
         dosiBox);
     dosiNote->setTextFormat(Qt::RichText);
     dosiNote->setWordWrap(true);
@@ -451,9 +451,9 @@ IdroWidget::IdroWidget(QWidget* parent)
     logLay->addWidget(m_lastMeasLbl);
 
     auto* logNote = new QLabel(
-        "<small><i>\xe2\x84\xb9  Clicca '+ Aggiungi' per inserire una nuova riga, "
+        tr("<small><i>\xe2\x84\xb9  Clicca '+ Aggiungi' per inserire una nuova riga, "
         "poi modifica i valori direttamente nella tabella. "
-        "Il log viene salvato automaticamente.</i></small>", logBox);
+        "Il log viene salvato automaticamente.</i></small>"), logBox);
     logNote->setTextFormat(Qt::RichText);
     logNote->setWordWrap(true);
     logLay->addWidget(logNote);

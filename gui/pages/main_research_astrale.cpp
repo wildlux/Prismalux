@@ -64,10 +64,10 @@ QWidget* RicercaPage::buildAstraleTab()
 
     /* Titolo compatto dentro il pannello sinistro */
     auto* titleLbl = new QLabel(
-        "\xe2\xad\x90  <b>Carta Astrale / Tema Natale</b>"
+        tr("\xe2\xad\x90  <b>Carta Astrale / Tema Natale</b>"
         "  <span style='color:gray;font-size:10px;'>"
         "Inserisci dati e consulta gli astri con AI."
-        "</span>");
+        "</span>"));
     titleLbl->setTextFormat(Qt::RichText);
     leftLay->addWidget(titleLbl);
 
@@ -204,9 +204,9 @@ QWidget* RicercaPage::buildAstraleTab()
     m_astraleDesc->setMinimumHeight(80);
     m_astraleDesc->setMaximumHeight(140);
     m_astraleDesc->setPlaceholderText(
-        "Domanda o focus facoltativo:\n"
+        tr("Domanda o focus facoltativo:\n"
         "es. 'Come sar\xc3\xa0 il 2025 per la mia carriera?'\n"
-        "oppure 'Cosa mi dice il tema natale sull\xe2\x80\x99" "amore?'");
+        "oppure 'Cosa mi dice il tema natale sull\xe2\x80\x99" "amore?'"));
     formLay->addRow(m_astraleDesc);
 
     connect(focusToggle, &QPushButton::toggled,
@@ -292,9 +292,9 @@ QWidget* RicercaPage::buildAstraleTab()
     m_astraleOutput->setReadOnly(false);
     m_astraleOutput->setFont(QFont("Monospace", 10));
     m_astraleOutput->setPlaceholderText(
-        "L\xe2\x80\x99"
+        tr("L\xe2\x80\x99"
         "interpretazione testuale apparer\xc3\xa0 qui.\n"
-        "Compila i dati natali a sinistra e clicca \xe2\xad\x90 Leggi gli Astri.");
+        "Compila i dati natali a sinistra e clicca \xe2\xad\x90 Leggi gli Astri."));
     /* barra azioni allineata a sinistra — no label (tab già dice "Interpretazione") */
     {
         auto* aBar  = new QWidget(interpTab);
@@ -384,8 +384,8 @@ QWidget* RicercaPage::buildAstraleTab()
     m_karmicaOutput->setReadOnly(false);
     m_karmicaOutput->setFont(QFont("Monospace", 10));
     m_karmicaOutput->setPlaceholderText(
-        "\xf0\x9f\x94\xae  Analisi karmica apparer\xc3\xa0 qui.\n"
-        "Inserisci i dati natali e clicca \xf0\x9f\x94\xae Ruota Karmica.");
+        tr("\xf0\x9f\x94\xae  Analisi karmica apparer\xc3\xa0 qui.\n"
+        "Inserisci i dati natali e clicca \xf0\x9f\x94\xae Ruota Karmica."));
     {
         auto* kBar = new QWidget(karmTab);
         auto* kBarLay = new QHBoxLayout(kBar);

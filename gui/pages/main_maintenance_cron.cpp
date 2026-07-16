@@ -382,7 +382,7 @@ void ManutenzioneePage::cronAddOrEdit(int idx)
     lay->addWidget(schedGrp);
 
     auto* bb = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, dlg);
-    bb->button(QDialogButtonBox::Ok)->setText(isEdit ? "Salva" : "Aggiungi");
+    bb->button(QDialogButtonBox::Ok)->setText(isEdit ? tr("Salva") : tr("Aggiungi"));
     lay->addWidget(bb);
 
     m_cronDlgEdName      = edName;
@@ -427,9 +427,9 @@ QWidget* ManutenzioneePage::buildCronTab()
 
     /* Descrizione */
     auto* desc = new QLabel(
-        "\xe2\x8f\xb0  <b>Cron Prismalux</b> \xe2\x80\x94 "
+        tr("\xe2\x8f\xb0  <b>Cron Prismalux</b> \xe2\x80\x94 "
         "Pianifica prompt AI che vengono eseguiti automaticamente "
-        "mentre Prismalux \xc3\xa8 aperto. I risultati vengono mostrati nel log.", w);
+        "mentre Prismalux \xc3\xa8 aperto. I risultati vengono mostrati nel log."), w);
     desc->setObjectName("hintLabel");
     desc->setWordWrap(true);
     desc->setTextFormat(Qt::RichText);

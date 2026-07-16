@@ -160,12 +160,12 @@ QWidget* ProgrammazionePage::buildAgenticaTaskGroup(QWidget* parent)
     m_agentTask->setFont(monoFont);
     m_agentTask->setMaximumHeight(140);
     m_agentTask->setPlaceholderText(
-        "Descrivi il sistema che vuoi costruire...\n\n"
+        tr("Descrivi il sistema che vuoi costruire...\n\n"
         "Esempi:\n"
         "  \xe2\x80\xa2 \"Sistema RAG in Python che indicizza PDF e risponde a domande con citazioni\"\n"
         "  \xe2\x80\xa2 \"Pipeline 3 agenti: Analista \xe2\x86\x92 Programmatore \xe2\x86\x92 Tester per un parser CSV\"\n"
         "  \xe2\x80\xa2 \"Refactoring con pattern Strategy di questo codice C++\"\n"
-        "  \xe2\x80\xa2 \"Test unitari completi (pytest) per una classe BankAccount\"");
+        "  \xe2\x80\xa2 \"Test unitari completi (pytest) per una classe BankAccount\""));
     taskLay->addWidget(m_agentTask);
     return taskGroup;
 }
@@ -223,8 +223,8 @@ QWidget* ProgrammazionePage::buildAgenticaOutputGroup(QWidget* parent)
     m_agentOutput->setReadOnly(true);
     m_agentOutput->setFont(monoFont);
     m_agentOutput->setPlaceholderText(
-        "L'output dell'agente appari\xc3\xa0 qui in streaming...\n\n"
-        "Scrivi il task sopra e premi \xe2\x96\xb6 Genera.");
+        tr("L'output dell'agente appari\xc3\xa0 qui in streaming...\n\n"
+        "Scrivi il task sopra e premi \xe2\x96\xb6 Genera."));
     outLay->addWidget(m_agentOutput, 1);
 
     auto* outBtnRow = new QWidget(outGroup);

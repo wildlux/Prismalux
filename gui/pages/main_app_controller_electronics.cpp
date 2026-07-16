@@ -244,9 +244,9 @@ QWidget* AppControllerPage::buildKiCADTab()
     /* ── Input ── */
     m_kicadInput = new QTextEdit(w);
     m_kicadInput->setPlaceholderText(
-        "Descrivi il circuito o l'operazione PCB da eseguire...\n"
+        tr("Descrivi il circuito o l'operazione PCB da eseguire...\n"
         "Es: 'Crea un circuito LED con resistore da 470\xce\xa9 alimentato a 5V'\n"
-        "Es: 'Posiziona un ESP32 con connettore USB-C e antenna Wi-Fi'");
+        "Es: 'Posiziona un ESP32 con connettore USB-C e antenna Wi-Fi'"));
     m_kicadInput->setFixedHeight(dpiScale(90));
     lay->addWidget(m_kicadInput);
 
@@ -324,8 +324,8 @@ QWidget* AppControllerPage::buildTinyMCPTab()
     lay->setSpacing(6);
 
     auto* descLbl = new QLabel(
-        "\xf0\x9f\xa4\x96  <i>TinyMCP \xe2\x80\x94 Bridge AI per la programmazione di microcontrollori "
-        "Arduino, ESP32 e STM32. Genera codice C/C++ tramite AI, lo compila e lo flasha direttamente sul dispositivo via porta seriale.</i>", w);
+        tr("\xf0\x9f\xa4\x96  <i>TinyMCP \xe2\x80\x94 Bridge AI per la programmazione di microcontrollori "
+        "Arduino, ESP32 e STM32. Genera codice C/C++ tramite AI, lo compila e lo flasha direttamente sul dispositivo via porta seriale.</i>"), w);
     descLbl->setObjectName("hintLabel");
     descLbl->setTextFormat(Qt::RichText);
     descLbl->setWordWrap(true);
@@ -451,9 +451,9 @@ QWidget* AppControllerPage::buildTinyMCPTab()
     /* ── Input ── */
     m_mcuInput = new QTextEdit(w);
     m_mcuInput->setPlaceholderText(
-        "Descrivi il programma da generare per il microcontrollore...\n"
+        tr("Descrivi il programma da generare per il microcontrollore...\n"
         "Es: 'Fai lampeggiare 3 LED in sequenza con intervallo 500ms'\n"
-        "Es: 'Leggi temperatura da DHT22 e invia via UART ogni secondo'");
+        "Es: 'Leggi temperatura da DHT22 e invia via UART ogni secondo'"));
     m_mcuInput->setFixedHeight(dpiScale(90));
     lay->addWidget(m_mcuInput);
 
@@ -479,8 +479,8 @@ QWidget* AppControllerPage::buildTinyMCPTab()
     m_mcuOutput->setObjectName("outputView");
     m_mcuOutput->setOpenLinks(false);
     m_mcuOutput->setPlaceholderText(
-        "Il codice C++/Python per microcontrollore apparir\xc3\xa0 qui...\n"
-        "Dopo la generazione premi 'Flash MCU' per caricare sulla scheda.");
+        tr("Il codice C++/Python per microcontrollore apparir\xc3\xa0 qui...\n"
+        "Dopo la generazione premi 'Flash MCU' per caricare sulla scheda."));
     connect(m_mcuOutput, &QTextBrowser::anchorClicked,
             this, &AppControllerPage::onPipLinkClicked);
     lay->addWidget(m_mcuOutput, 1);
@@ -820,8 +820,8 @@ QWidget* AppControllerPage::buildOBSTab()
         banner->hide();
 
         auto* warnLbl = new QLabel(
-            "\xe2\x9a\xa0  Modulo <b>obsws-python</b> non installato "
-            "\xe2\x80\x94 OBS MCP non sar\xc3\xa0 disponibile.", banner);
+            tr("\xe2\x9a\xa0  Modulo <b>obsws-python</b> non installato "
+            "\xe2\x80\x94 OBS MCP non sar\xc3\xa0 disponibile."), banner);
         warnLbl->setObjectName("hintLabel");
         warnLbl->setStyleSheet("color:#fcd34d;background:transparent;border:none;");
 
@@ -866,9 +866,9 @@ QWidget* AppControllerPage::buildOBSTab()
     /* ── Input ── */
     m_obsInput = new QTextEdit(w);
     m_obsInput->setPlaceholderText(
-        "Descrivi cosa vuoi fare in OBS...\n"
+        tr("Descrivi cosa vuoi fare in OBS...\n"
         "Es: 'Avvia la registrazione e cambia scena su Gameplay'\n"
-        "Es: 'Silenzia il microfono e abbassa il volume del desktop al 50%'");
+        "Es: 'Silenzia il microfono e abbassa il volume del desktop al 50%'"));
     m_obsInput->setFixedHeight(dpiScale(90));
     lay->addWidget(m_obsInput);
 

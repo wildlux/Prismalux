@@ -58,8 +58,8 @@ AppControllerPage::AppControllerPage(AiClient* ai, QWidget* parent)
         tr("\xf0\x9f\x90\x8d  Moduli Python"), toolbar);
     pipBtn->setObjectName("actionBtn");
     pipBtn->setToolTip(
-        "Apri Impostazioni \xe2\x86\x92 Moduli Python "
-        "per installare i moduli necessari");
+        tr("Apri Impostazioni \xe2\x86\x92 Moduli Python "
+        "per installare i moduli necessari"));
     pipBtn->setFixedHeight(dpiScale(28));
     tbLay->addWidget(pipBtn);
     tbLay->addStretch();

@@ -786,9 +786,9 @@ static QWidget* buildSchedaTFR(QStackedWidget* inner, AiClient* ai)
     auto* tfrOut = new QTextBrowser(w);
     tfrOut->setObjectName("chatLog");
     tfrOut->setPlaceholderText(
-        "Compila i campi sopra e premi \xe2\x80\x9c" "Calcola TFR\xe2\x80\x9d.\n\n"
+        QObject::tr("Compila i campi sopra e premi \xe2\x80\x9c" "Calcola TFR\xe2\x80\x9d.\n\n"
         "Oppure premi \xe2\x80\x9c" "Compila da RAG\xe2\x80\x9d per estrarre automaticamente i dati "
-        "dalla tua Knowledge Base (Impostazioni \xe2\x86\x92 Memoria).");
+        "dalla tua Knowledge Base (Impostazioni \xe2\x86\x92 Memoria)."));
     lay->addWidget(tfrOut, 1);
 
     /* ── Grafico ── */

@@ -144,9 +144,9 @@ RamCalculatorWidget::RamCalculatorWidget(QWidget* parent) : QWidget(parent)
     resLay->addWidget(m_resInstLbl);
 
     auto* note = new QLabel(
-        "\xe2\x84\xb9 Stima approssimativa: non tiene conto di architettura esatta, "
+        tr("\xe2\x84\xb9 Stima approssimativa: non tiene conto di architettura esatta, "
         "lunghezza reale del contesto caricato o overhead del sistema operativo. "
-        "Aumenta \xe2\x80\x9cOverhead\xe2\x80\x9d per margini più prudenti.",
+        "Aumenta \xe2\x80\x9cOverhead\xe2\x80\x9d per margini più prudenti."),
         m_resBox);
     note->setWordWrap(true);
     note->setObjectName("cardDesc");

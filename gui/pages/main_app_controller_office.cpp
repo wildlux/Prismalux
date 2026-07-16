@@ -93,8 +93,8 @@ QWidget* AppControllerPage::buildOfficeTab()
     lay->setSpacing(6);
 
     auto* descLbl = new QLabel(
-        "\xf0\x9f\x93\x84  <i>Office Suite \xe2\x80\x94 Suite di produttività per la creazione di documenti di testo, "
-        "fogli di calcolo e presentazioni. Compatibile con LibreOffice e Microsoft Office tramite bridge Python-UNO.</i>", w);
+        tr("\xf0\x9f\x93\x84  <i>Office Suite \xe2\x80\x94 Suite di produttività per la creazione di documenti di testo, "
+        "fogli di calcolo e presentazioni. Compatibile con LibreOffice e Microsoft Office tramite bridge Python-UNO.</i>"), w);
     descLbl->setObjectName("hintLabel");
     descLbl->setTextFormat(Qt::RichText);
     descLbl->setWordWrap(true);
@@ -135,9 +135,9 @@ QWidget* AppControllerPage::buildOfficeTab()
 
     /* ── Hint ── */
     auto* hintLbl = new QLabel(
-        "\xf0\x9f\x93\xa6 <b>Bridge Office:</b> il bridge Python locale "
+        tr("\xf0\x9f\x93\xa6 <b>Bridge Office:</b> il bridge Python locale "
         "controlla LibreOffice via UNO. "
-        "Clicca <b>Avvia bridge</b> per avviarlo.", w);
+        "Clicca <b>Avvia bridge</b> per avviarlo."), w);
     hintLbl->setObjectName("hintLabel");
     hintLbl->setWordWrap(true);
     lay->addWidget(hintLbl);
@@ -163,9 +163,9 @@ QWidget* AppControllerPage::buildOfficeTab()
     /* ── Input ── */
     m_officeInput = new QTextEdit(w);
     m_officeInput->setPlaceholderText(
-        "Descrivi il documento da creare "
+        tr("Descrivi il documento da creare "
         "(es. 'Lettera di presentazione professionale', "
-        "'Foglio Excel con budget mensile')...");
+        "'Foglio Excel con budget mensile')..."));
     m_officeInput->setMaximumHeight(dpiScale(80));
     m_officeInput->setMinimumHeight(dpiScale(60));
     lay->addWidget(m_officeInput);
@@ -297,7 +297,7 @@ void AppControllerPage::onOfficeStatusReply()
             for (auto it = libs.begin(); it != libs.end(); ++it)
                 if (it.value().toBool()) ok << it.key();
             m_officeStatusLbl->setText(
-                "\xe2\x9c\x85  Pronto: " +
+                tr("\xe2\x9c\x85  Pronto: ") +
                 (ok.isEmpty() ? "bridge attivo" : ok.join(", ")));
         } else {
             m_officeStatusLbl->setText(
@@ -519,9 +519,9 @@ QWidget* AppControllerPage::buildAnkiTab()
     /* ── Input ── */
     m_ankiInput = new QTextEdit(w);
     m_ankiInput->setPlaceholderText(
-        "Descrivi l'argomento per cui vuoi generare carte Anki...\n"
+        tr("Descrivi l'argomento per cui vuoi generare carte Anki...\n"
         "Es: 'Algoritmi di ordinamento (bubble sort, merge sort, quicksort)'\n"
-        "Es: 'Vocabolario inglese — verbi irregolari comuni'");
+        "Es: 'Vocabolario inglese — verbi irregolari comuni'"));
     m_ankiInput->setFixedHeight(dpiScale(90));
     lay->addWidget(m_ankiInput);
 

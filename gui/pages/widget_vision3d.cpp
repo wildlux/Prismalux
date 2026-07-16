@@ -2726,9 +2726,9 @@ void Vision3DWidget::buildUi()
     // letterale NON va a capo (viene collassato come uno spazio, a
     // differenza del plain text): serve <br> esplicito fra i punti.
     auto* connHint = new QLabel(
-        "1. Scegli interfaccia/porta e VLM qui sopra, poi premi <b>Avvia server</b>.<br>"
+        tr("1. Scegli interfaccia/porta e VLM qui sopra, poi premi <b>Avvia server</b>.<br>"
         "2. Sullo stesso WiFi, inquadra questo QR col telefono (o apri l'URL a mano).<br>"
-        "3. Certificato self-signed: <i>Avanzate \xe2\x86\x92 Procedi</i>.");
+        "3. Certificato self-signed: <i>Avanzate \xe2\x86\x92 Procedi</i>."));
     connHint->setWordWrap(true);
     connLay->addWidget(connHint, 1);
     colALay->addWidget(connBox);

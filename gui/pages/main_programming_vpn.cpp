@@ -853,13 +853,13 @@ QWidget* ProgrammazionePage::buildVpnTab(QWidget* parent)
     vpnHintLbl->setTextFormat(Qt::RichText);
     vpnHintLbl->setWordWrap(true);
     vpnHintLbl->setText(
-        "<b>" "\xf0\x9f\x92\xa1" " Quando serve la VPN:</b> "
+        tr("<b>" "\xf0\x9f\x92\xa1" " Quando serve la VPN:</b> "
         "Se i nodi WAN Compute o Sci Compute si trovano su reti diverse "
         "(internet, ufficio remoto, casa), la VPN crea un tunnel cifrato "
         "che li fa sembrare sulla stessa LAN. "
         "In questo modo il WAN Compute (porta 11600) e il Sci Compute (porta 11601) "
         "restano raggiungibili e sicuri senza aprire porte sul router. "
-        "Per nodi sulla stessa LAN la VPN non \xc3\xa8 necessaria.");
+        "Per nodi sulla stessa LAN la VPN non \xc3\xa8 necessaria."));
     lay->addWidget(vpnHintLbl);
 
     /* ── Editor config / script ── */

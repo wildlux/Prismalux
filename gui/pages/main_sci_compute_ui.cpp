@@ -527,8 +527,8 @@ QWidget* SciComputePage::buildUi()
         tr("\xf0\x9f\x93\x82  Genera da file"), createGroup);
     btnGenFile->setObjectName("actionBtn");
     btnGenFile->setToolTip(
-        "Carica FASTA/CSV/TXT e genera N Work Unit automaticamente\n"
-        "max 500 WU per batch — usa {{INPUT}} nel template JSON");
+        tr("Carica FASTA/CSV/TXT e genera N Work Unit automaticamente\n"
+        "max 500 WU per batch — usa {{INPUT}} nel template JSON"));
     addBtnRow->addWidget(btnGenFile);
     formLay->addLayout(addBtnRow);
 
@@ -584,8 +584,8 @@ QWidget* SciComputePage::buildUi()
     m_btnAggregate = new QPushButton(tr("\xf0\x9f\x93\x8a  Aggrega risultati"), wuGroup);
     m_btnAggregate->setObjectName("actionBtn");
     m_btnAggregate->setToolTip(
-        "Aggrega tutti i risultati della pipeline (o della WU selezionata)\n"
-        "Esporta in CSV / JSON / Testo concatenato");
+        tr("Aggrega tutti i risultati della pipeline (o della WU selezionata)\n"
+        "Esporta in CSV / JSON / Testo concatenato"));
     wuBtnRow->addWidget(btnRefWu);
     wuBtnRow->addWidget(btnDelWu);
     wuBtnRow->addWidget(m_btnAggregate);
@@ -632,7 +632,7 @@ QWidget* SciComputePage::buildUi()
         workerGuide->setTextFormat(Qt::RichText);
         workerGuide->setWordWrap(true);
         workerGuide->setText(
-            "<b>\xf0\x9f\x96\xa5  Come aggiungere un nodo worker Sci Compute:</b>"
+            tr("<b>\xf0\x9f\x96\xa5  Come aggiungere un nodo worker Sci Compute:</b>"
             "<ol style='margin:4px 0 4px 16px; padding:0;'>"
             "<li>Installa Python 3.10+ e le dipendenze dei tool scientifici "
             "necessari (es. <tt>blast+</tt>, <tt>gromacs</tt>, <tt>scipy</tt>).</li>"
@@ -641,7 +641,7 @@ QWidget* SciComputePage::buildUi()
             "--token TOKEN --capabilities blast,gmx,python</tt></li>"
             "<li>Il nodo appare qui sotto dopo la prima connessione. "
             "Il server assegna automaticamente le WU compatibili con le sue capability.</li>"
-            "</ol>");
+            "</ol>"));
         nodeLay->insertWidget(0, workerGuide);
     }
     nodeLay->addWidget(m_nodeTable);

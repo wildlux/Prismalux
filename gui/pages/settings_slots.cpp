@@ -113,8 +113,8 @@ void ImpostazioniPage::populateOllamaModels()
             if (m_aiStatusLbl) m_aiStatusLbl->setText(tr("\xe2\x9d\x8c Nessun modello"));
             LogBus::post("\xe2\x9d\x8c Impostazioni: Nessun modello Ollama trovato");
             if (m_aiHintLbl)   m_aiHintLbl->setText(
-                "Ollama non raggiungibile o nessun modello installato.\n"
-                "Avvia Ollama e riprova.");
+                tr("Ollama non raggiungibile o nessun modello installato.\n"
+                "Avvia Ollama e riprova."));
             m_aiModelList->addItem(new QListWidgetItem("(Ollama non raggiungibile)"));
         } else {
             if (m_aiStatusLbl)
@@ -145,8 +145,8 @@ void ImpostazioniPage::populateLlamaModels()
     if (files.isEmpty()) {
         if (m_aiStatusLbl) m_aiStatusLbl->setText(tr("0 modelli"));
         if (m_aiHintLbl)   m_aiHintLbl->setText(
-            "Nessun file .gguf trovato.\n"
-            "Scarica un modello dalla scheda LLM.");
+            tr("Nessun file .gguf trovato.\n"
+            "Scarica un modello dalla scheda LLM."));
         m_aiModelList->addItem(
             new QListWidgetItem("(Nessun modello GGUF nella cartella models/)"));
     } else {
@@ -540,7 +540,7 @@ void ImpostazioniPage::onRagDownloadBtnClicked()
                 ++(*errN);
                 if (m_ragFeedbackLbl)
                     m_ragFeedbackLbl->setText(
-                        "\xe2\x9a\xa0  Errore: " + reply->errorString()
+                        tr("\xe2\x9a\xa0  Errore: ") + reply->errorString()
                         + " \xe2\x80\x94 " + fname);
             }
             ++(*idx);
@@ -728,8 +728,8 @@ void ImpostazioniPage::onReindexBtnClicked()
     if (m_ragFeedbackLbl) {
         m_ragFeedbackLbl->setText(
             toProcess == 0
-            ? "\xe2\x9c\x85  Indice gi\xc3\xa0 aggiornato \xe2\x80\x94 nessun file modificato."
-            : QString("\xe2\x8f\xb3  Estrazione testo da %1 file nuovi/modificati...")
+            ? tr("\xe2\x9c\x85  Indice gi\xc3\xa0 aggiornato \xe2\x80\x94 nessun file modificato.")
+            : tr("\xe2\x8f\xb3  Estrazione testo da %1 file nuovi/modificati...")
                 .arg(toProcess));
         m_ragFeedbackLbl->setVisible(true);
     }
@@ -820,7 +820,7 @@ void ImpostazioniPage::startEmbeddingPhase(const QString& dir)
                     const QString usedModel =
                         cfg.value(P::SK::kRagEmbedModel, "").toString();
                     m_ragFeedbackLbl->setText(
-                        QString("\xe2\x9d\x8c  <b>Embedding falliti</b> (%1 errori). "
+                        tr("\xe2\x9d\x8c  <b>Embedding falliti</b> (%1 errori). "
                                 "Il modello <b>%2</b> non supporta <code>/api/embeddings</code>.<br>"
                                 "Installa il modello embedding: "
                                 "<code>ollama pull embeddinggemma</code><br>"
@@ -1211,7 +1211,7 @@ void ImpostazioniPage::onSandboxPullProcFinished(int code, QProcess::ExitStatus)
                 QString("\xe2\x9c\x85  %1 scaricata con successo.").arg(img));
         else
             m_sandboxPullStatus->setText(
-                QString("\xe2\x9d\x8c  Errore: %1").arg(out.left(120)));
+                tr("\xe2\x9d\x8c  Errore: %1").arg(out.left(120)));
     }
 }
 
@@ -1229,7 +1229,7 @@ void ImpostazioniPage::refreshDockerStatusCard()
         m_dockerStatusIcon->setText(tr("\xf0\x9f\x9f\xa2  Docker disponibile"));
         m_dockerStatusIcon->setStyleSheet("color:#4ade80;font-weight:bold;");
         m_dockerStatusDesc->setText(
-            QString("Daemon raggiungibile: <code>%1</code><br>"
+            tr("Daemon raggiungibile: <code>%1</code><br>"
                     "Il codice AI verr\xc3\xa0 eseguito in un container effimero "
                     "(rete disabilitata, nessun volume, max RAM configurabile).")
             .arg(docker));
@@ -1238,9 +1238,9 @@ void ImpostazioniPage::refreshDockerStatusCard()
         m_dockerStatusIcon->setText(tr("\xf0\x9f\x94\xb4  Docker installato ma non avviato"));
         m_dockerStatusIcon->setStyleSheet("color:#f87171;font-weight:bold;");
         m_dockerStatusDesc->setText(
-            "Il binario c'\xc3\xa8 ma il servizio/socket non risponde (spesso "
+            tr("Il binario c'\xc3\xa8 ma il servizio/socket non risponde (spesso "
             "\xe2\x80\x9cmascherato\xe2\x80\x9d dopo un'installazione manuale).<br>"
-            "Il codice sar\xc3\xa0 eseguito con Python locale (permessi utente) finch\xc3\xa9 non lo sblocchi.");
+            "Il codice sar\xc3\xa0 eseguito con Python locale (permessi utente) finch\xc3\xa9 non lo sblocchi."));
         m_dockerUnlockBtn->setText(tr("\xf0\x9f\x94\x93  Sblocca e avvia Docker"));
         m_dockerUnlockBtn->setEnabled(true);
         m_dockerUnlockBtn->show();
@@ -1248,10 +1248,10 @@ void ImpostazioniPage::refreshDockerStatusCard()
         m_dockerStatusIcon->setText(tr("\xf0\x9f\x94\xb4  Docker non installato"));
         m_dockerStatusIcon->setStyleSheet("color:#f87171;font-weight:bold;");
         m_dockerStatusDesc->setText(
-            "Docker non trovato sul sistema.<br>"
+            tr("Docker non trovato sul sistema.<br>"
             "Il codice sar\xc3\xa0 eseguito con Python locale (permessi utente).<br>"
             "<b>Per installare Docker:</b> "
-            "<code>sudo apt install docker.io &amp;&amp; sudo systemctl start docker</code>");
+            "<code>sudo apt install docker.io &amp;&amp; sudo systemctl start docker</code>"));
         m_dockerUnlockBtn->hide();
     }
 }
