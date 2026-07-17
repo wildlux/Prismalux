@@ -1,4 +1,61 @@
-# GUI Best Practice & Ottimizzazioni — Prismalux Qt6
+# PATTERN PREDEFINITI — GUI Prismalux Qt6
+
+> **Questo è IL documento dei pattern predefiniti del progetto** (agg. 2026-07-17).
+> Consultarlo PRIMA di scrivere nuova UI o nuovo codice pagina: se un caso rientra
+> in un pattern qui sotto, si applica il pattern — non si reinventa.
+> Convenzioni C++/API complete: `gui/CLAUDE.md`. Regole fisse: `TOOL_TIP/BEST_PRACTICE_&_GOAL/REGOLE_IRREMOVIBILI.md`.
+
+## Pattern UI predefiniti (in ordine di frequenza d'uso)
+
+### 1. Zone dense → CollapsibleSection (stile Blender)
+**Quando**: molti widget impilati, colonne a 2+ card, guide/testi statici ingombranti.
+```cpp
+#include "../widgets/collapsible_section.h"
+// Caso A — contenuto libero:
+lay->addWidget(new CollapsibleSection(tr("Titolo"), contenuto, /*startOpen=*/true, parent));
+// Caso B — QGroupBox esistente (1 riga, il titolo migra nell'header da solo):
+lay->addWidget(CollapsibleSection::fromGroupBox(box));
+```
+- `startOpen=true` di default = comportamento invariato finché l'utente non ripiega.
+- Chiusa di default SOLO per contenuto statico/occasionale (guide, help, "Avanzato").
+- Sostituire i toggle ▶/▼ fatti a mano con questo widget (fatto in WAN Compute, D-52).
+- **NON** avvolgere il contenuto principale di una tab (es. la scena 3D di Vision3D).
+- Già applicato: Lavoro (4 sezioni), WAN Compute (3), Vision3D Preparazione (6), Impostazioni Gestione LLM + Parametri AI (7).
+
+### 2. Dimensioni → sempre `dpiScale(N)` (`dpi_utils.h`)
+`setFixedWidth(dpiScale(80))`, mai il numero nudo. No-op a 96dpi, scala su HiDPI/Wayland.
+
+### 3. Larghezze pannelli → dal contenuto reale, mai fisse
+Un `setFixedWidth()` su una colonna con pulsanti taglia col tema/lingua sbagliati (bug D-49):
+```cpp
+const int w = qBound(dpiScale(248),
+                     panel->minimumSizeHint().width() + scrollbarW + margine,
+                     dpiScale(400));
+```
+
+### 4. Combo → logica su `currentData()`, MAI sul testo
+`combo->addItem(tr("Etichetta"), "chiave-stabile");` poi `if (combo->currentData() == "chiave-stabile")`.
+Le etichette sono traducibili (D-42): confrontare il testo rompe la lingua EN. Vale anche per i QSettings.
+
+### 5. Tab costose → lazy (`ensureTabBuilt` / `LazyTabLoader`)
+Tab principali: placeholder + `ensureTabBuilt(idx)` (mainwindow_tabs.cpp). QTabWidget interni:
+`widgets/lazy_tab_loader.h` (`addEager` la prima, `addLazy(label, factory)` le altre). Dettagli in CLAUDE.md.
+
+### 6. Splitter con form in alto → minimo esplicito
+Il sizeHint piccolo di una QScrollArea vince su `setSizes()` (bug D-46): dare `setMinimumHeight()`
+alla sezione che deve restare leggibile, `setSizes()` solo come proporzione iniziale.
+
+### 7. Nuovi file in `gui/pages/` → nome parlante
+`main_*` (pagina/tab) · `settings_*` (Impostazioni) · `widget_*` (componente) · `dialog_*` (dialog).
+Mai `*_page.cpp`. Widget riusabili header-only → `gui/widgets/` (+ CPP_SRCS se Q_OBJECT, vedi AUTOMOC sotto).
+
+### 8. Stringhe visibili → `tr()` sempre; tabelle statiche → `P::trTab()` + `QT_TRANSLATE_NOOP`
+Cataloghi senza `<location>` (`lconvert -locations none`), lupdate mirato mai `-recursive` (D-42).
+
+### 9. connect() → slot nominati (regola progetto)
+Lambda solo con context object (4° arg) che possiede tutti i puntatori catturati, max 2 righe. Dettagli in CLAUDE.md.
+
+---
 
 ## Principi generali (stile ChatGPT / minimal dark)
 
@@ -124,30 +181,7 @@ Altrimenti AUTOMOC non genera il vtable → linker error.
 
 ---
 
-# TODO — Cose da fare
-
-## Alta priorità
-- [N/A] **Quiz Interattivi C** — `src/quiz.c` e Python non esistono più; quiz CCNA implementato in Qt (`QuizCcnaPage`)
-- [x] **Voce 🎙** — FATTO: STT desktop implementato in `main_ai_stt.cpp` (`_sttStartRecording()`, `SttWhisper`, `QAudioSource`); connesso in `main_ai_ui.cpp` (3 punti di trigger)
-- [ ] **CPU+GPU dialog** — split model layers tra NVIDIA + iGPU via agent_scheduler con budget VRAM per dispositivo
-- [x] **RAM inter-agente** — FATTO 2026-06-15: in `advancePipeline()` (quando `m_currentAgent > 0`), legge `/proc/meminfo`; se RAM ≥92% interrompe con messaggio senza dialog bloccante. Il check pre-pipeline (≥92% block, ≥75% warn) rimane in `checkRam()`
-
-## Media priorità
-- [N/A] **Dashboard Statistica C** / **Analisi Dati AI C** — i file Python non esistono più; funzionalità integrate nelle tab Qt
-- [x] **Cerca Lavoro + CV Reader** — FATTO: `LavoroPage` in `StrumentiPage` (`m_lavoroPage`) con AI + CV reader
-- [x] **StatusBadge nell'header** — FATTO 2026-06-15: `m_badgeServer` creato in `buildContent()` nel corner container accanto a `m_btnBackend`. Offline→Starting→Online/Error in `applyBackend()`, `onInitialModelsReady()`, `onApplyBackendModelsReady()`
-- [x] **Cache modelli** — FATTO: TTL 30s implementato in `AiClient::fetchModels()` (`m_cacheTimer`/`m_cacheValid`)
-- [x] **Tooltip ricchi sui gauge** — FATTO 2026-06-15: `ResourceGauge::update()` usa il `detail` come `setToolTip()`; RAM mostra "X/Y GB", CPU mostra nome CPU, GPU mostra "nome | VRAM X/Y GB"
-- [N/A] **Auto-assign con llama-server** — pulsante "Auto-assegna" non esiste più nella UI v2.9
-
-## Bassa priorità
-- [x] **buildModelBar() porta 8080** — FATTO 2026-06-15: `main_maintenance.cpp` + `main_learn.cpp` usano `P::kLlamaServerPort`
-- [N/A] **Typo buildCythoStudio** — `personalizza_page.cpp` non esiste più nella v2.9
-- [x] **generateQuestion() in ImparaPage** — FATTO: guard `m_quizBusy` in `ImparaPage::generateQuestion()` previene click multipli
-- [N/A] **Refactor funzioni lunghe** — le funzioni C/Python citate non esistono più; equivalenti Qt già strutturate
-- [x] **sort modelli llama-server** — FATTO 2026-06-15: `list.sort(Qt::CaseInsensitive)` in `AiClient::onModelsReply()` ramo LlamaServer
-- [ ] **Animazione navigazione** — fade breve tra tab; ATTENZIONE: `QGraphicsOpacityEffect` causa blank rendering su tab con `QWebEngineView` (KaTeX, chat) — richiede skip selettivo
-
-## Ottimizzazioni identificate nel CLAUDE.md Qt_GUI
-- [x] Cache fetchModels con TTL 30s — FATTO (vedi sopra)
-- [ ] Navigazione animata (fade) — vedi nota sopra (WebEngine constraint)
+# Nota storica
+La sezione "TODO — Cose da fare" che viveva qui è stata rimossa il 2026-07-17:
+l'unico file TODO del progetto è `TODO.md` in root (le 2 voci ancora aperte sono
+state spostate lì: split CPU+GPU multi-dispositivo, animazione fade tra tab).

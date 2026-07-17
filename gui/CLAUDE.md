@@ -1,4 +1,4 @@
-# CLAUDE.md — Prismalux Qt GUI  v3.0 (agg. 2026-06-21)
+# CLAUDE.md — Prismalux Qt GUI  v3.0 (agg. 2026-07-17 — layout tab/file chiave/percorsi test verificati contro il codice)
 
 ## Build
 ```bash
@@ -36,25 +36,25 @@ open gui/build_gui/Prismalux_GUI.app
 CMakeLists.txt genera `Prismalux_GUI.app` bundle + copia i framework Qt con `macdeployqt` automaticamente.
 Nota: `QSslServer` (TLS LAN) richiede `brew install openssl` e linkage esplicito — aggiungere se necessario.
 
-## Layout tab (mainwindow.cpp)
+## Layout tab (mainwindow_tabs.cpp — verificato 2026-07-17 contro `kPlaceholders` + factory `create*Widget()`)
 ```
 Header (72px): logo · backend · model · CPU/RAM/GPU · spinner · ⚙️
-[0] 🤖 Intelligenza Artificiale  Alt+1  Pipeline + Byzantino + CHAT RAG + Agente Autonomo
-[1] 🛠 Strumenti                  Alt+2  Assistente AI · 💰 Finanza (730/PIVA/Calcolatori/TFR) · ⏱ Cron · Impara · Sfida! · 📁 File AI
-[2] 🎬 Multimedia                        Audio AI · Genera Immagini · 🕸 Mappe concettuali · 🗺 Mappa OSM · Sintetizzatore · 🎤 Clona Voce · OCR webcam
-[3] 💻 Programmazione            Alt+3  Editor+AI · Agentica · Translitter · Reverse Eng. · Git · REPL · Interpreter · Rete · Driver
-[4] π  Matematica                Alt+4  Sequenza→Formula · Costanti · N-esimo · Espressione · Risolvi Passi (SymPy+🔀) · Analisi 1&2 (LaTeX KaTeX)
-[5] 🔧 Utility                           Fotovoltaico · Idroponica · Lavoro · Finanza · 🚴 Bici · LAN & WAN
-[6] 🔬 Ricerca                   Alt+5  Paper · Brevetti · Analisi Fenomeni · 🕸️ Grafo RAG · Test RAG · Astrale
-[7] 🧬 Bioinformatica                   Cytoscape · RDKit · Bioconda · Avogadro · RAB₀-L · BLHM
-[8] 🕹 APP Controller            Alt+6  Blender/FreeCAD/Office/CloudCompare/Anki/KiCAD/TinyMCP/OBS/OpenCode/Godot
+[0] 🤖 Intelligenza artificiale   (eager)  Pipeline + Byzantino + CHAT RAG + Agente Autonomo — main_ai.*
+[1] 🛠️ Strumenti                  6 categorie assistente · ⏱ Cron · Impara · Sfida (Quiz) · 📁 File AI · RAM LLM · 🔬 Ricerca (external, in coda) — main_tools.*
+[2] 🎬 Media                      Audio AI · Genera Immagini · Mappe concettuali · Mappa OSM · Sintetizzatore · Clona Voce · OCR · Analizza Video · Scan 3D · IPA — main_multimedia.*
+[3] 💻 Programmazione             Editor+AI · Agentica · Translitter · Reverse · Git · REPL · Interpreter · Driver (+ Dev Agent e Sicurezza agganciati da TeleComanda) — main_programming.*
+[4] 📐 Matematica                 Matematica (SymPy) + 📈 Grafico — main_math.*, main_graph.*
+[5] 🔧 Utilità                    Fotovoltaico · Idroponica · Lavoro · Finanza (PraticoPage) · 🚴 Bici · Mod Giochi · LAN & WAN (con Multi-Agente e Rete & Network dentro) — main_utility.*
+[6] 🧬 Bioinformatica             Cytoscape · RDKit · Bioconda · Avogadro · RAB₀-L · BLHM — main_bioinformatica.*
+[7] 🕹️ TeleComanda                Blender/FreeCAD/Office/CloudCompare/Anki/KiCAD/TinyMCP/OBS/OpenCode/Godot (AppControllerPage) — main_app_controller.*
 ImpostazioniPage: dialog modale (⚙️ header)
 ```
 Note:
-- `LavoroPage` è in UtilityPage [5], NON più in RicercaPage
-- `PraticoPage` (Finanza), `SolarCalcWidget`, `IdroWidget` e `BikeWidget` sono in UtilityPage [5]
-- `LanWanPage` è sub-tab di UtilityPage [5] — NON più tab principale separata
-- Cytoscape/RDKit/Bioconda/Avogadro/RAB₀-L/BLHM → BioinformaticaPage [7]
+- **RicercaPage NON è una tab principale**: è sotto-tab finale di Strumenti [1] (`buildRicercaTab()` → `m_strumentiPage->addExternalTab`) — main_research.*
+- `LavoroPage` è in UtilityPage [5] (`main_utility.cpp`) — main_jobs.*
+- `PraticoPage` (Finanza), `SolarCalcWidget`, `IdroWidget`, `BikeWidget`, `ModGiochiWidget` sono in UtilityPage [5]
+- `LanWanPage` è sub-tab di UtilityPage [5] (`buildLanWanTab()`) — contiene Multi-Agente (`multiAgentTab()`) e "Rete & Network" spostata da Programmazione
+- Cytoscape/RDKit/Bioconda/Avogadro/RAB₀-L/BLHM → BioinformaticaPage [6]
 - DevAgent e SecurityAnalyzerPage → ProgrammazionePage (aggiunti via addExternalTab da mainwindow)
 - Gestione MCP → ImpostazioniPage (tab "Gestione MCP" dopo tab "MCP")
 - Cron (`m_cronPanel`) in StrumentiPage via `installCronPanel()` con `QTimer::singleShot(0)`
@@ -106,6 +106,7 @@ Prismalux/
 │   ├── tests/                    ← suite ctest (76 suite, BUILD_TESTS=ON)
 │   ├── themes/                   ← temi QSS
 │   ├── CMakeLists.txt
+│   ├── GUI_BEST_PRACTICE.md      ← PATTERN PREDEFINITI UI/Qt — consultare PRIMA di scrivere nuova UI
 │   └── CLAUDE.md                 ← questo file
 ├── EXPORT/                       ← script e artefatti di distribuzione
 │   ├── linux/   crea_appimage.sh · install_launcher.sh · Prismalux-x86_64.AppImage
@@ -115,8 +116,8 @@ Prismalux/
 ├── ANDROID/                      ← app Android Qt6 (BLE, CCNA, TTS, LAN)
 │   └── PrismaluxMobile.apk       ← path hardcoded: P::root()+"/ANDROID/PrismaluxMobile.apk"
 ├── MCPs/                         ← 50 plugin MCP Python — ognuno ha README.md + requirements.txt
-├── BEST_PRACTICE_&_GOAL/         ← regole, TODO, operazioni (non codice)
-│   └── REGOLE_IRREMOVIBILI.md    ← 15 convenzioni fisse — leggere prima di toccare il codice
+├── TOOL_TIP/BEST_PRACTICE_&_GOAL/ ← regole e best practice (spostata da root — non codice)
+│   └── REGOLE_IRREMOVIBILI.md    ← convenzioni fisse — leggere prima di toccare il codice
 ├── EXTERNAL_DeviceS/             ← script e config dispositivi fisici (WIBY cam, Tuya, PTZ — non in git)
 ├── Test/                         ← test Python AI integration + utility
 ├── RAG/                          ← documenti RAG (locale, non in git)
@@ -138,12 +139,12 @@ Prismalux/
 | `rag_engine.h/cpp` | RAG JLT 256-dim |
 | `hardware_monitor.h/cpp` | Thread polling CPU/RAM/GPU ogni 2s |
 | `lan_server.h/cpp` | Server TCP LAN per PrismaluxMobile Android (porta 11500) |
-| `lan_wan_page.h/cpp` | LAN Android + GNS3 MCP + WAN Compute (porta 11600) |
-| `pages/agenti_page.*` | Pipeline 6 agenti + Byzantino + Agente Autonomo (15 moduli) |
-| `pages/pratico_page.*` | 730, P.IVA, Calcolatori Finanza, Scheda TFR (C.F. auto D.M. 1976 + Belfiore) |
-| `pages/ricerca_page.*` | Tab Ricerca [6] — include Cyto/RDKit/Bio/Avo + Analisi Fenomeni (allegati PDF) |
-| `pages/matematica_page.*` | Matematica SymPy; errore fetchModels→ setStatus() via holder |
-| `pages/agenti_multi_page.*` | Multi-Agente: MasterAgent, SubTask, GraphMemory live — embedded in WAN Compute [8] |
+| `pages/main_lan_wan.h/cpp` | LanWanPage: LAN Android + GNS3 MCP + WAN Compute (porta 11600) |
+| `pages/main_ai.*` | AgentiPage: pipeline 6 agenti + Byzantino + Agente Autonomo (~25 moduli main_ai_*.cpp) |
+| `pages/main_finance.*` + `pratico_calcs.h` | PraticoPage: 730, P.IVA, Calcolatori Finanza, Scheda TFR (C.F. auto D.M. 1976 + Belfiore) |
+| `pages/main_research.*` | RicercaPage (sotto-tab di Strumenti): Paper/Brevetti/Analisi Fenomeni/Grafo RAG/Astrale (+ main_research_astrale.cpp, main_research_rag_tester.cpp) |
+| `pages/main_math.*` | MatematicaPage SymPy (+ main_math_analisi/bool/solve.cpp); errore fetchModels→ setStatus() via holder |
+| `pages/main_multi_agent.*` | AgentiMultiPage: MasterAgent, SubTask, GraphMemory live — embedded in WAN Compute (LanWanPage, Utilità [5]) |
 | `graph_memory.h/cpp` | GraphMemory SQLite-backed: nodi/archi, BFS neighbours, DOT/JSON/TXT export |
 | `rag_graph.h/cpp` | RagGraph: scansiona RAG dirs, estrae entità+relazioni LLM → GraphMemory |
 | `widgets/latex_view.h` | LatexView (QWebEngineView+KaTeX o QTextEdit fallback) per formule |
@@ -336,7 +337,7 @@ Think-capable: qwen3, deepseek-r1, qwq, qwen2.5.
 - MCP: `MCPs/knowledge_mcp/server.py` (JSON-RPC 2.0 stdio)
 - Helper: `P::prependKnowledge(sys)`, `P::readUserKnowledge()` (cache 30s), `P::invalidateKnowledgeCache()`
 - Key: `P::SK::kInjectUserKnowledge`
-- Estrattore silenzioso: `agenti_page_knowledge.cpp::runKnowledgeExtract()`
+- Estrattore silenzioso: `pages/main_ai_knowledge.cpp::runKnowledgeExtract()`
 
 ## LAN Server Android
 ```cpp
@@ -506,14 +507,14 @@ bolle live di `AgentiPage` — import, non serve pixel-identico), visibile
 nella cronologia chat esistente. Ruoli normalizzati: `user`/`human`→`user`,
 `assistant`/`model`/`bot`→`pipeline` (schema `ChatMessage::role` interno).
 
-## Scheda TFR — Codice Fiscale automatico (`pratico_page.cpp`)
+## Scheda TFR — Codice Fiscale automatico (`pages/main_finance.cpp` + `pratico_calcs.h`)
 - `calcolaCodiceFiscale(cognome, nome, nascita, maschio, belfiore)` — algoritmo D.M. 23/12/1976
 - `cercaBelfiore(comune)` — QHash ~120 comuni IT + ~30 paesi esteri (codici Z)
 - `normalizzaComune(s)` — strip accenti + toLower per lookup case-insensitive
 - UI: Nome/Cognome | Data nascita + Sesso + Comune + Belfiore (auto) | C.F. read-only + 🔓
 - Aggiornamento live ad ogni cambio campo; RAG auto-fill include anche dati anagrafici nascita
 
-## WAN Calcolo Distribuito (`lan_wan_page.h/.cpp`)
+## WAN Calcolo Distribuito (`pages/main_lan_wan.h` + `main_wan_*.cpp`)
 - Porta: `P::kWanComputePort = 11600`; protocollo JSON newline su TCP
 - `WanNode`/`WanTask` struct; `wanDispatch()` assegna pending→idle
 - `wanCliHandleTask(id, kind, payload)` — dispatcher 28 tipi task
@@ -564,7 +565,7 @@ auto nodes  = rg.searchNodes("formula", 20);
 Percorsi RAG analizzati: `~/prismalux_rag_docs/` + `P::root() + "/RAG/"`
 DB separato da FEAT-1: `~/.prismalux/rag_graph.db`
 
-## Multi-Agente (`agenti_multi_page.h`)
+## Multi-Agente (`pages/main_multi_agent.h`)
 - `GraphMemory* graphMemory()` — accesso alla memoria condivisa dall'esterno
 - Piano MasterAgent: JSON `{"task":"...","subtasks":[{"id":1,"role":"...","prompt":"...","depends_on":[]}]}`
 - Esecuzione: sequenziale rispettando `depends_on` (BFS ordering)
@@ -968,13 +969,13 @@ Categorie:
 
 ## Suite di Test
 ```bash
-# Percorso canonico — usa SEMPRE gui/build_tests (non Test/build_tests che è obsoleto)
+# Percorso canonico — usa SEMPRE gui/build_tests (Test/build_tests rimosso 2026-07-17)
 cmake -B gui/build_tests gui/ -DBUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Release && cmake --build gui/build_tests -j$(nproc)
 ctest --test-dir gui/build_tests --exclude-regex "AiIntegration|AiStress|TeamCollab|MultiAgenteLive|AgenteAutonomoLive" -j4 --output-on-failure
 # Oppure con aggiorna.sh:
 ./aggiorna.sh --test
 ```
-**NOTA**: `Test/build_tests/` è deprecato — punta a codice obsoleto. Eliminarlo se presente.
+**NOTA termica**: mai ctest completo `-j4` su questa macchina (CPU a 90°C) — suite mirate `-R`, `-j1`, `nice -n19`, o `./ctest_lotti.sh` (lotti con pausa termica, variabile `ESCLUDI` per regex `-E`).
 
 ### Suite per categoria
 
