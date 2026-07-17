@@ -104,6 +104,14 @@ private:
     QString         m_ragTmpPng;
     QString         m_ragTmpDot;
 
+    /* Selettore sorgente grafo (D-44): il viewer mostra anche i DB
+     * di Hermes e Multi-Agente con connessioni SQLite proprie (i
+     * GraphMemory proprietari vivono in AgentiPage/AgentiMultiPage). */
+    QComboBox*      m_ragSourceCombo = nullptr;   ///< RAG | Hermes | Multi-Agente
+    GraphMemory*    m_hermesViewGm   = nullptr;   ///< vista su hermes_memory.db (lazy)
+    GraphMemory*    m_multiViewGm    = nullptr;   ///< vista su graph_memory.db (lazy)
+    GraphMemory*    ragViewGm() const;            ///< GM della sorgente selezionata
+
     /* ── RAG Tester ── */
     QListWidget* m_ragTesterDocList  = nullptr;
     QTextEdit*   m_ragTesterQuestions = nullptr;
@@ -236,6 +244,8 @@ private slots:
     void onRagStopClicked();
     void onRagClearClicked();
     void onRagSearchChanged(const QString& q);
+    void onRagSourceChanged(int idx);
+    void onRagImportAiClicked();
     void onRagNodeClicked(QListWidgetItem* item);
     void onRagGraphProgress(int cur, int tot, const QString& file);
     void onRagGraphFinished(const RagGraphStats& stats);

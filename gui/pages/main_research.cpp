@@ -3,6 +3,7 @@
 #include "main_jobs.h"
 #include "../prismalux_paths.h"
 #include "../widgets/astro_calc.h"
+#include "../widgets/external_ai_import.h"
 #include "../log_bus.h"
 namespace P = PrismaluxPaths;
 #include <QVBoxLayout>
@@ -1737,6 +1738,20 @@ QWidget* RicercaPage::buildRagGrafoTab()
     ctrlLay->setContentsMargins(12, 6, 12, 6);
     ctrlLay->setSpacing(8);
 
+    /* Sorgente del grafo visualizzato (D-44) — la logica usa SEMPRE
+     * currentData(), mai il testo: le etichette restano traducibili. */
+    m_ragSourceCombo = new QComboBox(ctrlBar);
+    m_ragSourceCombo->setObjectName("settingCombo");
+    m_ragSourceCombo->addItem(tr("\xf0\x9f\x95\xb8  RAG (documenti)"),        "rag");    /* 🕸 */
+    m_ragSourceCombo->addItem(tr("\xf0\x9f\xa7\xa0  Hermes (conversazioni)"), "hermes"); /* 🧠 */
+    m_ragSourceCombo->addItem(tr("\xf0\x9f\xa4\x96  Multi-Agente"),           "multi");  /* 🤖 */
+    m_ragSourceCombo->setToolTip(
+        tr("Sorgente del grafo visualizzato: documenti indicizzati (RAG), "
+           "memoria conversazioni Hermes (tab AI) o memoria del Multi-Agente"));
+    connect(m_ragSourceCombo, &QComboBox::currentIndexChanged,
+            this, &RicercaPage::onRagSourceChanged);
+    ctrlLay->addWidget(m_ragSourceCombo);
+
     m_ragRunBtn = new QPushButton(
         tr("\xf0\x9f\x94\x84  Analizza RAG"), w);  /* 🔄 */
     m_ragRunBtn->setObjectName("actionBtn");
@@ -1770,6 +1785,19 @@ QWidget* RicercaPage::buildRagGrafoTab()
     btnRefreshDot->setToolTip(tr("Rigenera la visualizzazione Graphviz dal grafo corrente"));
     connect(btnRefreshDot, &QPushButton::clicked, this, &RicercaPage::onRagRefreshDot);
     ctrlLay->addWidget(btnRefreshDot);
+
+    /* D-51: import di chat esportate da AI esterne nel grafo RAG */
+    auto* btnImportAi = new QPushButton(tr("\xf0\x9f\x93\xa5  Importa chat AI"), w);
+    btnImportAi->setObjectName("navBtn");
+    btnImportAi->setToolTip(
+        tr("Carica conversazioni esportate da AI esterne nel grafo RAG.\n"
+           "JSON riconosciuti: ChatGPT (conversations.json), Claude"
+           " (chat_messages), formato generico role/content.\n"
+           "Gemini, Grok e altri senza standard: qualsiasi file di testo"
+           " viene indicizzato cos\xc3\xac com'\xc3\xa8."));
+    connect(btnImportAi, &QPushButton::clicked,
+            this, &RicercaPage::onRagImportAiClicked);
+    ctrlLay->addWidget(btnImportAi);
 
     ctrlLay->addStretch(1);
 
@@ -1971,15 +1999,23 @@ void RicercaPage::onRagStopClicked()
 
 void RicercaPage::onRagClearClicked()
 {
+    /* D-44: svuota la SORGENTE selezionata, non sempre il grafo RAG —
+     * il nome nella conferma dice esattamente quale DB viene cancellato. */
+    GraphMemory* gm = ragViewGm();
+    const QString srcName = m_ragSourceCombo
+        ? m_ragSourceCombo->currentText().trimmed() : tr("Grafo RAG");
     const auto ans = QMessageBox::question(
-        this, tr("Svuota Grafo RAG"),
-        tr("Tutti i nodi e le relazioni del grafo RAG verranno cancellati in modo irreversibile.\n"
-           "Continuare?"),
+        this, tr("Svuota grafo"),
+        tr("Tutti i nodi e le relazioni di \"%1\" verranno cancellati in modo irreversibile.\n"
+           "Continuare?").arg(srcName),
         QMessageBox::Yes | QMessageBox::Cancel, QMessageBox::Cancel);
     if (ans != QMessageBox::Yes) return;
 
-    onRagStopClicked();
-    if (m_ragGm) m_ragGm->clearAll();
+    const QString src = m_ragSourceCombo
+        ? m_ragSourceCombo->currentData().toString() : QString();
+    if (src != "hermes" && src != "multi")
+        onRagStopClicked();   /* ferma l'indicizzazione solo per il RAG */
+    if (gm) gm->clearAll();
     if (m_ragNodeList) m_ragNodeList->clear();
     if (m_ragNodeDetail) m_ragNodeDetail->clear();
     if (m_ragImgLbl) m_ragImgLbl->clear();
@@ -2058,19 +2094,29 @@ void RicercaPage::onRagGraphFinished(const RagGraphStats& stats)
    ══════════════════════════════════════════════════════════════ */
 void RicercaPage::onRagGraphMemChanged()
 {
-    if (!m_ragGm || !m_ragNodeList) return;
+    GraphMemory* gm = ragViewGm();
+    if (!gm || !m_ragNodeList) return;
     const QString filter = m_ragSearchEdit ? m_ragSearchEdit->text() : QString();
     const auto nodes = filter.isEmpty()
-        ? m_ragGm->allNodes()
-        : m_ragGm->searchNodes(filter, 100);
+        ? gm->allNodes()
+        : gm->searchNodes(filter, 100);
 
     m_ragNodeList->clear();
     if (nodes.isEmpty()) {
-        auto* item = new QListWidgetItem(
-            filter.isEmpty()
-                ? tr("Grafo vuoto — indicizza documenti con \"Analizza Grafo\"")
-                : tr("Nessun nodo trovato per: \"%1\"").arg(filter),
-            m_ragNodeList);
+        const QString src = m_ragSourceCombo
+            ? m_ragSourceCombo->currentData().toString() : QString();
+        QString emptyMsg;
+        if (!filter.isEmpty())
+            emptyMsg = tr("Nessun nodo trovato per: \"%1\"").arg(filter);
+        else if (src == "hermes")
+            emptyMsg = tr("Memoria Hermes vuota — attiva \xf0\x9f\xa7\xa0 Hermes"
+                          " nella tab AI e conversa");
+        else if (src == "multi")
+            emptyMsg = tr("Memoria Multi-Agente vuota — esegui un piano"
+                          " nella tab Multi-Agente");
+        else
+            emptyMsg = tr("Grafo vuoto — indicizza documenti con \"Analizza Grafo\"");
+        auto* item = new QListWidgetItem(emptyMsg, m_ragNodeList);
         item->setFlags(Qt::NoItemFlags);
         return;
     }
@@ -2087,6 +2133,12 @@ void RicercaPage::onRagGraphMemChanged()
             icon = "\xf0\x9f\x91\xa4 ";   /* 👤 */
         else if (t == "documento")
             icon = "\xf0\x9f\x93\x84 ";   /* 📄 */
+        else if (t == "conversation")
+            icon = "\xf0\x9f\x92\xac ";   /* 💬 (Hermes) */
+        else if (t == "reflection")
+            icon = "\xf0\x9f\xa7\xa0 ";   /* 🧠 (Hermes) */
+        else if (t == "task" || t == "result")
+            icon = "\xf0\x9f\x93\x8b ";   /* 📋 (Multi-Agente) */
         else
             icon = "\xf0\x9f\x94\xb5 ";   /* 🔵 */
 
@@ -2102,13 +2154,110 @@ void RicercaPage::onRagSearchChanged(const QString& /*q*/)
 }
 
 /* ══════════════════════════════════════════════════════════════
+   D-44 — sorgente del grafo visualizzato
+   ══════════════════════════════════════════════════════════════ */
+GraphMemory* RicercaPage::ragViewGm() const
+{
+    const QString src = m_ragSourceCombo
+        ? m_ragSourceCombo->currentData().toString() : QString();
+    if (src == "hermes" && m_hermesViewGm) return m_hermesViewGm;
+    if (src == "multi"  && m_multiViewGm)  return m_multiViewGm;
+    return m_ragGm;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   D-51 — importa chat esportate da AI esterne nel grafo RAG.
+   Conversione in ~/prismalux_rag_docs/chat_ai_importate/ (dentro le
+   cartelle già scandite da "Analizza RAG" e dal watcher), poi ingest.
+   ══════════════════════════════════════════════════════════════ */
+void RicercaPage::onRagImportAiClicked()
+{
+    const QStringList files = QFileDialog::getOpenFileNames(
+        this, tr("Importa conversazioni AI esterne"), QDir::homePath(),
+        tr("Export AI e testo (*.json *.txt *.md);;Tutti i file (*)"));
+    if (files.isEmpty()) return;
+
+    const QString destDir = QDir::homePath()
+        + "/prismalux_rag_docs/chat_ai_importate";
+    int nConv = 0, nText = 0, nErr = 0;
+    const int written = ExternalAiImport::importFilesToDir(
+        files, destDir, &nConv, &nText, &nErr);
+
+    if (m_ragStatus) {
+        if (written == 0) {
+            m_ragStatus->setText(
+                tr("\xe2\x9a\xa0\xef\xb8\x8f  Nessun file importabile "
+                   "(%1 scartati: vuoti o binari).").arg(nErr));
+            return;
+        }
+        m_ragStatus->setText(
+            tr("\xf0\x9f\x93\xa5  Importati %1 file (%2 conversazioni, %3 testi"
+               "%4) — avvio indicizzazione...")
+                .arg(written).arg(nConv).arg(nText)
+                .arg(nErr > 0 ? tr(", %1 scartati").arg(nErr) : QString()));
+    }
+    if (written == 0) return;
+
+    /* Il risultato riguarda il grafo RAG: riporta la vista su quella
+       sorgente se l'utente stava guardando Hermes/Multi-Agente. */
+    if (m_ragSourceCombo && m_ragSourceCombo->currentIndex() != 0)
+        m_ragSourceCombo->setCurrentIndex(0);
+
+    if (m_ragGraph && !m_ragGraph->isRunning())
+        onRagRunClicked();
+}
+
+void RicercaPage::onRagSourceChanged(int /*idx*/)
+{
+    const QString src = m_ragSourceCombo
+        ? m_ragSourceCombo->currentData().toString() : QString();
+
+    /* Apertura lazy della vista sull'altro DB: connessione SQLite propria
+     * (m_connName è per-istanza), il GraphMemory proprietario resta in
+     * AgentiPage/AgentiMultiPage. Nessun prune qui: la manutenzione la fa
+     * solo il proprietario. */
+    if (src == "hermes" && !m_hermesViewGm) {
+        m_hermesViewGm = new GraphMemory(
+            QDir::homePath() + "/.prismalux/hermes_memory.db", this);
+        if (!m_hermesViewGm->open()) {
+            delete m_hermesViewGm;
+            m_hermesViewGm = nullptr;
+        } else {
+            connect(m_hermesViewGm, &GraphMemory::changed,
+                    this, &RicercaPage::onRagGraphMemChanged);
+        }
+    }
+    if (src == "multi" && !m_multiViewGm) {
+        m_multiViewGm = new GraphMemory(
+            QDir::homePath() + "/.prismalux/graph_memory.db", this);
+        if (!m_multiViewGm->open()) {
+            delete m_multiViewGm;
+            m_multiViewGm = nullptr;
+        } else {
+            connect(m_multiViewGm, &GraphMemory::changed,
+                    this, &RicercaPage::onRagGraphMemChanged);
+        }
+    }
+
+    /* "Analizza RAG" resta sempre attivo: agisce esplicitamente e solo
+     * sul DB RAG, qualunque sia la sorgente visualizzata. */
+    if (m_ragNodeDetail) m_ragNodeDetail->clear();
+    if (m_ragStatus && m_ragSourceCombo)
+        m_ragStatus->setText(tr("\xf0\x9f\x97\x84  Sorgente: %1")   /* 🗄 */
+                             .arg(m_ragSourceCombo->currentText().trimmed()));
+    onRagGraphMemChanged();
+    onRagRefreshDot();
+}
+
+/* ══════════════════════════════════════════════════════════════
    Slot: click nodo → dettaglio + vicini
    ══════════════════════════════════════════════════════════════ */
 void RicercaPage::onRagNodeClicked(QListWidgetItem* item)
 {
-    if (!item || !m_ragGm || !m_ragNodeDetail) return;
+    GraphMemory* gm = ragViewGm();
+    if (!item || !gm || !m_ragNodeDetail) return;
     const QString nodeId = item->data(Qt::UserRole).toString();
-    const auto node = m_ragGm->nodeById(nodeId);
+    const auto node = gm->nodeById(nodeId);
     if (!node.has_value()) return;
 
     QString detail;
@@ -2119,7 +2268,7 @@ void RicercaPage::onRagNodeClicked(QListWidgetItem* item)
         detail += "<br><br>" + node->content.left(300).toHtmlEscaped();
 
     /* Vicini */
-    const auto nbrs = m_ragGm->neighbours(nodeId, 1);
+    const auto nbrs = gm->neighbours(nodeId, 1);
     if (!nbrs.isEmpty()) {
         detail += "<br><br><b>Connesso a:</b> ";
         QStringList nbrLabels;
@@ -2136,9 +2285,15 @@ void RicercaPage::onRagNodeClicked(QListWidgetItem* item)
    ══════════════════════════════════════════════════════════════ */
 void RicercaPage::onRagRefreshDot()
 {
-    if (!m_ragGm) return;
+    GraphMemory* gm = ragViewGm();
+    if (!gm) return;
 
-    const QString dot = m_ragGm->toDot("Grafo RAG Prismalux", 80);
+    const QString src = m_ragSourceCombo
+        ? m_ragSourceCombo->currentData().toString() : QString();
+    const QString dotTitle = src == "hermes" ? "Memoria Hermes"
+                           : src == "multi"  ? "Memoria Multi-Agente"
+                                             : "Grafo RAG Prismalux";
+    const QString dot = gm->toDot(dotTitle, 80);
     if (m_ragDotView) m_ragDotView->setPlainText(dot);
 
     /* Genera PNG con Graphviz */

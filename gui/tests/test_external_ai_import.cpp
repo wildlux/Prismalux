@@ -200,6 +200,71 @@ private slots:
         QCOMPARE(convs[0].title, QString("Chat 1"));
         QCOMPARE(convs[1].title, QString("Chat 2"));
     }
+    /* ── CAT-C: importFilesToDir (D-51, import verso RAG) ── */
+
+    /* C-1: JSON generico riconosciuto → un .md per conversazione con
+       turni etichettati e nome fonte */
+    void importDir_recognizedJsonBecomesMd() {
+        QTemporaryDir dst;
+        const QString path = writeJson("export.json", R"({
+            "title": "Ricetta Pasta",
+            "messages": [
+                {"role": "user", "content": "Come si fa la carbonara?"},
+                {"role": "assistant", "content": "Guanciale, uova, pecorino."}
+            ]
+        })");
+        int nConv = -1, nText = -1, nErr = -1;
+        const int written = ExternalAiImport::importFilesToDir(
+            {path}, dst.path(), &nConv, &nText, &nErr);
+        QCOMPARE(written, 1);
+        QCOMPARE(nConv, 1); QCOMPARE(nText, 0); QCOMPARE(nErr, 0);
+
+        const auto mds = QDir(dst.path()).entryList({"*.md"}, QDir::Files);
+        QCOMPARE(mds.size(), 1);
+        QVERIFY(mds.first().startsWith("ricetta_pasta_"));
+        QFile f(dst.path() + "/" + mds.first());
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const QString md = QString::fromUtf8(f.readAll());
+        QVERIFY(md.contains("# Ricetta Pasta"));
+        QVERIFY(md.contains("**Utente:** Come si fa la carbonara?"));
+        QVERIFY(md.contains("**AI:** Guanciale, uova, pecorino."));
+        QVERIFY(md.contains("export.json"));   /* fonte citata */
+    }
+
+    /* C-2: testo libero senza standard (es. export Gemini/Grok copiato
+       a mano) → copiato .txt identico */
+    void importDir_freeTextCopiedAsIs() {
+        QTemporaryDir dst;
+        const QByteArray testo = "Conversazione con Grok\nD: ciao\nR: ciao!";
+        const QString path = writeJson("grok chat!.txt", testo);
+        int nConv = -1, nText = -1, nErr = -1;
+        const int written = ExternalAiImport::importFilesToDir(
+            {path}, dst.path(), &nConv, &nText, &nErr);
+        QCOMPARE(written, 1);
+        QCOMPARE(nConv, 0); QCOMPARE(nText, 1); QCOMPARE(nErr, 0);
+
+        const auto txts = QDir(dst.path()).entryList({"*.txt"}, QDir::Files);
+        QCOMPARE(txts.size(), 1);
+        QVERIFY(txts.first().startsWith("grok_chat_"));  /* slug sanificato */
+        QFile f(dst.path() + "/" + txts.first());
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        QCOMPARE(f.readAll(), testo);                    /* byte-identico */
+    }
+
+    /* C-3: file binario (byte NUL) e file vuoto → scartati, contati */
+    void importDir_binaryAndEmptyRejected() {
+        QTemporaryDir dst;
+        const QString bin = writeJson("foto.bin",
+                                      QByteArray("\x89PNG\x00\x00rubbish", 12));
+        const QString emp = writeJson("vuoto.txt", QByteArray());
+        int nConv = -1, nText = -1, nErr = -1;
+        const int written = ExternalAiImport::importFilesToDir(
+            {bin, emp}, dst.path(), &nConv, &nText, &nErr);
+        QCOMPARE(written, 0);
+        QCOMPARE(nErr, 2);
+        QVERIFY(QDir(dst.path())
+                    .entryList(QDir::Files | QDir::NoDotAndDotDot).isEmpty());
+    }
 };
 
 QTEST_MAIN(TestExternalAiImport)

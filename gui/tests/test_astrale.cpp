@@ -542,6 +542,82 @@ private slots:
 /* ══════════════════════════════════════════════════════════════
    main
    ══════════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════
+   CAT-E — Selettore sorgente Grafo RAG (D-44)
+   Il viewer 🕸️ Grafo RAG mostra anche i DB di Hermes e Multi-Agente.
+   Il combo si riconosce dai valori currentData ("rag"/"hermes"/"multi"),
+   MAI dal testo (traducibile). I DB reali in ~/.prismalux vengono solo
+   letti (stesso pattern già usato dalla costruzione della pagina, che
+   apre rag_graph.db).
+   ══════════════════════════════════════════════════════════════ */
+class TestCatE : public QObject {
+    Q_OBJECT
+private:
+    MockAiClient* ai   = nullptr;
+    RicercaPage*  page = nullptr;
+    QComboBox*    srcCombo = nullptr;
+
+private slots:
+    void initTestCase() {
+        ai   = new MockAiClient;
+        page = new RicercaPage(ai);
+        const auto combos = page->findChildren<QComboBox*>();
+        for (auto* c : combos) {
+            if (c->count() >= 3 && c->itemData(0).toString() == "rag") {
+                srcCombo = c;
+                break;
+            }
+        }
+    }
+
+    void cleanupTestCase() {
+        /* Lascia finire l'eventuale processo `dot` spawnato dai cambi
+           sorgente prima di distruggere la pagina (pattern D-20). */
+        QTest::qWait(400);
+        delete page; page = nullptr;
+        delete ai;   ai = nullptr;
+    }
+
+    /* E-1: il combo sorgente esiste con le 3 voci e i data attesi */
+    void e1_comboPresente() {
+        QVERIFY2(srcCombo, "combo sorgente grafo (D-44) non trovato");
+        QCOMPARE(srcCombo->count(), 3);
+        QCOMPARE(srcCombo->itemData(0).toString(), QString("rag"));
+        QCOMPARE(srcCombo->itemData(1).toString(), QString("hermes"));
+        QCOMPARE(srcCombo->itemData(2).toString(), QString("multi"));
+        QCOMPARE(srcCombo->currentIndex(), 0);   /* default: RAG */
+    }
+
+    /* E-2: cambiare sorgente non crasha e il currentData segue */
+    void e2_switchSorgenti() {
+        QVERIFY(srcCombo);
+        srcCombo->setCurrentIndex(1);            /* Hermes */
+        QCoreApplication::processEvents();
+        QCOMPARE(srcCombo->currentData().toString(), QString("hermes"));
+
+        srcCombo->setCurrentIndex(2);            /* Multi-Agente */
+        QCoreApplication::processEvents();
+        QCOMPARE(srcCombo->currentData().toString(), QString("multi"));
+
+        srcCombo->setCurrentIndex(0);            /* torna a RAG */
+        QCoreApplication::processEvents();
+        QCOMPARE(srcCombo->currentData().toString(), QString("rag"));
+    }
+
+    /* E-3: il GM del RAG resta quello esposto dall'accessor pubblico
+       (le viste Hermes/Multi non lo sostituiscono) */
+    void e3_ragGmInvariato() {
+        QVERIFY(srcCombo);
+        GraphMemory* before = page->ragGraphMemory();
+        QVERIFY(before);
+        srcCombo->setCurrentIndex(1);
+        QCoreApplication::processEvents();
+        QCOMPARE(page->ragGraphMemory(), before);
+        srcCombo->setCurrentIndex(0);
+        QCoreApplication::processEvents();
+    }
+};
+
 int main(int argc, char* argv[]) {
     QApplication app(argc, argv);
     int r = 0;
@@ -549,6 +625,7 @@ int main(int argc, char* argv[]) {
     { TestCatB t; r |= QTest::qExec(&t, argc, argv); }
     { TestCatC t; r |= QTest::qExec(&t, argc, argv); }
     { TestCatD t; r |= QTest::qExec(&t, argc, argv); }
+    { TestCatE t; r |= QTest::qExec(&t, argc, argv); }
     return r;
 }
 

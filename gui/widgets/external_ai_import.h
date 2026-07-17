@@ -45,6 +45,9 @@
 #include <QJsonObject>
 #include <QJsonValue>
 #include <QDateTime>
+#include <QRegularExpression>
+#include <QDir>
+#include <QFileInfo>
 #include "../chat_history.h"
 
 namespace ExternalAiImport {
@@ -365,6 +368,95 @@ inline int importIntoHistory(const QList<ImportedConversation>& convs)
         ++saved;
     }
     return saved;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Import verso il RAG (D-51) — converte export di AI esterne in file
+   testuali dentro destDir, pronti per l'indicizzazione RagGraph:
+   - JSON riconosciuto (ChatGPT mapping / Claude chat_messages /
+     generico role-content) → un .md per conversazione, turni etichettati
+   - testo libero o JSON non riconosciuto (Gemini, Grok, estensioni
+     browser: nessuno standard) → copiato .txt così com'è
+   - file binari (byte NUL) o vuoti → scartati e contati come errori
+   ══════════════════════════════════════════════════════════════ */
+
+/** Slug sicuro per nome file (lettere/numeri/underscore, max 40). */
+inline QString importFileSlug(const QString& s)
+{
+    QString slug = s.toLower();
+    slug.replace(QRegularExpression("[^a-z0-9]+"), "_");
+    slug = slug.left(40);
+    while (slug.startsWith('_')) slug.remove(0, 1);
+    while (slug.endsWith('_'))   slug.chop(1);
+    return slug.isEmpty() ? QStringLiteral("chat") : slug;
+}
+
+/** Converte/copia i file indicati in destDir (creata se manca).
+ *  Ritorna il numero di file scritti; i contatori opzionali dettagliano
+ *  conversazioni riconosciute / testi copiati / file scartati. */
+inline int importFilesToDir(const QStringList& files, const QString& destDir,
+                            int* nConv = nullptr, int* nText = nullptr,
+                            int* nErr  = nullptr)
+{
+    QDir().mkpath(destDir);
+    const QString stamp =
+        QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss");
+    int written = 0, convs = 0, texts = 0, errs = 0;
+
+    auto uniquePath = [&destDir](const QString& base, const QString& ext) {
+        QString p = destDir + "/" + base + ext;
+        for (int i = 2; QFile::exists(p); ++i)
+            p = destDir + "/" + base + "_" + QString::number(i) + ext;
+        return p;
+    };
+
+    for (const QString& src : files) {
+        QString fmt, err;
+        const auto convList = parseFile(src, fmt, err);
+
+        if (!convList.isEmpty()) {
+            /* Un .md per conversazione, turni etichettati: dà al RagGraph
+               testo pulito invece del JSON grezzo pieno di metadati. */
+            for (const ImportedConversation& c : convList) {
+                if (c.messages.isEmpty()) continue;
+                const QString title = c.title.isEmpty()
+                    ? QFileInfo(src).completeBaseName() : c.title;
+                QString md = "# " + title + "\n\n";
+                md += QString("_Fonte: %1 (%2)_\n\n")
+                          .arg(QFileInfo(src).fileName(), fmt);
+                for (const ChatMessage& m : c.messages)
+                    md += QString("**%1:** %2\n\n")
+                              .arg(m.role == "user" ? QStringLiteral("Utente")
+                                                    : QStringLiteral("AI"),
+                                   m.content.trimmed());
+                QFile out(uniquePath(importFileSlug(title) + "_" + stamp, ".md"));
+                if (out.open(QIODevice::WriteOnly | QIODevice::Text)) {
+                    out.write(md.toUtf8());
+                    ++written; ++convs;
+                } else ++errs;
+            }
+            continue;
+        }
+
+        /* Formato non riconosciuto: testo libero copiato as-is */
+        QFile in(src);
+        if (!in.open(QIODevice::ReadOnly)) { ++errs; continue; }
+        const QByteArray raw = in.readAll();
+        if (raw.isEmpty() || raw.contains('\0')) { ++errs; continue; }
+
+        QFile out(uniquePath(
+            importFileSlug(QFileInfo(src).completeBaseName()) + "_" + stamp,
+            ".txt"));
+        if (out.open(QIODevice::WriteOnly)) {
+            out.write(raw);
+            ++written; ++texts;
+        } else ++errs;
+    }
+
+    if (nConv) *nConv = convs;
+    if (nText) *nText = texts;
+    if (nErr)  *nErr  = errs;
+    return written;
 }
 
 } // namespace ExternalAiImport
