@@ -2344,6 +2344,13 @@ Es: &apos;Pipeline di allineamento WGS: FASTQ input, output BAM sorted e indexed
     </message>
 </context>
 <context>
+    <name>CollapsibleSection</name>
+    <message>
+        <source>Mostra/nascondi la sezione</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>CytoscapeWidget</name>
     <message>
         <source>CyREST:</source>
@@ -2760,20 +2767,6 @@ Formato risposta (SOLO JSON, nessun altro testo):
     </message>
     <message>
         <source>🔄  Ricrea ora (docker compose)</source>
-        <translation type="unfinished"></translation>
-    </message>
-</context>
-<context>
-    <name>FormulaBlock</name>
-    <message>
-        <source>Rimuovi blocco</source>
-        <translation type="unfinished"></translation>
-    </message>
-</context>
-<context>
-    <name>FormulaBuilderWidget</name>
-    <message>
-        <source>Trascina i simboli qui  ↓</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -4390,14 +4383,18 @@ Consigliata: attiva.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>📥  Scarica documenti ufficiali consigliati (AdE 2026)</source>
+        <source>📂  &lt;b&gt;File nella cartella RAG&lt;/b&gt; &lt;span style=&apos;color:#94a3b8;font-size:11px;font-weight:normal;&apos;&gt;✅ indicizzato · 🔄 modificato · ⬜ da indicizzare&lt;/span&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Scarica automaticamente da Agenzia delle Entrate:
-  • Istruzioni 730/2026
-  • Fascicolo 2 Persone Fisiche 2026
-Salvati in ~/prismalux_rag_docs/ e pronti per il RAG.</source>
+        <source>Aggiorna la lista dei file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Togli la spunta ai file che NON vuoi nell&apos;indice RAG:
+al prossimo &quot;Reindicizza ora&quot; verranno esclusi (e rimossi
+dall&apos;indice se già presenti). I file spuntati vengono
+indicizzati solo se nuovi o modificati.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -5102,7 +5099,11 @@ Scarica un modello dalla scheda LLM.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>⚠  Errore: </source>
+        <source>Cartella non valida — imposta il percorso qui sopra</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Nessun documento nella cartella — aggiungi file (txt/md/csv/pdf...) e aggiorna</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -5675,10 +5676,6 @@ e premi &quot;Crea agenti&quot;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>&lt;b&gt;🖥  Come aggiungere un nodo worker:&lt;/b&gt;&lt;ol style=&apos;margin:4px 0 0 16px; padding:0;&apos;&gt;&lt;li&gt;Installa Python 3.10+ sul nodo remoto.&lt;/li&gt;&lt;li&gt;Copia &lt;b&gt;MCPs/wan_worker/wan_worker.py&lt;/b&gt; sul nodo oppure clona il repo Prismalux.&lt;/li&gt;&lt;li&gt;Avvia il worker: &lt;tt&gt;python3 wan_worker.py --host IP_SERVER --port 11600 --token TOKEN --name NomeNodo&lt;/tt&gt;&lt;br&gt;(IP_SERVER = IP della macchina con Prismalux; TOKEN = token mostrato nella sezione Autenticazione sopra).&lt;/li&gt;&lt;li&gt;Il nodo appare automaticamente nella tabella qui sotto una volta connesso.&lt;/li&gt;&lt;li&gt;Per nodi su reti diverse (internet/ufficio) attiva la VPN nella tab Programmazione → Rete.&lt;/li&gt;&lt;/ol&gt;</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>💻  Nodi connessi</source>
         <translation type="unfinished"></translation>
     </message>
@@ -5739,7 +5736,11 @@ e premi &quot;Crea agenti&quot;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>▶  Avanzato — aggiungi task singolo, cron</source>
+        <source>&lt;ol style=&apos;margin:4px 0 0 16px; padding:0;&apos;&gt;&lt;li&gt;Installa Python 3.10+ sul nodo remoto.&lt;/li&gt;&lt;li&gt;Copia &lt;b&gt;MCPs/wan_worker/wan_worker.py&lt;/b&gt; sul nodo oppure clona il repo Prismalux.&lt;/li&gt;&lt;li&gt;Avvia il worker: &lt;tt&gt;python3 wan_worker.py --host IP_SERVER --port 11600 --token TOKEN --name NomeNodo&lt;/tt&gt;&lt;br&gt;(IP_SERVER = IP della macchina con Prismalux; TOKEN = token mostrato nella sezione Autenticazione sopra).&lt;/li&gt;&lt;li&gt;Il nodo appare automaticamente nella tabella qui sotto una volta connesso.&lt;/li&gt;&lt;li&gt;Per nodi su reti diverse (internet/ufficio) attiva la VPN nella tab Programmazione → Rete.&lt;/li&gt;&lt;/ol&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🖥  Come aggiungere un nodo worker</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -5800,6 +5801,10 @@ e premi &quot;Crea agenti&quot;</source>
     </message>
     <message>
         <source>Log cron…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⚙  Avanzato — aggiungi task singolo, cron</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -6022,10 +6027,6 @@ Il server avvierà in modalità TCP non cifrata.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>📋  &lt;b&gt;Tracker Candidature&lt;/b&gt;</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>➕ Aggiungi</source>
         <translation type="unfinished"></translation>
     </message>
@@ -6067,6 +6068,10 @@ Il server avvierà in modalità TCP non cifrata.</source>
     </message>
     <message>
         <source>Ore di lavoro settimanali</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📋  Tracker Candidature</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -6121,6 +6126,14 @@ Clicca &quot;Genera Cover Letter&quot; dopo aver selezionato un&apos;offerta.</s
     </message>
     <message>
         <source>🤖 </source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Comprimi</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Espandi</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -6530,15 +6543,27 @@ Cosa vuoi fare con questo campo?</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>1. Backend AI</source>
+        <source>1. Lingua / Language</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>2. Modello consigliato</source>
+        <source>🖥️  Sistema / System</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>3. Tema</source>
+        <source>&lt;small style=&apos;color:#888&apos;&gt;Si applica al riavvio / Applies after restart.&lt;br&gt;La traduzione inglese non è ancora completa / English translation is not yet complete — puoi aiutare / you can help: &lt;a href=&apos;https://github.com/wildlux/Prismalux&apos;&gt;github.com/wildlux/Prismalux&lt;/a&gt;&lt;/small&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>2. Backend AI</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>3. Modello consigliato</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>4. Tema</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -11841,6 +11866,22 @@ La risposta include:
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>🕸  RAG (documenti)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🧠  Hermes (conversazioni)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🤖  Multi-Agente</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sorgente del grafo visualizzato: documenti indicizzati (RAG), memoria conversazioni Hermes (tab AI) o memoria del Multi-Agente</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>🔄  Analizza RAG</source>
         <translation type="unfinished"></translation>
     </message>
@@ -11862,6 +11903,16 @@ La risposta include:
     </message>
     <message>
         <source>Rigenera la visualizzazione Graphviz dal grafo corrente</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📥  Importa chat AI</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Carica conversazioni esportate da AI esterne nel grafo RAG.
+JSON riconosciuti: ChatGPT (conversations.json), Claude (chat_messages), formato generico role/content.
+Gemini, Grok e altri senza standard: qualsiasi file di testo viene indicizzato così com&apos;è.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -11929,15 +11980,6 @@ La risposta include:
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Svuota Grafo RAG</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Tutti i nodi e le relazioni del grafo RAG verranno cancellati in modo irreversibile.
-Continuare?</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>🗑  Grafo svuotato.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -11963,6 +12005,51 @@ Continuare?</source>
     </message>
     <message>
         <source>Nessun nodo trovato per: &quot;%1&quot;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Grafo RAG</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Svuota grafo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tutti i nodi e le relazioni di &quot;%1&quot; verranno cancellati in modo irreversibile.
+Continuare?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Memoria Hermes vuota — attiva 🧠 Hermes nella tab AI e conversa</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Memoria Multi-Agente vuota — esegui un piano nella tab Multi-Agente</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Importa conversazioni AI esterne</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Export AI e testo (*.json *.txt *.md);;Tutti i file (*)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⚠️  Nessun file importabile (%1 scartati: vuoti o binari).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>📥  Importati %1 file (%2 conversazioni, %3 testi%4) — avvio indicizzazione...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>, %1 scartati</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🗄  Sorgente: %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

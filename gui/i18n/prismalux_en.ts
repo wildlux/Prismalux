@@ -2413,6 +2413,13 @@ E.g.: &apos;WGS alignment pipeline: FASTQ input, sorted and indexed BAM output&a
     </message>
 </context>
 <context>
+    <name>CollapsibleSection</name>
+    <message>
+        <source>Mostra/nascondi la sezione</source>
+        <translation>Show/hide the section</translation>
+    </message>
+</context>
+<context>
     <name>CytoscapeWidget</name>
     <message>
         <source>CyREST:</source>
@@ -2846,20 +2853,6 @@ Answer format (JSON ONLY, no other text):
     <message>
         <source>🔄  Ricrea ora (docker compose)</source>
         <translation>🔄  Recreate now (docker compose)</translation>
-    </message>
-</context>
-<context>
-    <name>FormulaBlock</name>
-    <message>
-        <source>Rimuovi blocco</source>
-        <translation>Remove block</translation>
-    </message>
-</context>
-<context>
-    <name>FormulaBuilderWidget</name>
-    <message>
-        <source>Trascina i simboli qui  ↓</source>
-        <translation>Drag symbols here  ↓</translation>
     </message>
 </context>
 <context>
@@ -3849,18 +3842,22 @@ Improves RAG search performance with large knowledge bases.
 Recommended: enabled.</translation>
     </message>
     <message>
-        <source>📥  Scarica documenti ufficiali consigliati (AdE 2026)</source>
-        <translation>📥  Download recommended official documents (AdE 2026)</translation>
+        <source>📂  &lt;b&gt;File nella cartella RAG&lt;/b&gt; &lt;span style=&apos;color:#94a3b8;font-size:11px;font-weight:normal;&apos;&gt;✅ indicizzato · 🔄 modificato · ⬜ da indicizzare&lt;/span&gt;</source>
+        <translation>📂  &lt;b&gt;Files in the RAG folder&lt;/b&gt; &lt;span style=&apos;color:#94a3b8;font-size:11px;font-weight:normal;&apos;&gt;✅ indexed · 🔄 modified · ⬜ to be indexed&lt;/span&gt;</translation>
     </message>
     <message>
-        <source>Scarica automaticamente da Agenzia delle Entrate:
-  • Istruzioni 730/2026
-  • Fascicolo 2 Persone Fisiche 2026
-Salvati in ~/prismalux_rag_docs/ e pronti per il RAG.</source>
-        <translation>Automatically downloads from the Italian Revenue Agency:
-  • 730/2026 instructions
-  • Fascicolo 2 Persone Fisiche 2026
-Saved to ~/prismalux_rag_docs/ and ready for the RAG.</translation>
+        <source>Aggiorna la lista dei file</source>
+        <translation>Refresh the file list</translation>
+    </message>
+    <message>
+        <source>Togli la spunta ai file che NON vuoi nell&apos;indice RAG:
+al prossimo &quot;Reindicizza ora&quot; verranno esclusi (e rimossi
+dall&apos;indice se già presenti). I file spuntati vengono
+indicizzati solo se nuovi o modificati.</source>
+        <translation>Untick the files you do NOT want in the RAG index:
+on the next &quot;Reindex now&quot; they will be excluded (and removed
+from the index if already present). Ticked files are indexed
+only when new or modified.</translation>
     </message>
     <message>
         <source>Modello embedding:</source>
@@ -4625,8 +4622,12 @@ Download a model from the LLM tab.</translation>
         <translation>✅ Listening on 0.0.0.0:11434</translation>
     </message>
     <message>
-        <source>⚠  Errore: </source>
-        <translation>⚠  Error: </translation>
+        <source>Cartella non valida — imposta il percorso qui sopra</source>
+        <translation>Invalid folder — set the path above</translation>
+    </message>
+    <message>
+        <source>Nessun documento nella cartella — aggiungi file (txt/md/csv/pdf...) e aggiorna</source>
+        <translation>No documents in the folder — add files (txt/md/csv/pdf...) and refresh</translation>
     </message>
     <message>
         <source>⏳  Interruzione in corso dopo il chunk corrente...</source>
@@ -5801,10 +5802,6 @@ and press &quot;Create agents&quot;</translation>
         <translation>Load a random example task for inspiration.</translation>
     </message>
     <message>
-        <source>&lt;b&gt;🖥  Come aggiungere un nodo worker:&lt;/b&gt;&lt;ol style=&apos;margin:4px 0 0 16px; padding:0;&apos;&gt;&lt;li&gt;Installa Python 3.10+ sul nodo remoto.&lt;/li&gt;&lt;li&gt;Copia &lt;b&gt;MCPs/wan_worker/wan_worker.py&lt;/b&gt; sul nodo oppure clona il repo Prismalux.&lt;/li&gt;&lt;li&gt;Avvia il worker: &lt;tt&gt;python3 wan_worker.py --host IP_SERVER --port 11600 --token TOKEN --name NomeNodo&lt;/tt&gt;&lt;br&gt;(IP_SERVER = IP della macchina con Prismalux; TOKEN = token mostrato nella sezione Autenticazione sopra).&lt;/li&gt;&lt;li&gt;Il nodo appare automaticamente nella tabella qui sotto una volta connesso.&lt;/li&gt;&lt;li&gt;Per nodi su reti diverse (internet/ufficio) attiva la VPN nella tab Programmazione → Rete.&lt;/li&gt;&lt;/ol&gt;</source>
-        <translation>&lt;b&gt;🖥  How to add a worker node:&lt;/b&gt;&lt;ol style=&apos;margin:4px 0 0 16px; padding:0;&apos;&gt;&lt;li&gt;Install Python 3.10+ on the remote node.&lt;/li&gt;&lt;li&gt;Copy &lt;b&gt;MCPs/wan_worker/wan_worker.py&lt;/b&gt; to the node or clone the Prismalux repo.&lt;/li&gt;&lt;li&gt;Start the worker: &lt;tt&gt;python3 wan_worker.py --host SERVER_IP --port 11600 --token TOKEN --name NodeName&lt;/tt&gt;&lt;br&gt;(SERVER_IP = IP of the machine running Prismalux; TOKEN = token shown in the Authentication section above).&lt;/li&gt;&lt;li&gt;The node automatically appears in the table below once connected.&lt;/li&gt;&lt;li&gt;For nodes on different networks (internet/office) enable the VPN in the Programming → Network tab.&lt;/li&gt;&lt;/ol&gt;</translation>
-    </message>
-    <message>
         <source>💻  Nodi connessi</source>
         <translation>💻  Connected nodes</translation>
     </message>
@@ -5865,8 +5862,12 @@ and press &quot;Create agents&quot;</translation>
         <translation>Download CSV of all tasks (id, type, payload, status, node, duration, result)</translation>
     </message>
     <message>
-        <source>▶  Avanzato — aggiungi task singolo, cron</source>
-        <translation>▶  Advanced — add single task, cron</translation>
+        <source>&lt;ol style=&apos;margin:4px 0 0 16px; padding:0;&apos;&gt;&lt;li&gt;Installa Python 3.10+ sul nodo remoto.&lt;/li&gt;&lt;li&gt;Copia &lt;b&gt;MCPs/wan_worker/wan_worker.py&lt;/b&gt; sul nodo oppure clona il repo Prismalux.&lt;/li&gt;&lt;li&gt;Avvia il worker: &lt;tt&gt;python3 wan_worker.py --host IP_SERVER --port 11600 --token TOKEN --name NomeNodo&lt;/tt&gt;&lt;br&gt;(IP_SERVER = IP della macchina con Prismalux; TOKEN = token mostrato nella sezione Autenticazione sopra).&lt;/li&gt;&lt;li&gt;Il nodo appare automaticamente nella tabella qui sotto una volta connesso.&lt;/li&gt;&lt;li&gt;Per nodi su reti diverse (internet/ufficio) attiva la VPN nella tab Programmazione → Rete.&lt;/li&gt;&lt;/ol&gt;</source>
+        <translation>&lt;ol style=&apos;margin:4px 0 0 16px; padding:0;&apos;&gt;&lt;li&gt;Install Python 3.10+ on the remote node.&lt;/li&gt;&lt;li&gt;Copy &lt;b&gt;MCPs/wan_worker/wan_worker.py&lt;/b&gt; to the node or clone the Prismalux repo.&lt;/li&gt;&lt;li&gt;Start the worker: &lt;tt&gt;python3 wan_worker.py --host IP_SERVER --port 11600 --token TOKEN --name NodeName&lt;/tt&gt;&lt;br&gt;(IP_SERVER = IP of the machine running Prismalux; TOKEN = token shown in the Authentication section above).&lt;/li&gt;&lt;li&gt;The node appears automatically in the table below once connected.&lt;/li&gt;&lt;li&gt;For nodes on different networks (internet/office) enable the VPN in the Programming → Network tab.&lt;/li&gt;&lt;/ol&gt;</translation>
+    </message>
+    <message>
+        <source>🖥  Come aggiungere un nodo worker</source>
+        <translation>🖥  How to add a worker node</translation>
     </message>
     <message>
         <source>➕  Aggiungi task singolo</source>
@@ -5927,6 +5928,10 @@ and press &quot;Create agents&quot;</translation>
     <message>
         <source>Log cron…</source>
         <translation>Cron log…</translation>
+    </message>
+    <message>
+        <source>⚙  Avanzato — aggiungi task singolo, cron</source>
+        <translation>⚙  Advanced — add single task, cron</translation>
     </message>
     <message>
         <source>IP server (es. 192.168.1.10)</source>
@@ -6160,10 +6165,6 @@ The server will start in unencrypted TCP mode.</translation>
         <translation>Select an offer (double click = generate right away)</translation>
     </message>
     <message>
-        <source>📋  &lt;b&gt;Tracker Candidature&lt;/b&gt;</source>
-        <translation>📋  &lt;b&gt;Application Tracker&lt;/b&gt;</translation>
-    </message>
-    <message>
         <source>➕ Aggiungi</source>
         <translation>➕ Add</translation>
     </message>
@@ -6206,6 +6207,10 @@ The server will start in unencrypted TCP mode.</translation>
     <message>
         <source>Ore di lavoro settimanali</source>
         <translation>Weekly working hours</translation>
+    </message>
+    <message>
+        <source>📋  Tracker Candidature</source>
+        <translation>📋  Application Tracker</translation>
     </message>
     <message>
         <source>Stipendio lordo mensile in euro</source>
@@ -6262,6 +6267,14 @@ Click &quot;Generate Cover Letter&quot; after selecting an offer.</translation>
     <message>
         <source>🤖 </source>
         <translation>🤖</translation>
+    </message>
+    <message>
+        <source>Comprimi</source>
+        <translation>Collapse</translation>
+    </message>
+    <message>
+        <source>Espandi</source>
+        <translation>Expand</translation>
     </message>
     <message>
         <source>Seleziona un&apos;offerta dalla lista</source>
@@ -6867,16 +6880,28 @@ Counts compressed chat history + the chat&apos;s RAG documents.</translation>
         <translation>Welcome to Prismalux 🍺</translation>
     </message>
     <message>
-        <source>1. Backend AI</source>
-        <translation>1. AI Backend</translation>
+        <source>1. Lingua / Language</source>
+        <translation>1. Lingua / Language</translation>
     </message>
     <message>
-        <source>2. Modello consigliato</source>
-        <translation>2. Recommended model</translation>
+        <source>🖥️  Sistema / System</source>
+        <translation>🖥️  System</translation>
     </message>
     <message>
-        <source>3. Tema</source>
-        <translation>3. Theme</translation>
+        <source>&lt;small style=&apos;color:#888&apos;&gt;Si applica al riavvio / Applies after restart.&lt;br&gt;La traduzione inglese non è ancora completa / English translation is not yet complete — puoi aiutare / you can help: &lt;a href=&apos;https://github.com/wildlux/Prismalux&apos;&gt;github.com/wildlux/Prismalux&lt;/a&gt;&lt;/small&gt;</source>
+        <translation>&lt;small style=&apos;color:#888&apos;&gt;Si applica al riavvio / Applies after restart.&lt;br&gt;La traduzione inglese non è ancora completa / English translation is not yet complete — puoi aiutare / you can help: &lt;a href=&apos;https://github.com/wildlux/Prismalux&apos;&gt;github.com/wildlux/Prismalux&lt;/a&gt;&lt;/small&gt;</translation>
+    </message>
+    <message>
+        <source>2. Backend AI</source>
+        <translation>2. AI Backend</translation>
+    </message>
+    <message>
+        <source>3. Modello consigliato</source>
+        <translation>3. Recommended model</translation>
+    </message>
+    <message>
+        <source>4. Tema</source>
+        <translation>4. Theme</translation>
     </message>
     <message>
         <source>Non mostrare più al prossimo riavvio</source>
@@ -11983,6 +12008,22 @@ The reply includes:
         <translation>LLM model for entity extraction</translation>
     </message>
     <message>
+        <source>🕸  RAG (documenti)</source>
+        <translation>🕸  RAG (documents)</translation>
+    </message>
+    <message>
+        <source>🧠  Hermes (conversazioni)</source>
+        <translation>🧠  Hermes (conversations)</translation>
+    </message>
+    <message>
+        <source>🤖  Multi-Agente</source>
+        <translation>🤖  Multi-Agent</translation>
+    </message>
+    <message>
+        <source>Sorgente del grafo visualizzato: documenti indicizzati (RAG), memoria conversazioni Hermes (tab AI) o memoria del Multi-Agente</source>
+        <translation>Source of the displayed graph: indexed documents (RAG), Hermes conversation memory (AI tab) or Multi-Agent memory</translation>
+    </message>
+    <message>
         <source>🔄  Analizza RAG</source>
         <translation>🔄  Analyze RAG</translation>
     </message>
@@ -12005,6 +12046,18 @@ The reply includes:
     <message>
         <source>Rigenera la visualizzazione Graphviz dal grafo corrente</source>
         <translation>Regenerate the Graphviz view from the current graph</translation>
+    </message>
+    <message>
+        <source>📥  Importa chat AI</source>
+        <translation>📥  Import AI chats</translation>
+    </message>
+    <message>
+        <source>Carica conversazioni esportate da AI esterne nel grafo RAG.
+JSON riconosciuti: ChatGPT (conversations.json), Claude (chat_messages), formato generico role/content.
+Gemini, Grok e altri senza standard: qualsiasi file di testo viene indicizzato così com&apos;è.</source>
+        <translation>Load conversations exported from external AIs into the RAG graph.
+Recognised JSON: ChatGPT (conversations.json), Claude (chat_messages), generic role/content format.
+Gemini, Grok and others without a standard: any text file is indexed as-is.</translation>
     </message>
     <message>
         <source>🕸  Pronto.</source>
@@ -12071,16 +12124,6 @@ The reply includes:
         <translation>■  Analysis stopped.</translation>
     </message>
     <message>
-        <source>Svuota Grafo RAG</source>
-        <translation>Clear RAG Graph</translation>
-    </message>
-    <message>
-        <source>Tutti i nodi e le relazioni del grafo RAG verranno cancellati in modo irreversibile.
-Continuare?</source>
-        <translation>All nodes and relations of the RAG graph will be deleted irreversibly.
-Continue?</translation>
-    </message>
-    <message>
         <source>🗑  Grafo svuotato.</source>
         <translation>🗑  Graph cleared.</translation>
     </message>
@@ -12107,6 +12150,52 @@ Continue?</translation>
     <message>
         <source>Nessun nodo trovato per: &quot;%1&quot;</source>
         <translation>No node found for: &quot;%1&quot;</translation>
+    </message>
+    <message>
+        <source>Grafo RAG</source>
+        <translation>RAG Graph</translation>
+    </message>
+    <message>
+        <source>Svuota grafo</source>
+        <translation>Clear graph</translation>
+    </message>
+    <message>
+        <source>Tutti i nodi e le relazioni di &quot;%1&quot; verranno cancellati in modo irreversibile.
+Continuare?</source>
+        <translation>All nodes and relations of &quot;%1&quot; will be deleted irreversibly.
+Continue?</translation>
+    </message>
+    <message>
+        <source>Memoria Hermes vuota — attiva 🧠 Hermes nella tab AI e conversa</source>
+        <translation>Hermes memory is empty — enable 🧠 Hermes in the AI tab and chat</translation>
+    </message>
+    <message>
+        <source>Memoria Multi-Agente vuota — esegui un piano nella tab Multi-Agente</source>
+        <translation>Multi-Agent memory is empty — run a plan in the Multi-Agent tab</translation>
+    </message>
+    <message>
+        <source>Importa conversazioni AI esterne</source>
+        <translation>Import external AI conversations</translation>
+    </message>
+    <message>
+        <source>Export AI e testo (*.json *.txt *.md);;Tutti i file (*)</source>
+        <translation>AI exports and text (*.json *.txt *.md);;All files (*)</translation>
+    </message>
+    <message>
+        <source>⚠️  Nessun file importabile (%1 scartati: vuoti o binari).</source>
+        <translation>⚠️  No importable files (%1 discarded: empty or binary).</translation>
+    </message>
+    <message>
+        <source>📥  Importati %1 file (%2 conversazioni, %3 testi%4) — avvio indicizzazione...</source>
+        <translation>📥  Imported %1 files (%2 conversations, %3 texts%4) — starting indexing...</translation>
+    </message>
+    <message>
+        <source>, %1 scartati</source>
+        <translation>, %1 discarded</translation>
+    </message>
+    <message>
+        <source>🗄  Sorgente: %1</source>
+        <translation>🗄  Source: %1</translation>
     </message>
     <message>
         <source>▶  Esegui run_all.py</source>
