@@ -964,6 +964,7 @@ void MainWindow::onOnboardingAccepted()
     QSettings s2("Prismalux", "GUI");
     if (m_onbBackend) s2.setValue(P::SK::kActiveBackend, m_onbBackend->currentData().toInt());
     if (m_onbModel)   s2.setValue(P::SK::kActiveModel,   m_onbModel->currentData().toString());
+    if (m_onbLang)    s2.setValue(P::SK::kLanguage,      m_onbLang->currentData().toString());
     if (m_onbTheme) {
         const QString theme = m_onbTheme->currentData().toString();
         s2.setValue(P::SK::kTheme, theme);
@@ -982,6 +983,7 @@ void MainWindow::onOnboardingAccepted()
     m_onbBackend  = nullptr;
     m_onbModel    = nullptr;
     m_onbTheme    = nullptr;
+    m_onbLang     = nullptr;
     m_onbDontShow = nullptr;
     if (dlg) dlg->accept();
 }

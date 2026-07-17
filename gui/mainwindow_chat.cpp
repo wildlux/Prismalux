@@ -426,8 +426,34 @@ void MainWindow::showOnboardingWizard()
     sep->setFrameShadow(QFrame::Sunken);
     vlay->addWidget(sep);
 
-    /* Step 1 — backend */
-    auto* backendGrp = new QGroupBox(tr("1. Backend AI"), dlg);
+    /* Step 1 — lingua (D-45). Etichette bilingui deliberate: chi non parla
+       italiano deve capire questo step PRIMA di aver cambiato lingua. */
+    auto* langGrp = new QGroupBox(tr("1. Lingua / Language"), dlg);
+    auto* lLay = new QVBoxLayout(langGrp);
+    auto* langCombo = new QComboBox(langGrp);
+    langCombo->addItem("\xf0\x9f\x87\xae\xf0\x9f\x87\xb9  Italiano", "it");
+    langCombo->addItem("\xf0\x9f\x87\xac\xf0\x9f\x87\xa7  English", "en");
+    langCombo->addItem(tr("\xf0\x9f\x96\xa5\xef\xb8\x8f  Sistema / System"), "system");
+    const QString savedLang = ss.value(P::SK::kLanguage, "system").toString();
+    const int langIdx = langCombo->findData(savedLang);
+    langCombo->setCurrentIndex(langIdx >= 0 ? langIdx
+                                            : langCombo->findData("system"));
+    auto* langHint = new QLabel(
+        tr("<small style='color:#888'>Si applica al riavvio / Applies after"
+           " restart.<br>La traduzione inglese non \xc3\xa8 ancora completa /"
+           " English translation is not yet complete \xe2\x80\x94 puoi aiutare"
+           " / you can help: "
+           "<a href='https://github.com/wildlux/Prismalux'>"
+           "github.com/wildlux/Prismalux</a></small>"), langGrp);
+    langHint->setTextFormat(Qt::RichText);
+    langHint->setWordWrap(true);
+    langHint->setOpenExternalLinks(true);
+    lLay->addWidget(langCombo);
+    lLay->addWidget(langHint);
+    vlay->addWidget(langGrp);
+
+    /* Step 2 — backend */
+    auto* backendGrp = new QGroupBox(tr("2. Backend AI"), dlg);
     auto* bLay = new QVBoxLayout(backendGrp);
     auto* backendCombo = new QComboBox(backendGrp);
     backendCombo->addItem("\xf0\x9f\xa6\x99  Ollama (consigliato)", 0);
@@ -443,8 +469,8 @@ void MainWindow::showOnboardingWizard()
     bLay->addWidget(backendHint);
     vlay->addWidget(backendGrp);
 
-    /* Step 2 — modello consigliato */
-    auto* modelGrp = new QGroupBox(tr("2. Modello consigliato"), dlg);
+    /* Step 3 — modello consigliato */
+    auto* modelGrp = new QGroupBox(tr("3. Modello consigliato"), dlg);
     auto* mLay = new QVBoxLayout(modelGrp);
     auto* modelCombo = new QComboBox(modelGrp);
     modelCombo->addItem("qwen3:4b  \xe2\x80\x94  ~2.6 GB  (8 GB RAM, veloce)", "qwen3:4b");
@@ -465,8 +491,8 @@ void MainWindow::showOnboardingWizard()
     mLay->addWidget(modelHint);
     vlay->addWidget(modelGrp);
 
-    /* Step 3 — tema */
-    auto* themeGrp = new QGroupBox(tr("3. Tema"), dlg);
+    /* Step 4 — tema */
+    auto* themeGrp = new QGroupBox(tr("4. Tema"), dlg);
     auto* tLay = new QVBoxLayout(themeGrp);
     auto* themeCombo = new QComboBox(themeGrp);
 
@@ -543,6 +569,7 @@ void MainWindow::showOnboardingWizard()
     m_onbBackend = backendCombo;
     m_onbModel   = modelCombo;
     m_onbTheme   = themeCombo;
+    m_onbLang    = langCombo;
     m_onbDlg     = dlg;
     connect(btnBox, &QDialogButtonBox::accepted, this, &MainWindow::onOnboardingAccepted);
 

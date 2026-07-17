@@ -490,6 +490,7 @@ private:
     QComboBox* m_onbBackend  = nullptr;
     QComboBox* m_onbModel    = nullptr;
     QComboBox* m_onbTheme    = nullptr;
+    QComboBox* m_onbLang     = nullptr;  ///< D-45: lingua interfaccia (it/en/system)
     QCheckBox* m_onbDontShow = nullptr;  ///< "Non mostrare più al prossimo riavvio"
     QDialog*   m_onbDlg      = nullptr;
 };
