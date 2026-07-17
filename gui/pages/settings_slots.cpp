@@ -333,6 +333,7 @@ void ImpostazioniPage::onRagBrowseBtnClicked()
 void ImpostazioniPage::onRagDirChanged(const QString& t)
 {
     AppConfig::s().setValue(P::SK::kRagDocsDir, t);
+    refreshRagFileList();   /* D-47: la lista segue la cartella */
 }
 
 void ImpostazioniPage::onRagMaxResultsChanged(int v)
@@ -455,100 +456,91 @@ void ImpostazioniPage::refreshRagStatus()
     }
 }
 
-void ImpostazioniPage::onRagDownloadBtnClicked()
+/* ══════════════════════════════════════════════════════════════
+   D-47 — lista file della cartella RAG con spunte.
+   La lista rappresenta lo stato DESIDERATO dell'indice: spuntato =
+   nell'indice (o da indicizzare al prossimo giro), despuntato = escluso.
+   Prefisso di stato: ✅ indicizzato e aggiornato · 🔄 indicizzato ma
+   modificato su disco · ⬜ mai indicizzato.
+   ══════════════════════════════════════════════════════════════ */
+void ImpostazioniPage::refreshRagFileList()
 {
-    const QString ragDir = QDir::homePath() + "/prismalux_rag_docs";
-    if (!QDir().mkpath(ragDir)) {
-        if (m_ragFeedbackLbl) {
-            m_ragFeedbackLbl->setText(
-                "\xe2\x9a\xa0  Impossibile creare la cartella: " + ragDir);
-            m_ragFeedbackLbl->setVisible(true);
-        }
+    if (!m_ragFileList) return;
+    m_ragFileList->clear();
+
+    const QString dir = m_ragDirEdit ? m_ragDirEdit->text().trimmed() : QString();
+    if (dir.isEmpty() || !QDir(dir).exists()) {
+        auto* it = new QListWidgetItem(
+            tr("Cartella non valida \xe2\x80\x94 imposta il percorso qui sopra"),
+            m_ragFileList);
+        it->setFlags(Qt::NoItemFlags);
         return;
     }
 
-    using DlItem = QPair<QString,QString>;
-    auto items = std::make_shared<QVector<DlItem>>(QVector<DlItem>{
-        { "https://www.agenziaentrate.gov.it/portale/documents/20143/9764684/"
-          "730_+istruzioni_2026.pdf/2ac8d27a-fa3d-ed9e-ffc1-9bf61457661e",
-          "730_istruzioni_2026.pdf" },
-        { "https://www.agenziaentrate.gov.it/portale/documents/d/guest/"
-          "pf2_2026_istruzioni_bozza-internet",
-          "fascicolo2_persone_fisiche_2026.pdf" },
-    });
+    const QHash<QString, qint64> indexedMap = m_rag.indexedFileMap();
+    static const QStringList kFilters{
+        "*.txt","*.md","*.csv","*.rst","*.py","*.cpp","*.h","*.c","*.pdf"
+    };
+    QStringList files;
+    QDirIterator scanIt(dir, kFilters, QDir::Files, QDirIterator::Subdirectories);
+    while (scanIt.hasNext()) files << scanIt.next();
+    files.sort(Qt::CaseInsensitive);
 
-    if (m_ragDownloadBtn) m_ragDownloadBtn->setEnabled(false);
-    if (m_ragFeedbackLbl) {
-        m_ragFeedbackLbl->setText(
-            QString("\xe2\x8f\xb3  Download 1/%1: %2")
-            .arg(items->size()).arg((*items)[0].second));
-        m_ragFeedbackLbl->setVisible(true);
+    if (files.isEmpty()) {
+        auto* it = new QListWidgetItem(
+            tr("Nessun documento nella cartella \xe2\x80\x94 aggiungi file "
+               "(txt/md/csv/pdf...) e aggiorna"),
+            m_ragFileList);
+        it->setFlags(Qt::NoItemFlags);
+        return;
     }
 
-    auto* nam  = new QNetworkAccessManager(this);
-    auto idx   = std::make_shared<int>(0);
-    auto errN  = std::make_shared<int>(0);
+    /* Esclusioni persistite: sopravvivono a refresh e riavvii */
+    const QStringList excludedSaved = AppConfig::s()
+        .value(P::SK::kRagExcludedFiles).toStringList();
+    const QSet<QString> excluded(excludedSaved.cbegin(), excludedSaved.cend());
 
-    auto dlNext = std::make_shared<std::function<void()>>();
-    *dlNext = [=, this]() {
-        if (*idx >= items->size()) {
-            if (*errN == 0) {
-                if (m_ragDirEdit) {
-                    m_ragDirEdit->setText(ragDir);
-                    AppConfig::s().setValue(P::SK::kRagDocsDir, ragDir);
-                }
-                if (m_ragFeedbackLbl)
-                    m_ragFeedbackLbl->setText(
-                        "\xe2\x9c\x85  Download completato! "
-                        "Cartella: <code>" + ragDir + "</code><br>"
-                        "Clicca <b>Reindicizza ora</b> per costruire il RAG.");
-            } else {
-                if (m_ragFeedbackLbl)
-                    m_ragFeedbackLbl->setText(
-                        QString("\xe2\x9a\xa0  Download completato con %1 errori. "
-                                "Controlla la connessione e riprova.").arg(*errN));
-            }
-            if (m_ragDownloadBtn) m_ragDownloadBtn->setEnabled(true);
-            nam->deleteLater();
-            return;
-        }
+    const QDir base(dir);
+    m_ragFileList->blockSignals(true);   /* niente itemChanged durante il popolamento */
+    for (const QString& fp : std::as_const(files)) {
+        const qint64 mtime = QFileInfo(fp).lastModified().toMSecsSinceEpoch();
+        const bool upToDate = m_rag.isFileIndexed(fp, mtime);
+        const bool inIndex  = indexedMap.contains(fp);
+        const QString badge = upToDate ? QString("\xe2\x9c\x85 ")
+                            : inIndex  ? QString("\xf0\x9f\x94\x84 ")
+                                       : QString("\xe2\xac\x9c ");
+        auto* item = new QListWidgetItem(badge + base.relativeFilePath(fp),
+                                         m_ragFileList);
+        item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
+        /* Default: spuntato (comportamento identico a prima del D-47);
+           despuntato solo se l'utente l'ha escluso in passato. */
+        item->setCheckState(excluded.contains(fp) ? Qt::Unchecked : Qt::Checked);
+        item->setData(Qt::UserRole, fp);
+        item->setToolTip(fp);
+    }
+    m_ragFileList->blockSignals(false);
+}
 
-        const QString url   = (*items)[*idx].first;
-        const QString fname = (*items)[*idx].second;
-        if (m_ragFeedbackLbl)
-            m_ragFeedbackLbl->setText(
-                QString("\xe2\x8f\xb3  Download %1/%2: %3")
-                .arg(*idx + 1).arg(items->size()).arg(fname));
+void ImpostazioniPage::onRagFileListRefreshClicked()
+{
+    refreshRagFileList();
+}
 
-        QNetworkRequest req{QUrl(url)};
-        req.setHeader(QNetworkRequest::UserAgentHeader,
-                      "Mozilla/5.0 Prismalux/2.2 (Qt)");
-        req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
-                         QNetworkRequest::NoLessSafeRedirectPolicy);
+/* Ogni spunta/despunta aggiorna subito l'elenco persistito delle esclusioni */
+void ImpostazioniPage::onRagFileItemChanged(QListWidgetItem* item)
+{
+    if (!m_ragFileList || !item) return;
+    const QString fp = item->data(Qt::UserRole).toString();
+    if (fp.isEmpty()) return;
 
-        auto* reply = nam->get(req);
-        connect(reply, &QNetworkReply::finished, reply,
-            [=, this]() {
-            reply->deleteLater();
-            if (reply->error() == QNetworkReply::NoError) {
-                QFile f(ragDir + "/" + fname);
-                if (f.open(QIODevice::WriteOnly))
-                    f.write(reply->readAll());
-                else
-                    ++(*errN);
-            } else {
-                ++(*errN);
-                if (m_ragFeedbackLbl)
-                    m_ragFeedbackLbl->setText(
-                        tr("\xe2\x9a\xa0  Errore: ") + reply->errorString()
-                        + " \xe2\x80\x94 " + fname);
-            }
-            ++(*idx);
-            (*dlNext)();
-        });
-    };
-
-    (*dlNext)();
+    QStringList excluded = AppConfig::s()
+        .value(P::SK::kRagExcludedFiles).toStringList();
+    const bool nowExcluded = (item->checkState() == Qt::Unchecked);
+    if (nowExcluded && !excluded.contains(fp))
+        excluded << fp;
+    else if (!nowExcluded)
+        excluded.removeAll(fp);
+    AppConfig::s().setValue(P::SK::kRagExcludedFiles, excluded);
 }
 
 void ImpostazioniPage::onStopIndexClicked()
@@ -698,7 +690,15 @@ void ImpostazioniPage::onReindexBtnClicked()
     m_ragQueuePos = 0;
     /* NON fare m_rag.clear() — aggiornamento incrementale */
 
-    /* ── Pulizia file eliminati o modificati dall'indice ── */
+    /* D-47: file despuntati nella lista → esclusi dall'indice.
+       L'elenco persistito è aggiornato ad ogni click (onRagFileItemChanged);
+       qui si legge la fonte di verità dalle QSettings, così vale anche se
+       la lista non è mai stata costruita in questa sessione. */
+    const QStringList exclSaved = AppConfig::s()
+        .value(P::SK::kRagExcludedFiles).toStringList();
+    const QSet<QString> excludedFiles(exclSaved.cbegin(), exclSaved.cend());
+
+    /* ── Pulizia file eliminati, modificati o esclusi dall'indice ── */
     const QHash<QString, qint64> indexedMap = m_rag.indexedFileMap();
     static const QStringList kRagFilters{
         "*.txt","*.md","*.csv","*.rst","*.py","*.cpp","*.h","*.c","*.pdf"
@@ -709,19 +709,37 @@ void ImpostazioniPage::onReindexBtnClicked()
         const QString fp = scanIt.next();
         currentFiles.insert(fp, QFileInfo(fp).lastModified().toMSecsSinceEpoch());
     }
+    bool removedAny = false;
     for (auto it = indexedMap.constBegin(); it != indexedMap.constEnd(); ++it) {
         if (!currentFiles.contains(it.key()) ||
-            currentFiles.value(it.key()) != it.value())
+            currentFiles.value(it.key()) != it.value() ||
+            excludedFiles.contains(it.key())) {
             m_rag.removeChunksForFile(it.key());
+            removedAny = true;
+        }
     }
 
-    /* Costruisce mappa dei file già aggiornati da passare al thread */
+    /* Costruisce mappa dei file già aggiornati da passare al thread.
+       D-47: gli esclusi vengono passati come "già indicizzati" al mtime
+       corrente — l'estrattore li salta senza modifiche alla sua firma. */
     QHash<QString, qint64> alreadyIndexed;
     for (auto it = currentFiles.constBegin(); it != currentFiles.constEnd(); ++it) {
-        if (m_rag.isFileIndexed(it.key(), it.value()))
+        if (excludedFiles.contains(it.key()) ||
+            m_rag.isFileIndexed(it.key(), it.value()))
             alreadyIndexed.insert(it.key(), it.value());
     }
     const int toProcess = currentFiles.size() - alreadyIndexed.size();
+
+    /* Se sono stati solo rimossi chunk (esclusioni/file spariti), salva
+       subito l'indice aggiornato — il ramo "done" del loop embedding non
+       verrebbe mai eseguito quando toProcess == 0. */
+    if (removedAny && toProcess == 0) {
+        if (!m_ragNoSave)
+            m_rag.save(QDir::homePath() + "/.prismalux_rag.json");
+        AppConfig::s().setValue(P::SK::kRagDocCount, m_rag.chunkCount());
+        refreshRagStatus();
+        refreshRagFileList();
+    }
 
     if (m_ragReindexBtn) m_ragReindexBtn->setEnabled(false);
     if (m_btnStopIndex)  m_btnStopIndex->setEnabled(false);
@@ -806,6 +824,7 @@ void ImpostazioniPage::startEmbeddingPhase(const QString& dir)
                 }
             }
             refreshRagStatus();
+            refreshRagFileList();   /* D-47: aggiorna badge ✅/🔄/⬜ */
 
             const bool wasAborted = m_indexAborted;
             m_indexAborted = false;

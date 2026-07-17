@@ -1433,17 +1433,52 @@ QWidget* ImpostazioniPage::buildRagTab()
     refreshRagStatus();
     rightCol->addWidget(m_ragStatusLbl);
 
-    /* ── Pulsante: scarica documenti AdE ufficiali ── */
-    auto* downloadBtn = new QPushButton(
-        tr("\xf0\x9f\x93\xa5  Scarica documenti ufficiali consigliati (AdE 2026)"));
-    downloadBtn->setObjectName("actionBtn");
-    downloadBtn->setFixedHeight(dpiScale(32));
-    downloadBtn->setToolTip(
-        tr("Scarica automaticamente da Agenzia delle Entrate:\n"
-        "  \xe2\x80\xa2 Istruzioni 730/2026\n"
-        "  \xe2\x80\xa2 Fascicolo 2 Persone Fisiche 2026\n"
-        "Salvati in ~/prismalux_rag_docs/ e pronti per il RAG."));
-    rightCol->addWidget(downloadBtn);
+    /* ── Card: file nella cartella RAG con spunte (D-47).
+       Sostituisce il pulsante "Scarica documenti AdE 2026" (rimosso:
+       URL destinati a diventare obsoleti). La lista È lo stato desiderato
+       dell'indice: spuntato = nell'indice (o da indicizzare), despuntato =
+       fuori dall'indice; "Reindicizza ora" allinea l'indice alle spunte. ── */
+    {
+        auto* fileCard = new QFrame(page);
+        fileCard->setObjectName("cardFrame");
+        auto* fileCardLay = new QVBoxLayout(fileCard);
+        fileCardLay->setContentsMargins(12, 10, 12, 10);
+        fileCardLay->setSpacing(6);
+
+        auto* fileHdrRow = new QHBoxLayout;
+        auto* fileCardTitle = new QLabel(
+            tr("\xf0\x9f\x93\x82  <b>File nella cartella RAG</b> "
+               "<span style='color:#94a3b8;font-size:11px;font-weight:normal;'>"
+               "\xe2\x9c\x85 indicizzato \xc2\xb7 \xf0\x9f\x94\x84 modificato \xc2\xb7 "
+               "\xe2\xac\x9c da indicizzare</span>"),
+            fileCard);
+        fileCardTitle->setTextFormat(Qt::RichText);
+        fileHdrRow->addWidget(fileCardTitle, 1);
+        auto* fileRefreshBtn = new QPushButton("\xf0\x9f\x94\x84", fileCard);
+        fileRefreshBtn->setObjectName("navBtn");
+        fileRefreshBtn->setFixedSize(dpiScale(28), dpiScale(24));
+        fileRefreshBtn->setToolTip(tr("Aggiorna la lista dei file"));
+        QObject::connect(fileRefreshBtn, &QPushButton::clicked,
+                         this, &ImpostazioniPage::onRagFileListRefreshClicked);
+        fileHdrRow->addWidget(fileRefreshBtn);
+        fileCardLay->addLayout(fileHdrRow);
+
+        m_ragFileList = new QListWidget(fileCard);
+        m_ragFileList->setObjectName("chatLog");
+        m_ragFileList->setAlternatingRowColors(true);
+        m_ragFileList->setMinimumHeight(dpiScale(110));
+        m_ragFileList->setMaximumHeight(dpiScale(210));
+        m_ragFileList->setToolTip(
+            tr("Togli la spunta ai file che NON vuoi nell'indice RAG:\n"
+               "al prossimo \"Reindicizza ora\" verranno esclusi (e rimossi\n"
+               "dall'indice se gi\xc3\xa0 presenti). I file spuntati vengono\n"
+               "indicizzati solo se nuovi o modificati."));
+        fileCardLay->addWidget(m_ragFileList);
+        rightCol->addWidget(fileCard);
+        QObject::connect(m_ragFileList, &QListWidget::itemChanged,
+                         this, &ImpostazioniPage::onRagFileItemChanged);
+        refreshRagFileList();
+    }
 
     /* ── Modello embedding ── */
     {
@@ -1633,11 +1668,6 @@ QWidget* ImpostazioniPage::buildRagTab()
                      this, &ImpostazioniPage::onRagMaxResultsChanged);
     /* Label feedback globale */
     m_ragFeedbackLbl = feedbackLbl;
-    m_ragDownloadBtn = downloadBtn;
-
-    /* ── Download documenti AdE consigliati ── */
-    QObject::connect(downloadBtn, &QPushButton::clicked,
-                     this, &ImpostazioniPage::onRagDownloadBtnClicked);
 
     /* Pulsante "Ferma indicizzazione" — setta il flag, il prossimo ciclo si ferma */
     QObject::connect(m_btnStopIndex, &QPushButton::clicked,

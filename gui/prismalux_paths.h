@@ -1130,6 +1130,7 @@ constexpr const char* kRagNoSave       = "rag/noSave";
 constexpr const char* kRagDocCount     = "rag/docCount";
 constexpr const char* kRagDocsDir      = "rag/docsDir";
 constexpr const char* kRagJlTransform  = "rag/jlTransform";
+constexpr const char* kRagExcludedFiles = "rag/excludedFiles";  ///< D-47: file despuntati (QStringList)
 constexpr const char* kRagLastIndexed  = "rag/lastIndexed";
 constexpr const char* kRagEmbedModel   = "rag/embedModel";   ///< modello Ollama per embedding (default: nomic-embed-text)
 

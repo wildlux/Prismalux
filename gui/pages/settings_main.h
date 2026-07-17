@@ -135,8 +135,9 @@ private slots:
     void onRagEmbedComboChanged(int idx);
     void onRagEmbedRefreshClicked();
     void onRagEmbedModelsReady(const QStringList& models);
-    void onRagDownloadBtnClicked();
     void onRagJlToggled(bool checked);
+    void onRagFileListRefreshClicked();
+    void onRagFileItemChanged(QListWidgetItem* item);
     /* ── buildSmartRouterTab / buildJlTab ── */
     void onSmartRouterSaveClicked();
     void onStopIndexClicked();
@@ -256,6 +257,7 @@ private:
     void applySelectedModel();
     /* helper RAG: aggiorna label stato */
     void refreshRagStatus();
+    void refreshRagFileList();   ///< D-47: lista file cartella RAG con spunte
     /* helper RAG: avvia la fase di embedding (chiamata dopo l'estrazione testo) */
     void startEmbeddingPhase(const QString& dir);
 
@@ -318,7 +320,7 @@ private:
     QLineEdit*      m_ragDirEdit        = nullptr;
     QLabel*         m_ragStatusLbl      = nullptr;
     QPushButton*    m_ragReindexBtn     = nullptr;
-    QPushButton*    m_ragDownloadBtn    = nullptr;
+    QListWidget*    m_ragFileList       = nullptr;  ///< D-47: file cartella RAG con spunte
     QComboBox*      m_ragEmbedCombo     = nullptr;  ///< selettore modello embedding
     QComboBox*      m_langCombo         = nullptr;  ///< selettore lingua interfaccia (it/en)
     QLabel*         m_langRestartHint   = nullptr;  ///< avviso "riavvia per applicare la lingua"
