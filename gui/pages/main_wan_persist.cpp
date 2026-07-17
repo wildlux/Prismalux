@@ -10,6 +10,7 @@
 #include "../app_config.h"
 #include "../widgets/qr_code_widget.h"
 #include "../widgets/model_combo_box.h"
+#include "../widgets/collapsible_section.h"
 #include "../widgets/proc_helper.h"
 #include "../log_bus.h"
 #include <QVBoxLayout>
@@ -518,9 +519,9 @@ QWidget* LanWanPage::buildWanComputeTab()
     connect(m_wanExposeAllCheck, &QCheckBox::toggled,
             m_wanVpnNoteLbl,     &QLabel::setVisible);
 
-    /* 2 — Decomponi compito: textarea sinistra, bottone destra */
-    auto* decompBox = new QGroupBox(
-        tr("\xf0\x9f\xa7\xa0  Scrivi un compito \xe2\x80\x94 l\xe2\x80\x99" "AI lo divide in agenti automaticamente"));
+    /* 2 — Decomponi compito: textarea sinistra, bottone destra.
+       D-52: titolo nell'header arrotolabile della CollapsibleSection. */
+    auto* decompBox = new QGroupBox;
     auto* decompLay = new QHBoxLayout(decompBox);
     decompLay->setSpacing(8); decompLay->setContentsMargins(6,4,6,4);
 
@@ -591,17 +592,20 @@ QWidget* LanWanPage::buildWanComputeTab()
                 m_wanDecomposeInput->setPlainText(kEsempi[idx]);
             });
 
-    srvLay->addWidget(decompBox);
+    srvLay->addWidget(new CollapsibleSection(
+        tr("\xf0\x9f\xa7\xa0  Scrivi un compito \xe2\x80\x94 l\xe2\x80\x99"
+           "AI lo divide in agenti automaticamente"),
+        decompBox, true, srvPanel));
 
-    /* Guida aggiunta nodo worker */
+    /* Guida aggiunta nodo worker — D-52: arrotolata e CHIUSA di default
+       (testo statico ingombrante; serve solo la prima volta) */
     {
         auto* workerGuide = new QLabel;
         workerGuide->setObjectName("hintLabel");
         workerGuide->setTextFormat(Qt::RichText);
         workerGuide->setWordWrap(true);
         workerGuide->setText(
-            tr("<b>\xf0\x9f\x96\xa5  Come aggiungere un nodo worker:</b>"
-            "<ol style='margin:4px 0 0 16px; padding:0;'>"
+            tr("<ol style='margin:4px 0 0 16px; padding:0;'>"
             "<li>Installa Python 3.10+ sul nodo remoto.</li>"
             "<li>Copia <b>MCPs/wan_worker/wan_worker.py</b> sul nodo "
             "oppure clona il repo Prismalux.</li>"
@@ -615,7 +619,9 @@ QWidget* LanWanPage::buildWanComputeTab()
             "<li>Per nodi su reti diverse (internet/ufficio) attiva la VPN "
             "nella tab Programmazione \xe2\x86\x92 Rete.</li>"
             "</ol>"));
-        srvLay->addWidget(workerGuide);
+        srvLay->addWidget(new CollapsibleSection(
+            tr("\xf0\x9f\x96\xa5  Come aggiungere un nodo worker"),
+            workerGuide, false, srvPanel));
     }
 
     /* 3 — Monitor nodi + coda: stretch per occupare lo spazio liberato */
@@ -683,25 +689,11 @@ QWidget* LanWanPage::buildWanComputeTab()
     connect(m_wanDashTimer, &QTimer::timeout, this, &LanWanPage::onWanDashTick);
     m_wanDashTimer->start(5000);
 
-    /* 4 — Avanzato (nascosto di default) */
-    auto* advToggle = new QPushButton(tr("\xe2\x96\xb6  Avanzato — aggiungi task singolo, cron"));
-    advToggle->setCheckable(true);
-    advToggle->setChecked(false);
-    advToggle->setFlat(true);
-    advToggle->setStyleSheet("text-align:left; color:gray; font-size:11px;");
-    srvLay->addWidget(advToggle);
-
+    /* 4 — Avanzato (chiuso di default). D-52: il toggle fatto a mano
+       (▶/▼ + setVisible) è sostituito dalla CollapsibleSection unificata. */
     auto* advPanel = new QWidget;
-    advPanel->setVisible(false);
     auto* advLay = new QVBoxLayout(advPanel);
     advLay->setContentsMargins(0,0,0,0); advLay->setSpacing(6);
-
-    connect(advToggle, &QPushButton::toggled, advPanel, &QWidget::setVisible);
-    connect(advToggle, &QPushButton::toggled, advToggle, [advToggle](bool on){
-        advToggle->setText(on
-            ? "\xe2\x96\xbc  Avanzato — aggiungi task singolo, cron"
-            : "\xe2\x96\xb6  Avanzato — aggiungi task singolo, cron");
-    });
 
     /* Aggiungi task manuale */
     auto* addTaskBox = new QGroupBox(tr("\xe2\x9e\x95  Aggiungi task singolo"));
@@ -817,7 +809,9 @@ QWidget* LanWanPage::buildWanComputeTab()
     cronLay->addWidget(m_wanCronLog);
     advLay->addWidget(cronBox);
 
-    srvLay->addWidget(advPanel);
+    srvLay->addWidget(new CollapsibleSection(
+        tr("\xe2\x9a\x99  Avanzato \xe2\x80\x94 aggiungi task singolo, cron"),
+        advPanel, false, srvPanel));
 
     auto* srvScroll = new QScrollArea;
     srvScroll->setWidgetResizable(true);

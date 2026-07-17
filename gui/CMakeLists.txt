@@ -339,6 +339,7 @@ set(CPP_SRCS
     widgets/code_highlighter.h
     widgets/python_exec.h
     widgets/ai_error_widget.h
+    widgets/collapsible_section.h
     widgets/job_recorder_bridge.h
     widgets/widget_dep_check.h
     widgets/widget_docker_update.h

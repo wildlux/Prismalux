@@ -9,6 +9,7 @@
 #include <QTableWidget>
 #include <QNetworkAccessManager>
 #include "../ai_client.h"
+#include "../widgets/collapsible_section.h"
 #include "main_jobs_data.h"
 #ifdef HAVE_JOB_ASSISTANT
 #include <QWebEngineView>
@@ -151,6 +152,8 @@ private:
     /* Widget promuossi per slot toggle/azioni */
     QWidget*     m_cvBox         = nullptr;
     QWidget*     m_llmBox        = nullptr;
+    CollapsibleSection* m_cvSection  = nullptr;  ///< D-48: sezione arrotolabile CV
+    CollapsibleSection* m_llmSection = nullptr;  ///< D-48: sezione arrotolabile Modello AI
     QWidget*     m_filtriRow     = nullptr;
     QPushButton* m_toggleBtn     = nullptr;
     QPushButton* m_emailBtn      = nullptr;

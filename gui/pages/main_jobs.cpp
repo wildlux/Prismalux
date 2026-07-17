@@ -187,7 +187,9 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     /* CV Picker — riga controlli + riga stato: lo stato ("✅ CV caricato:
        nomefile.pdf (N car.)") può essere lungo, sulla stessa riga di
        path+Sfoglia forzava la larghezza minima del box oltre la colonna. */
-    m_cvBox = new QGroupBox(tr("\xf0\x9f\x93\x84  Curriculum Vitae"), topRow);
+    /* D-48: il titolo vive nell'header arrotolabile della CollapsibleSection,
+       il groupbox resta senza titolo (solo cornice-card). */
+    m_cvBox = new QGroupBox(topRow);
     auto* cvVLay = new QVBoxLayout(m_cvBox);
     cvVLay->setSpacing(4);
     auto* cvRow = new QWidget(m_cvBox);
@@ -247,7 +249,7 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     /* LLM Selector — combo+refresh su una riga, nome modello sotto: il
        nome completo (es. "antconsales/antonio-gemma3-evo-q4:latest") è
        più largo della colonna, in linea col combo tagliava tutto. */
-    m_llmBox = new QGroupBox(tr("\xf0\x9f\xa4\x96  Modello AI"), topRow);
+    m_llmBox = new QGroupBox(topRow);   /* titolo nell'header arrotolabile (D-48) */
     auto* llmVLay = new QVBoxLayout(m_llmBox);
     llmVLay->setSpacing(4);
     auto* llmRow = new QWidget(m_llmBox);
@@ -286,8 +288,14 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     llmVLay->addWidget(llmRow);
     llmVLay->addWidget(m_modelloLbl);
 
-    topL->addWidget(m_cvBox);
-    topL->addWidget(m_llmBox);
+    /* D-48: sezioni arrotolabili stile Blender — click sul titolo per
+       ripiegare CV e Modello AI e scorrere più facilmente la colonna. */
+    m_cvSection = new CollapsibleSection(
+        tr("\xf0\x9f\x93\x84  Curriculum Vitae"), m_cvBox, true, topRow);
+    m_llmSection = new CollapsibleSection(
+        tr("\xf0\x9f\xa4\x96  Modello AI"), m_llmBox, true, topRow);
+    topL->addWidget(m_cvSection);
+    topL->addWidget(m_llmSection);
     lay->addWidget(topRow);
 
     connect(sfogliaBtn,  &QPushButton::clicked,
@@ -489,23 +497,25 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     auto* trackerLay  = new QVBoxLayout(trackerPane);
     trackerLay->setContentsMargins(4,0,0,0); trackerLay->setSpacing(6);
 
-    /* Intestazione tracker */
-    auto* trkHdrRow = new QWidget(trackerPane);
+    /* D-52: tutto il blocco tracker (bottoni + tabella) vive in un
+       contenitore arrotolabile — il titolo sta nell'header della sezione. */
+    auto* trackerInner = new QWidget(trackerPane);
+    auto* trkInnerLay  = new QVBoxLayout(trackerInner);
+    trkInnerLay->setContentsMargins(0,0,0,0); trkInnerLay->setSpacing(6);
+
+    auto* trkHdrRow = new QWidget(trackerInner);
     auto* trkHdrL   = new QHBoxLayout(trkHdrRow);
     trkHdrL->setContentsMargins(0,0,0,0); trkHdrL->setSpacing(6);
-    auto* trkTitleLbl = new QLabel(
-        tr("\xf0\x9f\x93\x8b  <b>Tracker Candidature</b>"), trkHdrRow);
-    trkTitleLbl->setTextFormat(Qt::RichText);
     m_trackerAddBtn = new QPushButton(tr("\xe2\x9e\x95 Aggiungi"), trkHdrRow);
     m_trackerAddBtn->setObjectName("actionBtn");
     m_trackerAddBtn->setAccessibleName(tr("Aggiungi candidatura al tracker"));
     m_trackerDelBtn = new QPushButton(tr("\xf0\x9f\x97\x91 Rimuovi"), trkHdrRow);
     m_trackerDelBtn->setObjectName("actionBtn");
     m_trackerDelBtn->setAccessibleName(tr("Rimuovi candidatura selezionata dal tracker"));
-    trkHdrL->addWidget(trkTitleLbl, 1);
     trkHdrL->addWidget(m_trackerAddBtn);
     trkHdrL->addWidget(m_trackerDelBtn);
-    trackerLay->addWidget(trkHdrRow);
+    trkHdrL->addStretch(1);
+    trkInnerLay->addWidget(trkHdrRow);
 
     /* Tabella candidature */
     m_trackerTable = new QTableWidget(0, 5, trackerPane);
@@ -522,10 +532,14 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     m_trackerTable->setEditTriggers(
         QAbstractItemView::DoubleClicked | QAbstractItemView::EditKeyPressed);
     m_trackerTable->setAlternatingRowColors(true);
-    trackerLay->addWidget(m_trackerTable, 1);
+    trkInnerLay->addWidget(m_trackerTable, 1);
 
-    /* Calcolatore euro/ore */
-    auto* calcBox  = new QGroupBox(tr("\xf0\x9f\x92\xb6  Calcolatore Euro / Ore"), trackerPane);
+    auto* trkSection = new CollapsibleSection(
+        tr("\xf0\x9f\x93\x8b  Tracker Candidature"), trackerInner, true, trackerPane);
+    trackerLay->addWidget(trkSection, 1);
+
+    /* Calcolatore euro/ore — titolo nell'header arrotolabile (D-52) */
+    auto* calcBox  = new QGroupBox(trackerPane);
     auto* calcGrid = new QFormLayout(calcBox);
     calcGrid->setSpacing(4);
 
@@ -557,7 +571,8 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     m_mercatoLbl->setTextFormat(Qt::RichText);
     calcGrid->addRow(m_mercatoLbl);   /* full-width hint: annuncio vs. mercato */
 
-    trackerLay->addWidget(calcBox);
+    trackerLay->addWidget(new CollapsibleSection(
+        tr("\xf0\x9f\x92\xb6  Calcolatore Euro / Ore"), calcBox, true, trackerPane));
 
     topSplitter->addWidget(trackerPane);
     topSplitter->setStretchFactor(0, 1);
@@ -869,13 +884,16 @@ void LavoroPage::onModelloIndexChanged(int) {
    SLOT — Toggle
    ══════════════════════════════════════════════════════════════ */
 void LavoroPage::onToggleBtnClicked() {
-    if (!m_cvBox || !m_llmBox || !m_filtriRow || !m_toggleBtn) return;
-    const bool nowVisible = !m_cvBox->isVisible();
-    m_cvBox->setVisible(nowVisible);
-    m_llmBox->setVisible(nowVisible);
-    m_filtriRow->setVisible(nowVisible);
-    m_toggleBtn->setText(nowVisible ? "\xe2\x96\xb2" : "\xe2\x96\xbc");
-    m_toggleBtn->setToolTip(nowVisible ? "Comprimi" : "Espandi");
+    if (!m_cvSection || !m_llmSection || !m_filtriRow || !m_toggleBtn) return;
+    /* D-48: il toggle globale arrotola/espande le due sezioni (senza
+       nasconderne gli header, così restano riapribili una per una)
+       più la riga filtri. */
+    const bool nowOpen = !m_cvSection->isOpen();
+    m_cvSection->setOpen(nowOpen);
+    m_llmSection->setOpen(nowOpen);
+    m_filtriRow->setVisible(nowOpen);
+    m_toggleBtn->setText(nowOpen ? "\xe2\x96\xb2" : "\xe2\x96\xbc");
+    m_toggleBtn->setToolTip(nowOpen ? tr("Comprimi") : tr("Espandi"));
 }
 
 /* ══════════════════════════════════════════════════════════════

@@ -56,9 +56,11 @@ QWidget* LavoroPage::buildAssistenteTab(QWidget* parent, QWidget* candidatureCon
     rootLay->setContentsMargins(8, 8, 8, 8);
     rootLay->setSpacing(4);
 
-    /* ──── Barra superiore a piena larghezza: naviga il browser + apri/
-       nascondi colonne — è in comune a tutte e 3 le colonne, quindi vive
-       fuori dallo splitter invece che dentro la colonna del browser. ──── */
+    /* ──── Barra di navigazione del browser (◀ ▶ ⟳ URL Vai). D-48: vive
+       DENTRO la colonna del browser, non più a piena larghezza sopra lo
+       splitter — "Vai" era finito all'estrema destra della finestra,
+       staccato dalla barra URL, e i pulsanti Candidature/Assistente
+       restavano una riga più in basso. ──── */
     auto* toolbar = new QWidget(root);
     auto* toolL = new QHBoxLayout(toolbar);
     toolL->setContentsMargins(0, 0, 0, 0);
@@ -88,14 +90,14 @@ QWidget* LavoroPage::buildAssistenteTab(QWidget* parent, QWidget* candidatureCon
     toolL->addWidget(reloadBtn);
     toolL->addWidget(m_asstUrlEdit, 1);
     toolL->addWidget(goBtn);
-    rootLay->addWidget(toolbar);
 
     auto* splitter = new QSplitter(Qt::Horizontal, root);
 
-    /* ──── Sinistra: solo il browser, la barra è sopra lo splitter ──── */
+    /* ──── Sinistra: barra di navigazione + browser (D-48) ──── */
     auto* browserPane = new QWidget(splitter);
     auto* browserLay = new QVBoxLayout(browserPane);
     browserLay->setContentsMargins(0, 0, 0, 0);
+    browserLay->addWidget(toolbar);
 
     m_asstView = new QWebEngineView(browserPane);
     m_asstView->setUrl(QUrl("https://www.indeed.it"));
