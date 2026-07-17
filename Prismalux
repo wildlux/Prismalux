@@ -3,7 +3,7 @@
 # Uso: ./Prismalux
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-GUI_BIN="$SCRIPT_DIR/C_software/Qt_GUI/build/Prismalux_GUI"
+GUI_BIN="$SCRIPT_DIR/build_gui/Prismalux_GUI"
 
 GRN='\033[0;32m'; YLW='\033[0;33m'; RED='\033[0;31m'; CYN='\033[0;36m'; RST='\033[0m'
 
@@ -11,8 +11,8 @@ GRN='\033[0;32m'; YLW='\033[0;33m'; RED='\033[0;31m'; CYN='\033[0;36m'; RST='\03
 if [ ! -f "$GUI_BIN" ]; then
     echo -e "\n${RED}  ✗ GUI non compilata: $GUI_BIN${RST}"
     echo -e "${YLW}  Compila con:${RST}"
-    echo -e "    cd '$SCRIPT_DIR/Qt_GUI'"
-    echo -e "    ./build.sh"
+    echo -e "    cd '$SCRIPT_DIR'"
+    echo -e "    cmake -B build_gui gui/ -DCMAKE_BUILD_TYPE=Release && cmake --build build_gui -j\$(nproc)"
     exit 1
 fi
 
