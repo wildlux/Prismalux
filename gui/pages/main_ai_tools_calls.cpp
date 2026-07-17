@@ -1044,7 +1044,10 @@ void AgentiPage::onToolEventoCalendario(const QString& input, const std::functio
         const QString luogo       = o.value("luogo").toString();
         const QString descrizione = o.value("descrizione").toString();
         QString formato = o.value("formato").toString().toLower().trimmed();
-        if (formato != "ics" && formato != "entrambi") formato = "google";
+        /* D-50: default "entrambi" — senza il QR .ics un iPhone resterebbe
+           fuori (intent:// è solo Android e il link https apre il browser);
+           la fotocamera iOS riconosce nativamente il VEVENT nel QR. */
+        if (formato != "ics" && formato != "google") formato = "entrambi";
 
         const QDateTime start(data, oraInizio);
         const QDateTime end(data, oraFine);
@@ -1143,7 +1146,7 @@ void AgentiPage::onToolEventoCalendario(const QString& input, const std::functio
                 const QString path = base + "_ics.png";
                 if (img.save(path, "PNG")) {
                     pngs.append(path);
-                    labels.append("Universale (.ics)");
+                    labels.append("\xf0\x9f\x8d\x8e Apple iPhone / universale (.ics)");
                 }
             }
         }
@@ -1159,7 +1162,10 @@ void AgentiPage::onToolEventoCalendario(const QString& input, const std::functio
         if (!icsPath.isEmpty()) res["ics_file"] = icsPath;
         res["testo"] = QString(
             "Evento \"%1\" pronto per il %2 dalle %3 alle %4%5. "
-            "Scansiona il QR con la fotocamera del telefono per aggiungerlo al calendario.")
+            "Scansiona il QR con la fotocamera del telefono: "
+            "\xf0\x9f\xa4\x96 Android \xe2\x86\x92 QR \"Google Calendar (Android)\"; "
+            "\xf0\x9f\x8d\x8e iPhone \xe2\x86\x92 QR \"Apple iPhone / universale\" "
+            "(la fotocamera iOS propone subito \"Aggiungi al calendario\").")
             .arg(titolo,
                  QLocale(QLocale::Italian).toString(data, "dddd d MMMM yyyy"),
                  oraInizio.toString("HH:mm"), oraFine.toString("HH:mm"),
