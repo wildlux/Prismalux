@@ -98,6 +98,8 @@ assumere l'ordine di costruzione:
 
 ## Struttura cartelle repo
 
+> Mappa completa del software e punto d'entrata (`gui/main.cpp`): **`PATH.md` in root** — consultarlo invece di espandere questa sezione.
+
 ```
 Prismalux/
 ├── gui/                          ← sorgente C++/Qt6 (questo progetto)
