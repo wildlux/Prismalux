@@ -36,6 +36,8 @@
 #include <QMouseEvent>
 
 #include "../pages/widget_vision3d.h"
+#include "../widgets/collapsible_section.h"
+#include <QGroupBox>
 #include "../prismalux_paths.h"
 #include "../log_bus.h"
 
@@ -63,6 +65,24 @@ private slots:
         QVERIFY(w.findChild<QTableWidget*>()   != nullptr);   // device attivi
         QVERIFY(w.findChild<QLineEdit*>()      != nullptr);   // porta
         QVERIFY(!w.findChildren<QPushButton*>().isEmpty());   // avvia/ferma
+    }
+
+    void prepCardsAreCollapsible() {
+        // le 6 card della tab Preparazione sono avvolte in CollapsibleSection
+        // (fromGroupBox): tutte aperte all'avvio = comportamento invariato
+        Vision3DWidget w;
+        const auto secs = w.findChildren<CollapsibleSection*>();
+        QVERIFY(secs.size() >= 6);
+        for (auto* s : secs)
+            QVERIFY(s->isOpen());
+        // il titolo è migrato nell'header: il groupbox interno resta senza
+        QVERIFY(qobject_cast<QGroupBox*>(secs.first()->content()) != nullptr);
+        QVERIFY(qobject_cast<QGroupBox*>(secs.first()->content())->title().isEmpty());
+        // arrotolare nasconde il contenuto, riaprire lo rimostra
+        secs.first()->setOpen(false);
+        QVERIFY(!secs.first()->content()->isVisibleTo(&w));
+        secs.first()->setOpen(true);
+        QVERIFY(secs.first()->content()->isVisibleTo(&w));
     }
 
     void portEditDefaultsToVision3DPort() {

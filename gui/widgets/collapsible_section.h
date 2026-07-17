@@ -12,6 +12,7 @@
 #include <QWidget>
 #include <QToolButton>
 #include <QVBoxLayout>
+#include <QGroupBox>
 
 class CollapsibleSection : public QWidget {
     Q_OBJECT
@@ -43,6 +44,17 @@ public:
 
         connect(m_btn, &QToolButton::toggled,
                 this, &CollapsibleSection::onToggled);
+    }
+
+    /* Adozione a 1 riga nelle colonne dense già scritte con QGroupBox:
+       il titolo migra nell'header cliccabile, il box resta come cornice-card.
+         lay->addWidget(CollapsibleSection::fromGroupBox(box)); */
+    static CollapsibleSection* fromGroupBox(QGroupBox* box, bool startOpen = true,
+                                            QWidget* parent = nullptr)
+    {
+        const QString title = box->title();
+        box->setTitle(QString());
+        return new CollapsibleSection(title, box, startOpen, parent);
     }
 
     bool isOpen() const     { return m_btn->isChecked(); }

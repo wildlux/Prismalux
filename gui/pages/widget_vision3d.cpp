@@ -7,6 +7,7 @@
 #include "../lan_server.h"          // LanServer::_ensureCert (cert condiviso app)
 #include "../log_bus.h"             // LogBus::post — pannello "Messaggi" centralizzato
 #include "../widgets/qr_code_widget.h"
+#include "../widgets/collapsible_section.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -2731,7 +2732,7 @@ void Vision3DWidget::buildUi()
         "3. Certificato self-signed: <i>Avanzate \xe2\x86\x92 Procedi</i>."));
     connHint->setWordWrap(true);
     connLay->addWidget(connHint, 1);
-    colALay->addWidget(connBox);
+    colALay->addWidget(CollapsibleSection::fromGroupBox(connBox));
 
     // Bersagli ArUco: scala reale del modello — vanno stampati PRIMA di scattare
     auto* arucoBox = new QGroupBox(tr("Bersagli ArUco \xe2\x80\x94 scala reale"));
@@ -2752,7 +2753,7 @@ void Vision3DWidget::buildUi()
     arucoBtnRow->addWidget(printArucoBtn);
     arucoBtnRow->addWidget(printBoardBtn);
     arucoLay->addLayout(arucoBtnRow);
-    colALay->addWidget(arucoBox);
+    colALay->addWidget(CollapsibleSection::fromGroupBox(arucoBox));
 
     // Sessione: più sessioni nominabili (notturno, villa, oggettistico,
     // natura...) — crea qui il nome PRIMA di andare a scattare, poi usa
@@ -2778,7 +2779,7 @@ void Vision3DWidget::buildUi()
     connect(editSessDescBtn, &QPushButton::clicked,
             this, &Vision3DWidget::onEditSessionDescriptionClicked);
     sessLay->addWidget(editSessDescBtn);
-    colALay->addWidget(sessBox);
+    colALay->addWidget(CollapsibleSection::fromGroupBox(sessBox));
 
     // pannello device attivi
     auto* devBox = new QGroupBox(tr("Device attivi"));
@@ -2794,7 +2795,7 @@ void Vision3DWidget::buildUi()
     connect(m_deviceTable, &QTableWidget::customContextMenuRequested,
             this, &Vision3DWidget::onDeviceTableContextMenu);
     devLay->addWidget(m_deviceTable);
-    colALay->addWidget(devBox);
+    colALay->addWidget(CollapsibleSection::fromGroupBox(devBox));
     colALay->addStretch();
 
     // galleria scatti: si ACCODANO tutti qui, un clic li rivede nei pannelli sotto
@@ -2845,7 +2846,7 @@ void Vision3DWidget::buildUi()
     galBtnRow->addWidget(deleteAllBtn);
     galLay->addLayout(galBtnRow);
 
-    colBLay->addWidget(galBox);
+    colBLay->addWidget(CollapsibleSection::fromGroupBox(galBox));
 
     auto* prevBox = new QGroupBox(tr("Ultimo scatto analizzato"));
     auto* grid = new QGridLayout(prevBox);
@@ -2905,7 +2906,7 @@ void Vision3DWidget::buildUi()
     m_lastSensorInfo->setWordWrap(true);
     m_lastSensorInfo->setTextFormat(Qt::RichText);
     grid->addWidget(m_lastSensorInfo, 6,0,1,3);
-    colBLay->addWidget(prevBox);
+    colBLay->addWidget(CollapsibleSection::fromGroupBox(prevBox));
     colBLay->addStretch();
 
     leftLay->addWidget(colA, 1);

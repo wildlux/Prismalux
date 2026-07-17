@@ -4,6 +4,7 @@
 #include "../dpi_utils.h"
 #include "../widgets/toggle_switch.h"
 #include "../widgets/stt_whisper.h"
+#include "../widgets/collapsible_section.h"
 #include "main_customize.h"
 #include "main_maintenance.h"
 #include "main_graph.h"
@@ -146,7 +147,7 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
     leftLay->addWidget(lanBtn);
 
     leftLay->addStretch(1);
-    colsLay->addWidget(leftGroup);
+    colsLay->addWidget(CollapsibleSection::fromGroupBox(leftGroup));
 
     /* ── Colonna destra: lista modelli ── */
     auto* rightGroup = new QGroupBox(tr("\xf0\x9f\x93\xa6  Modelli disponibili"), colsRow);
@@ -169,7 +170,7 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
     modelList->viewport()->installEventFilter(this);
     rightLay->addWidget(modelList, 1);
 
-    colsLay->addWidget(rightGroup, 1);
+    colsLay->addWidget(CollapsibleSection::fromGroupBox(rightGroup), 1);
 
     /* ── Colonna destra extra: Think Mode + Knowledge ── */
     auto* rcW = new QWidget(colsRow);
@@ -1756,7 +1757,7 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
 
         gl->addLayout(fl);
         gl->addWidget(hint);
-        leftLay->addWidget(grp);
+        leftLay->addWidget(CollapsibleSection::fromGroupBox(grp));
 
         m_tempSpin = tempSpin; m_topPSpin = topPSpin;
         m_topKSpin = topKSpin; m_repSpin  = repSpin;
@@ -1826,7 +1827,7 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
 
         gl->addLayout(fl);
         gl->addWidget(memHint);
-        leftLay->addWidget(grp);
+        leftLay->addWidget(CollapsibleSection::fromGroupBox(grp));
 
         m_predSpin = predSpin; m_ctxSpin = ctxSpin; m_ctxHint = ctxHint;
 
@@ -1920,7 +1921,7 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
         personaLay->addStretch();
         gl->addWidget(personaRow);
 
-        rightLay->addWidget(grp);
+        rightLay->addWidget(CollapsibleSection::fromGroupBox(grp));
 
         m_honestyCb    = honestyCb;
         m_cavemanToggle = cavemanToggle;
@@ -1959,7 +1960,7 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
         hwHint->setObjectName("hintLabel"); hwHint->setWordWrap(true);
         gl->addWidget(hwHint);
 
-        rightLay->addWidget(grp);
+        rightLay->addWidget(CollapsibleSection::fromGroupBox(grp));
 
         m_flashCb = flashCb;
 
@@ -2037,7 +2038,7 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
         rpcDesc->setTextFormat(Qt::RichText);
         gl->addWidget(rpcDesc);
 
-        rightLay->addWidget(grp);
+        rightLay->addWidget(CollapsibleSection::fromGroupBox(grp));
 
         m_rpcCb = rpcCb; m_rpcNodesEdit = rpcNodesEdit; m_rpcStatusLbl = rpcStatusLbl;
         m_rpcSshUserEdit = rpcSshUserEdit; m_rpcPathEdit = rpcPathEdit;
