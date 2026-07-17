@@ -28,6 +28,8 @@
 #include <QHeaderView>
 #include <QTextEdit>
 #include <QScrollArea>
+#include <QScrollBar>
+#include <QTimer>
 #include <QFrame>
 #include <QRadioButton>
 #include <QButtonGroup>
@@ -386,7 +388,9 @@ QWidget* SciComputePage::buildUi()
     m_modeStack = new QStackedWidget(root);
     m_modeStack->setMaximumHeight(dpiScale(36));
 
-    /* index 0: placeholder coordinator (nascosto, token è nel cfgBar) */
+    /* index 0: placeholder coordinator (token è nel cfgBar). D-46: lo stack
+       è proprio NASCOSTO in modalità Coordinator (vedi connect sotto) —
+       lasciarlo visibile riservava una fascia vuota di 36px sotto la barra. */
     m_modeStack->addWidget(new QWidget);
 
     /* index 1: Worker — host + token + connect */
@@ -412,12 +416,17 @@ QWidget* SciComputePage::buildUi()
     wcLay->addStretch(1);
     m_modeStack->addWidget(workerCfg);   /* index 1 */
 
+    m_modeStack->setVisible(false);   /* parte in modalità Coordinator */
     rootLay->addWidget(m_modeStack);
 
-    /* Mostra/nascondi token e stack in base al modo */
+    /* Mostra/nascondi token e stack in base al modo (D-46: in Coordinator
+       lo stack sparisce del tutto invece di mostrare il placeholder vuoto) */
     connect(modeBg, &QButtonGroup::idClicked, cfgBar, [this, tokenWidget](int id) {
         tokenWidget->setVisible(id == 0);
-        if (m_modeStack) m_modeStack->setCurrentIndex(id);
+        if (m_modeStack) {
+            m_modeStack->setCurrentIndex(id);
+            m_modeStack->setVisible(id == 1);
+        }
     });
 
     /* Status bar */
@@ -839,9 +848,22 @@ QWidget* SciComputePage::buildUi()
     splitter->addWidget(bottomTabs);
     splitter->setStretchFactor(0, 3);
     splitter->setStretchFactor(1, 2);
-    splitter->setSizes({dpiScale(220), dpiScale(200)});
+    /* D-46: la sezione alta partiva a ~130px reali (il sizeHint di
+       QScrollArea è piccolo e vinceva su setSizes): il form "Nuova WU"
+       mostrava solo la coda del JSON. Minimo esplicito sulla sezione alta
+       (il form resta comunque scrollabile sotto quella soglia) e size
+       iniziali più oneste. */
+    topWidget->setMinimumHeight(dpiScale(260));
+    splitter->setSizes({dpiScale(380), dpiScale(240)});
 
     rootLay->addWidget(splitter, 1);
+
+    /* D-46: il form parte SEMPRE dall'inizio (Tipo/Label), mai a metà —
+       visto a video partire scrollato sulla coda del template JSON. */
+    QTimer::singleShot(0, formScroll, [formScroll] {
+        if (formScroll->verticalScrollBar())
+            formScroll->verticalScrollBar()->setValue(0);
+    });
 
     /* ── Connessioni ── */
     connect(btnGuida, &QPushButton::clicked, this,
