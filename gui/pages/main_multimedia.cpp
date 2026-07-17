@@ -20,6 +20,7 @@
 #include <QGroupBox>
 #include <QSplitter>
 #include <QScrollArea>
+#include <QScrollBar>
 #include <QFrame>
 #include <QFileDialog>
 #include <QFileInfo>
@@ -2098,6 +2099,15 @@ QWidget* MultimediaPage::buildOsmMapTab()
     panelLay->addWidget(credLbl);
 
     scroll->setWidget(panel);
+    /* D-49: larghezza del pannello dalla larghezza REALE del contenuto,
+       non 248px fissi — coi padding dei pulsanti del tema attivo le righe
+       a 2-3 pulsanti (Rimuovi/Svuota, Salva/Carica/🗑) superavano i 248px
+       e venivano tagliate sul bordo destro (h-scrollbar disattivata).
+       Tetto a 400px per non rubare mappa. */
+    const int panelNeeded = panel->minimumSizeHint().width()
+                          + scroll->verticalScrollBar()->sizeHint().width()
+                          + dpiScale(12);
+    scroll->setFixedWidth(qBound(dpiScale(248), panelNeeded, dpiScale(400)));
     lay->addWidget(scroll);
 
     /* ── NAM per OSRM / Meteo / Altimetria ── */
