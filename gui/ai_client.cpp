@@ -115,86 +115,128 @@ AiClient::QueryType AiClient::classifyQuery(const QString& text)
 /* ══════════════════════════════════════════════════════════════
    detectQueryDomain — rileva il dominio semantico della query
    per suggerire il modello più adatto (math-capable per STEM).
+
+   D-68 (2026-07-18, bug trovato testando 160 conversazioni REALI):
+   il vecchio match a sottostringa (`lo.contains(kw)`) classificava
+   "molto"→mol→chimica, "informazione"→ione→chimica, "database"→base,
+   "capitale"→api, "trovare lavoro"→fisica: 55/160 conversazioni di
+   coding finivano in "chimica". Ora ogni keyword è delimitata da
+   confini di parola (\b, Unicode-aware per le accentate); il suffisso
+   '*' nelle liste marca i prefissi aperti (velocit* → velocità).
+   Le parole italiane troppo comuni (base, soluzione, lavoro, momento,
+   serie, somma, corrente nuda...) sono state potate. Il check Coding
+   è ANTICIPATO rispetto alle scienze: le sue keyword sono distintive
+   e il grosso dei falsi positivi era coding rubato dalla chimica.
    ══════════════════════════════════════════════════════════════ */
+
+/* Compila una lista di keyword in un'unica regex \b-delimitata.
+   'kw*'  → prefisso aperto (niente \b in coda).
+   Primo/ultimo carattere non alfanumerico (es. "c++") → niente \b
+   su quel lato (PCRE non ha boundary tra due non-word char). */
+static QRegularExpression domainRe(const QStringList& kws)
+{
+    QStringList parts;
+    for (QString k : kws) {
+        const bool prefix = k.endsWith(QLatin1Char('*'));
+        if (prefix) k.chop(1);
+        const QString esc = QRegularExpression::escape(k);
+        const bool bLead  = k.front().isLetterOrNumber();
+        const bool bTrail = !prefix && k.back().isLetterOrNumber();
+        parts << (bLead ? QStringLiteral("\\b") : QString()) + esc
+               + (bTrail ? QStringLiteral("\\b") : QString());
+    }
+    return QRegularExpression(
+        "(?:" + parts.join('|') + ")",
+        QRegularExpression::CaseInsensitiveOption
+        | QRegularExpression::UseUnicodePropertiesOption);
+}
+
 AiClient::QueryDomain AiClient::detectQueryDomain(const QString& text)
 {
     const QString lo = text.toLower();
 
     /* Conversione unità di misura — keyword esplicite */
-    static const QString kUnitKW[] = {
-        "converti", "converte", "conversione", "in metro", "in km", "in kg",
-        "in litri", "in kelvin", "in celsius", "in fahrenheit", "in gradi",
-        "da metro", "da kg", "da km", "quanti ", "quanto fa", "equivale",
-        "in joule", "in watt", "in pascal", "in newton", "in ampere", "in volt",
-        "in ohm", "in hertz", "in rad", "in mol", "in atm", "in bar",
-        "in pollici", "in miglia", "in yard", "in piedi", "in pound", "in oz",
-    };
-    for (const auto& kw : kUnitKW)
-        if (lo.contains(kw)) return DomainUnitConvert;
+    static const QRegularExpression reUnit = domainRe({
+        "converti*", "converte", "conversione", "in metri", "in metro",
+        "in km", "in kg", "in litri", "in kelvin", "in celsius",
+        "in fahrenheit", "in gradi", "da metro", "da kg", "da km",
+        "quanto fa", "quanti km", "quanti metri", "quanti litri",
+        "quanti kg", "quanti gradi", "equivale", "in joule", "in watt",
+        "in pascal", "in newton", "in ampere", "in volt", "in ohm",
+        "in hertz", "in atm", "in pollici", "in miglia", "in yard",
+        "in piedi", "in libbre", "in once",
+    });
+    if (reUnit.match(lo).hasMatch()) return DomainUnitConvert;
+
+    /* Codice — PRIMA delle scienze: keyword distintive, ed è il dominio
+       più frequente nelle chat reali (D-27 lo usa per il routing coder) */
+    static const QRegularExpression reCode = domainRe({
+        "codice", "code", "coding", "debug*", "python", "c++",
+        "javascript", "typescript", "rust", "script*", "api",
+        "refactor*", "implementa*",
+        "compilazione", "programm*", "software", "html", "css", "sql",
+        "django", "flask", "docker", "git", "github", "server",
+        "backend", "frontend", "widget", "app", "gui", "algoritmo",
+        "variabile", "classe", "scrivi una funzione",
+    });
+    if (reCode.match(lo).hasMatch()) return DomainCoding;
 
     /* Elettronica */
-    static const QString kElecKW[] = {
-        "resistenza", "condensatore", "induttanza", "impedenza", "transistor",
-        "amplificatore", "filtro rc", "filtro rl", "filtro lc", "filtro passa",
-        "circuito", "legge di ohm", "corrente", "tensione alternata",
-        "frequenza di taglio", "guadagno", "decibel", "laplace", "bode",
-        "semiconduttore", "diodo", "bjt", "mosfet", "op-amp", "operazionale",
-        "nodo", "maglia", "kirchhoff", "thevenin", "norton", "pwm", "adc", "dac",
-    };
-    for (const auto& kw : kElecKW)
-        if (lo.contains(kw)) return DomainElectronics;
+    static const QRegularExpression reElec = domainRe({
+        "resistenza", "condensatore", "induttanza", "impedenza",
+        "transistor", "amplificatore", "filtro rc", "filtro rl",
+        "filtro lc", "filtro passa", "circuito", "legge di ohm",
+        "corrente elettrica", "corrente alternata", "corrente continua",
+        "tensione", "frequenza di taglio", "decibel", "laplace", "bode",
+        "semiconduttore", "diodo", "bjt", "mosfet", "op-amp",
+        "operazionale", "kirchhoff", "thevenin", "norton",
+        "pwm", "adc", "dac",
+    });
+    if (reElec.match(lo).hasMatch()) return DomainElectronics;
 
     /* Chimica */
-    static const QString kChemKW[] = {
-        "mol", "moli", "molecola", "atomo", "elemento", "reazione chimica",
-        "stechiometri", "ph ", "acido", "base", "ossidazione", "riduzione",
-        "redox", "legame", "orbitale", "entalpia", "entropia", "gibbs",
-        "massa molare", "numero di avogadro", "concentrazione", "soluzione",
-        "precipitato", "elettronegativit", "valenza", "ione", "catione",
-        "anione", "formula chimica", "bilanciare", "equazione chimica",
-    };
-    for (const auto& kw : kChemKW)
-        if (lo.contains(kw)) return DomainChemistry;
+    static const QRegularExpression reChem = domainRe({
+        "moli", "molecol*", "atomo", "atomi", "reazione chimica",
+        "stechiometri*", "ph", "acido", "acidi", "ossidazione", "redox",
+        "orbitale", "entalpia", "entropia", "gibbs", "massa molare",
+        "avogadro", "precipitato", "elettronegativit*", "valenza",
+        "ione", "ioni", "catione", "anione", "formula chimica",
+        "equazione chimica",
+    });
+    if (reChem.match(lo).hasMatch()) return DomainChemistry;
 
-    /* Fisica */
-    static const QString kPhysKW[] = {
-        "forza", "massa", "accelerazione", "velocit", "energia cinetica",
-        "energia potenziale", "lavoro", "potenza", "pressione", "volume",
-        "temperatura", "calore", "termodinamica", "entropia termica",
-        "gravitazione", "gravit", "campo elettrico", "campo magnetico",
-        "ottica", "rifrazione", "interferenza", "diffrazione", "onda",
-        "frequenza", "lunghezza d'onda", "fotone", "relativi", "quantistic",
-        "momento", "impulso", "attrito", "pendolo", "oscillazione",
+    /* Fisica — potate le parole d'uso comune: forza ("per forza"),
+       lavoro ("trovare lavoro"), momento, potenza, volume, pressione,
+       impulso ("d'impulso") */
+    static const QRegularExpression rePhys = domainRe({
+        "accelerazione", "velocit*", "energia cinetica",
+        "energia potenziale", "temperatura", "calore", "termodinamica",
+        "gravitazion*", "campo elettrico", "campo magnetico", "ottica",
+        "rifrazione", "interferenza", "diffrazione", "onda", "onde",
+        "frequenza", "lunghezza d'onda", "fotone", "relativit*",
+        "quantistic*", "attrito", "pendolo", "oscillazion*", "massa",
         "legge di newton", "secondo principio", "terzo principio",
-    };
-    for (const auto& kw : kPhysKW)
-        if (lo.contains(kw)) return DomainPhysics;
+        "cinematica",
+    });
+    if (rePhys.match(lo).hasMatch()) return DomainPhysics;
 
-    /* Matematica */
-    static const QString kMathKW[] = {
-        "deriva", "integr", "limit", "funzione", "matrice", "determinante",
-        "autovalore", "equazione differenziale", "serie di taylor", "serie di fourier",
-        "prodotto scalare", "prodotto vettoriale", "gradiente", "divergenza",
-        "rotore", "laplaciano", "probabilit", "statistica", "varianza",
-        "deviazione standard", "combinatori", "permutazione", "combinazione",
-        "numero complesso", "modulo", "argomento", "radice", "potenza",
-        "logaritmo", "esponenziale", "trigonometri", "seno", "coseno",
-        "tangente", "geometria", "teorema", "dimostrazione",
-        "somma", "prodotto", "sequenza", "serie", "ricorrenza",
-        "calcolo", "algebra", "analisi", "numerica",
-    };
-    for (const auto& kw : kMathKW)
-        if (lo.contains(kw)) return DomainMath;
-
-    /* Codice */
-    static const QString kCodeKW[] = {
-        "codice", "funzione", "classe", "metodo", "variabile", "algoritmo",
-        "debug", "errore di compilazione", "python", "c++", "javascript",
-        "typescript", "rust", "go lang", "script", "api", "refactor",
-        "implementa", "scrivi una funzione", "scrivi un programma",
-    };
-    for (const auto& kw : kCodeKW)
-        if (lo.contains(kw)) return DomainCoding;
+    /* Matematica — potate: somma, prodotto, serie/sequenza ("serie TV"),
+       modulo ("modulo di iscrizione"), argomento, radice nuda, calcolo
+       ("foglio di calcolo"), analisi ("analisi dei requisiti") */
+    static const QRegularExpression reMath = domainRe({
+        "deriva*", "integrale", "integrali", "limite", "funzione",
+        "matrice", "matrici", "determinante", "autovalor*",
+        "equazione differenziale", "serie di taylor", "serie di fourier",
+        "prodotto scalare", "prodotto vettoriale", "gradiente",
+        "divergenza", "rotore", "laplaciano", "probabilit*",
+        "statistic*", "varianza", "deviazione standard", "combinatori*",
+        "permutazion*", "numero complesso", "numeri complessi",
+        "radice quadrata", "radice cubica", "logaritm*", "esponenziale",
+        "trigonometri*", "seno", "coseno", "tangente", "geometria",
+        "teorema", "dimostrazione", "algebra", "analisi numerica",
+        "polinomi*", "equazione", "equazioni",
+    });
+    if (reMath.match(lo).hasMatch()) return DomainMath;
 
     return DomainGeneral;
 }

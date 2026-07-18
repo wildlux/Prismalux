@@ -176,6 +176,52 @@ private slots:
         Q_UNUSED(d);
         QVERIFY(true);
     }
+
+    /* ── B-9…B-15 (D-68): regressioni da DATI REALI — 160 conversazioni
+       dell'export Claude di Paolo. Il vecchio match a sottostringa
+       classificava 55 conversazioni di coding come "chimica":
+       "molto"→mol, "informazione"→ione, "database"→base,
+       "capitale"→api, "trovare lavoro"→fisica. ── */
+
+    void moltoNonEChimica() {
+        QCOMPARE(AiClient::detectQueryDomain(
+            "Questo progetto \xc3\xa8 molto interessante e la soluzione mi piace"),
+            AiClient::DomainGeneral);
+    }
+
+    void informazioneNonEChimica() {
+        QCOMPARE(AiClient::detectQueryDomain(
+            "Organizza le informazioni in base alla data di creazione"),
+            AiClient::DomainGeneral);
+    }
+
+    void lavoroNonEFisica() {
+        QCOMPARE(AiClient::detectQueryDomain("Trovare lavoro a Catania"),
+                 AiClient::DomainGeneral);
+    }
+
+    void contoCorrenteNonEElettronica() {
+        QCOMPARE(AiClient::detectQueryDomain(
+            "Il mio conto corrente e il capitale investito in banca"),
+            AiClient::DomainGeneral);
+    }
+
+    void funzionePythonECoding() {
+        QCOMPARE(AiClient::detectQueryDomain(
+            "Scrivi una funzione Python che legge un file CSV"),
+            AiClient::DomainCoding);
+    }
+
+    void chimicaVeraRestaChimica() {
+        QCOMPARE(AiClient::detectQueryDomain(
+            "Quante moli di acido servono per la reazione chimica?"),
+            AiClient::DomainChemistry);
+    }
+
+    void conversioneVeraResta() {
+        QCOMPARE(AiClient::detectQueryDomain("quanti km sono 5 miglia?"),
+                 AiClient::DomainUnitConvert);
+    }
 };
 
 /* ══════════════════════════════════════════════════════════════
