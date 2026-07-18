@@ -23,6 +23,12 @@ static const bool kNoUiPersist = _disableUiPersist();
 #include <QApplication>
 #include <QPushButton>
 #include <QTabWidget>
+#include <QTextBrowser>
+#include <QDialog>
+#include <QTimer>
+#include <QSettings>
+#include "../prismalux_paths.h"
+namespace P = PrismaluxPaths;
 
 #include "mock_ai_client.h"
 #include "../ai_client.h"
@@ -388,6 +394,109 @@ private slots:
     }
 };
 
+/* ══════════════════════════════════════════════════════════════
+   CAT-F — Easter egg astrale (Impostazioni → Ringraziamenti):
+   doppio click su "saggezza" apre la ruota zodiacale ("Segreto
+   delle Stelle"), doppio click su "conoscenza" sblocca la Carta
+   Astrale (QSettings research/astraleUnlocked). Verificato via
+   eventi mouse REALI sul viewport — copre anche la consegna
+   dell'evento al filtro (viewport vs browser).
+   ══════════════════════════════════════════════════════════════ */
+class TestAstroEasterEgg : public QObject {
+    Q_OBJECT
+private:
+    MockAiClient*     m_ai   = nullptr;
+    HardwareMonitor*  m_hw   = nullptr;
+    ImpostazioniPage* m_page = nullptr;
+    QVariant          m_savedUnlock;
+
+    QTextBrowser* ringraziamentiBrowser() {
+        m_page->switchToTab("Ringraziamenti");   /* costruisce la lazy tab */
+        QCoreApplication::processEvents();
+        for (auto* b : m_page->findChildren<QTextBrowser*>())
+            if (b->toPlainText().contains("saggezza", Qt::CaseInsensitive))
+                return b;
+        return nullptr;
+    }
+
+    /* Centro (in coordinate viewport) della parola cercata, dopo averla
+       resa visibile nello scroll. QPoint() se assente. */
+    static QPoint wordPos(QTextBrowser* b, const QString& word) {
+        QTextCursor c = b->document()->find(word);
+        if (c.isNull()) return {};
+        b->setTextCursor(c);
+        b->ensureCursorVisible();
+        c.setPosition(c.selectionStart() + 2);   /* dentro la parola */
+        return b->cursorRect(c).center();
+    }
+
+private slots:
+    void initTestCase() {
+        QSettings s("Prismalux", "GUI");
+        m_savedUnlock = s.value(P::SK::kAstraleUnlocked);
+        m_ai   = new MockAiClient;
+        m_hw   = new HardwareMonitor;
+        m_page = new ImpostazioniPage(m_ai, m_hw);
+        m_page->resize(1100, 800);
+        m_page->show();   /* serve il layout reale per cursorRect/click */
+        QCoreApplication::processEvents();
+    }
+
+    void cleanupTestCase() {
+        QSettings s("Prismalux", "GUI");
+        if (m_savedUnlock.isValid())
+            s.setValue(P::SK::kAstraleUnlocked, m_savedUnlock);
+        else
+            s.remove(P::SK::kAstraleUnlocked);
+        delete m_page; m_page = nullptr;
+        delete m_hw;   m_hw   = nullptr;
+        delete m_ai;   m_ai   = nullptr;
+    }
+
+    /* F-1: doppio click su "saggezza" → dialog "Segreto delle Stelle" */
+    void saggezzaApreLaRuota() {
+        QTextBrowser* b = ringraziamentiBrowser();
+        QVERIFY2(b, "QTextBrowser Ringraziamenti con 'saggezza' non trovato");
+        const QPoint pos = wordPos(b, "saggezza");
+        QVERIFY2(!pos.isNull(), "parola 'saggezza' non trovata nel testo");
+
+        QTest::mouseDClick(b->viewport(), Qt::LeftButton, {}, pos);
+        QCoreApplication::processEvents();
+
+        QDialog* found = nullptr;
+        for (QWidget* w : QApplication::topLevelWidgets()) {
+            auto* d = qobject_cast<QDialog*>(w);
+            if (d && d->isVisible() &&
+                    d->windowTitle().contains("Segreto delle Stelle"))
+                found = d;
+        }
+        QVERIFY2(found,
+            "dialog 'Segreto delle Stelle' non apparso dopo il doppio click");
+        found->close();
+    }
+
+    /* F-2: doppio click su "conoscenza" → research/astraleUnlocked = true
+       (il QMessageBox modale di conferma viene chiuso da un timer) */
+    void conoscenzaSbloccaAstrale() {
+        QSettings("Prismalux", "GUI").setValue(P::SK::kAstraleUnlocked, false);
+
+        QTextBrowser* b = ringraziamentiBrowser();
+        QVERIFY(b);
+        const QPoint pos = wordPos(b, "conoscenza");
+        if (pos.isNull())
+            QSKIP("parola 'conoscenza' non presente nel testo Ringraziamenti");
+
+        QTimer::singleShot(800, qApp, [] {
+            if (QWidget* w = QApplication::activeModalWidget()) w->close();
+        });
+        QTest::mouseDClick(b->viewport(), Qt::LeftButton, {}, pos);
+
+        QTRY_VERIFY_WITH_TIMEOUT(
+            QSettings("Prismalux", "GUI")
+                .value(P::SK::kAstraleUnlocked, false).toBool(), 3000);
+    }
+};
+
 int main(int argc, char* argv[])
 {
     QApplication app(argc, argv);
@@ -399,6 +508,7 @@ int main(int argc, char* argv[])
         TestThinkModeUI           t3; status |= QTest::qExec(&t3, argc, argv);
         TestLazyTabsNavigation    t5; status |= QTest::qExec(&t5, argc, argv);
         TestPreset                t4; status |= QTest::qExec(&t4, argc, argv);
+        TestAstroEasterEgg        t6; status |= QTest::qExec(&t6, argc, argv);
     }
     return status;
 }

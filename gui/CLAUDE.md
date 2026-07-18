@@ -1011,7 +1011,7 @@ ctest --test-dir gui/build_tests --exclude-regex "AiIntegration|AiStress|TeamCol
 | `LanWanCore` | `test_lan_wan_core` | timingSafeEqual, token LAN, rate limit, lifecycle; CAT-E `LanWanPage` rubrica persone (`m_accessListTable` round-trip QSettings `lan/accessList`, addRow, remove, persistenza tra istanze); CAT-F (T-D19/D-19) fallback TLS→HTTP: HOME/PATH sabotati → `start()` reale in HTTP con `isTlsRequested()!=isTlsEnabled()`, label ambra "TLS non disponibile" via slot reale `onLanServerStatusChanged(true)` |
 | `LanServerEndpoints` | `test_lan_server_endpoints` | /knowledge (GET/POST), /apk, requestHandled signal; CAT-D redirect 301 http→https su porta TLS (`HttpsRedirectServer`): Location con host/path, garbage non-HTTP chiuso senza risposta, TLS ancora funzionante via curl. NB: i test HTTP in chiaro chiamano `setTlsEnabled(false)` (senza, il server TLS di default risponde 301 e non più reset) |
 | `Onboarding` | `test_onboarding` | QSettings, token LAN, rate limiter |
-| `ImpostazioniPage` | `test_impostazioni_page` | AiChatParams round-trip, ThinkMode, preset; CAT-E navigazione lazy a due livelli (LazyTabLoader) |
+| `ImpostazioniPage` | `test_impostazioni_page` | AiChatParams round-trip, ThinkMode, preset; CAT-E navigazione lazy a due livelli (LazyTabLoader); CAT-F easter egg astrale (D-69): dblclick reale su "saggezza"→dialog ruota, "conoscenza"→sblocco `research/astraleUnlocked` |
 | `ThemeManager` | `test_theme_manager` | lista temi, ops |
 | `ThemeManagerCrash` | `test_theme_manager_crash` | fix ABRT Signal 6 (parent=nullptr), lifetime singleton |
 | `Grafico` | `test_grafico` | canvas, formula parser integrazione |

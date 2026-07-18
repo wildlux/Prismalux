@@ -434,7 +434,10 @@ static void showAstroEaster(QWidget* parent)
     lay->setContentsMargins(16, 6, 16, 12);
     lay->setSpacing(6);
 
-    dlg->exec();
+    /* D-69: show() non-modale — exec() dentro un event filter blocca
+       l'event loop (e i test); il dialog è decorativo, WA_DeleteOnClose
+       fa già la pulizia. */
+    dlg->show();
 }
 
 /* Sblocca la sotto-tab "Carta Astrale" (nascosta di default, vedi
@@ -463,7 +466,15 @@ public:
 protected:
     bool eventFilter(QObject* obj, QEvent* ev) override {
         if (ev->type() == QEvent::MouseButtonDblClick) {
-            if (auto* b = qobject_cast<QTextBrowser*>(obj)) {
+            /* D-69: i doppi click arrivano al VIEWPORT del QTextBrowser,
+               non al browser — col filtro installato solo sul browser
+               l'egg non scattava MAI (scoperto dal test CAT-F con eventi
+               mouse reali). Si risale al parent quando obj è il viewport. */
+            QTextBrowser* vb = qobject_cast<QTextBrowser*>(obj);
+            if (!vb && obj->isWidgetType())
+                vb = qobject_cast<QTextBrowser*>(
+                         static_cast<QWidget*>(obj)->parentWidget());
+            if (auto* b = vb) {
                 QTextCursor cur = b->cursorForPosition(
                     static_cast<QMouseEvent*>(ev)->pos());
                 cur.select(QTextCursor::WordUnderCursor);
@@ -565,7 +576,11 @@ QWidget* ImpostazioniPage::buildRingraziamentiTab()
     browser->setOpenExternalLinks(true);
     browser->setFrameShape(QFrame::NoFrame);
     browser->setObjectName("ringraziamentiView");
-    browser->installEventFilter(new AstroEggFilter(browser));
+    {   /* D-69: filtro anche sul viewport — è lui che riceve i click */
+        auto* egg = new AstroEggFilter(browser);
+        browser->installEventFilter(egg);
+        browser->viewport()->installEventFilter(egg);
+    }
 
     auto updateHtml = [browser]() {
         QString bg, bg2, bg3, text, muted, accent, border;
