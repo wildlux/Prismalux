@@ -9,6 +9,7 @@
 #include <QDir>
 #include <QDateTime>
 #include <QSettings>
+#include <QRegularExpression>
 
 namespace P = PrismaluxPaths;
 
@@ -34,16 +35,45 @@ void AgentiPage::hermesInit()
    ══════════════════════════════════════════════════════════════ */
 void AgentiPage::hermesInjectContext(QString& sysPrompt, const QString& query)
 {
+    /* D-58: azzera SEMPRE, anche quando non si inietta nulla — prima il
+       clear era dopo il check isEmpty() e il footer "📖 Fonti" mostrava
+       i ricordi del turno PRECEDENTE. */
+    m_hermesLastSources.clear();
     if (!m_hermesGm || query.trimmed().isEmpty()) return;
 
     const auto nodes = m_hermesGm->searchNodes(query, 5);
     if (nodes.isEmpty()) return;
 
+    /* D-57 — soglia di pertinenza: searchNodes() fa match testuale
+       semplice, una parola comune basta a pescare ricordi fuori tema che
+       trascinano i modelli piccoli. Un nodo passa solo se label+content
+       condividono con la query abbastanza parole significative (≥5
+       lettere): 2 se la query ne ha almeno 2, 1 altrimenti. Query senza
+       parole significative → niente iniezione. */
+    static const QRegularExpression kNonWord("[^\\p{L}\\p{N}]+");
+    QStringList sig;
+    const QStringList words = query.toLower().split(kNonWord, Qt::SkipEmptyParts);
+    for (const QString& w : words)
+        if (w.size() >= 5 && !sig.contains(w)) sig << w;
+    if (sig.isEmpty()) return;
+    const int required = qMin(2, (int)sig.size());
+
+    QList<GmNode> pertinent;
+    for (const auto& n : nodes) {
+        if (n.content.trimmed().isEmpty()) continue;
+        const QString hay = (n.label + ' ' + n.content).toLower();
+        int hits = 0;
+        for (const QString& w : sig) {
+            if (hay.contains(w)) ++hits;
+            if (hits >= required) break;
+        }
+        if (hits >= required) pertinent << n;
+    }
+    if (pertinent.isEmpty()) return;
+
     /* Raccoglie le etichette per la sezione "Fonti" a fine risposta */
-    m_hermesLastSources.clear();
-    for (const auto& n : nodes)
-        if (!n.content.trimmed().isEmpty())
-            m_hermesLastSources << n.label.left(60);
+    for (const auto& n : pertinent)
+        m_hermesLastSources << n.label.left(60);
 
     /* Prefisso esplicito: il modello deve usare la memoria solo se
        strettamente pertinente alla domanda, non come fonte di esempi generici. */
@@ -51,10 +81,8 @@ void AgentiPage::hermesInjectContext(QString& sysPrompt, const QString& query)
         "\n\n[Contesto opzionale da sessioni precedenti — "
         "usalo SOLO se direttamente rilevante alla domanda attuale. "
         "Non citare questi dati come esempi in risposte a domande generali.]\n";
-    for (const auto& n : nodes) {
-        if (n.content.trimmed().isEmpty()) continue;
+    for (const auto& n : pertinent)
         ctx += QString("- [%1] %2\n").arg(n.label).arg(n.content.left(150));
-    }
     ctx += "[fine contesto opzionale]\n";
     sysPrompt += ctx;
 }
