@@ -219,6 +219,7 @@ private slots:
     void senzaToken401() {
         AiClient ai;
         LanServer srv(&ai);
+        srv.setTlsEnabled(false);  /* il test parla HTTP in chiaro */
         srv.setAccessToken("secret123");
         const quint16 testPort = 49201;
         if (!srv.start(testPort)) QSKIP("Porta 49201 già in uso — skip");
@@ -246,6 +247,7 @@ private slots:
     void rootReturn200() {
         AiClient ai;
         LanServer srv(&ai);
+        srv.setTlsEnabled(false);  /* il test parla HTTP in chiaro */
         const quint16 testPort = 49203;
         if (!srv.start(testPort)) QSKIP("Porta 49203 già in uso — skip");
         const int p = srv.port();
@@ -261,6 +263,7 @@ private slots:
     void apiTagsSenzaToken() {
         AiClient ai;
         LanServer srv(&ai);
+        srv.setTlsEnabled(false);  /* il test parla HTTP in chiaro */
         const quint16 testPort = 49204;
         if (!srv.start(testPort)) QSKIP("Porta 49204 già in uso — skip");
         const int p = srv.port();

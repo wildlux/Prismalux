@@ -387,6 +387,7 @@ private slots:
     {
         MockAiClient ai;
         LanServer srv(&ai);
+        srv.setTlsEnabled(false);  /* il test parla HTTP in chiaro */
         QVERIFY(srv.start(0));
 
         const QByteArray req = "GET\r\n\r\n";
@@ -404,6 +405,7 @@ private slots:
     {
         MockAiClient ai;
         LanServer srv(&ai);
+        srv.setTlsEnabled(false);  /* il test parla HTTP in chiaro */
         QVERIFY(srv.start(0));
 
         const QByteArray req = "INVALID / HTTP/1.1\r\nHost: localhost\r\n\r\n";
@@ -420,6 +422,7 @@ private slots:
     {
         MockAiClient ai;
         LanServer srv(&ai);
+        srv.setTlsEnabled(false);  /* il test parla HTTP in chiaro */
         QVERIFY(srv.start(0));
 
         /* Costruiamo la request con null byte nel path */
@@ -439,6 +442,7 @@ private slots:
     {
         MockAiClient ai;
         LanServer srv(&ai);
+        srv.setTlsEnabled(false);  /* il test parla HTTP in chiaro */
         QVERIFY(srv.start(0));
 
         const QByteArray longPath(3000, 'a');
@@ -456,6 +460,7 @@ private slots:
     {
         MockAiClient ai;
         LanServer srv(&ai);
+        srv.setTlsEnabled(false);  /* il test parla HTTP in chiaro */
         QVERIFY(srv.start(0));
 
         const QByteArray req =
@@ -476,6 +481,7 @@ private slots:
     {
         MockAiClient ai;
         LanServer srv(&ai);
+        srv.setTlsEnabled(false);  /* il test parla HTTP in chiaro */
         QVERIFY(srv.start(0));
 
         const QByteArray req =
@@ -499,6 +505,7 @@ private slots:
     {
         MockAiClient ai;
         LanServer srv(&ai);
+        srv.setTlsEnabled(false);  /* il test parla HTTP in chiaro */
         QVERIFY(srv.start(0));
 
         /* Prefisso HTTP valido, poi padding che fa superare 4 MB;
@@ -517,6 +524,7 @@ private slots:
     {
         MockAiClient ai;
         LanServer srv(&ai);
+        srv.setTlsEnabled(false);  /* il test parla HTTP in chiaro */
         QVERIFY(srv.start(0));
 
         const QByteArray req = "GET / HTTP/1.1\r\nHost: localhost\r\n\r\n";
@@ -624,6 +632,7 @@ private slots:
     {
         MockAiClient ai;
         LanServer srv(&ai);
+        srv.setTlsEnabled(false);  /* il test parla HTTP in chiaro */
         srv.setAccessToken("testtokenXYZ");
         QVERIFY(srv.start(0));
         const int code = requestWithoutToken(srv, "GET", "/");
@@ -644,6 +653,7 @@ private slots:
                 cookie non deve autenticare) */
         MockAiClient ai;
         LanServer srv(&ai);
+        srv.setTlsEnabled(false);  /* il test parla HTTP in chiaro */
         srv.setAccessToken("testtokenXYZ");
         QVERIFY(srv.start(0));
         const quint16 port = srv.port();
@@ -701,6 +711,7 @@ private:
     {
         MockAiClient ai;
         LanServer srv(&ai);
+        srv.setTlsEnabled(false);  /* il test parla HTTP in chiaro */
         srv.setAccessToken("testtokenXYZ");
         QVERIFY(srv.start(0));
 
