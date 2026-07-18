@@ -3850,6 +3850,34 @@ Recommended: enabled.</translation>
         <translation>Refresh the file list</translation>
     </message>
     <message>
+        <source>Seleziona tutti i file (nessuna esclusione)</source>
+        <translation>Select all files (no exclusions)</translation>
+    </message>
+    <message>
+        <source>Deseleziona tutti i file (tutti esclusi al prossimo Reindicizza)</source>
+        <translation>Deselect all files (all excluded at the next Reindex)</translation>
+    </message>
+    <message>
+        <source>🛖 Modelli embedding consigliati</source>
+        <translation>🛖 Recommended embedding models</translation>
+    </message>
+    <message>
+        <source>🌡  %1°C — pausa termica al chunk %2/%3, riprendo appena la temperatura scende...</source>
+        <translation>🌡  %1°C — thermal pause at chunk %2/%3, resuming as soon as the temperature drops...</translation>
+    </message>
+    <message>
+        <source>&lt;br&gt;&lt;span style=&apos;color:#e8a020;&apos;&gt;⚠ %1 frammenti senza attribuzione file (indice vecchio) &amp;mdash; premi &lt;b&gt;Reindicizza ora&lt;/b&gt; per sanarli.&lt;/span&gt;</source>
+        <translation>&lt;br&gt;&lt;span style=&apos;color:#e8a020;&apos;&gt;⚠ %1 chunks without file attribution (old index) &amp;mdash; press &lt;b&gt;Reindex now&lt;/b&gt; to fix them.&lt;/span&gt;</translation>
+    </message>
+    <message>
+        <source>📂  &lt;b&gt;File nella cartella RAG&lt;/b&gt; &lt;span style=&apos;color:#94a3b8;font-size:11px;font-weight:normal;&apos;&gt;%1 file · ✅ %2 · 🔄 %3 · ⬜ %4 · esclusi %5&lt;/span&gt;</source>
+        <translation>📂  &lt;b&gt;Files in the RAG folder&lt;/b&gt; &lt;span style=&apos;color:#94a3b8;font-size:11px;font-weight:normal;&apos;&gt;%1 files · ✅ %2 · 🔄 %3 · ⬜ %4 · excluded %5&lt;/span&gt;</translation>
+    </message>
+    <message>
+        <source>✅ indicizzato e aggiornato · 🔄 indicizzato ma modificato su disco · ⬜ mai indicizzato</source>
+        <translation>✅ indexed and up to date · 🔄 indexed but modified on disk · ⬜ never indexed</translation>
+    </message>
+    <message>
         <source>Togli la spunta ai file che NON vuoi nell&apos;indice RAG:
 al prossimo &quot;Reindicizza ora&quot; verranno esclusi (e rimossi
 dall&apos;indice se già presenti). I file spuntati vengono
