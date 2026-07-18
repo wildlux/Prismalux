@@ -41,8 +41,14 @@ public:
      *  Avvia il RagGraph solo se l'indicizzazione è andata a buon fine. */
     Q_SLOT void onAutoRagTrigger(int nChunks, bool aborted);
 
+    /** D-70: richiude l'easter egg Carta Astrale — rimuove la sotto-tab e
+     *  riporta kAstraleUnlocked a false (il default). Pubblico per i test;
+     *  dalla UI si arriva col tasto destro sulla tab (onSciTabContextMenu). */
+    void relockAstrale();
+
 private:
     AiClient*    m_ai;
+    QTabWidget*  m_sciTabs = nullptr;   ///< tab bar Ricerca (per menu contestuale D-70)
     QTextEdit*   m_outCurrent    = nullptr;
     QPushButton* m_btnGenAttivo  = nullptr;
     QPushButton* m_btnStopAttivo = nullptr;
@@ -199,6 +205,9 @@ public slots:
     void onThermalUpdate(double cpuTempC, double gpuTempC);
 
 private slots:
+    /* D-70: tasto destro sulle tab Ricerca — menu solo su Carta Astrale */
+    void onSciTabContextMenu(const QPoint& pos);
+
     /* AI globali */
     void onSciToken(const QString& t);
     void onSciFinished(const QString& full);

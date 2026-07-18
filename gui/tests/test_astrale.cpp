@@ -74,6 +74,29 @@ private slots:
         QVERIFY2(!list.isEmpty(), "QDateEdit (data nascita) non trovato");
     }
 
+    /* A-4b (D-70): relockAstrale() rimuove la tab e riporta il default
+       bloccato (dalla UI: tasto destro sulla tab → "Chiudi e nascondi") */
+    void relockAstraleHidesTabAndResetsSetting() {
+        auto* tabs = page->findChild<QTabWidget*>();
+        QVERIFY2(tabs, "QTabWidget di RicercaPage non trovato");
+        auto astraleIdx = [tabs]() {
+            for (int i = 0; i < tabs->count(); ++i)
+                if (tabs->tabText(i).contains("Carta Astrale")) return i;
+            return -1;
+        };
+        QVERIFY2(astraleIdx() >= 0, "tab Carta Astrale assente (sbloccata in init)");
+
+        page->relockAstrale();
+
+        QCOMPARE(astraleIdx(), -1);   /* tab rimossa subito */
+        QVERIFY2(!QSettings("Prismalux", "GUI")
+                     .value(P::SK::kAstraleUnlocked, false).toBool(),
+                 "kAstraleUnlocked deve tornare false (default)");
+        /* Ripristina true: init() lo riassume per i test successivi, ma
+           non lasciamo stato incoerente se l'ordine cambia. */
+        QSettings("Prismalux", "GUI").setValue(P::SK::kAstraleUnlocked, true);
+    }
+
     /* A-5: contiene campo ora QTimeEdit */
     void containsTimeEdit() {
         auto list = page->findChildren<QTimeEdit*>();

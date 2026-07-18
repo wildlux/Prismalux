@@ -10,6 +10,8 @@ namespace P = PrismaluxPaths;
 #include <QHBoxLayout>
 #include <QFormLayout>
 #include <QTabWidget>
+#include <QTabBar>
+#include <QMenu>
 #include <QSplitter>
 #include <QScrollArea>
 #include <QGroupBox>
@@ -151,6 +153,15 @@ RicercaPage::RicercaPage(AiClient* ai, QWidget* parent)
         tabs->addTab(buildAstraleTab(),
                      "\xe2\xad\x90  Carta Astrale");
     }
+
+    /* D-70: tasto destro sulla tab Carta Astrale → "Chiudi e nascondi".
+       Il menu compare SOLO su quella tab (le altre non hanno voci);
+       richiudere riporta il default bloccato — ricompare solo con un
+       nuovo doppio click su "conoscenza" in Ringraziamenti. */
+    m_sciTabs = tabs;
+    tabs->tabBar()->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(tabs->tabBar(), &QWidget::customContextMenuRequested,
+            this, &RicercaPage::onSciTabContextMenu);
 
     /* Tooltip sui tab per scopribilità */
     tabs->setTabToolTip(0, "Genera paper accademico con AI");
@@ -2344,6 +2355,39 @@ void RicercaPage::onRagDotProcFinished(int code, QProcess::ExitStatus /*status*/
    Avvia il RagGraph con un breve ritardo per lasciare che il FS
    finisca di scrivere i file di indice RAG.
    ══════════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════
+   D-70 — richiusura easter egg Carta Astrale
+   ══════════════════════════════════════════════════════════════ */
+void RicercaPage::onSciTabContextMenu(const QPoint& pos)
+{
+    if (!m_sciTabs) return;
+    const int idx = m_sciTabs->tabBar()->tabAt(pos);
+    if (idx < 0 || !m_sciTabs->tabText(idx).contains("Carta Astrale"))
+        return;   /* menu solo sulla tab easter egg */
+
+    QMenu menu(m_sciTabs);
+    QAction* actHide = menu.addAction(
+        tr("\xf0\x9f\x94\x92  Chiudi e nascondi Carta Astrale"));
+    if (menu.exec(m_sciTabs->tabBar()->mapToGlobal(pos)) == actHide)
+        relockAstrale();
+}
+
+void RicercaPage::relockAstrale()
+{
+    /* Torna al default: bloccata. Ricompare solo con un nuovo doppio
+       click su "conoscenza" in Impostazioni → Ringraziamenti. */
+    QSettings("Prismalux", "GUI").setValue(P::SK::kAstraleUnlocked, false);
+    if (!m_sciTabs) return;
+    for (int i = 0; i < m_sciTabs->count(); ++i) {
+        if (m_sciTabs->tabText(i).contains("Carta Astrale")) {
+            QWidget* page = m_sciTabs->widget(i);
+            m_sciTabs->removeTab(i);
+            if (page) page->deleteLater();
+            break;
+        }
+    }
+}
+
 void RicercaPage::onAutoRagTrigger(int nChunks, bool aborted)
 {
     if (aborted || nChunks == 0) return;            /* nessun documento nuovo */
