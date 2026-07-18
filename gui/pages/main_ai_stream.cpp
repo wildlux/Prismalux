@@ -146,6 +146,7 @@ void AgentiPage::_finishedTranslating(const QString& /*full*/) {
         m_log->append("\xf0\x9f\x94\xae  Motore Byzantino — verifica a 4 agenti\n");
         m_log->append("\xf0\x9f\x85\x90  [Agente A — Originale]\n");
         m_waitLbl->setVisible(true);
+        _applyNativeTools();   /* stesso comportamento di runByzantine() */
         m_ai->chat(_buildSys(m_taskOriginal, QString(
             "Sei l'Agente A del Motore Byzantino di Prismalux. "
             "Fornisci una risposta diretta e ben argomentata. "
@@ -157,6 +158,7 @@ void AgentiPage::_finishedTranslating(const QString& /*full*/) {
         m_log->append("\xf0\x9f\xa7\xae  Matematico Teorico — esplorazione a 4 agenti\n");
         m_log->append("\xf0\x9f\x85\xb0  [Agente 1 — Enunciatore]\n");
         m_waitLbl->setVisible(true);
+        m_ai->clearActiveTools();   /* difensivo: MathTheory non usa i tool */
         m_ai->chat(_buildSys(m_taskOriginal, QString(
             "Sei l'Enunciatore matematico. Riformula il problema in forma rigorosa. "
             "Rispondi SEMPRE e SOLO in italiano."),

@@ -86,7 +86,8 @@ static QSet<QString> _relevantHeavyTools(const QString& query)
 
 /* ══════════════════════════════════════════════════════════════
    _buildOllamaTools — array tools in formato Ollama function calling.
-   Inviato nella chat() quando m_toolsEnabled + Ollama backend + CHAT single mode.
+   Inviato nella chat() quando m_toolsEnabled + Ollama backend, in chat
+   singola, pipeline multi-agente e Motore Byzantino (via _applyNativeTools).
    Il modello chiama i tool via message.tool_calls → onNativeToolCall() esegue
    e chiama replyWithTool() per continuare la conversazione.
    ══════════════════════════════════════════════════════════════ */
@@ -973,6 +974,11 @@ void AgentiPage::advancePipeline() {
     }
 
     m_tokenCount = 0;
+    /* Budget tool per-agente: ogni agente della pipeline riparte con max 2
+       iterazioni TOOL_CALL, invece di un tetto globale consumabile dal primo.
+       Il re-run post-tool passa da runAgent() diretto, non da qui: il
+       contatore dell'agente in corso resta intatto. */
+    m_toolIteration = 0;
     emit pipelineStatus(pct, QString("\xe2\x9a\x99\xef\xb8\x8f  Agente %1/%2 \xe2\x80\x94 %3...")
         .arg(done + 1).arg(total).arg(roleName));
 
@@ -1170,8 +1176,10 @@ void AgentiPage::runAgent(int idx) {
         : QString("\n\n\xf0\x9f\x8e\xaf Obiettivo globale del team: ") + m_taskOriginal.left(200);
     const QString teamGoalSmall = isSingleChat ? QString()
         : QString(" Task: ") + m_taskOriginal.left(80);
-    if (m_toolsEnabled && isSingleChat) startMcpDiscovery(); /* on-demand, idempotente */
-    const QString toolSuffix = (m_toolsEnabled && isSingleChat) ? toolSystemSuffix() : QString();
+    /* Tool disponibili anche agli agenti della pipeline multi-agente,
+       non solo alla chat singola (richiesta 2026-07-18). */
+    if (m_toolsEnabled) startMcpDiscovery(); /* on-demand, idempotente */
+    const QString toolSuffix = m_toolsEnabled ? toolSystemSuffix() : QString();
 
     /* Modalita' Dizionario Etimologico — attiva se il pulsante Etimo e' premuto */
     static const char* kEtymoSys =
@@ -1283,12 +1291,9 @@ void AgentiPage::runAgent(int idx) {
     m_ttftCaptured = false;   /* FEAT-2: reset TTFT per questo agente */
     m_agentOutputs.append("");
 
-    /* Tool use nativo Ollama: attiva solo in CHAT singola con tool abilitati
-       e backend Ollama (llama-server non supporta tool_calls nel formato Ollama). */
-    if (m_toolsEnabled && isSingleChat && m_ai->backend() == AiClient::Ollama)
-        m_ai->setActiveTools(buildEnabledTools(m_taskOriginal));
-    else
-        m_ai->clearActiveTools();
+    /* Tool use nativo Ollama: chat singola E pipeline multi-agente
+       (llama-server non supporta tool_calls nel formato Ollama). */
+    _applyNativeTools();
 
     /* Costruisce history JSON con Headroom: [summary] + ultimi N turni */
     QJsonArray histArray;
@@ -1563,7 +1568,9 @@ QString AgentiPage::_fpExtractResponse(const QString& full, QString& extractedTh
 
 bool AgentiPage::_fpInterceptToolCall(const QString& rawResp)
 {
-        if (m_toolsEnabled && m_maxShots == 1 && m_toolIteration < 2 && !rawResp.isEmpty()) {
+        /* Attiva in chat singola E pipeline multi-agente: m_toolIteration è
+           azzerato per ogni agente in advancePipeline() (budget per-agente). */
+        if (m_toolsEnabled && m_toolIteration < 2 && !rawResp.isEmpty()) {
             const QJsonObject tc = detectFirstToolCall(rawResp);
             if (!tc.isEmpty()) {
                 m_toolIteration++;
@@ -1594,8 +1601,11 @@ bool AgentiPage::_fpInterceptToolCall(const QString& rawResp)
                      * PNG (QR code) — vanno inserite come <img> nella bolla, non
                      * rilanciate all'LLM (che le riscriverebbe come testo,
                      * perdendo l'immagine o corrompendo il path). Chiude qui la
-                     * pipeline invece di fare un altro giro di generazione. */
-                    if (_showQrEventoBubble(result))
+                     * pipeline invece di fare un altro giro di generazione.
+                     * Solo chat singola: in pipeline multi-agente chiudere qui
+                     * lascerebbe gli agenti successivi mai eseguiti e lo stato
+                     * busy appeso. */
+                    if (m_maxShots == 1 && _showQrEventoBubble(result))
                         return;
 
                     /* Aggiorna il log con il risultato del tool */
@@ -1605,11 +1615,16 @@ bool AgentiPage::_fpInterceptToolCall(const QString& rawResp)
                         "\xe2\x9c\x85&nbsp;<b>Risultato:</b>&nbsp;"
                         + result.left(300).toHtmlEscaped() + "</p>");
 
-                    /* Inietta il risultato nel contesto del task */
+                    /* Inietta il risultato nel contesto del task. In pipeline
+                       multi-agente il risultato entra nell'obiettivo condiviso
+                       (visibile anche agli agenti successivi) e l'istruzione
+                       finale rimanda al ruolo, non alla risposta diretta. */
                     m_taskOriginal += QString(
-                        "\n\n[TOOL_RESULT: %1]\n%2\n\n"
-                        "Rispondi ora all'utente in italiano.")
+                        "\n\n[TOOL_RESULT: %1]\n%2\n\n")
                         .arg(tc["tool"].toString(), result);
+                    m_taskOriginal += (m_maxShots == 1)
+                        ? QString("Rispondi ora all'utente in italiano.")
+                        : QString("Tieni conto di questo risultato ed esegui il tuo ruolo.");
 
                     /* Re-run dello stesso agente con il contesto arricchito */
                     m_currentAgent = agentIdx;
@@ -2409,5 +2424,19 @@ QJsonArray AgentiPage::buildEnabledTools(const QString& query) const
         out.append(v);
     }
     return out;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   _applyNativeTools — attiva (o disattiva) il function calling
+   nativo Ollama per la prossima chat(). m_activeTools persiste in
+   AiClient finché non viene sovrascritto: chiamare sempre questa
+   funzione prima di ogni m_ai->chat() che possa usare i tool.
+   ══════════════════════════════════════════════════════════════ */
+void AgentiPage::_applyNativeTools()
+{
+    if (m_toolsEnabled && m_ai->backend() == AiClient::Ollama)
+        m_ai->setActiveTools(buildEnabledTools(m_taskOriginal));
+    else
+        m_ai->clearActiveTools();
 }
 

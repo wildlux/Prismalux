@@ -367,6 +367,7 @@ private:
     /** Costruisce l'array tools filtrato per la chat() — sostituisce _buildOllamaTools().
      *  @p query: usata per la pre-selezione per categoria dei tool pesanti (D-29). */
     QJsonArray     buildEnabledTools(const QString& query) const;
+    void           _applyNativeTools();
     void           buildBottomBar(QVBoxLayout* lay);
     void           buildToolsPanel(QVBoxLayout* lay);
     void           updateToolsBtnLabel();

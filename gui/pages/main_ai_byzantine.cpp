@@ -55,6 +55,12 @@ void AgentiPage::runByzantine() {
     _setRunBusy(true);
     m_waitLbl->setVisible(true);
 
+    /* Tool nativi Ollama anche per i 4 agenti Byzantini (A/B/C/D). Solo
+       function calling: il suffisso testuale TOOL_CALL non viene aggiunto
+       perché qui nessuno intercetterebbe le chiamate testuali. m_activeTools
+       persiste in AiClient per tutti gli step; azzerato a verifica conclusa. */
+    _applyNativeTools();
+
     /* TASK-4: inietta contesto RAG se disponibile nell'Agente A */
     QString byzUserMsg = m_taskOriginal;
     if (m_ragInline && m_ragInline->hasContext())
@@ -105,6 +111,10 @@ void AgentiPage::runMathTheory() {
     m_byzStep = 0; m_byzA = m_byzC = "";
     m_taskOriginal = _inject_math(problem);
     m_opMode = OpMode::MathTheory;
+
+    /* Difensivo: il Matematico Teorico non usa i tool — un run Byzantino
+       interrotto da errore li lascerebbe attivi in AiClient. */
+    m_ai->clearActiveTools();
 
     m_log->clear();
     m_log->append(QString(
@@ -245,6 +255,7 @@ switch (m_byzStep) {
     default:
         m_log->append("\n\n\xe2\x9c\x85  Verifica Byzantina completata.");
         m_log->append("\xe2\x9c\xa8 Verit\xc3\xa0 rivelata. Bevi la conoscenza.");
+        m_ai->clearActiveTools();   /* i tool Byzantini non devono trapelare nelle chat successive */
         _setRunBusy(false);
         m_opMode = OpMode::Idle;
         tryShowChart(m_taskOriginal + "\n" + m_byzA + "\n" + m_byzC);
