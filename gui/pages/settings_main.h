@@ -76,6 +76,7 @@ public:
     /** Espone ManutenzioneePage per permettere a StrumentiPage di usare buildCronTab(). */
     ManutenzioneePage* manutenzione() { return m_manutenzione; }
 
+
     /** Tipo risultato estrazione testo (chunk, sorgenti, mtime) — pubblico per il thread worker. */
     struct RagExtractResult {
         QStringList   chunks;   ///< testi dei chunk
@@ -261,6 +262,7 @@ private:
     void refreshRagStatus();
     void refreshRagFileList();   ///< D-47: lista file cartella RAG con spunte
     void setRagFileChecksAll(bool checked);  ///< spunta/despunta tutti + persiste esclusioni
+    void updateRagFileCardCounts();          ///< D-66: conteggi nel titolo card file RAG
     /* helper RAG: avvia la fase di embedding (chiamata dopo l'estrazione testo) */
     void startEmbeddingPhase(const QString& dir);
 
@@ -284,6 +286,7 @@ private:
     QStringList     m_ragQueueSource;     ///< percorso file sorgente per ogni chunk (pieno)
     QList<qint64>   m_ragQueueMtime;      ///< mtime del file per ogni chunk (parallelo a m_ragQueue)
     int             m_ragQueuePos = 0;    ///< posizione corrente nel queue
+    QLabel*         m_ragFileCardTitle = nullptr;  ///< D-66: titolo card file RAG con conteggi
     QLabel*         m_ragFeedbackLbl    = nullptr;
     QProgressBar*   m_ragProgressBar    = nullptr;
     bool            m_ragNoSave      = false;  ///< se true, non salva l'indice su disco (M2)

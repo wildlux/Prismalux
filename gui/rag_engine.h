@@ -75,6 +75,13 @@ public:
     /* ── Info ───────────────────────────────────────────────────── */
 
     int  chunkCount() const { return m_chunks.size(); }
+    /** Chunk senza source (indice pre-attribuzione) ancora presenti. */
+    int  legacyChunkCount() const {
+        int n = 0;
+        for (const RagChunk& c : m_chunks)
+            if (c.source.isEmpty()) ++n;
+        return n;
+    }
     int  inputDim()   const { return m_inputDim; }
     void clear()            { m_chunks.clear(); m_inputDim = 0; m_R.clear(); }
 

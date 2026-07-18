@@ -1448,14 +1448,19 @@ QWidget* ImpostazioniPage::buildRagTab()
         fileCardLay->setSpacing(6);
 
         auto* fileHdrRow = new QHBoxLayout;
-        auto* fileCardTitle = new QLabel(
+        /* D-66: membro — refreshRagFileList() aggiorna i conteggi nel titolo */
+        m_ragFileCardTitle = new QLabel(
             tr("\xf0\x9f\x93\x82  <b>File nella cartella RAG</b> "
                "<span style='color:#94a3b8;font-size:11px;font-weight:normal;'>"
                "\xe2\x9c\x85 indicizzato \xc2\xb7 \xf0\x9f\x94\x84 modificato \xc2\xb7 "
                "\xe2\xac\x9c da indicizzare</span>"),
             fileCard);
-        fileCardTitle->setTextFormat(Qt::RichText);
-        fileHdrRow->addWidget(fileCardTitle, 1);
+        m_ragFileCardTitle->setTextFormat(Qt::RichText);
+        m_ragFileCardTitle->setToolTip(
+            tr("\xe2\x9c\x85 indicizzato e aggiornato \xc2\xb7 "
+               "\xf0\x9f\x94\x84 indicizzato ma modificato su disco \xc2\xb7 "
+               "\xe2\xac\x9c mai indicizzato"));
+        fileHdrRow->addWidget(m_ragFileCardTitle, 1);
 
         auto* fileAllBtn = new QPushButton("\xe2\x98\x91", fileCard);   /* ☑ */
         fileAllBtn->setObjectName("navBtn");

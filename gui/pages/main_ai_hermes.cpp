@@ -90,6 +90,23 @@ void AgentiPage::hermesInjectContext(QString& sysPrompt, const QString& query)
 /* ══════════════════════════════════════════════════════════════
    hermesStoreConversation — salva un nodo "conversazione"
    ══════════════════════════════════════════════════════════════ */
+
+/* D-64: nome leggibile del dominio per il meta dei nodi — partizione
+   LOGICA dentro un unico DB (scelta contro i DB per argomento: i
+   collegamenti trasversali restano, niente router che sbaglia). */
+static QString hermesDomainName(AiClient::QueryDomain d)
+{
+    switch (d) {
+    case AiClient::DomainMath:        return QStringLiteral("matematica");
+    case AiClient::DomainPhysics:     return QStringLiteral("fisica");
+    case AiClient::DomainChemistry:   return QStringLiteral("chimica");
+    case AiClient::DomainElectronics: return QStringLiteral("elettronica");
+    case AiClient::DomainUnitConvert: return QStringLiteral("conversioni");
+    case AiClient::DomainCoding:      return QStringLiteral("informatica");
+    default:                          return QStringLiteral("generale");
+    }
+}
+
 void AgentiPage::hermesStoreConversation(const QString& userMsg, const QString& aiResp)
 {
     if (!m_hermesGm) return;
@@ -101,8 +118,11 @@ void AgentiPage::hermesStoreConversation(const QString& userMsg, const QString& 
                                 .arg(aiResp.trimmed().left(500));
 
     QVariantMap meta;
-    meta["ts"]    = QDateTime::currentDateTime().toString(Qt::ISODate);
-    meta["model"] = m_ai ? m_ai->model() : QString();
+    meta["ts"]     = QDateTime::currentDateTime().toString(Qt::ISODate);
+    meta["model"]  = m_ai ? m_ai->model() : QString();
+    /* D-64: timbro del dominio (classificatore zero-LLM già testato) —
+       oggi solo memorizzato, in futuro filtro/peso nella ricerca memoria. */
+    meta["domain"] = hermesDomainName(AiClient::detectQueryDomain(userMsg));
 
     m_hermesGm->addNode("conversation", label, content, 0.7f, meta);
     m_hermesGm->pruneByImportance(200);

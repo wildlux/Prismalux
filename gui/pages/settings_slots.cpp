@@ -11,6 +11,7 @@
 namespace P = PrismaluxPaths;
 #include "../app_config.h"
 #include "../ai_client.h"
+#include "../widgets/thermal_guard.h"
 
 #include <QFileDialog>
 #include <QDesktopServices>
@@ -454,6 +455,17 @@ void ImpostazioniPage::refreshRagStatus()
                 .arg(cnt)
                 .arg(lastIdx));
     }
+
+    /* D-63: chunk senza attribuzione file (indice pre-2026-07-18) — i loro
+       file mostrano badge ⬜ anche se il contenuto è già dentro. Si sanano
+       col prossimo Reindicizza (removeLegacyChunks); avvisa finché ci sono. */
+    const int legacy = m_rag.legacyChunkCount();
+    if (legacy > 0) {
+        m_ragStatusLbl->setText(m_ragStatusLbl->text() +
+            tr("<br><span style='color:#e8a020;'>\xe2\x9a\xa0 %1 frammenti senza "
+               "attribuzione file (indice vecchio) &mdash; premi "
+               "<b>Reindicizza ora</b> per sanarli.</span>").arg(legacy));
+    }
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -519,6 +531,33 @@ void ImpostazioniPage::refreshRagFileList()
         item->setToolTip(fp);
     }
     m_ragFileList->blockSignals(false);
+    updateRagFileCardCounts();   /* D-66 */
+}
+
+/* D-66: colpo d'occhio nel titolo card — quanti dentro/fuori/da fare.
+   Legge direttamente gli item (badge nel testo + checkState), così vale
+   anche per i cambi di spunta senza ricostruire la lista. La legenda
+   estesa resta nel tooltip del titolo. */
+void ImpostazioniPage::updateRagFileCardCounts()
+{
+    if (!m_ragFileCardTitle || !m_ragFileList) return;
+    int nTot = 0, nOk = 0, nMod = 0, nNew = 0, nExcl = 0;
+    for (int i = 0; i < m_ragFileList->count(); ++i) {
+        auto* it = m_ragFileList->item(i);
+        if (it->data(Qt::UserRole).toString().isEmpty()) continue;  /* riga info */
+        ++nTot;
+        const QString t = it->text();
+        if      (t.startsWith("\xe2\x9c\x85"))     ++nOk;
+        else if (t.startsWith("\xf0\x9f\x94\x84")) ++nMod;
+        else                                       ++nNew;
+        if (it->checkState() == Qt::Unchecked) ++nExcl;
+    }
+    m_ragFileCardTitle->setText(
+        tr("\xf0\x9f\x93\x82  <b>File nella cartella RAG</b> "
+           "<span style='color:#94a3b8;font-size:11px;font-weight:normal;'>"
+           "%1 file \xc2\xb7 \xe2\x9c\x85 %2 \xc2\xb7 \xf0\x9f\x94\x84 %3 \xc2\xb7 "
+           "\xe2\xac\x9c %4 \xc2\xb7 esclusi %5</span>")
+            .arg(nTot).arg(nOk).arg(nMod).arg(nNew).arg(nExcl));
 }
 
 void ImpostazioniPage::onRagFileListRefreshClicked()
@@ -541,6 +580,7 @@ void ImpostazioniPage::onRagFileItemChanged(QListWidgetItem* item)
     else if (!nowExcluded)
         excluded.removeAll(fp);
     AppConfig::s().setValue(P::SK::kRagExcludedFiles, excluded);
+    updateRagFileCardCounts();   /* D-66: aggiorna "esclusi N" nel titolo */
 }
 
 void ImpostazioniPage::onRagFileSelectAllClicked()   { setRagFileChecksAll(true); }
@@ -570,6 +610,7 @@ void ImpostazioniPage::setRagFileChecksAll(bool checked)
     m_ragFileList->blockSignals(false);
 
     AppConfig::s().setValue(P::SK::kRagExcludedFiles, excluded);
+    updateRagFileCardCounts();   /* D-66 */
 }
 
 void ImpostazioniPage::onStopIndexClicked()
@@ -904,6 +945,22 @@ void ImpostazioniPage::startEmbeddingPhase(const QString& dir)
             if (m_btnStopIndex)  m_btnStopIndex->setEnabled(false);
             if (m_ragReindexBtn) m_ragReindexBtn->setEnabled(true);
             emit indexingFinished(n, wasAborted);
+            return;
+        }
+
+        /* D-62/D-67: throttle termico via ThermalGuard condiviso — sopra
+           soglia non chiedere il prossimo embedding: riprova finché la
+           temperatura non rientra (isteresi nel guard). "Ferma" resta
+           attivo: il check done/aborted in testa vale anche per i retry. */
+        if (ThermalGuard::s().isHot()) {
+            if (m_ragFeedbackLbl)
+                m_ragFeedbackLbl->setText(
+                    tr("\xf0\x9f\x8c\xa1  %1\xc2\xb0""C — pausa termica al chunk %2/%3, "
+                       "riprendo appena la temperatura scende...")
+                        .arg((int)ThermalGuard::s().maxTempC())
+                        .arg(m_ragQueuePos).arg(m_ragQueue.size()));
+            QTimer::singleShot(ThermalGuard::kRetryMs, this,
+                               [indexNext]{ (*indexNext)(); });
             return;
         }
 
