@@ -82,7 +82,7 @@ Prismalux/
 ├── EXTERNAL_DeviceS/       ← config dispositivi fisici (fuori git)
 ├── Test/                   ← test Python di integrazione AI (la build C++ dei test è gui/build_tests)
 ├── aggiorna.sh             ← build + sync .desktop (--test → ctest, --gui solo build, --zip)
-├── ctest_lotti.sh          ← suite a lotti con pausa termica (CPU 90°C — mai ctest -j4 completo)
+├── Test/ctest_lotti.sh     ← suite a lotti con pausa termica (CPU 90°C — mai ctest -j4 completo)
 ├── build.py / build.bat    ← build multipiattaforma
 ├── TODO.md                 ← UNICO file TODO del progetto
 └── PATH.md                 ← questo file

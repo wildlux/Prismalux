@@ -17,7 +17,8 @@ BUILD="${BUILD:-gui/build_tests}"
 LOTTO="${LOTTO:-10}"
 SOGLIA="${SOGLIA:-70}"
 ESCLUDI="${ESCLUDI:-}"
-cd "$(dirname "$0")/$BUILD" || { echo "❌  cartella $BUILD non trovata (build prima con cmake)"; exit 1; }
+# Lo script vive in Test/ — BUILD è relativo alla ROOT del repo (un livello sopra)
+cd "$(dirname "$0")/../$BUILD" || { echo "❌  cartella $BUILD non trovata (build prima con cmake)"; exit 1; }
 
 # numeri reali dei test (non partono necessariamente da 1)
 mapfile -t NUMERI < <(ctest -N | sed -n 's/^ *Test *#\([0-9]*\):.*/\1/p')

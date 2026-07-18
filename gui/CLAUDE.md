@@ -978,7 +978,7 @@ ctest --test-dir gui/build_tests --exclude-regex "AiIntegration|AiStress|TeamCol
 # Oppure con aggiorna.sh:
 ./aggiorna.sh --test
 ```
-**NOTA termica**: mai ctest completo `-j4` su questa macchina (CPU a 90°C) — suite mirate `-R`, `-j1`, `nice -n19`, o `./ctest_lotti.sh` (lotti con pausa termica, variabile `ESCLUDI` per regex `-E`).
+**NOTA termica**: mai ctest completo `-j4` su questa macchina (CPU a 90°C) — suite mirate `-R`, `-j1`, `nice -n19`, o `./Test/ctest_lotti.sh` (lotti con pausa termica, variabile `ESCLUDI` per regex `-E`; spostato in Test/ il 2026-07-18).
 
 ### Suite per categoria
 
