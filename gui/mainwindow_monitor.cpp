@@ -41,31 +41,20 @@ void MainWindow::onContextUsage(int usedTok, int maxTok)
     };
 
     /* Barra CTX: il riempimento = contesto usato (verde poco pieno → rosso
-       quasi pieno, come i gauge HW), ma il NUMERO mostrato sono i token che
-       ci possiamo ancora permettere (liberi). Il 🧠 a destra dice invece
-       quanti ne abbiamo già consumati. */
+       quasi pieno, come i gauge HW). Il numero è consumati/max (es. 0/8.2k):
+       stesso verso del riempimento, come la RAM (x/y GB). */
     const QString ctxTip = QString::fromUtf8(
         "\xf0\x9f\xa7\xa0  Contesto LLM (stima ~4 caratteri/token)\n"
-        "Disponibili: %1 token su %2 (num_ctx)\n"
-        "Gia' consumati: %3 (%4% pieno)\n"
+        "Consumati: %1 token su %2 (num_ctx) \xe2\x80\x94 %3% pieno\n"
+        "Restano %4 liberi per domande e documenti RAG.\n"
+        "Conteggia storia chat compressa + documenti RAG della chat.\n"
         "num_ctx configurabile in Impostazioni \xe2\x86\x92 Parametri AI.")
-        .arg(fmtK(freeTok), fmtK(maxTok),
-             fmtK(usedTok), QString::number(usedPct, 'f', 0));
+        .arg(fmtK(usedTok), fmtK(maxTok),
+             QString::number(usedPct, 'f', 0), fmtK(freeTok));
     if (m_gCtx)
-        m_gCtx->updateWithText(usedPct, fmtK(freeTok), ctxTip);
-
-    if (!m_ctxLbl) return;
-    /* 🧠 = token gia' consumati; colore in base a quanto contesto resta libero
-       (verde = tanto libero, rosso = quasi pieno). */
-    const char* col = freePct > 50 ? "#4ade80"
-                    : freePct > 20 ? "#facc15" : "#f87171";
-    m_ctxLbl->setText(QString::fromUtf8("\xf0\x9f\xa7\xa0 %1").arg(fmtK(usedTok)));
-    m_ctxLbl->setStyleSheet(
-        QString("QLabel#ctxLabel{color:%1;font-size:11px;padding:0 4px;}").arg(col));
-    m_ctxLbl->setToolTip(tr("\xf0\x9f\xa7\xa0  Token gia' consumati in questa chat\n"
-        "Consumati: %1 su %2 (num_ctx) \xe2\x80\x94 restano %3 liberi (barra CTX)\n"
-        "Conteggia storia chat compressa + documenti RAG della chat.")
-        .arg(fmtK(usedTok), fmtK(maxTok), fmtK(freeTok)));
+        m_gCtx->updateWithText(usedPct,
+                               QString("%1/%2").arg(fmtK(usedTok), fmtK(maxTok)),
+                               ctxTip);
 }
 
 void MainWindow::onHWUpdated(SysSnapshot snap) {

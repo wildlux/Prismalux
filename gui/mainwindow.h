@@ -155,7 +155,6 @@ private:
     ResourceGauge*  m_gIgpu       = nullptr;  ///< Gauge Intel iGPU (nascosto se assente)
     QLabel*         m_tempLbl     = nullptr;  ///< Indicatore temperatura CPU/GPU nell'header
     ResourceGauge*  m_gCtx        = nullptr;  ///< Barra contesto LLM usato nell'header (CTX)
-    QLabel*         m_ctxLbl      = nullptr;  ///< 🧠 contesto LLM residuo stimato (header)
     QLabel*         m_ttftLbl     = nullptr;  ///< TTFT ultimo token (header)
     QElapsedTimer   m_ttftTimer;              ///< Misura TTFT per ogni richiesta
     bool            m_ttftGotFirst = false;   ///< True dopo il primo token della richiesta corrente

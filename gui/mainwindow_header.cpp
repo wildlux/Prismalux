@@ -114,17 +114,11 @@ void MainWindow::buildGaugesSection(QHBoxLayout* lay)
     lay->addWidget(m_gRam);
     lay->addWidget(m_gGpu);
 
-    /* 🧠 contesto LLM — barra come CPU/RAM/GPU (percentuale usata) + indice
-       numerico dei token liberi accanto. Aggiornati da AgentiPage::contextUsage()
-       dopo ogni turno chat (onContextUsage). */
+    /* 🧠 contesto LLM — barra come CPU/RAM/GPU (percentuale usata) + numero
+       consumati/max accanto (es. 0/8.2k). Aggiornati da
+       AgentiPage::contextUsage() dopo ogni turno chat (onContextUsage). */
     m_gCtx = new ResourceGauge("CTX ", hdr);
     lay->addWidget(m_gCtx);
-
-    m_ctxLbl = new QLabel("", hdr);
-    m_ctxLbl->setObjectName("ctxLabel");
-    m_ctxLbl->setStyleSheet(
-        "QLabel#ctxLabel{color:#94a3b8;font-size:11px;padding:0 4px;}");
-    lay->addWidget(m_ctxLbl);
     onContextUsage(0, AiChatParams::load().num_ctx);  /* stato iniziale: tutto libero */
 
     m_tempLbl = new QLabel("", hdr);

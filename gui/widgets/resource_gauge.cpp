@@ -51,6 +51,11 @@ void ResourceGauge::updateWithText(double pct, const QString& valueText,
                                     const QString& detail) {
     m_bar->setValue(static_cast<int>(pct));
     m_pct->setText(valueText);
+    /* Testi tipo "8.2k/16k" superano i 42px riservati alle percentuali:
+       allarga la label quanto basta (mai restringere, evita jitter). */
+    const int need = m_pct->fontMetrics().horizontalAdvance(valueText) + dpiScale(4);
+    if (need > m_pct->minimumWidth())
+        m_pct->setFixedWidth(need);
     setLevel(pct);
     if (!detail.isEmpty())
         setToolTip(detail);
