@@ -152,6 +152,23 @@ private slots:
         QCOMPARE(res1.first().text, res2.first().text);
     }
 
+    /* ── 10b. removeLegacyChunks: elimina solo i chunk senza source ── */
+    void removeLegacyChunksOnlyAnonymous() {
+        RagEngine rag;
+        const int d = 32;
+        rag.addChunk("legacy senza file", makeEmb(d, 1.0f));               /* pre-attribuzione */
+        rag.addChunk("attribuito", makeEmb(d, 2.0f), "/tmp/doc.txt", 42);
+        rag.addChunk("altro legacy", makeEmb(d, 3.0f));
+        QCOMPARE(rag.chunkCount(), 3);
+
+        QCOMPARE(rag.removeLegacyChunks(), 2);
+        QCOMPARE(rag.chunkCount(), 1);
+        QVERIFY(rag.isFileIndexed("/tmp/doc.txt", 42));
+
+        /* Idempotente: secondo giro non rimuove nulla */
+        QCOMPARE(rag.removeLegacyChunks(), 0);
+    }
+
     /* ══════════════════════════════════════════════════════════════
        Test "RAG già indicizzato" — simula stato dopo una sessione
        precedente in cui i documenti erano già stati indicizzati.

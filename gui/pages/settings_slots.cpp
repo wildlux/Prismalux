@@ -719,6 +719,14 @@ void ImpostazioniPage::onReindexBtnClicked()
         }
     }
 
+    /* Chunk legacy senza attribuzione file (indice creato prima del
+       salvataggio di source/mtime): i loro file non risultano mai
+       indicizzati (badge ⬜ nella lista anche se il contenuto è dentro)
+       e ogni reindicizzazione li duplicherebbe. Rimossi qui: i file
+       veri vengono ri-estratti subito sotto con l'attribuzione corretta. */
+    if (m_rag.removeLegacyChunks() > 0)
+        removedAny = true;
+
     /* Costruisce mappa dei file già aggiornati da passare al thread.
        D-47: gli esclusi vengono passati come "già indicizzati" al mtime
        corrente — l'estrattore li salta senza modifiche alla sua firma. */

@@ -75,6 +75,15 @@ void RagEngine::removeChunksForFile(const QString& source) {
         m_chunks.end());
 }
 
+int RagEngine::removeLegacyChunks() {
+    const int before = m_chunks.size();
+    m_chunks.erase(
+        std::remove_if(m_chunks.begin(), m_chunks.end(),
+            [](const RagChunk& c){ return c.source.isEmpty(); }),
+        m_chunks.end());
+    return before - m_chunks.size();
+}
+
 QHash<QString, qint64> RagEngine::indexedFileMap() const {
     QHash<QString, qint64> map;
     for (const RagChunk& c : m_chunks)

@@ -48,6 +48,12 @@ public:
     /** Rimuove tutti i chunk del file indicato (file eliminato o modificato). */
     void removeChunksForFile(const QString& source);
 
+    /** Rimuove i chunk senza source (indice creato prima dell'attribuzione
+     *  file): non è possibile sapere a quale file appartengono, quindi i loro
+     *  file risultano "da indicizzare" e verrebbero duplicati a ogni giro.
+     *  Ritorna quanti chunk sono stati rimossi. */
+    int removeLegacyChunks();
+
     /** Mappa path→mtime di tutti i file attualmente nell'indice. */
     QHash<QString, qint64> indexedFileMap() const;
 
