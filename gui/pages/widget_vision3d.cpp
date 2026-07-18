@@ -5,6 +5,7 @@
 #include "../prismalux_paths.h"
 #include "../dpi_utils.h"
 #include "../lan_server.h"          // LanServer::_ensureCert (cert condiviso app)
+#include "../https_redirect_server.h" // 301 http→https sulla porta TLS
 #include "../log_bus.h"             // LogBus::post — pannello "Messaggi" centralizzato
 #include "../widgets/qr_code_widget.h"
 #include "../widgets/collapsible_section.h"
@@ -507,7 +508,9 @@ bool Vision3DWidget::start(quint16 port, const QString& certPath, const QString&
     m_sslConf.setPrivateKey(sslKey);
     m_sslConf.setPeerVerifyMode(QSslSocket::VerifyNone);
 
-    m_server = new QSslServer(this);
+    /* HttpsRedirectServer: una richiesta http:// sulla porta TLS riceve un
+     * 301 verso https:// invece di un reset di connessione. */
+    m_server = new HttpsRedirectServer(this);
     m_server->setSslConfiguration(m_sslConf);
     connect(m_server, &QTcpServer::pendingConnectionAvailable,
             this, &Vision3DWidget::onNewConnection);

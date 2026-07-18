@@ -210,6 +210,7 @@ set(CPP_SRCS
     lan_server_ai.cpp
     lan_server_compute.cpp
     lan_server_api.cpp
+    https_redirect_server.cpp
     lan_web.qrc
     emoji.qrc
     pages/settings_main.cpp

@@ -141,6 +141,7 @@ Prismalux/
 | `rag_engine.h/cpp` | RAG JLT 256-dim |
 | `hardware_monitor.h/cpp` | Thread polling CPU/RAM/GPU ogni 2s |
 | `lan_server.h/cpp` | Server TCP LAN per PrismaluxMobile Android (porta 11500) |
+| `https_redirect_server.h/cpp` | HttpsRedirectServer: QSslServer che risponde 301→https alle richieste http in chiaro sulla porta TLS (peek `recv(MSG_PEEK)` del primo byte, 0x16=ClientHello). Usato da LanServer e Vision3DWidget |
 | `pages/main_lan_wan.h/cpp` | LanWanPage: LAN Android + GNS3 MCP + WAN Compute (porta 11600) |
 | `pages/main_ai.*` | AgentiPage: pipeline 6 agenti + Byzantino + Agente Autonomo (~25 moduli main_ai_*.cpp) |
 | `pages/main_finance.*` + `pratico_calcs.h` | PraticoPage: 730, P.IVA, Calcolatori Finanza, Scheda TFR (C.F. auto D.M. 1976 + Belfiore) |
@@ -1008,7 +1009,7 @@ ctest --test-dir gui/build_tests --exclude-regex "AiIntegration|AiStress|TeamCol
 | `AgenteAutonomo` | `test_agente_autonomo` | ReAct loop, toggle UI, parsing tool call |
 | `LanServer` | `test_lan_server` | lifecycle TCP, token, rate limit |
 | `LanWanCore` | `test_lan_wan_core` | timingSafeEqual, token LAN, rate limit, lifecycle; CAT-E `LanWanPage` rubrica persone (`m_accessListTable` round-trip QSettings `lan/accessList`, addRow, remove, persistenza tra istanze); CAT-F (T-D19/D-19) fallback TLS→HTTP: HOME/PATH sabotati → `start()` reale in HTTP con `isTlsRequested()!=isTlsEnabled()`, label ambra "TLS non disponibile" via slot reale `onLanServerStatusChanged(true)` |
-| `LanServerEndpoints` | `test_lan_server_endpoints` | /knowledge (GET/POST), /apk, requestHandled signal |
+| `LanServerEndpoints` | `test_lan_server_endpoints` | /knowledge (GET/POST), /apk, requestHandled signal; CAT-D redirect 301 http→https su porta TLS (`HttpsRedirectServer`): Location con host/path, garbage non-HTTP chiuso senza risposta, TLS ancora funzionante via curl. NB: i test HTTP in chiaro chiamano `setTlsEnabled(false)` (senza, il server TLS di default risponde 301 e non più reset) |
 | `Onboarding` | `test_onboarding` | QSettings, token LAN, rate limiter |
 | `ImpostazioniPage` | `test_impostazioni_page` | AiChatParams round-trip, ThinkMode, preset; CAT-E navigazione lazy a due livelli (LazyTabLoader) |
 | `ThemeManager` | `test_theme_manager` | lista temi, ops |

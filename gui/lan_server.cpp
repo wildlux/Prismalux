@@ -17,6 +17,7 @@
 #include <QUrl>
 #include <cmath>
 #include "prismalux_paths.h"
+#include "https_redirect_server.h"
 #include "pages/main_jobs_data.h"
 #include "widgets/proc_helper.h"
 #include "pages/pratico_calcs.h"
@@ -293,7 +294,10 @@ bool LanServer::start(quint16 port)
             }
             if (!cert.isNull() && !key.isNull()) {
                 if (!m_sslServer) {
-                    m_sslServer = new QSslServer(this);
+                    /* HttpsRedirectServer: come QSslServer, ma una richiesta
+                     * HTTP in chiaro sulla porta TLS riceve un 301 verso
+                     * https:// invece di un reset di connessione. */
+                    m_sslServer = new HttpsRedirectServer(this);
                     connect(m_sslServer, &QSslServer::pendingConnectionAvailable,
                             this, &LanServer::onNewConnection);
                 }

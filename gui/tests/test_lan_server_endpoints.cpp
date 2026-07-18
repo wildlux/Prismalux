@@ -21,6 +21,8 @@
 #include <QDir>
 #include <QTimer>
 #include <QEventLoop>
+#include <QProcess>
+#include <QStandardPaths>
 #include <thread>
 #include <atomic>
 #ifdef Q_OS_UNIX
@@ -148,6 +150,7 @@ private slots:
     void initTestCase() {
         m_srv = new LanServer(&m_ai, this);
         m_srv->setAccessToken(QString::fromUtf8(kToken));
+        m_srv->setTlsEnabled(false);  /* i test parlano HTTP in chiaro */
         QVERIFY2(m_srv->start(0), "impossibile avviare LanServer");
         m_port = m_srv->port();
         m_knFile = P::userKnowledgePath();
@@ -255,6 +258,7 @@ private slots:
     void initTestCase() {
         m_srv = new LanServer(&m_ai, this);
         m_srv->setAccessToken(QString::fromUtf8(kToken));
+        m_srv->setTlsEnabled(false);  /* i test parlano HTTP in chiaro */
         QVERIFY2(m_srv->start(0), "impossibile avviare LanServer");
         m_port = m_srv->port();
     }
@@ -341,6 +345,7 @@ private slots:
     void requestHandledEmesso() {
         MockAiClient ai; LanServer srv(&ai);
         srv.setAccessToken(QString::fromUtf8(kToken));
+        srv.setTlsEnabled(false);  /* il test parla HTTP in chiaro */
         QVERIFY(srv.start(0));
         const quint16 p = srv.port();
 
@@ -388,15 +393,83 @@ private slots:
 };
 
 /* ══════════════════════════════════════════════════════════════
+   CAT-D — Redirect 301 http→https sulla porta TLS
+   (HttpsRedirectServer usato da LanServer quando il TLS è attivo)
+   ══════════════════════════════════════════════════════════════ */
+class TestHttpsRedirect : public QObject {
+    Q_OBJECT
+
+    MockAiClient m_ai;
+    LanServer*   m_srv = nullptr;
+    quint16      m_port = 0;
+
+private slots:
+
+    void initTestCase() {
+        m_srv = new LanServer(&m_ai, this);
+        m_srv->setAccessToken(QString::fromUtf8(kToken));
+        m_srv->setTlsEnabled(true);
+        QVERIFY2(m_srv->start(0), "impossibile avviare LanServer");
+        if (!m_srv->isTlsEnabled())
+            QSKIP("TLS non disponibile (openssl mancante) — redirect non testabile");
+        m_port = m_srv->port();
+    }
+
+    void cleanupTestCase() { if (m_srv) m_srv->stop(); }
+
+    /* D1: HTTP in chiaro sulla porta TLS → 301 con Location https://host/path */
+    void redirect301ConLocation() {
+        if (!m_srv->isTlsEnabled()) QSKIP("TLS non attivo");
+        const QByteArray hostHdr = "127.0.0.1:" + QByteArray::number(m_port);
+        const QByteArray req = "GET /web HTTP/1.1\r\nHost: " + hostHdr +
+                               "\r\nConnection: close\r\n\r\n";
+        const QByteArray resp = rawHttp(m_port, req);
+        QVERIFY2(resp.startsWith("HTTP/1.1 301"),
+                 qPrintable(QString("attesa 301, risposta: %1")
+                            .arg(QString::fromUtf8(resp.left(60)))));
+        QVERIFY2(resp.contains("Location: https://" + hostHdr + "/web\r\n"),
+                 qPrintable(QString("Location mancante o errata: %1")
+                            .arg(QString::fromUtf8(resp.left(200)))));
+    }
+
+    /* D2: byte non-HTTP e non-TLS → connessione chiusa senza risposta né crash */
+    void garbageNonHttp() {
+        if (!m_srv->isTlsEnabled()) QSKIP("TLS non attivo");
+        const QByteArray resp = rawHttp(m_port, "GARBAGE\r\n\r\n");
+        QVERIFY2(resp.isEmpty(), "nessuna risposta attesa per byte non-HTTP");
+        QVERIFY(m_srv->isRunning());
+    }
+
+    /* D3: il TLS vero continua a funzionare — il peek del primo byte non
+       deve consumare il ClientHello (regressione tipica di questo pattern) */
+    void tlsAncoraFunzionante() {
+        if (!m_srv->isTlsEnabled()) QSKIP("TLS non attivo");
+        if (QStandardPaths::findExecutable("curl").isEmpty())
+            QSKIP("curl non disponibile");
+        QProcess curl;
+        QSignalSpy fin(&curl, &QProcess::finished);
+        curl.start("curl", {"-sk", "-o", "/dev/null", "-w", "%{http_code}",
+                            "--max-time", "5",
+                            QString("https://127.0.0.1:%1/").arg(m_port)});
+        QVERIFY2(fin.wait(8000), "curl non terminato entro il timeout");
+        const QByteArray code = curl.readAllStandardOutput();
+        QVERIFY2(code.toInt() >= 200,
+                 qPrintable(QString("HTTP code via TLS: %1")
+                            .arg(QString::fromUtf8(code))));
+    }
+};
+
+/* ══════════════════════════════════════════════════════════════
    Runner
    ══════════════════════════════════════════════════════════════ */
 int main(int argc, char** argv)
 {
     QApplication app(argc, argv);
     int status = 0;
-    { TestKnowledge t; status |= QTest::qExec(&t, argc, argv); }
-    { TestApk       t; status |= QTest::qExec(&t, argc, argv); }
-    { TestCicloVita t; status |= QTest::qExec(&t, argc, argv); }
+    { TestKnowledge     t; status |= QTest::qExec(&t, argc, argv); }
+    { TestApk           t; status |= QTest::qExec(&t, argc, argv); }
+    { TestCicloVita     t; status |= QTest::qExec(&t, argc, argv); }
+    { TestHttpsRedirect t; status |= QTest::qExec(&t, argc, argv); }
     return status;
 }
 
