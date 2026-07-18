@@ -543,6 +543,35 @@ void ImpostazioniPage::onRagFileItemChanged(QListWidgetItem* item)
     AppConfig::s().setValue(P::SK::kRagExcludedFiles, excluded);
 }
 
+void ImpostazioniPage::onRagFileSelectAllClicked()   { setRagFileChecksAll(true); }
+void ImpostazioniPage::onRagFileDeselectAllClicked() { setRagFileChecksAll(false); }
+
+/* Spunta/despunta tutti i file elencati e aggiorna le esclusioni persistite
+   in un colpo solo (segnali bloccati: niente N scritture QSettings da
+   onRagFileItemChanged, una per item). */
+void ImpostazioniPage::setRagFileChecksAll(bool checked)
+{
+    if (!m_ragFileList) return;
+
+    QStringList excluded = AppConfig::s()
+        .value(P::SK::kRagExcludedFiles).toStringList();
+
+    m_ragFileList->blockSignals(true);
+    for (int i = 0; i < m_ragFileList->count(); ++i) {
+        auto* item = m_ragFileList->item(i);
+        const QString fp = item->data(Qt::UserRole).toString();
+        if (fp.isEmpty()) continue;   /* riga informativa, non un file */
+        item->setCheckState(checked ? Qt::Checked : Qt::Unchecked);
+        if (checked)
+            excluded.removeAll(fp);
+        else if (!excluded.contains(fp))
+            excluded << fp;
+    }
+    m_ragFileList->blockSignals(false);
+
+    AppConfig::s().setValue(P::SK::kRagExcludedFiles, excluded);
+}
+
 void ImpostazioniPage::onStopIndexClicked()
 {
     m_indexAborted = true;

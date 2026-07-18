@@ -138,6 +138,8 @@ private slots:
     void onRagJlToggled(bool checked);
     void onRagFileListRefreshClicked();
     void onRagFileItemChanged(QListWidgetItem* item);
+    void onRagFileSelectAllClicked();
+    void onRagFileDeselectAllClicked();
     /* ── buildSmartRouterTab / buildJlTab ── */
     void onSmartRouterSaveClicked();
     void onStopIndexClicked();
@@ -258,6 +260,7 @@ private:
     /* helper RAG: aggiorna label stato */
     void refreshRagStatus();
     void refreshRagFileList();   ///< D-47: lista file cartella RAG con spunte
+    void setRagFileChecksAll(bool checked);  ///< spunta/despunta tutti + persiste esclusioni
     /* helper RAG: avvia la fase di embedding (chiamata dopo l'estrazione testo) */
     void startEmbeddingPhase(const QString& dir);
 

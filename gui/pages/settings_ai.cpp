@@ -1405,7 +1405,8 @@ QWidget* ImpostazioniPage::buildRagTab()
 
         leftCol->addWidget(jlFrame);
     }
-    leftCol->addStretch();
+    /* Lo stretch della colonna sinistra viene aggiunto in coda, dopo la
+       card "Modelli embedding consigliati" (arrotolabile, vedi sotto). */
 
     /* ── Colonna destra: stato + download + embedding ── */
     m_ragStatusLbl = new QLabel;
@@ -1455,6 +1456,24 @@ QWidget* ImpostazioniPage::buildRagTab()
             fileCard);
         fileCardTitle->setTextFormat(Qt::RichText);
         fileHdrRow->addWidget(fileCardTitle, 1);
+
+        auto* fileAllBtn = new QPushButton("\xe2\x98\x91", fileCard);   /* ☑ */
+        fileAllBtn->setObjectName("navBtn");
+        fileAllBtn->setFixedSize(dpiScale(28), dpiScale(24));
+        fileAllBtn->setToolTip(tr("Seleziona tutti i file (nessuna esclusione)"));
+        QObject::connect(fileAllBtn, &QPushButton::clicked,
+                         this, &ImpostazioniPage::onRagFileSelectAllClicked);
+        fileHdrRow->addWidget(fileAllBtn);
+
+        auto* fileNoneBtn = new QPushButton("\xe2\x98\x90", fileCard);   /* ☐ */
+        fileNoneBtn->setObjectName("navBtn");
+        fileNoneBtn->setFixedSize(dpiScale(28), dpiScale(24));
+        fileNoneBtn->setToolTip(tr("Deseleziona tutti i file "
+                                   "(tutti esclusi al prossimo Reindicizza)"));
+        QObject::connect(fileNoneBtn, &QPushButton::clicked,
+                         this, &ImpostazioniPage::onRagFileDeselectAllClicked);
+        fileHdrRow->addWidget(fileNoneBtn);
+
         auto* fileRefreshBtn = new QPushButton("\xf0\x9f\x94\x84", fileCard);
         fileRefreshBtn->setObjectName("navBtn");
         fileRefreshBtn->setFixedSize(dpiScale(28), dpiScale(24));
@@ -1546,9 +1565,10 @@ QWidget* ImpostazioniPage::buildRagTab()
         embedCardLay->setContentsMargins(12, 10, 12, 10);
         embedCardLay->setSpacing(6);
 
+        /* Titolo migrato nell'header della CollapsibleSection (vedi sotto);
+           qui resta solo il sottotitolo. */
         auto* embedCardTitle = new QLabel(
-            "\xf0\x9f\x9b\x96  <b>Modelli embedding consigliati</b> "
-            "<span style='color:#94a3b8;font-size:11px;font-weight:normal;'>"
+            "<span style='color:#94a3b8;font-size:11px;'>"
             "piccoli — non pesano sulla RAM del modello chat</span>",
             embedCard);
         embedCardTitle->setTextFormat(Qt::RichText);
@@ -1602,15 +1622,16 @@ QWidget* ImpostazioniPage::buildRagTab()
         embedHint->setStyleSheet("color:#f59e0b;");
         embedCardLay->addWidget(embedHint);
 
-        rightCol->addWidget(embedCard);
+        /* Card arrotolabile (stile Blender) nella colonna SINISTRA: è
+           materiale di consultazione — chiusa all'avvio, la colonna destra
+           si accorcia e i pulsanti di indicizzazione salgono. */
+        leftCol->addWidget(new CollapsibleSection(
+            tr("\xf0\x9f\x9b\x96 Modelli embedding consigliati"),
+            embedCard, /*startOpen=*/false, page));
     }
-    rightCol->addStretch();
 
-    columns->addLayout(leftCol, 1);
-    columns->addLayout(rightCol, 1);
-    outer->addLayout(columns);
-
-    /* Riga pulsanti: [Ferma indicizzazione]  [Reindicizza ora] */
+    /* Riga pulsanti: [Ferma indicizzazione]  [Reindicizza ora] —
+       colonna destra, subito sotto il combo embedding */
     auto* btnRow = new QHBoxLayout;
     btnRow->setSpacing(8);
 
@@ -1636,7 +1657,7 @@ QWidget* ImpostazioniPage::buildRagTab()
             .arg(QDir::homePath() + "/.prismalux_rag.json"));
     btnRow->addWidget(reindexBtn);
 
-    outer->addLayout(btnRow);
+    rightCol->addLayout(btnRow);
 
     /* Barra progresso indicizzazione */
     auto* progressBar = new QProgressBar;
@@ -1647,7 +1668,7 @@ QWidget* ImpostazioniPage::buildRagTab()
     progressBar->setFormat("%p%  (%v / %m chunk)");
     progressBar->setFixedHeight(dpiScale(22));
     progressBar->setVisible(false);
-    outer->addWidget(progressBar);
+    rightCol->addWidget(progressBar);
     m_ragProgressBar = progressBar;
 
     /* Label feedback */
@@ -1656,7 +1677,14 @@ QWidget* ImpostazioniPage::buildRagTab()
     feedbackLbl->setWordWrap(true);
     feedbackLbl->setTextFormat(Qt::RichText);
     feedbackLbl->setVisible(false);
-    outer->addWidget(feedbackLbl);
+    rightCol->addWidget(feedbackLbl);
+
+    leftCol->addStretch();
+    rightCol->addStretch();
+
+    columns->addLayout(leftCol, 1);
+    columns->addLayout(rightCol, 1);
+    outer->addLayout(columns);
 
     outer->addStretch();
 
