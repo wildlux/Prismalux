@@ -10,6 +10,7 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QFile>
+#include <QFileInfo>
 #include <QDir>
 #include <QTextStream>
 #include <QUuid>
@@ -58,6 +59,21 @@ bool GraphMemory::open()
     QFile::setPermissions(m_dbPath, QFile::ReadOwner | QFile::WriteOwner);
     initSchema();
     m_open = true;
+
+    /* D-59: backup di sicurezza. Solo se l'integrità è verificata: mai
+       sovrascrivere un .bak buono con un DB corrotto. Snapshot al momento
+       dell'ultimo checkpoint WAL — best-effort, sufficiente a recuperare
+       la memoria dopo spegnimento brusco o disco pieno. */
+    {
+        QSqlQuery chk(db);
+        if (chk.exec("PRAGMA quick_check(1)") && chk.next() &&
+                chk.value(0).toString() == QLatin1String("ok") &&
+                QFileInfo::exists(m_dbPath)) {
+            const QString bak = m_dbPath + ".bak";
+            QFile::remove(bak);
+            QFile::copy(m_dbPath, bak);
+        }
+    }
     return true;
 #endif
 }
@@ -633,6 +649,16 @@ void GraphMemory::pruneByImportance(int keepTopN)
     if (!m_open || keepTopN <= 0) return;
     QSqlDatabase db = QSqlDatabase::database(m_connName);
     QSqlQuery q(db);
+
+    /* D-60: la potatura è distruttiva — se taglierà davvero qualcosa,
+       snapshot TXT di TUTTI i nodi accanto al DB prima del DELETE, così
+       i ricordi eliminati restano consultabili/recuperabili a mano. */
+    QSqlQuery cnt(db);
+    if (cnt.exec("SELECT COUNT(*) FROM gm_nodes") && cnt.next()) {
+        const int total = cnt.value(0).toInt();
+        if (total > keepTopN)
+            exportTxt(m_dbPath + ".pre-prune.txt", total);
+    }
 
     /* Trova id da eliminare (quelli con rank > keepTopN) */
     q.prepare(

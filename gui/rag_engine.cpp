@@ -1,5 +1,6 @@
 #include "rag_engine.h"
 #include <QFile>
+#include <QFileInfo>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
@@ -173,6 +174,14 @@ bool RagEngine::save(const QString& path) const {
         chunks.append(co);
     }
     root["chunks"] = chunks;
+
+    /* D-59: ruota il salvataggio precedente in .bak prima di troncare —
+       un crash o disco pieno a metà scrittura non distrugge l'unico indice. */
+    if (QFileInfo::exists(path)) {
+        const QString bak = path + ".bak";
+        QFile::remove(bak);
+        QFile::copy(path, bak);
+    }
 
     QFile f(path);
     if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) return false;
