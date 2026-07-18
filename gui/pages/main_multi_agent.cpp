@@ -2,6 +2,7 @@
 #include "../prismalux_paths.h"
 #include "../dpi_utils.h"
 #include "../log_bus.h"
+#include "../widgets/thermal_guard.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QSplitter>
@@ -463,6 +464,17 @@ void AgentiMultiPage::parsePlan(const QString& jsonPlan)
    ══════════════════════════════════════════════════════════════ */
 void AgentiMultiPage::runNextPendingTask()
 {
+    /* D-67: pausa termica prima di avviare NUOVI sub-task (quelli già in
+       esecuzione continuano indisturbati). Il retry ricontrolla tutto,
+       compreso il completamento in coda a questa funzione — anche la
+       sintesi finale (chiamata LLM pesante) aspetta che si raffreddi. */
+    if (ThermalGuard::s().isHot() && !m_tasks.isEmpty()) {
+        setStatus(ThermalGuard::pauseMessage(ThermalGuard::s().maxTempC()));
+        QTimer::singleShot(ThermalGuard::kRetryMs,
+                           this, &AgentiMultiPage::runNextPendingTask);
+        return;
+    }
+
     /* Avvia ogni task pending i cui depends_on sono tutti Done,
        fin quando il pool ha client disponibili. */
     for (int i = 0; i < m_tasks.size(); ++i) {

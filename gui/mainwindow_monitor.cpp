@@ -5,6 +5,7 @@
    Split da mainwindow.cpp (TODO D-8).
    ══════════════════════════════════════════════════════════════ */
 #include "mainwindow.h"
+#include "widgets/thermal_guard.h"
 #include "prismalux_paths.h"
 #include "pages/main_research.h"
 #include "pages/settings_main.h"
@@ -149,6 +150,11 @@ void MainWindow::onHWUpdated(SysSnapshot snap) {
     /* Invia temperatura alla RicercaPage per il RAG thermal throttle */
     if (m_ricercaPage)
         m_ricercaPage->onThermalUpdate(snap.cpu_temp_c, snap.gpu_temp_c);
+
+    /* D-62/D-67: alimenta la sentinella termica condivisa — la
+       interrogano indicizzazione RAG, pipeline agenti, Agente Autonomo
+       e Multi-Agente prima di lanciare il passo successivo. */
+    ThermalGuard::s().update(snap.cpu_temp_c, snap.gpu_temp_c);
 }
 
 /* ══════════════════════════════════════════════════════════════

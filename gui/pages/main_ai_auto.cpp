@@ -24,6 +24,7 @@
 #include "main_ai_p.h"
 #include "dialog_agents_config.h"
 #include "../prismalux_paths.h"
+#include "../widgets/thermal_guard.h"
 namespace P = PrismaluxPaths;
 #include <QRegularExpression>
 #include <QTextCursor>
@@ -132,6 +133,19 @@ void AgentiPage::runAutonomousAgent()
        live AgenteAutonomoLive: nessuna richiesta arrivava mai a Ollama). */
     if (!m_autoEnabled)  return;   /* modalità cambiata nel frattempo */
     if (m_autoAborted)   return;   /* Stop dell'utente durante il ciclo */
+
+    /* D-67: pausa termica tra un'iterazione ReAct e la successiva —
+       il retry ripassa dai check qui sopra (busy/enabled/aborted). */
+    if (ThermalGuard::s().isHot()) {
+        if (m_waitLbl) {
+            m_waitLbl->setText(
+                ThermalGuard::pauseMessage(ThermalGuard::s().maxTempC()));
+            m_waitLbl->setVisible(true);
+        }
+        QTimer::singleShot(ThermalGuard::kRetryMs,
+                           this, &AgentiPage::runAutonomousAgent);
+        return;
+    }
 
     m_autoBuf.clear();
     m_waitLbl->setVisible(true);

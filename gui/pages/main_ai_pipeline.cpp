@@ -33,6 +33,7 @@ namespace P = PrismaluxPaths;
 #include "../widgets/chart_widget.h"
 #include "../widgets/model_combo_helper.h"
 #include "dialog_agents_config.h"
+#include "../widgets/thermal_guard.h"
 
 /* ══════════════════════════════════════════════════════════════
    D-29 — Pre-selezione function tools per categoria: i 7 tool "pesanti"
@@ -957,6 +958,19 @@ void AgentiPage::advancePipeline() {
     int roleIdx = m_cfgDlg->roleCombo(m_currentAgent)->currentIndex();
     if (roleIdx < 0 || roleIdx >= roleList.size()) roleIdx = 0;
     QString roleName = roleList[roleIdx].icon + " " + roleList[roleIdx].name;
+
+    /* D-67: pausa termica TRA un agente e il successivo (mai a metà
+       generazione). Il retry ripassa da advancePipeline: il check
+       m_autoAborted blocca la ripartenza se l'utente ha premuto Stop
+       durante l'attesa (flag settato da onAiAborted, reset a nuovo run). */
+    if (m_autoAborted) return;
+    if (ThermalGuard::s().isHot()) {
+        emit pipelineStatus(pct,
+            ThermalGuard::pauseMessage(ThermalGuard::s().maxTempC()));
+        QTimer::singleShot(ThermalGuard::kRetryMs,
+                           this, &AgentiPage::advancePipeline);
+        return;
+    }
 
     m_tokenCount = 0;
     emit pipelineStatus(pct, QString("\xe2\x9a\x99\xef\xb8\x8f  Agente %1/%2 \xe2\x80\x94 %3...")
