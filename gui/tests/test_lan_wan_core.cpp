@@ -18,6 +18,11 @@
      ./build_tests/test_lan_wan_core
    ══════════════════════════════════════════════════════════════ */
 #include <QtTest/QtTest>
+
+/* D-61: disattiva la persistenza stato delle CollapsibleSection nei test —
+   stato iniziale deterministico e nessuna scrittura nelle QSettings reali. */
+static bool _disableUiPersist() { qputenv("PRISMALUX_NO_UI_PERSIST", "1"); return true; }
+static const bool kNoUiPersist = _disableUiPersist();
 #include <QApplication>
 #include <QEventLoop>
 #include <QTimer>

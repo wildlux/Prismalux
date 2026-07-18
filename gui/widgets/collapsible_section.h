@@ -13,6 +13,8 @@
 #include <QToolButton>
 #include <QVBoxLayout>
 #include <QGroupBox>
+#include <QSettings>
+#include <QRegularExpression>
 
 class CollapsibleSection : public QWidget {
     Q_OBJECT
@@ -21,6 +23,16 @@ public:
                                 bool startOpen = true, QWidget* parent = nullptr)
         : QWidget(parent), m_content(content)
     {
+        /* D-61: stato aperto/chiuso ricordato tra sessioni. startOpen del
+           chiamante resta il default alla prima apparizione; poi vince
+           l'ultima scelta dell'utente. La chiave deriva dal titolo tr():
+           cambiando lingua lo stato riparte dai default (accettato). */
+        m_persistKey = persistKeyFromTitle(title);
+        const bool open = m_persistKey.isEmpty()
+            ? startOpen
+            : QSettings("Prismalux", "GUI")
+                  .value(m_persistKey, startOpen).toBool();
+
         auto* lay = new QVBoxLayout(this);
         lay->setContentsMargins(0, 0, 0, 0);
         lay->setSpacing(2);
@@ -28,9 +40,9 @@ public:
         m_btn = new QToolButton(this);
         m_btn->setText(title);
         m_btn->setCheckable(true);
-        m_btn->setChecked(startOpen);
+        m_btn->setChecked(open);
         m_btn->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
-        m_btn->setArrowType(startOpen ? Qt::DownArrow : Qt::RightArrow);
+        m_btn->setArrowType(open ? Qt::DownArrow : Qt::RightArrow);
         m_btn->setAutoRaise(true);
         m_btn->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
         m_btn->setStyleSheet(
@@ -39,7 +51,7 @@ public:
         lay->addWidget(m_btn);
 
         m_content->setParent(this);
-        m_content->setVisible(startOpen);
+        m_content->setVisible(open);
         lay->addWidget(m_content);
 
         connect(m_btn, &QToolButton::toggled,
@@ -69,10 +81,28 @@ private slots:
     {
         m_content->setVisible(open);
         m_btn->setArrowType(open ? Qt::DownArrow : Qt::RightArrow);
+        if (!m_persistKey.isEmpty())
+            QSettings("Prismalux", "GUI").setValue(m_persistKey, open);
         emit openChanged(open);
     }
 
 private:
+    /* Chiave QSettings derivata dal titolo (solo lettere/numeri).
+       Vuota = niente persistenza: titolo senza caratteri utili oppure
+       PRISMALUX_NO_UI_PERSIST impostata (i test la usano per restare
+       deterministici e non scrivere nelle QSettings reali). */
+    static QString persistKeyFromTitle(const QString& title)
+    {
+        if (qEnvironmentVariableIsSet("PRISMALUX_NO_UI_PERSIST"))
+            return {};
+        static const QRegularExpression kNonAlnum("[^\\p{L}\\p{N}]+");
+        QString slug = title;
+        slug.remove(kNonAlnum);
+        return slug.isEmpty() ? QString()
+                              : QString("ui/collapsedOpen/") + slug;
+    }
+
     QToolButton* m_btn     = nullptr;
     QWidget*     m_content = nullptr;
+    QString      m_persistKey;
 };
