@@ -165,6 +165,9 @@ void AgentiPage::hermesReflect()
 void AgentiPage::onHermesToggled(bool on)
 {
     m_hermesEnabled = on;
+    /* Persisti la scelta: al prossimo avvio la memoria riparte com'era
+       (ripristino in buildBottomBar). */
+    QSettings("Prismalux", "GUI").setValue(P::SK::kHermesEnabled, on);
     if (m_hermesToggle) {
         m_hermesToggle->setStyleSheet(
             on ? "QPushButton{background:#1e3a5f;color:#60a5fa;border-radius:4px;padding:0 4px;}"

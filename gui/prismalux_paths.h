@@ -1163,6 +1163,7 @@ constexpr const char* kDefaultTheme    = "dark_ocean";   ///< valore default tem
 constexpr const char* kCavemanMode          = "ai/cavemanMode";          ///< modalità risposte dirette (Caveman)
 constexpr const char* kComputeMode          = "ai/computeMode";          ///< "auto"|"gpu"|"cpu"|"misto"
 constexpr const char* kInjectUserKnowledge  = "ai/injectUserKnowledge";  ///< inietta user_knowledge.md nel system prompt (default: true)
+constexpr const char* kHermesEnabled        = "ai/hermesEnabled";        ///< memoria persistente Hermes (default: attiva; ripristinata all'avvio)
 constexpr const char* kConstitutionEnabled  = "ai/constitutionEnabled";  ///< inietta COSTITUZIONE_PRISMALUX.txt in ogni system prompt (default: true)
 constexpr const char* kMlockModel           = "ai/mlockModel";           ///< --mlock llama-server: blocca pagine modello in RAM (default: false)
 constexpr const char* kAutoZramDoppia       = "ai/autoZramDoppia";       ///< avvia zRAM Doppia (zstd, 75% RAM) all'avvio — Linux (default: true)

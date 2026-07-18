@@ -404,6 +404,15 @@ void AgentiPage::buildBottomBar(QVBoxLayout* lay)
     connect(m_hermesReflectBar, &QPushButton::clicked,
             this, &AgentiPage::onHermesReflectClicked);
 
+    /* Memoria persistente attiva di DEFAULT (ancoraggio anti-allucinazione:
+       inietta nel prompt i nodi pertinenti già memorizzati). Resta spenta
+       solo se l'utente l'ha disattivata esplicitamente.
+       setChecked(true) emette toggled → onHermesToggled. */
+    if (m_hermesToggleBar &&
+            QSettings("Prismalux", "GUI")
+                .value(P::SK::kHermesEnabled, true).toBool())
+        m_hermesToggleBar->setChecked(true);
+
     /* Aggiorna label iniziale */
     updateToolsBtnLabel();
 }
