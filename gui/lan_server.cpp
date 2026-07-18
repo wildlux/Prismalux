@@ -1123,7 +1123,10 @@ void LanServer::processSession(Session& s)
         if (checkHeavyRateLimit(s)) return;
         handleMath(s.socket, s);
     } else {
-        sendJson(s.socket, R"({"status":"ok"})");
+        /* Endpoint sconosciuto o metodo non previsto: 404 esplicito.
+         * (Prima rispondeva 200 {"status":"ok"} a qualunque path — nessun
+         * client lo usa come ping e mascherava errori, es. POST /apk.) */
+        sendError(s.socket, 404, "endpoint sconosciuto");
     }
 }
 
@@ -1169,6 +1172,8 @@ void LanServer::sendError(QTcpSocket* sock, int code, const QString& msg)
                           : (code == 415) ? "415 Unsupported Media Type"
                           : (code == 401) ? "401 Unauthorized"
                           : (code == 400) ? "400 Bad Request"
+                          : (code == 404) ? "404 Not Found"
+                          : (code == 405) ? "405 Method Not Allowed"
                           :                 "500 Internal Server Error";
     QByteArray resp = "HTTP/1.1 " + status.toLatin1() + "\r\n";
     resp += "Content-Type: application/json\r\n";
