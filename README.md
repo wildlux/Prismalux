@@ -16,7 +16,7 @@
 **Piattaforma AI locale e distribuita — zero cloud, zero abbonamenti, tutto sul tuo hardware.**
 
 🇬🇧 **[English version → README.en.md](README.en.md)**
-
+![SCREENSHOT HERE](SCREEENSHOT/SCREEENSHOT/Schermata_20260811_003152.png)
 [![Donate PayPal](https://img.shields.io/badge/Dona%20con-PayPal-00457C?style=flat-square&logo=paypal&logoColor=white)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=wildlux%40gmail.com&item_name=Prismalux&currency_code=EUR&source=url)
 
 </div>
