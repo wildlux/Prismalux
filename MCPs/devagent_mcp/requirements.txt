@@ -1,9 +1,9 @@
 # devagent_mcp — dipendenze
 # Core (opzionale — il server funziona anche senza con loop semplice)
 -c ../constraints.txt
-langgraph>=0.2.0
-langchain-community>=0.2.0
-langchain-ollama>=0.1.0
+langgraph>=1.2.9
+langchain-community>=0.4.2
+langchain-ollama>=1.1.0
 
 # Parsing diff (usato internamente; fallback manuale se non installato)
 unidiff>=0.7.5

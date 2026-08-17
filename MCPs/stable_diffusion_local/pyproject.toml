@@ -5,7 +5,7 @@ description = "MCP server per generazione immagini Stable Diffusion locale via P
 requires-python = ">=3.10"
 dependencies = [
     "diffusers>=0.27.0,<1.0",
-    "transformers>=4.40.0,<5.0",
+    "transformers>=4.40.0,<6.0",
     "accelerate>=0.30.0,<2.0",
     "torch>=2.2.0,<3.0",
     "Pillow>=10.0.0,<13.0",
