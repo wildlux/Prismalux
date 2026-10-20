@@ -1,5 +1,9 @@
 # CLAUDE.md — Prismalux Qt GUI  v3.0 (agg. 2026-07-17 — layout tab/file chiave/percorsi test verificati contro il codice)
 
+> **Regola fissa — report in tabella:** ogni report o riepilogo richiesto dall'utente
+> (stato lavori, cosa manca, modifiche, esito test, opzioni) va presentato come
+> **tabella Markdown**. La prosa resta solo per note brevi. Vedi `../AGENTS.md`.
+
 ## Build
 ```bash
 # Linux (diretto) — build dir = build_gui/ nella root del progetto
