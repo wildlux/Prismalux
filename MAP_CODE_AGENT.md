@@ -81,7 +81,7 @@ Regole d'oro:
 | `gui/lan_web/` | UI web servita dal server LAN (`index.html`, `webchat.html`). |
 | `gui/fonts/` | Font opzionali caricati all'avvio. |
 | `gui/utils/` | Helper di test (`mock_ollama_server.h`, `python_runner.h`). |
-| `gui/tools/` | `gen_decision_onnx.py`: rigenera i due modelli ONNX e i metadati. |
+| `gui/tools/` | `gen_decision_onnx.py`: rigenera i due modelli ONNX e i metadati. `eval_decision_onnx.py`: benchmark held-out dei due modelli. |
 | `MCPs/` | ~60 plugin MCP Python (JSON-RPC stdio), `_shared/path_safety.py`, `net_safety.py`. |
 | `ANDROID/`, `IOS/` | App mobile e progetto iOS. |
 | `EXPORT/` | Script AppImage/Windows/APK, note di release. |
@@ -515,6 +515,13 @@ Due modelli lineari locali, **non LLM**, inclusi nel repository:
   di **Scarica**; il modello selezionabile è `onnx-decision`. Il salvataggio forza
   questo nome quando il backend è ONNX, così `active()` non resta legato a un
   modello Ollama.
+- **Qualità**: `python3 gui/tools/eval_decision_onnx.py` misura 48 prompt
+  classificatore + 35 coppie verificatore held-out (opzioni `--json`,
+  `--min-classifier`, `--min-verifier`). Baseline 2026-10-20: classificatore
+  37/48 = 77.1%, verificatore 21/35 = 60.0% (training 100% → overfit). Il
+  verificatore lessicale riconosce rifiuti/vuoti/bassa pertinenza, **non** è un
+  fact-checker; per la produzione serve un dataset etichettato o un modello più
+  espressivo.
 
 ---
 
@@ -995,7 +1002,10 @@ Categorie:
 - **Live / richiedono Ollama o rete**: `test_chat_live`, `test_multi_agente_live`,
   `test_agente_autonomo_live`, `test_stt_whisper_live`, `test_ai_stress`,
   `test_ai_integration`, `test_lan_server*`.
-- **GUI offscreen**: usare `QT_QPA_PLATFORM=offscreen`.
+- **GUI offscreen**: usare `QT_QPA_PLATFORM=offscreen`. D-73:
+  `PRISMALUX_D73_SCREENSHOT=/tmp/d73.png QT_QPA_PLATFORM=offscreen ./build_tests/test_impostazioni_page`
+  esegue anche i controlli su LLM & DM/Decision Model/RAG e salva lo screenshot.
+- **Qualità ONNX**: `python3 gui/tools/eval_decision_onnx.py --json /tmp/onnx-quality.json`.
 
 Esecuzione mirata:
 

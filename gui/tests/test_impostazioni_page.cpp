@@ -21,6 +21,8 @@
 static bool _disableUiPersist() { qputenv("PRISMALUX_NO_UI_PERSIST", "1"); return true; }
 static const bool kNoUiPersist = _disableUiPersist();
 #include <QApplication>
+#include <QComboBox>
+#include <QGroupBox>
 #include <QPushButton>
 #include <QTabWidget>
 #include <QTextBrowser>
@@ -32,6 +34,7 @@ namespace P = PrismaluxPaths;
 
 #include "mock_ai_client.h"
 #include "../ai_client.h"
+#include "../decision_engine.h"
 #include "../hardware_monitor.h"
 #include "../pages/settings_main.h"
 
@@ -349,6 +352,149 @@ private slots:
 };
 
 /* ══════════════════════════════════════════════════════════════
+   CAT-F — D-73: "LLM & DM" → "Decision Model" e card "Database RAG"
+   Verifica la struttura che l'utente vede a video:
+     · la scheda esterna si chiama "LLM & DM";
+     · la sotto-scheda "Decision Model" espone backend, modello
+       predefinito e le quattro combo per tipologia;
+     · selezionando ONNX il pulsante diventa "Verifica";
+     · la scheda RAG espone Esporta/Importa database.
+   Se la variabile PRISMALUX_D73_SCREENSHOT è impostata, salva anche
+   uno screenshot del pannello Decision Model per la verifica visiva.
+   ══════════════════════════════════════════════════════════════ */
+class TestD73DecisionRagUi : public QObject {
+    Q_OBJECT
+private:
+    MockAiClient*     m_ai   = nullptr;
+    HardwareMonitor*  m_hw   = nullptr;
+    ImpostazioniPage* m_page = nullptr;
+    DecisionEngine*   m_dec  = nullptr;
+
+    int outerIndexFor(const QString& label) {
+        auto* outer = m_page->findChild<QTabWidget*>("settingsTabs");
+        if (!outer) return -1;
+        for (int i = 0; i < outer->count(); ++i)
+            if (outer->tabText(i).contains(label)) return i;
+        return -1;
+    }
+
+    static int innerIndexFor(QTabWidget* tabs, const QString& label) {
+        if (!tabs) return -1;
+        for (int i = 0; i < tabs->count(); ++i)
+            if (tabs->tabText(i).contains(label)) return i;
+        return -1;
+    }
+
+private slots:
+
+    void initTestCase() {
+        m_ai   = new MockAiClient;
+        m_hw   = new HardwareMonitor;
+        m_page = new ImpostazioniPage(m_ai, m_hw);
+        m_dec  = new DecisionEngine;
+        m_page->setDecisionEngine(m_dec);
+    }
+
+    void cleanupTestCase() {
+        delete m_page; m_page = nullptr;
+        delete m_dec;  m_dec  = nullptr;
+        delete m_hw;   m_hw   = nullptr;
+        delete m_ai;   m_ai   = nullptr;
+    }
+
+    /* F-1: la scheda LLM & DM contiene la sotto-scheda Decision Model
+       con backend a 4 voci, 5 combo modello (default + 4 tipologie),
+       le due card e il pulsante "Verifica" quando è selezionato ONNX. */
+    void decisionModelStrutturaCompleta() {
+        auto* outer = m_page->findChild<QTabWidget*>("settingsTabs");
+        QVERIFY(outer);
+        const int llmIdx = outerIndexFor("LLM & DM");
+        QVERIFY2(llmIdx >= 0, "scheda esterna 'LLM & DM' non trovata");
+        outer->setCurrentIndex(llmIdx);
+
+        auto* inner = qobject_cast<QTabWidget*>(outer->widget(llmIdx));
+        QVERIFY2(inner, "il gruppo LLM & DM non è un QTabWidget");
+        const int decIdx = innerIndexFor(inner, "Decision Model");
+        QVERIFY2(decIdx >= 0, "sotto-scheda 'Decision Model' non trovata");
+        inner->setCurrentIndex(decIdx);
+        QCoreApplication::processEvents();
+
+        QWidget* decPage = inner->widget(decIdx);
+        QVERIFY(decPage);
+
+        /* Backend: 4 voci, ONNX compreso. */
+        QComboBox* backend = nullptr;
+        const auto allCombos = decPage->findChildren<QComboBox*>();
+        for (auto* c : allCombos) {
+            if (c->count() == 4 && c->itemText(2).contains("ONNX")) {
+                backend = c;
+                break;
+            }
+        }
+        QVERIFY2(backend, "combo backend con voce ONNX non trovata");
+        QVERIFY(backend->itemText(1).contains("DwarfStar"));
+        QVERIFY(backend->itemText(3).contains("llama-server"));
+
+        /* 1 combo predefinito + 4 combo per tipologia. */
+        const auto modelCombos = decPage->findChildren<QComboBox*>("modelCombo");
+        QCOMPARE(modelCombos.size(), 5);
+
+        /* Le due card della sotto-scheda. */
+        QStringList groupTitles;
+        for (auto* g : decPage->findChildren<QGroupBox*>())
+            groupTitles << g->title();
+        QVERIFY2(groupTitles.filter("Configurazione").size() == 1,
+                 "card 'Configurazione' assente");
+        QVERIFY2(groupTitles.filter("Modello per tipologia").size() == 1,
+                 "card 'Modello per tipologia' assente");
+
+        /* ONNX → il pulsante di download diventa "Verifica". */
+        backend->setCurrentIndex(2);
+        QCoreApplication::processEvents();
+        QPushButton* verifyBtn = nullptr;
+        for (auto* b : decPage->findChildren<QPushButton*>())
+            if (b->text().contains("Verifica")) { verifyBtn = b; break; }
+        QVERIFY2(verifyBtn, "pulsante 'Verifica' ONNX non trovato");
+        QVERIFY(verifyBtn->isEnabled());
+
+        const QString shot = qEnvironmentVariable("PRISMALUX_D73_SCREENSHOT");
+        if (!shot.isEmpty()) {
+            m_page->resize(1400, 900);
+            m_page->show();
+            QTest::qWait(400);
+            QVERIFY2(m_page->grab().save(shot),
+                     qPrintable("salvataggio screenshot fallito: " + shot));
+        }
+    }
+
+    /* F-2: la scheda RAG espone i due pulsanti di trasporto del DB. */
+    void ragDatabaseButtonsPresenti() {
+        auto* outer = m_page->findChild<QTabWidget*>("settingsTabs");
+        QVERIFY(outer);
+        const int aiIdx = outerIndexFor("AI Locale");
+        QVERIFY2(aiIdx >= 0, "scheda esterna 'AI Locale' non trovata");
+        outer->setCurrentIndex(aiIdx);
+
+        auto* inner = qobject_cast<QTabWidget*>(outer->widget(aiIdx));
+        QVERIFY2(inner, "il gruppo AI Locale non è un QTabWidget");
+        const int ragIdx = innerIndexFor(inner, "RAG");
+        QVERIFY2(ragIdx >= 0, "sotto-scheda 'RAG' non trovata");
+        inner->setCurrentIndex(ragIdx);
+        QCoreApplication::processEvents();
+
+        QWidget* ragPage = inner->widget(ragIdx);
+        QVERIFY(ragPage);
+        bool hasExport = false, hasImport = false;
+        for (auto* b : ragPage->findChildren<QPushButton*>()) {
+            if (b->text().contains("Esporta database")) hasExport = true;
+            if (b->text().contains("Importa database")) hasImport = true;
+        }
+        QVERIFY2(hasExport, "pulsante 'Esporta database' assente");
+        QVERIFY2(hasImport, "pulsante 'Importa database' assente");
+    }
+};
+
+/* ══════════════════════════════════════════════════════════════
    CAT-D — Preset button "8 GB RAM"
    ══════════════════════════════════════════════════════════════ */
 class TestPreset : public QObject {
@@ -507,6 +653,7 @@ int main(int argc, char* argv[])
         TestImpostazioniCostruzione t2; status |= QTest::qExec(&t2, argc, argv);
         TestThinkModeUI           t3; status |= QTest::qExec(&t3, argc, argv);
         TestLazyTabsNavigation    t5; status |= QTest::qExec(&t5, argc, argv);
+        TestD73DecisionRagUi      t7; status |= QTest::qExec(&t7, argc, argv);
         TestPreset                t4; status |= QTest::qExec(&t4, argc, argv);
         TestAstroEasterEgg        t6; status |= QTest::qExec(&t6, argc, argv);
     }
