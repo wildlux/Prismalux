@@ -16,7 +16,15 @@
 namespace P = PrismaluxPaths;
 
 #ifdef HAVE_ONNX
-#include <onnxruntime/core/session/onnxruntime_cxx_api.h>
+/* Tre layout di installazione supportati (vedi CMakeLists.txt):
+   prebuilt release, pacchetto Debian/Ubuntu, include dir dedicata. */
+#  if __has_include(<onnxruntime/core/session/onnxruntime_cxx_api.h>)
+#    include <onnxruntime/core/session/onnxruntime_cxx_api.h>
+#  elif __has_include(<onnxruntime/onnxruntime_cxx_api.h>)
+#    include <onnxruntime/onnxruntime_cxx_api.h>
+#  else
+#    include <onnxruntime_cxx_api.h>
+#  endif
 #endif
 
 /* ══════════════════════════════════════════════════════════════

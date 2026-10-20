@@ -7,6 +7,15 @@
 #include <algorithm>
 #include <cmath>
 #include <random>
+#ifdef HAVE_QT_SQL
+#include <QSqlDatabase>
+#include <QSqlQuery>
+#include <QSqlError>
+#include <QDataStream>
+#include <QDateTime>
+#include <QUuid>
+#include <QHash>
+#endif
 
 /* ══════════════════════════════════════════════════════════════
    initMatrix — genera la matrice di proiezione R (m × d)
@@ -217,4 +226,188 @@ bool RagEngine::load(const QString& path) {
             m_chunks.append(c);
     }
     return !m_chunks.isEmpty();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   saveDb — esporta l'indice in un unico file SQLite
+
+   Formato:
+     rag_meta   (k TEXT PRIMARY KEY, v TEXT)
+       format_version, seed, input_dim, jlt_dim, chunk_count,
+       exported_at, app
+     rag_chunks (id INTEGER PRIMARY KEY, text TEXT, source TEXT,
+                 mtime INTEGER, vec BLOB)
+
+   I vettori sono float32 little-endian: il file resta leggibile su
+   qualunque macchina, indipendentemente dall'endianness dell'host.
+   Il JSON resta il formato di lavoro; il DB è pensato per il
+   trasporto (un file solo, indicizzato, comprimibile).
+   ══════════════════════════════════════════════════════════════ */
+bool RagEngine::saveDb(const QString& path) const
+{
+#ifdef HAVE_QT_SQL
+    if (path.isEmpty()) return false;
+
+    /* Connessione dedicata: non riusare quella della cache decisionale
+       né quella dei quiz, che possono avere un file diverso aperto. */
+    const QString conn = QStringLiteral("prismalux_rag_export_%1")
+                             .arg(QUuid::createUuid().toString(QUuid::WithoutBraces));
+    bool ok = false;
+    {
+        QSqlDatabase db = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), conn);
+        db.setDatabaseName(path);
+        if (!db.open()) {
+            QSqlDatabase::removeDatabase(conn);
+            return false;
+        }
+
+        QSqlQuery q(db);
+        ok = q.exec(QStringLiteral("DROP TABLE IF EXISTS rag_meta"))
+          && q.exec(QStringLiteral("DROP TABLE IF EXISTS rag_chunks"))
+          && q.exec(QStringLiteral(
+                 "CREATE TABLE rag_meta (k TEXT PRIMARY KEY, v TEXT)"))
+          && q.exec(QStringLiteral(
+                 "CREATE TABLE rag_chunks ("
+                 "  id INTEGER PRIMARY KEY,"
+                 "  text TEXT NOT NULL,"
+                 "  source TEXT,"
+                 "  mtime INTEGER,"
+                 "  vec BLOB NOT NULL)"));
+
+        if (ok) {
+            db.transaction();
+
+            q.prepare(QStringLiteral("INSERT INTO rag_meta (k, v) VALUES (?, ?)"));
+            const auto putMeta = [&q](const QString& k, const QString& v) {
+                q.bindValue(0, k);
+                q.bindValue(1, v);
+                return q.exec();
+            };
+            ok = putMeta(QStringLiteral("format_version"), QStringLiteral("1"))
+              && putMeta(QStringLiteral("seed"), QString::number(m_seed))
+              && putMeta(QStringLiteral("input_dim"), QString::number(m_inputDim))
+              && putMeta(QStringLiteral("jlt_dim"), QString::number(kTargetDim))
+              && putMeta(QStringLiteral("chunk_count"), QString::number(m_chunks.size()))
+              && putMeta(QStringLiteral("exported_at"),
+                         QString::number(QDateTime::currentSecsSinceEpoch()))
+              && putMeta(QStringLiteral("app"), QStringLiteral("Prismalux"));
+
+            if (ok) {
+                q.prepare(QStringLiteral(
+                    "INSERT INTO rag_chunks (text, source, mtime, vec) "
+                    "VALUES (?, ?, ?, ?)"));
+                for (const RagChunk& c : m_chunks) {
+                    QByteArray blob;
+                    blob.reserve(c.vec.size() * int(sizeof(float)));
+                    {
+                        QDataStream ds(&blob, QIODevice::WriteOnly);
+                        ds.setByteOrder(QDataStream::LittleEndian);
+                        ds.setFloatingPointPrecision(QDataStream::SinglePrecision);
+                        for (float f : c.vec) ds << f;
+                    }
+                    q.bindValue(0, c.text);
+                    q.bindValue(1, c.source);
+                    q.bindValue(2, c.mtime);
+                    q.bindValue(3, blob);
+                    if (!q.exec()) { ok = false; break; }
+                }
+            }
+
+            if (ok) db.commit();
+            else    db.rollback();
+        }
+
+        db.close();
+    }
+    QSqlDatabase::removeDatabase(conn);
+    return ok;
+#else
+    Q_UNUSED(path);
+    return false;
+#endif
+}
+
+/* ══════════════════════════════════════════════════════════════
+   loadDb — importa un indice esportato con saveDb()
+
+   Il file viene aperto in sola lettura. Prima di sostituire l'indice
+   in memoria si valida tutto: un DB corrotto non deve azzerare
+   l'indice corrente. Per questo i chunk vengono accumulati a parte e
+   assegnati solo alla fine.
+   ══════════════════════════════════════════════════════════════ */
+bool RagEngine::loadDb(const QString& path)
+{
+#ifdef HAVE_QT_SQL
+    if (path.isEmpty() || !QFileInfo::exists(path)) return false;
+
+    const QString conn = QStringLiteral("prismalux_rag_import_%1")
+                             .arg(QUuid::createUuid().toString(QUuid::WithoutBraces));
+    bool ok = false;
+    QVector<RagChunk> loaded;
+    int  dim  = 0;
+    uint32_t sd = m_seed;
+    {
+        QSqlDatabase db = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), conn);
+        db.setDatabaseName(path);
+        if (!db.open()) {
+            QSqlDatabase::removeDatabase(conn);
+            return false;
+        }
+
+        QSqlQuery q(db);
+        if (q.exec(QStringLiteral("SELECT k, v FROM rag_meta"))) {
+            while (q.next()) {
+                const QString k = q.value(0).toString();
+                const QString v = q.value(1).toString();
+                if (k == QLatin1String("input_dim")) dim = v.toInt();
+                else if (k == QLatin1String("seed")) sd = uint32_t(v.toUInt());
+            }
+            ok = true;
+        }
+
+        if (ok && q.exec(QStringLiteral(
+                "SELECT text, source, mtime, vec FROM rag_chunks ORDER BY id"))) {
+            while (q.next()) {
+                RagChunk c;
+                c.text   = q.value(0).toString();
+                c.source = q.value(1).toString();
+                c.mtime  = q.value(2).toLongLong();
+                const QByteArray blob = q.value(3).toByteArray();
+
+                QDataStream ds(blob);
+                ds.setByteOrder(QDataStream::LittleEndian);
+                ds.setFloatingPointPrecision(QDataStream::SinglePrecision);
+                const int n = blob.size() / int(sizeof(float));
+                c.vec.reserve(n);
+                for (int i = 0; i < n; ++i) {
+                    float f = 0.0f;
+                    ds >> f;
+                    c.vec.append(f);
+                }
+                if (!c.text.isEmpty() && !c.vec.isEmpty())
+                    loaded.append(c);
+            }
+        } else {
+            ok = false;
+        }
+
+        db.close();
+    }
+    QSqlDatabase::removeDatabase(conn);
+
+    /* input_dim mancante: lo si deduce dal primo vettore solo se
+       coincide con la dimensione JLT attesa (i vettori salvati sono
+       già proiettati, quindi != kTargetDim indica un file incoerente). */
+    if (ok && dim <= 0 && !loaded.isEmpty())
+        dim = kTargetDim;
+    if (!ok || loaded.isEmpty() || dim <= 0) return false;
+
+    m_seed = sd;
+    initMatrix(dim);
+    m_chunks = loaded;
+    return true;
+#else
+    Q_UNUSED(path);
+    return false;
+#endif
 }

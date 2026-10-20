@@ -1,6 +1,7 @@
 #include "mainwindow.h"
 #include "lan_server.h"
 #include "log_bus.h"
+#include "decision_engine.h"
 #include "widgets/onnx_embedder.h"
 #include "widgets/whisper_autosetup.h"
 #include "pages/main_ai.h"
@@ -103,6 +104,15 @@ void MainWindow::setupServices()
 {
     m_hw = new HardwareMonitor(this);
     m_ai = new AiClient(this);
+
+    /* ── Decision Engine ────────────────────────────────────────────
+       Strato di decisione separato dagli LLM: classifica la richiesta
+       prima dell'invio e riverifica la risposta dopo. Opt-in, quindi
+       disattivato finché l'utente non lo abilita in Impostazioni.
+       Condiviso con Impostazioni perché la pagina modelli deve poter
+       scaricare i decision model senza crearne un secondo. */
+    m_decision = new DecisionEngine(this);
+    m_ai->setDecisionEngine(m_decision);
     /* Applica SUBITO il modello salvato in QSettings, prima che setupLayout()
      * costruisca la tab AI (eager) — il cui costruttore chiama fetchModels()
      * con m_model ancora vuoto se non lo facciamo qui prima. In quel caso

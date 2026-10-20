@@ -72,6 +72,19 @@ public:
     bool save(const QString& path) const;
     bool load(const QString& path);
 
+    /* ── Export/import database (SQLite) ───────────────────────────
+       Il JSON resta il formato di lavoro; il DB serve al trasporto:
+       un solo file, indicizzato, con chunk e vettori in BLOB.
+       Richiede Qt6::Sql: se la build non lo ha, i metodi tornano
+       false e la UI lo segnala (nessun crash, nessuna perdita). */
+    bool saveDb(const QString& path) const;
+    bool loadDb(const QString& path);
+
+    /** Accesso in sola lettura ai chunk (per export/diagnostica). */
+    const QVector<RagChunk>& chunks() const { return m_chunks; }
+    uint32_t seed() const { return m_seed; }
+    void     setSeed(uint32_t s) { m_seed = s; }
+
     /* ── Info ───────────────────────────────────────────────────── */
 
     int  chunkCount() const { return m_chunks.size(); }

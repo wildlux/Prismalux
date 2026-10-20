@@ -3,3 +3,9 @@
 *.bin
 # vocab.txt è piccolo (~226 KB) — incluso se presente
 !vocab.txt
+# I due modelli decisionali sono minuscoli (~12 KB) e generati da
+# gui/tools/gen_decision_onnx.py: si versionano per avere il backend
+# ONNX funzionante senza download.
+!decision_classifier.onnx
+!decision_verifier.onnx
+!decision_onnx_meta.json

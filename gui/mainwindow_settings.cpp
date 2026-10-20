@@ -60,6 +60,10 @@ void MainWindow::ensureSettingsDialog()
     m_impDlg->resize(dpiScale(1050), dpiScale(680));
     m_impPage = new ImpostazioniPage(m_ai, m_hw, m_impDlg);
     m_impPage->setGraficoCanvas(m_grafCanvas);
+    /* Stessa istanza del DecisionEngine usata da AiClient: se la pagina
+       ne creasse una propria, le scelte fatte qui non raggiungerebbero
+       il client che esegue davvero la pipeline. */
+    m_impPage->setDecisionEngine(m_decision);
     /* installCronPanel è chiamata solo da onCronPanelFirstOpen (primo clic su Cron) */
     auto* dl = new QVBoxLayout(m_impDlg);
     dl->setContentsMargins(0, 0, 0, 0);

@@ -8,11 +8,14 @@
    ══════════════════════════════════════════════════════════════ */
 #include "mainwindow.h"
 #include "prismalux_paths.h"
+#include "device_split.h"
 #include "dpi_utils.h"
 
+#include <QApplication>
 #include <QDialog>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
+#include <QGridLayout>
 #include <QLabel>
 #include <QComboBox>
 #include <QSpinBox>
@@ -63,6 +66,30 @@ void MainWindow::showServerDialog()
 
     lay->addWidget(buildServerHwBanner(dlg));
 
+    /* D-54: piano multi-dispositivo (budget VRAM → -ngl / --tensor-split).
+       Il piano è opzionale: senza di esso resta la scelta automatica
+       della GPU con più VRAM libera. */
+    {
+        auto* splitRow = new QHBoxLayout;
+        auto* btnSplit = new QPushButton(tr("\xe2\x9a\x99  Split CPU/GPU\xe2\x80\xa6"), dlg);
+        const DeviceSplit::Plan current = DeviceSplit::load();
+        auto* splitLbl = new QLabel(
+            current.enabled ? current.summary
+                            : tr("automatico: una GPU, resto in CPU"), dlg);
+        splitLbl->setWordWrap(true);
+        splitLbl->setStyleSheet("color:#5a5f80;font-size:11px;");
+        splitRow->addWidget(btnSplit);
+        splitRow->addWidget(splitLbl, 1);
+        lay->addLayout(splitRow);
+        connect(btnSplit, &QPushButton::clicked, dlg, [this, splitLbl]() {
+            showDeviceSplitDialog();
+            const DeviceSplit::Plan p = DeviceSplit::load();
+            splitLbl->setText(p.enabled
+                ? p.summary
+                : tr("automatico: una GPU, resto in CPU"));
+        });
+    }
+
     /* Categorizza i modelli in matematici e generici */
     QStringList mathPaths, otherPaths;
     for (const QString& p : modelPaths) {
@@ -99,6 +126,240 @@ void MainWindow::showServerDialog()
                          spPort ? spPort->value() : P::kLlamaServerPort,
                          chk    ? chk->isChecked() : false);
     }
+    dlg->deleteLater();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   showDeviceSplitDialog — D-54
+
+   Budget VRAM per dispositivo → layer per GPU → -ngl e
+   --tensor-split. Il calcolo vive in device_split.cpp (testabile
+   senza hardware); qui c'è solo la UI.
+
+   Nota: --tensor-split segue l'ordine dei device enumerati da
+   llama.cpp, che non coincide necessariamente con HWInfo. Il
+   pulsante "Dispositivi llama.cpp" esegue --list-devices per
+   mostrare l'ordine reale.
+   ══════════════════════════════════════════════════════════════ */
+void MainWindow::showDeviceSplitDialog()
+{
+    if (!m_hw || !m_hw->hwReady()) {
+        QMessageBox::information(this, tr("Split CPU/GPU"),
+            tr("Rilevamento hardware ancora in corso. Riprova tra qualche secondo."));
+        return;
+    }
+
+    const HWInfo& hw = m_hw->hwInfo();
+    QVector<DeviceSplit::Device> devices;
+    for (int i = 0; i < hw.count; ++i) {
+        const HWDevice& src = hw.dev[i];
+        DeviceSplit::Device d;
+        d.name    = QString::fromUtf8(src.name);
+        d.type    = int(src.type);
+        d.isCpu   = (src.type == DEV_CPU);
+        d.availMb = qMax<qint64>(0, src.avail_mb);
+        const qint64 fallback = (d.availMb * 8) / 10;   /* 80% */
+        d.budgetMb = DeviceSplit::savedBudget(d.name, fallback);
+        d.enabled  = !d.isCpu && d.availMb >= DeviceSplit::kMinBudgetMb;
+        devices.append(d);
+    }
+
+    const DeviceSplit::Plan saved = DeviceSplit::load();
+
+    auto* dlg = new QDialog(this);
+    dlg->setWindowTitle(tr("\xe2\x9a\x99  Split CPU/GPU (llama.cpp)"));
+    dlg->setMinimumWidth(dpiScale(660));
+    auto* lay = new QVBoxLayout(dlg);
+    lay->setSpacing(10);
+
+    auto* chkEnable = new QCheckBox(
+        tr("Usa il piano multi-dispositivo all'avvio di llama-server"), dlg);
+    chkEnable->setChecked(saved.enabled);
+    lay->addWidget(chkEnable);
+
+    auto* info = new QLabel(tr(
+        "Assegna un budget VRAM a ogni GPU: i layer coperti vanno sulla GPU, "
+        "gli altri restano in CPU. Stima: <b>80 MB per layer</b>.<br>"
+        "Con due o più GPU viene passato <code>--tensor-split</code>; "
+        "l'ordine è quello di <code>llama-server --list-devices</code>, "
+        "non necessariamente quello di questo elenco."), dlg);
+    info->setWordWrap(true);
+    lay->addWidget(info);
+
+    auto* grid = new QGridLayout;
+    grid->setColumnStretch(0, 1);
+    grid->addWidget(new QLabel(tr("<b>Dispositivo</b>"), dlg), 0, 0);
+    grid->addWidget(new QLabel(tr("<b>Libera</b>"), dlg), 0, 1);
+    grid->addWidget(new QLabel(tr("<b>Budget</b>"), dlg), 0, 2);
+    grid->addWidget(new QLabel(tr("<b>Layer</b>"), dlg), 0, 3);
+
+    QVector<QCheckBox*> checks;
+    QVector<QSpinBox*>  budgets;
+    QVector<QLabel*>    layerLabels;
+    int row = 1;
+    for (const DeviceSplit::Device& d : devices) {
+        if (d.isCpu) {
+            auto* cpu = new QLabel(
+                tr("\xf0\x9f\x96\xa5  CPU — i layer non offloadati restano qui"), dlg);
+            cpu->setStyleSheet("color:#9ca3af;");
+            grid->addWidget(cpu, row++, 0, 1, 4);
+            checks.append(nullptr);
+            budgets.append(nullptr);
+            layerLabels.append(nullptr);
+            continue;
+        }
+
+        auto* chk = new QCheckBox(
+            QStringLiteral("%1  (%2)")
+                .arg(d.name, QString::fromUtf8(hw_dev_type_str(HWDevType(d.type)))), dlg);
+        chk->setChecked(d.enabled);
+
+        auto* spin = new QSpinBox(dlg);
+        spin->setRange(0, int(d.availMb));
+        spin->setSingleStep(512);
+        spin->setSuffix(QStringLiteral(" MB"));
+        spin->setValue(int(qBound<qint64>(0, d.budgetMb, d.availMb)));
+
+        auto* ll = new QLabel(dlg);
+        grid->addWidget(chk, row, 0);
+        grid->addWidget(new QLabel(tr("%1 MB").arg(d.availMb), dlg), row, 1);
+        grid->addWidget(spin, row, 2);
+        grid->addWidget(ll, row, 3);
+        checks.append(chk);
+        budgets.append(spin);
+        layerLabels.append(ll);
+        ++row;
+    }
+    lay->addLayout(grid);
+
+    auto* summary = new QLabel(dlg);
+    summary->setWordWrap(true);
+    summary->setStyleSheet("color:#60a5fa;");
+    lay->addWidget(summary);
+
+    auto* warning = new QLabel(dlg);
+    warning->setWordWrap(true);
+    warning->setStyleSheet("color:#f59e0b;");
+    lay->addWidget(warning);
+
+    auto collect = [&]() {
+        QVector<DeviceSplit::Device> current = devices;
+        for (int i = 0; i < current.size(); ++i) {
+            if (current.at(i).isCpu)
+                continue;
+            current[i].enabled  = checks.at(i) && checks.at(i)->isChecked();
+            current[i].budgetMb = budgets.at(i) ? budgets.at(i)->value() : 0;
+        }
+        return current;
+    };
+
+    auto refresh = [&]() {
+        const QVector<DeviceSplit::Device> current = collect();
+        const DeviceSplit::Plan plan = DeviceSplit::compute(current);
+
+        for (int i = 0; i < current.size(); ++i) {
+            if (current.at(i).isCpu || !layerLabels.at(i))
+                continue;
+            const qint64 b = qBound<qint64>(0, current.at(i).budgetMb,
+                                            current.at(i).availMb);
+            layerLabels.at(i)->setText(
+                b >= DeviceSplit::kMinBudgetMb
+                    ? QString::number(b / DeviceSplit::kMbPerLayer)
+                    : QStringLiteral("\xe2\x80\x94"));
+        }
+
+        if (chkEnable->isChecked()) {
+            summary->setText(plan.enabled
+                ? plan.summary
+                : tr("Nessun piano valido: seleziona almeno una GPU con budget \xe2\x89\xa5 %1 MB.")
+                      .arg(DeviceSplit::kMinBudgetMb));
+            warning->setText(plan.warning);
+        } else {
+            summary->setText(tr("Split disabilitato: verr\xc3\xa0 usato -ngl automatico "
+                                "(GPU con pi\xc3\xb9 VRAM)."));
+            warning->clear();
+        }
+        warning->setVisible(!warning->text().isEmpty());
+    };
+
+    for (int i = 0; i < checks.size(); ++i) {
+        if (checks.at(i))
+            connect(checks.at(i), &QCheckBox::toggled, dlg,
+                    [&refresh](bool) { refresh(); });
+        if (budgets.at(i))
+            connect(budgets.at(i), QOverload<int>::of(&QSpinBox::valueChanged),
+                    dlg, [&refresh](int) { refresh(); });
+    }
+    connect(chkEnable, &QCheckBox::toggled, dlg,
+            [&refresh](bool) { refresh(); });
+
+    auto* rowBtns = new QHBoxLayout;
+    auto* btnDevices = new QPushButton(tr("\xf0\x9f\x94\x8d  Dispositivi llama.cpp"), dlg);
+    auto* btnReset   = new QPushButton(tr("\xe2\x86\xba  Reset"), dlg);
+    rowBtns->addWidget(btnDevices);
+    rowBtns->addWidget(btnReset);
+    rowBtns->addStretch();
+    lay->addLayout(rowBtns);
+
+    connect(btnDevices, &QPushButton::clicked, dlg, [this, dlg]() {
+        const QString bin = P::llamaServerBin();
+        if (!QFileInfo::exists(bin)) {
+            QMessageBox::warning(dlg, tr("Dispositivi llama.cpp"),
+                tr("Binario non trovato:\n%1").arg(bin));
+            return;
+        }
+        QApplication::setOverrideCursor(Qt::WaitCursor);
+        QProcess p;
+        p.start(bin, {QStringLiteral("--list-devices")});
+        p.waitForFinished(4000);
+        QApplication::restoreOverrideCursor();
+        const QString out = QString::fromLocal8Bit(p.readAllStandardOutput())
+                          + QString::fromLocal8Bit(p.readAllStandardError());
+        QMessageBox box(dlg);
+        box.setWindowTitle(tr("Dispositivi llama.cpp"));
+        box.setText(tr("Ordine usato da --tensor-split:"));
+        box.setDetailedText(out.isEmpty() ? tr("(nessun output)") : out);
+        box.exec();
+    });
+
+    connect(btnReset, &QPushButton::clicked, dlg, [&]() {
+        for (int i = 0; i < devices.size(); ++i) {
+            if (devices.at(i).isCpu)
+                continue;
+            checks.at(i)->setChecked(devices.at(i).availMb >= DeviceSplit::kMinBudgetMb);
+            budgets.at(i)->setValue(int(qMin<qint64>(
+                devices.at(i).availMb, (devices.at(i).availMb * 8) / 10)));
+        }
+        refresh();
+    });
+
+    auto* bb = new QDialogButtonBox(QDialogButtonBox::Save
+                                    | QDialogButtonBox::Cancel, dlg);
+    bb->button(QDialogButtonBox::Save)->setText(tr("Salva piano"));
+    lay->addWidget(bb);
+
+    connect(bb, &QDialogButtonBox::rejected, dlg, &QDialog::reject);
+    connect(bb, &QDialogButtonBox::accepted, dlg, [&]() {
+        const QVector<DeviceSplit::Device> current = collect();
+        DeviceSplit::Plan plan;
+        if (chkEnable->isChecked()) {
+            plan = DeviceSplit::compute(current);
+            if (!plan.enabled) {
+                QMessageBox::warning(dlg, tr("Split CPU/GPU"),
+                    tr("Seleziona almeno una GPU con budget \xe2\x89\xa5 %1 MB, "
+                       "oppure disabilita lo split.").arg(DeviceSplit::kMinBudgetMb));
+                return;
+            }
+        }
+        DeviceSplit::save(plan, current);
+        statusBar()->showMessage(plan.enabled
+            ? tr("\xe2\x9a\x99  %1").arg(plan.summary)
+            : tr("Split multi-dispositivo disabilitato."), 8000);
+        dlg->accept();
+    });
+
+    refresh();
+    dlg->exec();
     dlg->deleteLater();
 }
 
@@ -258,6 +519,16 @@ QWidget* MainWindow::buildServerHwBanner(QWidget* parent)
     } else {
         hwLine = "<span style='color:#6b7280;'>\xe2\x8f\xb3  Rilevamento hardware in corso...</span>";
     }
+
+    /* D-54: se l'utente ha salvato un piano multi-dispositivo, il
+       banner deve mostrarlo invece della sola GPU "migliore". */
+    const DeviceSplit::Plan split = DeviceSplit::load();
+    if (split.enabled) {
+        hwLine += QStringLiteral(
+            "<br><span style='color:#60a5fa;'>\xe2\x9a\x99  %1</span>")
+            .arg(split.summary.toHtmlEscaped());
+    }
+
     auto* lbl = new QLabel(hwLine, parent);
     lbl->setWordWrap(true);
     return lbl;
@@ -549,6 +820,10 @@ void MainWindow::startLlamaServer(const QString& modelPath, int port, bool mathP
     m_serverModel = QFileInfo(modelPath).fileName();
     m_serverIsDs4 = false;
 
+    /* D-54: piano multi-dispositivo salvato dal dialog.
+       Se assente/disabilitato resta la scelta automatica sotto. */
+    const DeviceSplit::Plan split = DeviceSplit::load();
+
     /* Variabile d'ambiente per le librerie condivise (.so nella stessa dir del binario) */
     QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
     env.insert("LD_LIBRARY_PATH",
@@ -598,6 +873,14 @@ void MainWindow::startLlamaServer(const QString& modelPath, int port, bool mathP
         }
     }
 
+    /* D-54: il piano esplicito vince sulla scelta automatica. Con una
+       sola GPU non c'è --tensor-split, ma il budget può comunque
+       ridurre -ngl rispetto a 99 (il resto va in CPU). */
+    if (split.enabled && split.nGpuLayers > 0) {
+        ngl = split.nGpuLayers;
+        hwDesc = split.summary;
+    }
+
     /* Determina se il modello è Q4 (per --no-mmap) o Q8/più grande */
     bool isQ4 = QFileInfo(modelPath).fileName().contains("Q4", Qt::CaseInsensitive);
 
@@ -619,6 +902,16 @@ void MainWindow::startLlamaServer(const QString& modelPath, int port, bool mathP
            Ignorato dai modelli senza sliding-window attention. */
         "--swa-full"
     };
+
+    /* D-54: split tra più GPU. --split-mode layer è il default, ma lo
+       rendiamo esplicito perché il piano assume la ripartizione per
+       layer (non per righe). Con una sola GPU non aggiungiamo nulla. */
+    if (split.enabled && split.nGpuLayers > 0) {
+        if (!split.tensorSplit.isEmpty())
+            args << QStringLiteral("--tensor-split") << split.tensorSplit;
+        args << QStringLiteral("--split-mode") << QStringLiteral("layer");
+    }
+
     if (mathProfile) {
         args << "--ctx-size" << "8192";
         /* Q4_K_M (~40 GB): carica tutto in RAM — più veloce senza mmap */

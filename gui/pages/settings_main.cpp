@@ -229,7 +229,7 @@ ImpostazioniPage::ImpostazioniPage(AiClient* ai, HardwareMonitor* hw, QWidget* p
        "AI Locale" e "Visuale" restano eager sopra per i motivi già detti;
        tutte le altre non hanno dipendenze esterne e possono attendere.
        ════════════════════════════════════════════════════════════ */
-    outer->addLazy("\xf0\x9f\xa4\x96  LLM",            [this]{ return buildGroupLlm(); });
+    outer->addLazy("\xf0\x9f\xa4\x96  LLM & DM",         [this]{ return buildGroupLlm(); });
     outer->addLazy("\xf0\x9f\x94\xa7  Sistema",         [this]{ return buildGroupSistema(); });
     outer->addLazy("\xf0\x9f\x94\x8c  MCP",             [this, tabs]{ return buildMcpGroupTab(tabs); });
     outer->addLazy("\xf0\x9f\x94\xa7  Profili Modello", [this, tabs]{ return buildProfiliGroupTab(tabs); });

@@ -567,6 +567,25 @@ inline QString cronFile()
     return QDir::homePath() + "/.prismalux/cron_jobs.json";
 }
 
+/** decisionModelsPath() — registro JSON dei decision model disponibili.
+ *  Tabelle SEPARATA da quella degli LLM: è questo file, e non la lista
+ *  Ollama grezza, a decidere quali modelli sono "decisionali". Un modello
+ *  non elencato qui non può mai essere scelto come decision model, anche se
+ *  è installato, e un modello elencato qui non compare nella lista LLM. */
+inline QString decisionModelsPath()
+{
+    return QDir::homePath() + "/.prismalux/decision_models.json";
+}
+
+/** decisionCacheDb() — database SQLite della cache di decisione.
+ *  Tabella classify_cache: (hash_testo+modello) → intento + confidenza.
+ *  Una risposta classifica costa una inferenza LLM; la cache la rende
+ *  gratuita alla seconda occorrenza della stessa domanda. */
+inline QString decisionCacheDb()
+{
+    return QDir::homePath() + "/.prismalux/decision_cache.db";
+}
+
 /** summaryBriefPath() — Riassunto breve nel RAG, cercabile da search_rag e scritto da scrivi_riassunto. */
 inline QString summaryBriefPath()
 {
@@ -1180,6 +1199,27 @@ constexpr const char* kCloudApiUrl        = "ai/cloudApiUrl";        ///< endpoi
 constexpr const char* kCloudApiModel      = "ai/cloudApiModel";      ///< modello cloud (es. gpt-4o-mini)
 constexpr const char* kCloudApiKey        = "ai/cloudApiKey";        ///< API key cloud — legacy QSettings key (migrata a QKeychain via LanServer::saveSecret)
 
+/* ── Decision Model (strato di decisione, SEPARATO dagli LLM) ────────────────
+   I decision model NON sono LLM conversazionali: classificano la richiesta e
+   riverificano la risposta. Vivono in un registro dedicato
+   (~/.prismalux/decision_models.json) e non compaiono mai nella lista LLM.
+   TODO: aggiungere backend Antirez/Dwarfstar, ONNX e llama-server. */
+constexpr const char* kDecisionEnabled   = "decision/enabled";       ///< usa il decision model prima/dopo la richiesta (default: false — opt-in)
+constexpr const char* kDecisionModel     = "decision/model";         ///< nome modello decisionale attivo (es. "tev1:4b")
+constexpr const char* kDecisionHost      = "decision/host";          ///< host Ollama (default: 127.0.0.1)
+constexpr const char* kDecisionPort      = "decision/port";          ///< porta Ollama (default: 11434)
+constexpr const char* kDecisionThreshold = "decision/threshold";     ///< confidenza minima sotto la quale si rinuncia a instradare (default: 0.70)
+constexpr const char* kDecisionVerify    = "decision/verify";        ///< riverifica la risposta con il decision model (default: true)
+constexpr const char* kDecisionCacheTtl  = "decision/cacheTtlHours"; ///< TTL cache classificazioni in ore (default: 168 = 7 giorni)
+constexpr const char* kDecisionBackend  = "decision/backend";        ///< backend di inferenza: 0=Ollama, 1=DwarfStar, 2=ONNX, 3=llama-server (default: 0)
+/* Modello decisionale scelto per singola tipologia. Vuoto = usa kDecisionModel.
+   Il classificatore resta unico (deve decidere la tipologia), mentre la
+   verifica usa il modello scelto per la tipologia rilevata. */
+constexpr const char* kDecisionModelCoding    = "decision/model/coding";
+constexpr const char* kDecisionModelReasoning = "decision/model/reasoning";
+constexpr const char* kDecisionModelChat      = "decision/model/chat";
+constexpr const char* kDecisionModelOther     = "decision/model/other";
+
 /* ── Onboarding ─────────────────────────────────── */
 constexpr const char* kSetupDone      = "setup/done";   ///< wizard primo avvio già mostrato
 
@@ -1198,6 +1238,14 @@ constexpr const char* kRpcEnabled     = "llama/rpcEnabled";        ///< abilita 
 constexpr const char* kRpcNodes       = "llama/rpcNodes";          ///< lista nodi RPC separati da virgola: "host1:50052,host2:50052"
 constexpr const char* kRpcSshUser     = "llama/rpcSshUser";        ///< utente SSH per avviare rpc-server sui nodi remoti
 constexpr const char* kRpcServerPath  = "llama/rpcServerPath";     ///< path del binario rpc-server sui nodi remoti
+
+/* ── llama.cpp split CPU/GPU (D-54) ───────────────── */
+constexpr const char* kLlamaSplitEnabled = "llama/splitEnabled";   ///< true = usa il piano multi-dispositivo salvato
+constexpr const char* kLlamaSplitNgl     = "llama/splitNgl";       ///< layer totali da offloadare (-ngl)
+constexpr const char* kLlamaSplitTensor  = "llama/splitTensor";    ///< proporzioni --tensor-split, separate da virgola
+constexpr const char* kLlamaSplitSummary = "llama/splitSummary";   ///< descrizione leggibile del piano
+constexpr const char* kLlamaSplitWarning = "llama/splitWarning";   ///< warning su dispositivi eterogenei
+constexpr const char* kLlamaSplitBudgets = "llama/splitBudgets";   ///< JSON {nome dispositivo: budget MB}
 
 constexpr const char* kChatMaxTurns   = "chat/maxRecentTurns";     ///< turni completi da tenere raw prima della compressione (default: 3)
 

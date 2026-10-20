@@ -1,4 +1,5 @@
 #include "ai_client.h"
+#include "decision_engine.h"
 #include "prismalux_paths.h"
 #include "widgets/onnx_embedder.h"
 #include "rag_engine.h"
@@ -365,7 +366,27 @@ void AiClient::abort() {
     m_accum.clear();
     m_thinkingAccum.clear();
     m_thinkingKey.clear();
+    /* Reset del pipeline di decisione: senza questo, un abort durante la
+       classificazione o la verifica lascherebbe m_decStage bloccato e la
+       richiesta successiva passerebbe dal gate come se fosse una
+       ri-entrata interna — restando senza risposta. */
+    m_decStage     = DecIdle;
+    m_decBuffering = false;
+    m_decSkipGate  = false;
+    m_decAnswer.clear();
     if (wasActive) emit aborted();
+}
+
+/* ── decisionStage — stato del pipeline per la UI ─────────────────── */
+QString AiClient::decisionStage() const
+{
+    switch (m_decStage) {
+    case DecClassifying: return QStringLiteral("classifying");
+    case DecGenerating:  return QStringLiteral("generating");
+    case DecVerifying:   return QStringLiteral("verifying");
+    case DecIdle:        break;
+    }
+    return QStringLiteral("idle");
 }
 
 /* ── fetchModels ─────────────────────────────────────────────── */
@@ -617,12 +638,85 @@ QString AiClient::dateTimeDirective(const QString& userText)
 quint64 AiClient::chat(const QString& systemPrompt, const QString& userMsg,
                        const QJsonArray& history, QueryType qt)
 {
-    if (busy()) return m_reqId;
+    /* Una ri-entrata interna (dal gate decisionale o dal retry) non è una
+       nuova richiesta dell'utente. Va deciso PRIMA di busy(): durante la
+       pipeline lo stadio è DecGenerating (o DecVerifying) e busy()
+       ritornerebbe true, facendo uscire subito la ri-entrata e lasciando la
+       richiesta appesa per sempre. */
+    const bool internal = m_decSkipGate;
+    m_decSkipGate = false;
 
-    /* Throttle: ignora richieste ravvicinate (<400ms) */
-    if (m_throttleTimer.isValid() && m_throttleTimer.elapsed() < 400) return m_reqId;
-    m_throttleTimer.restart();
-    ++m_reqId;  /* nuovo ID per questa richiesta — visibile via currentReqId() */
+    if (!internal && busy()) return m_reqId;
+
+    if (!internal) {
+        /* Throttle: ignora richieste ravvicinate (<400ms) */
+        if (m_throttleTimer.isValid() && m_throttleTimer.elapsed() < 400) return m_reqId;
+        m_throttleTimer.restart();
+    }
+
+    /* ══════════════════════════════════════════════════════════════
+       Decision Engine — FASE 1: classificazione (prima della richiesta)
+       ══════════════════════════════════════════════════════════════
+       Stesso schema dell'iniezione RAG qui sopra: si.classifica() e si
+       ri-entra in chat() con m_decSkipGate=true. Lo stadio a DecIdle è
+       ciò che distingue "richiesta nuova" da "ri-entrata interna": senza
+       il gate sullo stadio, il retry si classificherebbe di nuovo e il
+       ciclo non terminerebbe. */
+    if (!internal && m_decision && m_decision->active() && m_decStage == DecIdle) {
+        m_decStage     = DecClassifying;
+        m_decRetried   = false;
+        m_decAnswer.clear();
+        m_decReason.clear();
+        m_decApproved  = true;
+        /* Il contesto serve al retry: conservarlo ora evita di rifare
+           classificazione, embedding e RAG una seconda volta. */
+        m_decSysPrompt = systemPrompt;
+        m_decUserMsg   = userMsg;
+        m_decHistory   = history;
+        m_decQt        = qt;
+
+        const QString text = userMsg;
+        /* QPointer e non this grezzo: se il client viene distrutto mentre
+           la classificazione è in volo, la callback non deve più
+           toccare memoria liberata. */
+        QPointer<AiClient> self(this);
+        m_decision->classify(text,
+            [self, systemPrompt, userMsg, history, qt]
+            (const DecisionEngine::ClassifyResult& r) {
+                if (!self) return;
+                self->m_decStage = DecGenerating;
+                /* Sotto soglia l'intento non viene usato: il classificatore
+                   non sta dando per sé che non sa, e applicare un'etichetta
+                   azzardata sarebbe una decisione inventata. */
+                self->m_decIntent = (r.ok && r.confidence >= self->m_decision->threshold())
+                              ? r.intent : QString();
+                emit self->decisionClassified(self->m_decIntent, r.confidence, r.fromCache);
+
+                /* L'intento, quando noto, accresce il prompt di sistema:
+                   è l'unico modo in cui la classificazione «prima» cambia
+                   qualcosa nel modo in cui l'LLM risponde. */
+                QString sys = systemPrompt;
+                if (!self->m_decIntent.isEmpty())
+                    sys += self->tr("\n\n[TIPO DI RICHIESTA RILEVATO: %1 — "
+                              "adatta tono e livello di dettaglio di conseguenza.]")
+                           .arg(self->m_decIntent);
+
+                self->m_decSkipGate = true;
+                /* Se la riverifica è attiva, questa generazione è "provvisoria":
+                   i token restano in m_accum finché il revisore non decide. */
+                self->m_decBuffering = self->m_decision->verifyEnabled();
+                self->chat(sys, userMsg, history, qt);
+            });
+        ++m_reqId;   /* una sola richiesta logica: stesso ID per tutta la pipeline */
+        return m_reqId;
+    }
+
+    /* ID unico per l'intera pipeline: chi chiama chat() cattura questo
+       valore e lo confronta in ogni callback. Le ri-entrate interne
+       (classificazione, retry) NON loincrementano, altrimenti le pagine
+       che filtrano per currentReqId() — es. main_jobs.cpp — scarterebbero
+       la risposta come se fosse di un'altra richiesta. */
+    if (!internal) ++m_reqId;
 
     /* Iniezione data/ora reale se l'utente la menziona nel prompt (D-31) */
     const QString dateInject = dateTimeDirective(userMsg);
@@ -729,6 +823,16 @@ quint64 AiClient::chat(const QString& systemPrompt, const QString& userMsg,
 
     /* ── HTTP backends ── */
     abort();
+
+    /* abort() azzera lo stato decisionale (per fermare una pipeline
+       lasciata a metà da un abort utente). In una ri-entrata interna
+       quello stato è invece vivo e va ripristinato: altrimenti la
+       generazione appena avviata non verrebbe mai verificata (m_decStage
+       tornato DecIdle) e i token sfuggirebbero subito (buffering false). */
+    if (internal && m_decision && m_decision->active()) {
+        m_decStage     = DecGenerating;
+        m_decBuffering = m_decision->verifyEnabled();
+    }
 
     m_isGenerateMode = false;   /* /api/chat, non /api/generate */
     m_accum.clear();
@@ -1161,7 +1265,14 @@ void AiClient::onReadyRead() {
             auto ch = obj["choices"].toArray();
             if (!ch.isEmpty()) chunk = ch[0].toObject()["delta"].toObject()["content"].toString();
         }
-        if (!chunk.isEmpty()) { m_accum += chunk; emit token(chunk); }
+        if (!chunk.isEmpty()) {
+            m_accum += chunk;
+            /* Con la verifica attiva i token NON vengono emessi: la risposta
+               potrebbe essere bocciata e rigenerata, e mostrare il primo
+               tentativo lascerebbe in bolla testo che verrà sostituito.
+               m_accum continua ad accumulare comunque — serve al retry. */
+            if (!m_decBuffering) emit token(chunk);
+        }
 
         /* ── Rilevamento tool_calls (Ollama function calling) ────────────
            Quando il modello usa un tool, content è vuoto e tool_calls
@@ -1294,6 +1405,88 @@ void AiClient::onFinished() {
                                   fn["arguments"].toObject());
         }
         return;
+    }
+
+    /* ══════════════════════════════════════════════════════════════
+       Decision Engine — FASE 3: riverifica della risposta
+       ══════════════════════════════════════════════════════════════
+       La risposta è già completa in m_accum ma non è ancora stata
+       mostrata (i token sono bufferizzati). Qui si chiede il verdetto:
+
+         approvata  → si emettono i token e poi finished()
+         bocciata   → un solo retry, con il motivo del rifiuto passato
+                      al LLM; al secondo verdetto la risposta viene
+                      mostrata comunque, perché scartarla significherebbe
+                      lasciare l'utente senza risposta per colpa del revisore
+
+       Il tool-call NON è coinvolto: se il modello ha chiesto un tool la
+       risposta non è ancora una risposta, e il ramo tool qui sotto
+       ritorna prima di arrivare a questo punto. */
+    if (m_decStage == DecGenerating && m_decBuffering && m_decision
+            && m_decision->active() && m_decision->verifyEnabled()) {
+        m_decStage  = DecVerifying;
+        m_decAnswer = m_accum;
+
+        const bool canRetry = !m_decRetried;
+        const QString answer = m_decAnswer;
+
+        QPointer<AiClient> self(this);
+        m_decision->verify(m_decUserMsg, answer, m_decIntent,
+            [self, answer, canRetry]
+            (const DecisionEngine::VerifyResult& v) {
+                if (!self) return;
+                /* Se la verifica è fallita per un errore di rete non
+                   c'è verdetto: si mostra la risposta senza riprovare,
+                   altrimenti un backend Ollama giù bloccherebbe due
+                   tentativi e poi lascerebbe comunque la risposta. */
+                if (v.ok && v.approved) {
+                    self->m_decStage     = DecIdle;
+                    self->m_decBuffering = false;
+                    self->m_decApproved  = true;
+                    self->m_decReason.clear();
+                    emit self->decisionVerified(true, QString());
+                    /* Token emessi in blocco: la UI li cola come un
+                       unico chunk, come una risposta non-streamata. */
+                    if (!answer.isEmpty()) emit self->token(answer);
+                    emit self->finished(answer);
+                    return;
+                }
+
+                if (canRetry && v.ok && !v.approved) {
+                    self->m_decRetried = true;
+                    emit self->decisionRetry(v.reason);
+                    /* Secondo tentativo: stesso contesto, con l'obiezione
+                       del revisore aggiunta al prompt di sistema. */
+                    const QString sys = self->m_decSysPrompt
+                        + self->tr("\n\n[ATTENZIONE — una verifica automatica ha "
+                             "rifiutato il tentativo precedente: %1. "
+                             "Ricontrolla accuratezza e completezza, "
+                             "poi rispondi di nuovo.]").arg(v.reason);
+                    self->m_decAnswer.clear();
+                    self->m_accum.clear();
+                    self->m_decStage     = DecGenerating;
+                    self->m_decSkipGate  = true;
+                    self->chat(sys, self->m_decUserMsg, self->m_decHistory, self->m_decQt);
+                    return;
+                }
+
+                /* Retry esaurito (o verifica non disponibile): la
+                   risposta viene mostrata comunque, con l'esito in chiaro. */
+                self->m_decStage     = DecIdle;
+                self->m_decBuffering = false;
+                self->m_decApproved  = v.approved;
+                self->m_decReason    = v.reason;
+                emit self->decisionVerified(v.approved, v.reason);
+                if (!answer.isEmpty()) emit self->token(answer);
+                emit self->finished(answer);
+            });
+        return;   /* finished() sarà emesso dalla callback */
+    }
+
+    /* Nessun percorso decisionale attivo: reset e comportamento standard. */
+    if (m_decStage != DecIdle) {
+        m_decStage     = DecIdle;
+        m_decBuffering = false;
     }
 
     emit finished(m_accum);

@@ -124,10 +124,18 @@ endif()
 # ── ONNX Runtime — embedding locale senza rete (opzionale) ──────────────────
 # Installa: sudo apt install libonnxruntime-dev
 # Runtime già presente: libonnxruntime1.23 (~= /usr/lib/x86_64-linux-gnu/libonnxruntime.so.1.23)
+# L'header può stare in tre layout diversi:
+#   sistema Debian/Ubuntu : /usr/include/onnxruntime/onnxruntime_cxx_api.h
+#   pacchetto prebuilt    : <prefix>/include/onnxruntime/core/session/onnxruntime_cxx_api.h
+#   include dir dedicata  : <prefix>/include/onnxruntime_cxx_api.h
+# find_path restituisce la directory che contiene il nome trovato; il
+# codice usa __has_include per scegliere l'include corretto.
 find_path(ONNX_INCLUDE_DIR
-    NAMES onnxruntime/core/session/onnxruntime_cxx_api.h
-          onnxruntime_cxx_api.h
+    NAMES onnxruntime_cxx_api.h
+          onnxruntime/onnxruntime_cxx_api.h
+          onnxruntime/core/session/onnxruntime_cxx_api.h
     HINTS /usr/include /usr/local/include
+          /usr/include/onnxruntime /usr/local/include/onnxruntime
 )
 find_library(ONNX_LIB
     NAMES onnxruntime
@@ -163,6 +171,9 @@ set(CPP_SRCS
     model_processor.cpp
     ai_client.cpp
     ai_memory.cpp
+    decision_engine.cpp
+    decision_onnx.cpp
+    device_split.cpp
     theme_manager.cpp
     chat_history.cpp
     context_compressor.cpp
@@ -510,6 +521,8 @@ if(BUILD_TESTS)
     # rag_engine e onnx_embedder sono richiesti da ai_client.cpp per il linker.
     set(AI_CLIENT_SRCS
         ai_client.cpp
+        decision_engine.cpp
+        decision_onnx.cpp
         rag_engine.cpp
         widgets/onnx_embedder.cpp
     )
@@ -523,6 +536,18 @@ if(BUILD_TESTS)
     target_compile_definitions(test_ai_client_objs PUBLIC
         PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
     )
+
+    # HAVE_ONNX è una define globale: le object library che compilano
+    # onnx_embedder.cpp devono vedere header e libreria, altrimenti i
+    # test falliscono al link appena ONNX Runtime viene rilevato.
+    if(ONNX_INCLUDE_DIR AND ONNX_LIB)
+        foreach(_onnx_tgt test_shared_objs test_ai_client_objs)
+            if(TARGET ${_onnx_tgt})
+                target_include_directories(${_onnx_tgt} PUBLIC ${ONNX_INCLUDE_DIR})
+                target_link_libraries(${_onnx_tgt} PUBLIC ${ONNX_LIB})
+            endif()
+        endforeach()
+    endif()
 
     add_executable(test_signal_lifetime
         tests/test_signal_lifetime.cpp
@@ -1107,6 +1132,61 @@ if(BUILD_TESTS)
         target_link_libraries(test_ai_routing PRIVATE pthread m)
     endif()
 
+    # ── test_decision_engine: strato di decisione (registro, cache, parse) ──
+    # Solo logica pura e file: nessuna rete, nessun Ollama richiesto.
+    # decision_engine.cpp è già in CPP_SRCS, quindi entra da test_shared_objs.
+    add_executable(test_decision_engine
+        tests/test_decision_engine.cpp
+    )
+    target_include_directories(test_decision_engine PRIVATE
+        ${CMAKE_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/tests
+    )
+    target_link_libraries(test_decision_engine PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
+    if(NOT WIN32)
+        target_link_libraries(test_decision_engine PRIVATE pthread m)
+    endif()
+
+    # ── test_decision_pipeline: pipeline completa con backend HTTP finto ──
+    # Copre ri-entrata interna, buffering, verdetto, retry, llama-server
+    # (OpenAI) e il guard ONNX. Nessun Ollama reale.
+    add_executable(test_decision_pipeline
+        tests/test_decision_pipeline.cpp
+    )
+    target_include_directories(test_decision_pipeline PRIVATE
+        ${CMAKE_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/tests
+    )
+    target_link_libraries(test_decision_pipeline PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
+    if(NOT WIN32)
+        target_link_libraries(test_decision_pipeline PRIVATE pthread m)
+    endif()
+
+    # ── test_decision_onnx: parità feature e inferenza ONNX ──
+    # I test che richiedono i modelli si saltano se non ci sono.
+    add_executable(test_decision_onnx
+        tests/test_decision_onnx.cpp
+    )
+    target_include_directories(test_decision_onnx PRIVATE
+        ${CMAKE_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/tests
+    )
+    target_link_libraries(test_decision_onnx PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
+    if(NOT WIN32)
+        target_link_libraries(test_decision_onnx PRIVATE pthread m)
+    endif()
+
+    # ── test_device_split: D-54, solo logica pura (niente hardware) ──
+    add_executable(test_device_split
+        tests/test_device_split.cpp
+        device_split.cpp
+    )
+    target_include_directories(test_device_split PRIVATE ${CMAKE_SOURCE_DIR})
+    target_link_libraries(test_device_split PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
+    if(NOT WIN32)
+        target_link_libraries(test_device_split PRIVATE pthread m)
+    endif()
+
     # ── test_lan_wan_core: timingSafeEqual, token save/load, rate limiting, lifecycle ──
     add_executable(test_lan_wan_core
         tests/test_lan_wan_core.cpp
@@ -1596,6 +1676,10 @@ if(BUILD_TESTS)
     add_test(NAME AiMath                  COMMAND test_ai_math)
     add_test(NAME AiKnowledgeLookup        COMMAND test_ai_knowledge_lookup)
     add_test(NAME AiRouting                COMMAND test_ai_routing)
+    add_test(NAME DecisionEngine            COMMAND test_decision_engine)
+    add_test(NAME DecisionPipeline          COMMAND test_decision_pipeline)
+    add_test(NAME DecisionOnnx              COMMAND test_decision_onnx)
+    add_test(NAME DeviceSplit               COMMAND test_device_split)
     add_test(NAME LanWanCore              COMMAND test_lan_wan_core)
     add_test(NAME McpIntegration          COMMAND test_mcp_integration)
     add_test(NAME LanServer               COMMAND test_lan_server)

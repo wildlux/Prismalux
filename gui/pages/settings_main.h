@@ -64,6 +64,11 @@ public:
      *  Deve essere chiamato DOPO la costruzione, quando il canvas è disponibile. */
     void setGraficoCanvas(GraficoCanvas* canvas);
 
+    /** Collega il DecisionEngine condiviso (stessa istanza usata da
+     *  AiClient). Va chiamato prima di costruire la tab AI, altrimenti i
+     *  controlli decisionali restano disattivati. */
+    void setDecisionEngine(DecisionEngine* e) { m_decision = e; }
+
     /** Percorso del binario Piper installato localmente (o stringa vuota se assente). */
     static QString piperBinPath();
     /** Cartella voci ~/.prismalux/piper/voices/ */
@@ -143,6 +148,25 @@ private slots:
     void onRagFileDeselectAllClicked();
     /* ── buildSmartRouterTab / buildJlTab ── */
     void onSmartRouterSaveClicked();
+
+    /* ── Decision Model ──
+       UI e logica del gruppo "Decision Model". refreshDecisionUi() è
+       l'unico punto che ricostruisce lista e combo: sia al cambio di
+       tab sia all'arrivo di installedReady() passa sempre di qui, così
+       i due widget non possono divergere. */
+    void refreshDecisionUi();
+    /** Adatta etichetta/placeholder del campo download al backend:
+     *  Ollama e DwarfStar scaricano, llama-server registra un alias,
+     *  ONNX non è ancora disponibile. */
+    void syncDecisionDownloadUi();
+    void refreshDecisionTypeCombos();   ///< popola i 4 combo per tipologia
+    void onDecisionSaveClicked();
+    void onDecisionTypeSaveClicked();   ///< salva le associazioni tipologia → modello
+    void onDecisionDownloadClicked();
+    void onDecisionClearCache();
+    /* ── RAG: export/import del database ── */
+    void onRagExportDb();
+    void onRagImportDb();
     void onStopIndexClicked();
     void onReindexBtnClicked();
     /* ── buildAiParamsTab ── */
@@ -235,6 +259,7 @@ private:
     QWidget* buildLlmConsigliatiTab();
     QWidget* buildLlmClassificaTab();  ///< ranking oggettivo open-weight (ArtificialAnalysis + benchmark locali)
     QWidget* buildBenchmarkLocaleTab(); ///< risultati benchmark temperatura "su strada" (2026-06-15)
+    QWidget* buildDecisionModelTab();  ///< scelta del decision model per tipologia (coding/reasoning/chat/other)
     QWidget* buildAiParamsTab();   ///< parametri anti-allucinazione + preferenze modello
     QWidget* buildPuliziaTab();       ///< pulizia file temporanei, build, cache
     QWidget* buildMcpTab();           ///< configurazione Model Context Protocol
@@ -278,6 +303,10 @@ private:
     QTabWidget*        m_tabMcp        = nullptr;  ///< inner tab: Configurazione/Gestione MCP
     QTabWidget*        m_tabProfili    = nullptr;  ///< inner tab: Profili/Le tue preferenze
     AiClient*          m_ai            = nullptr;
+    /* Strato di decisione — puntatore non owned, condiviso con MainWindow.
+       Permette a questa pagina di scaricare e configurare i decision model
+       senza crearne un'istanza separata (che non vedrebbe le scelte fatte). */
+    class DecisionEngine* m_decision  = nullptr;
 
     /* RAG indexing state (usato da buildRagTab) */
     QFutureWatcher<RagExtractResult>* m_extractWatcher = nullptr;
@@ -321,6 +350,29 @@ private:
     QLineEdit*      m_cloudModelEdit         = nullptr;
     QLineEdit*      m_cloudApiKeyEdit        = nullptr;
     QLabel*         m_smartRouterStatusLbl   = nullptr;
+
+    /* Widget del gruppo "Decision Model" */
+    QCheckBox*       m_decisionChk        = nullptr;
+    QComboBox*       m_decisionModelCombo = nullptr;
+    QComboBox*       m_decisionBackendCombo = nullptr;
+    QLineEdit*       m_decisionHostEdit   = nullptr;
+    QSpinBox*        m_decisionPortSpin   = nullptr;
+    QDoubleSpinBox*  m_decisionThresholdSpin = nullptr;
+    QCheckBox*       m_decisionVerifyChk  = nullptr;
+    QSpinBox*        m_decisionCacheTtlSpin = nullptr;
+    QLabel*          m_decisionCacheLbl   = nullptr;
+    QListWidget*     m_decisionModelList  = nullptr;
+    QLineEdit*       m_decisionDownloadEdit = nullptr;
+    QPushButton*     m_decisionDownloadBtn  = nullptr;
+    QLabel*          m_decisionDownloadLbl = nullptr;
+    QLabel*          m_decisionStatusLbl  = nullptr;
+
+    /* Modello per tipologia (sotto-scheda "Decision Model" in LLM & DM) */
+    QComboBox*       m_decisionCodingCombo    = nullptr;
+    QComboBox*       m_decisionReasoningCombo = nullptr;
+    QComboBox*       m_decisionChatCombo      = nullptr;
+    QComboBox*       m_decisionOtherCombo     = nullptr;
+    QLabel*          m_decisionTypeStatusLbl  = nullptr;
 
     /* ── buildRagTab member state ── */
     QLineEdit*      m_ragDirEdit        = nullptr;

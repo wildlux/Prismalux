@@ -1,0 +1,16 @@
+{
+  "feature_dim": 512,
+  "classifier_labels": [
+    "A",
+    "B",
+    "C",
+    "D"
+  ],
+  "verifier_labels": [
+    "N",
+    "Y"
+  ],
+  "classifier_train_accuracy": 1.0,
+  "verifier_train_accuracy": 1.0,
+  "generator": "gui/tools/gen_decision_onnx.py"
+}

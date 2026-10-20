@@ -10,6 +10,7 @@
 #include "main_graph.h"
 #include "../theme_manager.h"
 #include "../prismalux_paths.h"
+#include "../decision_engine.h"
 namespace P = PrismaluxPaths;
 #include "../app_config.h"
 #include <QVBoxLayout>
@@ -57,6 +58,7 @@ namespace P = PrismaluxPaths;
 #include <QColorDialog>
 #include <QPainter>
 #include <QPen>
+#include <QMessageBox>
 #include <QFont>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -1435,6 +1437,50 @@ QWidget* ImpostazioniPage::buildRagTab()
     refreshRagStatus();
     rightCol->addWidget(m_ragStatusLbl);
 
+    /* ── Card: esporta/importa database (trasporto) ──
+       Il JSON resta il formato di lavoro. Il DB serve a spostare
+       l'indice su un'altra macchina con un solo file: niente
+       embeddings da ricalcolare, nessuna dipendenza da Ollama. */
+    {
+        auto* dbCard = new QFrame(page);
+        dbCard->setObjectName("cardFrame");
+        auto* dbLay = new QVBoxLayout(dbCard);
+        dbLay->setContentsMargins(12, 10, 12, 10);
+        dbLay->setSpacing(6);
+
+        auto* dbTitle = new QLabel(
+            tr("\xf0\x9f\x93\xa6  <b>Database RAG</b>"), dbCard);
+        dbTitle->setTextFormat(Qt::RichText);
+        dbLay->addWidget(dbTitle);
+
+        auto* dbHint = new QLabel(
+            tr("Esporta l'indice completo (chunk + vettori) in un unico file "
+               "SQLite da copiare su un'altra macchina. L'importazione sostituisce "
+               "l'indice corrente; i documenti originali non sono inclusi."), dbCard);
+        dbHint->setObjectName("hintLabel");
+        dbHint->setWordWrap(true);
+        dbLay->addWidget(dbHint);
+
+        auto* dbRow = new QHBoxLayout;
+        auto* exportBtn = new QPushButton(tr("\xf0\x9f\x93\xa4  Esporta database\u2026"), dbCard);
+        exportBtn->setObjectName("actionBtn");
+        exportBtn->setToolTip(tr("Salva indice + vettori in un file .db"));
+        auto* importBtn = new QPushButton(tr("\xf0\x9f\x93\xa5  Importa database\u2026"), dbCard);
+        importBtn->setObjectName("actionBtn");
+        importBtn->setToolTip(tr("Carica un indice esportato da un'altra installazione"));
+        dbRow->addWidget(exportBtn);
+        dbRow->addWidget(importBtn);
+        dbRow->addStretch(1);
+        dbLay->addLayout(dbRow);
+
+        QObject::connect(exportBtn, &QPushButton::clicked,
+                         this, &ImpostazioniPage::onRagExportDb);
+        QObject::connect(importBtn, &QPushButton::clicked,
+                         this, &ImpostazioniPage::onRagImportDb);
+
+        rightCol->addWidget(dbCard);
+    }
+
     /* ── Card: file nella cartella RAG con spunte (D-47).
        Sostituisce il pulsante "Scarica documenti AdE 2026" (rimosso:
        URL destinati a diventare obsoleti). La lista È lo stato desiderato
@@ -2322,6 +2368,196 @@ QWidget* ImpostazioniPage::buildSandboxTab()
     return page;
 }
 
+/* ══════════════════════════════════════════════════════════════
+   Decision Model — implementazione UI
+   ══════════════════════════════════════════════════════════════ */
+
+/* Ricostruisce lista registro e combo dei modelli disponibili.
+   Unico punto di aggiornamento: chiamato all'apertura della tab e da
+   installedReady()/downloadFinished(), così i due widget restano
+   allineati senza logica duplicata. */
+void ImpostazioniPage::refreshDecisionUi()
+{
+    if (!m_decision) return;
+    /* La sotto-scheda è lazy: se non è ancora stata costruita non ci
+       sono widget da aggiornare (e il primo refresh avverrà alla
+       costruzione, in buildDecisionModelTab). */
+    if (!m_decisionModelList || !m_decisionModelCombo) return;
+
+    /* Registro: tutto ciò che è dichiarato decisionale, installato o no.
+       La presenza va verificata sull'elenco installato, NON su
+       ModelSpec::isInstalled(): catalog() rilegge il JSON, dove
+       sizeBytes non è persistito, quindi sarebbe sempre 0. */
+    const QVector<DecisionEngine::ModelSpec> installed = m_decision->installedModels();
+    const auto isInstalled = [&installed](const QString& name) {
+        for (const DecisionEngine::ModelSpec& s : installed)
+            if (s.name == name) return true;
+        return false;
+    };
+
+    m_decisionModelList->clear();
+    for (const DecisionEngine::ModelSpec& s : DecisionEngine::catalog()) {
+        const bool present = isInstalled(s.name);
+        const QString mark = present ? "✓" : "○";
+        QString backendTag;
+        switch (s.backend) {
+        case DecisionEngine::BackendDwarfstar:
+            backendTag = tr(" [DwarfStar]"); break;
+        case DecisionEngine::BackendLlamaServer:
+            backendTag = tr(" [llama-server]"); break;
+        case DecisionEngine::BackendOnnx:
+            backendTag = tr(" [ONNX]"); break;
+        default: break;
+        }
+        const QString txt = QString("%1 %2%3  —  %4")
+                                .arg(mark, s.name, backendTag,
+                                     s.note.isEmpty() ? (s.role == DecisionEngine::RoleVerifier
+                                                         ? tr("verificatore")
+                                                         : tr("classificatore"))
+                                                     : s.note);
+        auto* it = new QListWidgetItem(txt, m_decisionModelList);
+        it->setToolTip(present
+            ? tr("Installato — selezionabile come decision model")
+            : tr("Non installato — usa il campo qui sotto per scaricarlo "
+                 "o registrarlo"));
+    }
+
+    /* Combo: SOLO i decision model installati. Nessun modello fuori dal
+       registro può comparire qui, ed è questa la garanzia che la lista
+       LLM e questa non possano incrociarsi. */
+    const QString previous = m_decisionModelCombo->currentText();
+    m_decisionModelCombo->clear();
+    for (const DecisionEngine::ModelSpec& s : m_decision->installedModels())
+        m_decisionModelCombo->addItem(s.name, s.name);
+    if (!previous.isEmpty() && m_decisionModelCombo->findText(previous) >= 0)
+        m_decisionModelCombo->setCurrentText(previous);
+
+    /* Warning per backend con vincoli o non implementati */
+    if (m_decision->backend() == DecisionEngine::BackendDwarfstar) {
+        m_decisionStatusLbl->setText(
+            tr("⚠️ DwarfStar: modelli grandi (96-128GB RAM). Per la classificazione leggera usa Ollama."));
+    } else if (m_decision->backend() == DecisionEngine::BackendOnnx) {
+        if (m_decision->active()) {
+            m_decisionStatusLbl->setText(
+                tr("\xe2\x9c\x85  ONNX attivo — modelli lineari locali (A/B/C/D + N/Y). "
+                   "Leggeri e senza rete; meno accurati di un LLM."));
+        } else if (!m_decision->onnxError().isEmpty()) {
+            m_decisionStatusLbl->setText(
+                tr("\xe2\x9a\xa0\xef\xb8\x8f  %1")
+                    .arg(m_decision->onnxError().split(QLatin1Char('\n')).first()));
+        } else {
+            m_decisionStatusLbl->setText(
+                tr("ONNX pronto: seleziona onnx-decision e salva."));
+        }
+    } else if (m_decision->backend() == DecisionEngine::BackendLlamaServer) {
+        m_decisionStatusLbl->setText(
+            m_decision->active()
+                ? tr("\xe2\x9c\x85  Attivo su %1 (llama-server)").arg(m_decision->model())
+                : tr("llama-server: registra un alias esposto su /v1/models."));
+    } else if (m_decision->enabled()) {
+        m_decisionStatusLbl->setText(
+            m_decision->active()
+                ? tr("\xe2\x9c\x85  Attivo su %1").arg(m_decision->model())
+                : tr("\xe2\x9c\x93  Nessun decision model installato — scaricane uno."));
+    } else {
+        m_decisionStatusLbl->setText(tr("\xe2\x97\x8b  Disattivato"));
+    }
+
+    const auto st = m_decision->cacheStats();
+    m_decisionCacheLbl->setText(
+        tr("Cache  \xf0\x9f\x93\x8e  %1 voci  \xe2\x80\xa2  %2 KB")
+            .arg(st.entries).arg(st.bytes / 1024));
+
+    /* Le combo per tipologia mostrano la stessa intersezione
+       registro ∩ installati: aggiornarle qui evita che restino
+       indietro dopo un download. */
+    refreshDecisionTypeCombos();
+}
+
+void ImpostazioniPage::onDecisionSaveClicked()
+{
+    if (!m_decision) return;
+
+    /* Se il backend cambia, bisogna ricaricare la lista modelli:
+       Ollama e DwarfStar hanno modelli completamente diversi. */
+    const auto newBackend = static_cast<DecisionEngine::DecisionBackend>(
+        m_decisionBackendCombo->currentData().toInt());
+    const bool backendChanged = (newBackend != m_decision->backend());
+
+    /* Il modello è specifico del backend. ONNX usa un unico runner
+       locale: forzare il nome evita di restare su un modello Ollama
+       che ONNX non può servire (active() sarebbe falso). Tornando a
+       un backend HTTP, un residuo "onnx-decision" viene sostituito
+       dal primo modello disponibile nella combo. */
+    QString chosenModel = m_decisionModelCombo->currentText().trimmed();
+    if (newBackend == DecisionEngine::BackendOnnx) {
+        chosenModel = QStringLiteral("onnx-decision");
+    } else if (chosenModel.isEmpty()
+               || chosenModel == QStringLiteral("onnx-decision")) {
+        for (int i = 0; i < m_decisionModelCombo->count(); ++i) {
+            const QString t = m_decisionModelCombo->itemText(i).trimmed();
+            if (!t.isEmpty() && t != QStringLiteral("onnx-decision")) {
+                chosenModel = t;
+                break;
+            }
+        }
+    }
+
+    m_decision->setEnabled(m_decisionChk->isChecked());
+    m_decision->setModel(chosenModel);
+    m_decision->setHostPort(m_decisionHostEdit->text(),
+                             m_decisionPortSpin->value());
+    m_decision->setThreshold(m_decisionThresholdSpin->value());
+    m_decision->setVerifyEnabled(m_decisionVerifyChk->isChecked());
+    m_decision->setCacheTtlHours(m_decisionCacheTtlSpin->value());
+    m_decision->setBackend(newBackend);
+    m_decision->saveConfig();
+
+    if (backendChanged) {
+        m_decision->refreshInstalled();
+    }
+
+    refreshDecisionUi();
+
+    m_decisionStatusLbl->setText(tr("\xe2\x9c\x85  Salvato"));
+    QTimer::singleShot(2000, m_decisionStatusLbl,
+        [this]{ refreshDecisionUi(); });
+}
+
+void ImpostazioniPage::onDecisionDownloadClicked()
+{
+    if (!m_decision) return;
+
+    /* Un download in corso viene interpretato come "annulla": è lo
+       stesso comportamento del download LLM in Manutenzione. */
+    if (m_decision->downloadRunning()) {
+        m_decision->cancelDownload();
+        syncDecisionDownloadUi();
+        return;
+    }
+
+    QString name = m_decisionDownloadEdit->text().trimmed();
+    if (name.isEmpty()
+        && m_decision->backend() == DecisionEngine::BackendOnnx) {
+        name = QStringLiteral("onnx-decision");   /* unico runner locale */
+    }
+    if (name.isEmpty()) {
+        m_decisionDownloadLbl->setText(tr("\xe2\x9d\x8c  Inserisci il nome del decision model."));
+        return;
+    }
+
+    m_decisionDownloadBtn->setText(tr("\xe2\x8f\xb9  Annulla"));
+    m_decision->downloadModel(name);
+}
+
+void ImpostazioniPage::onDecisionClearCache()
+{
+    if (!m_decision) return;
+    m_decision->clearCache();
+    refreshDecisionUi();
+    m_decisionDownloadLbl->setText(tr("\xe2\x9c\x85  Cache svuotata"));
+}
+
 void ImpostazioniPage::onSmartRouterSaveClicked()
 {
     QSettings s2;
@@ -2374,4 +2610,99 @@ bool ImpostazioniPage::eventFilter(QObject* watched, QEvent* ev)
         }
     }
     return QWidget::eventFilter(watched, ev);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   RAG — export / import in un unico file SQLite
+
+   Il JSON (~/.prismalux_rag.json) resta il formato di lavoro perché
+   è leggibile e viene aggiornato dall'indicizzazione. Il DB è il
+   formato di trasporto: un file solo, con chunk e vettori in BLOB,
+   importabile su un'altra installazione senza ricalcolare gli
+   embedding (che richiederebbero Ollama e lo stesso modello).
+   ══════════════════════════════════════════════════════════════ */
+void ImpostazioniPage::onRagExportDb()
+{
+    if (m_rag.chunkCount() == 0) {
+        QMessageBox::information(this, tr("Esporta database RAG"),
+            tr("L'indice è vuoto: non c'è nulla da esportare.\n"
+               "Aggiungi documenti alla cartella RAG e premi "
+               "\"Reindicizza ora\"."));
+        return;
+    }
+
+    const QString def = QDir::homePath() + "/prismalux_rag_backup.db";
+    QString path = QFileDialog::getSaveFileName(
+        this, tr("Esporta database RAG"), def,
+        tr("Database SQLite (*.db);;Tutti i file (*)"));
+    if (path.isEmpty()) return;
+    if (!path.endsWith(".db", Qt::CaseInsensitive))
+        path += ".db";
+
+    if (!m_rag.saveDb(path)) {
+        QMessageBox::warning(this, tr("Esporta database RAG"),
+            tr("Esportazione non riuscita.\n\n"
+               "Possibili cause: Qt6::Sql non disponibile in questa build, "
+               "permessi di scrittura insufficienti o percorso non valido."));
+        return;
+    }
+
+    const qint64 bytes = QFileInfo(path).size();
+    QMessageBox::information(this, tr("Esporta database RAG"),
+        tr("Esportati %1 chunk in:\n%2\n\nDimensione: %3 KB\n\n"
+           "Copia il file sull'altra macchina e usalo con "
+           "\"Importa database\u2026\".")
+            .arg(m_rag.chunkCount())
+            .arg(path)
+            .arg(bytes / 1024));
+}
+
+void ImpostazioniPage::onRagImportDb()
+{
+    const QString path = QFileDialog::getOpenFileName(
+        this, tr("Importa database RAG"), QDir::homePath(),
+        tr("Database SQLite (*.db);;Tutti i file (*)"));
+    if (path.isEmpty()) return;
+
+    /* Importa in un engine temporaneo: un file corrotto non deve
+       azzerare l'indice attualmente in memoria. */
+    RagEngine loaded;
+    if (!loaded.loadDb(path)) {
+        QMessageBox::warning(this, tr("Importa database RAG"),
+            tr("Importazione non riuscita.\n\n"
+               "Il file non è un database RAG valido oppure Qt6::Sql "
+               "non è disponibile in questa build."));
+        return;
+    }
+
+    const auto answer = QMessageBox::question(
+        this, tr("Importa database RAG"),
+        tr("L'indice corrente (%1 chunk) verrà sostituito con quello "
+           "del file (%2 chunk).\n\nContinuare?")
+            .arg(m_rag.chunkCount()).arg(loaded.chunkCount()),
+        QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+    if (answer != QMessageBox::Yes) return;
+
+    m_rag = loaded;
+
+    auto& cfg = AppConfig::s();
+    const QString jsonPath = QDir::homePath() + "/.prismalux_rag.json";
+    bool saved = true;
+    if (!cfg.value(P::SK::kRagNoSave, false).toBool())
+        saved = m_rag.save(jsonPath);
+
+    cfg.setValue(P::SK::kRagDocCount, m_rag.chunkCount());
+    cfg.setValue(P::SK::kRagLastIndexed,
+                 QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm"));
+
+    refreshRagStatus();
+    refreshRagFileList();
+
+    QMessageBox::information(this, tr("Importa database RAG"),
+        saved
+            ? tr("Importati %1 chunk.\n\nIndice salvato in %2.")
+                  .arg(m_rag.chunkCount()).arg(jsonPath)
+            : tr("Importati %1 chunk.\n\nImpossibile scrivere %2 — "
+                 "l'indice resta valido solo per questa sessione.")
+                  .arg(m_rag.chunkCount()).arg(jsonPath));
 }

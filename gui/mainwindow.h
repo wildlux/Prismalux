@@ -211,6 +211,7 @@ private:
     /* ── Servizi di background ───────────────────────────────── */
     HardwareMonitor*    m_hw           = nullptr;  ///< Thread monitor CPU/RAM/GPU
     AiClient*           m_ai           = nullptr;  ///< Client HTTP per Ollama/llama-server
+class DecisionEngine* m_decision     = nullptr;  ///< Strato di decisione (opt-in, separato dagli LLM)
     class OnnxEmbedder* m_onnxEmbedder = nullptr;  ///< Embedder ONNX locale (opzionale)
 
     /* Timer auto-scarico: ogni 90s verifica se RAM > 40% e AI idle → scarica */
@@ -265,6 +266,7 @@ private:
     void stopLlamaServer();
 
     void showServerDialog();      ///< Dialog avvio llama-server
+    void showDeviceSplitDialog(); ///< D-54: budget VRAM per GPU + --tensor-split
     void showDwarfStarDialog();   ///< Dialog avvio ds4-server
 
     /**

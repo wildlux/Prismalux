@@ -17,6 +17,9 @@
    ══════════════════════════════════════════════════════════════ */
 #include <QtTest/QtTest>
 #include <QTemporaryFile>
+#include <QTemporaryDir>
+#include <QFile>
+#include <QFileInfo>
 #include "../rag_engine.h"
 
 /* Helper: crea un embedding fittizio di dimensione d con valore val */
@@ -339,6 +342,60 @@ private slots:
         auto resB = rag.search(qB, 1);
         QCOMPARE(resB.size(), 1);
         QVERIFY(resB.at(0).text.startsWith("docB"));
+    }
+    /* ── DB export/import roundtrip ──────────────────────────────────
+       Il formato di trasporto deve conservare testo e vettori: un
+       indice importato su un'altra macchina deve rispondere alle
+       stesse query, non solo contare gli stessi chunk. */
+    void dbRoundTrip() {
+        RagEngine rag;
+        const int d = 16;
+        rag.addChunk("docA-1", makeEmb(d, 1.0f), "/docs/a.txt", 111);
+        rag.addChunk("docB-1", makeEmb(d, 0.5f), "/docs/b.txt", 222);
+
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath("rag_export.db");
+
+        if (!rag.saveDb(path))
+            QSKIP("Qt6::Sql non disponibile in questa build");
+        QVERIFY(QFileInfo::exists(path));
+
+        RagEngine loaded;
+        QVERIFY(loaded.loadDb(path));
+        QCOMPARE(loaded.chunkCount(), rag.chunkCount());
+        QCOMPARE(loaded.inputDim(), rag.inputDim());
+        QCOMPARE(loaded.chunks().at(0).text, QStringLiteral("docA-1"));
+        QCOMPARE(loaded.chunks().at(1).source, QStringLiteral("/docs/b.txt"));
+        QCOMPARE(loaded.chunks().at(1).mtime, 222LL);
+
+        /* Stessa query → stesso hit: i vettori sono stati conservati */
+        QVector<float> q(d, 0.0f); q[0] = 1.0f;
+        const auto hit = loaded.search(q, 1);
+        QCOMPARE(hit.size(), 1);
+        QCOMPARE(hit.at(0).text, QStringLiteral("docA-1"));
+    }
+
+    /* Un file che non è un DB RAG non deve svuotare l'engine */
+    void loadDbInvalidNonDistrugge() {
+        RagEngine rag;
+        rag.addChunk("keep-me", makeEmb(16, 1.0f));
+        const int before = rag.chunkCount();
+
+        QTemporaryDir dir;
+        const QString bogus = dir.filePath("bogus.db");
+        QFile f(bogus);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write("non sono un database");
+        f.close();
+
+        QVERIFY(!rag.loadDb(bogus));
+        QCOMPARE(rag.chunkCount(), before);
+    }
+
+    void dbRoundTripMissingFile() {
+        RagEngine rag;
+        QVERIFY(!rag.loadDb("/definitely/not/here/rag.db"));
     }
 };
 

@@ -153,7 +153,14 @@ public:
     QString     model()      const { return m_model; }
     QString     localModel() const { return m_localModel; }
     QStringList models()     const { return m_models; }
-    bool        busy()       const { return m_reply != nullptr || m_localBusy; }
+    /*busy() deve valere anche durante classificazione e verifica: in quelle
+       fasi m_reply è null ma la pipeline è ancora in corso. Senza questo
+       l'utente può inviare una seconda richiesta mentre la prima è in
+       classificazione, e le due si sovrapponerebbero sulla stessa
+       risposta. */
+    bool        busy()       const {
+        return m_reply != nullptr || m_localBusy || m_decStage != DecIdle;
+    }
 
     /** Identificatore incrementale dell'ultima chat() avviata.
      *  Ogni pagina può catturare questo valore dopo aver chiamato chat() e
@@ -248,6 +255,23 @@ public:
     }
     bool smartRouterEnabled() const { return m_smartRouterEnabled; }
 
+    /* ── Decision Engine (strato di decisione, opt-in) ──────────────────
+       Diverso dallo Smart Router e indipendente da esso: lo Smart Router
+       sceglie LOCAL↔CLOUD, il Decision Engine classifica la richiesta e
+       riverifica la risposta. Sono due livelli diversi e possono essere
+       attivi insieme.
+
+       Se il motore non è impostato o non è attivo (disabilitato, nessun
+       modello scelto, modello non installato) ogni percorso decisionale
+       è un no-op: zero chiamate di rete aggiuntive e zero latenza.
+       Il puntatore non è owned. */
+    void setDecisionEngine(class DecisionEngine* e) { m_decision = e; }
+    class DecisionEngine* decisionEngine() const { return m_decision; }
+
+    /** Stato corrente del pipeline di decisione, per la UI:
+     *  "idle" | "classifying" | "generating" | "verifying". */
+    QString decisionStage() const;
+
     /** Continua la conversazione dopo l'esecuzione locale di un tool.
      *  Invia il risultato del tool al modello e riprende lo streaming.
      *  Chiama onReadyRead/onFinished come una chat() normale. */
@@ -296,6 +320,21 @@ signals:
     /** Emesso appena prima di ogni richiesta LLM dal Smart Router.
      *  toCloud=true → la query è stata instradata al backend cloud configurato. */
     void routedToCloud(bool toCloud);
+
+    /** Emesso quando il decision model ha classificato la richiesta,
+     *  prima che l'LLM riceva il prompt arricchito.
+     *  @param intent     coding|reasoning|chat|other (vuoto se sotto soglia)
+     *  @param confidence confidenza stimata 0..1
+     *  @param cached     true se la classificazione viene dalla cache
+     *  Le pagine lo usano per un badge, come routedToCloud per lo Smart Router. */
+    void decisionClassified(const QString& intent, double confidence, bool cached);
+
+    /** Emesso quando la riverifica ha bocciato la risposta e parte il retry.
+     *  La UI può segnalare all'utente che la prima risposta è stata scartata. */
+    void decisionRetry(const QString& reason);
+
+    /** Emesso al termine del pipeline con l'esito della verifica. */
+    void decisionVerified(bool approved, const QString& reason);
 
 private slots:
     void onReadyRead();
@@ -418,4 +457,28 @@ private:
     QString m_cloudUrl;
     QString m_cloudModel;
     QString m_cloudApiKey;
+
+    /* ── Decision Engine — pipeline classifica → genera → verifica ───────
+       Un solo oggetto copre tutte le richieste: le pagine non devono
+       coordinarsi, il gate sta qui dentro. m_decStage è il cuore del
+       meccanismo — a DecIdle la chat è "nuova" e passa dal gate,
+       a qualsiasi altro stadio è una ri-entrata interna e lo salta. */
+    enum DecStage { DecIdle = 0, DecClassifying, DecGenerating, DecVerifying };
+    class DecisionEngine* m_decision = nullptr;   ///< puntatore non owned
+    DecStage m_decStage     = DecIdle;
+    bool     m_decSkipGate = false;   ///< prossima chat() è ri-entrata interna
+    bool     m_decRetried  = false;   ///< il retry è già stato consumato
+    bool     m_decBuffering= false;   ///< token bufferizzati fino alla verifica
+    QString  m_decIntent;
+    QString  m_decAnswer;             ///< risposta in attesa di verifica
+    /* Contesto della richiesta corrente, conservato per il retry: senza
+       questi l'unico modo di rigenerare sarebbe rifare la classificazione. */
+    QString     m_decSysPrompt;
+    QString     m_decUserMsg;
+    QJsonArray  m_decHistory;
+    QueryType   m_decQt = QueryAuto;
+
+    /* Verdetto della riverifica, emesso da decisionVerified(). */
+    bool    m_decApproved = true;
+    QString m_decReason;
 };

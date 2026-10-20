@@ -10,6 +10,7 @@
 #include "main_graph.h"
 #include "../theme_manager.h"
 #include "../prismalux_paths.h"
+#include "../decision_engine.h"
 namespace P = PrismaluxPaths;
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -85,6 +86,10 @@ QWidget* ImpostazioniPage::buildGroupLlm()
 
     inner->addEager("\xf0\x9f\xa4\x96  LLM", buildLlmConsigliatiTab());
 
+    inner->addLazy("\xf0\x9f\xa4\xa0  Decision Model", [this]{
+        return buildDecisionModelTab();
+    });
+
     inner->addLazy("\xf0\x9f\x93\x8a  Classifica", [this]{
         return buildLlmClassificaTab();
     });
@@ -108,6 +113,375 @@ QWidget* ImpostazioniPage::buildGroupLlm()
     });
 
     return t;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   buildDecisionModelTab — sotto-scheda "Decision Model" di LLM & DM
+
+   Due blocchi:
+     1. configurazione generale (attivazione, backend, modello,
+        endpoint, soglia, cache, registro, download);
+     2. associazione tipologia → modello, per usare in verifica il
+        modello più accurato su quella specifica categoria.
+   La classificazione usa sempre il modello predefinito: è lui a
+   decidere la tipologia, quindi non può dipendere da essa.
+   ══════════════════════════════════════════════════════════════ */
+QWidget* ImpostazioniPage::buildDecisionModelTab()
+{
+    auto* page  = new QWidget;
+    auto* outer = new QVBoxLayout(page);
+    outer->setContentsMargins(20, 20, 20, 20);
+    outer->setSpacing(14);
+
+    auto* title = new QLabel(tr("\xf0\x9f\xa4\xa0  Decision Model"));
+    title->setObjectName("sectionTitle");
+    outer->addWidget(title);
+
+    auto* desc = new QLabel(
+        tr("Modelli dedicati che <b>non</b> rispondono alle tue domande: classificano "
+           "la richiesta prima di inviarla e verificano la risposta dopo. "
+           "Restano separati dagli LLM — non compaiono nella lista LLM e non "
+           "possono essere usati come modello di conversazione."));
+    desc->setObjectName("hintLabel");
+    desc->setWordWrap(true);
+    outer->addWidget(desc);
+
+    auto* sc = new QScrollArea;
+    sc->setWidgetResizable(true);
+    sc->setFrameShape(QFrame::NoFrame);
+    auto* inner = new QWidget;
+    auto* innerLay = new QVBoxLayout(inner);
+    innerLay->setContentsMargins(0, 0, 0, 0);
+    innerLay->setSpacing(14);
+
+    /* ── 1) Configurazione generale ── */
+    if (m_decision) {
+        auto* decGroup = new QGroupBox(
+            tr("\xe2\x9a\x99\xef\xb8\x8f  Configurazione"), inner);
+        decGroup->setObjectName("cardGroup");
+        auto* decLay = new QVBoxLayout(decGroup);
+        decLay->setSpacing(8);
+
+        /* ── Attivazione (opt-in) ── */
+        m_decisionChk = new QCheckBox(
+            tr("Usa i Decision Model (classifica \xe2\x86\x92 richiesta \xe2\x86\x92 verifica)"), decGroup);
+        m_decisionChk->setChecked(m_decision->enabled());
+        decLay->addWidget(m_decisionChk);
+
+        auto* decForm = new QFormLayout;
+        decForm->setSpacing(6);
+        decForm->setContentsMargins(0, 4, 0, 0);
+
+        /* Backend di inferenza — determina il protocollo e il download */
+        m_decisionBackendCombo = new QComboBox(decGroup);
+        m_decisionBackendCombo->addItem(tr("Ollama (locale)"), 0);
+        m_decisionBackendCombo->addItem(tr("DwarfStar / ds4 (GPU)"), 1);
+        m_decisionBackendCombo->addItem(tr("ONNX (locale, leggero)"), 2);
+        m_decisionBackendCombo->addItem(tr("llama-server (locale)"), 3);
+        m_decisionBackendCombo->setCurrentIndex(m_decision->backend());
+        m_decisionBackendCombo->setToolTip(
+            tr("Ollama: modelli leggeri (4b), download con 'ollama pull'.\n"
+               "DwarfStar: modelli grandi (96-128GB RAM), richiede GPU specifica.\n"
+               "llama-server: endpoint OpenAI-compatible (/v1/chat/completions);\n"
+               "  il modello è un GGUF locale già servito, si registra l'alias.\n"
+               "ONNX: due modelli lineari inclusi (classificatore + verificatore),\n"
+               "  inferenza locale senza rete. 'Verifica' ricarica i modelli."));
+        decForm->addRow(tr("Backend:"), m_decisionBackendCombo);
+
+        /* Modello attivo — popolato solo con decision model installati */
+        m_decisionModelCombo = new QComboBox(decGroup);
+        m_decisionModelCombo->setObjectName("modelCombo");
+        decForm->addRow(tr("Modello predefinito:"), m_decisionModelCombo);
+
+        /* Endpoint: di default lo stesso di Ollama, ma separato, così
+           cambiare il backend LLM non sposta quello decisionale. */
+        m_decisionHostEdit = new QLineEdit(m_decision->host(), decGroup);
+        m_decisionHostEdit->setPlaceholderText("127.0.0.1");
+        auto* hostRow = new QHBoxLayout;
+        hostRow->setSpacing(4);
+        hostRow->addWidget(m_decisionHostEdit, 1);
+        m_decisionPortSpin = new QSpinBox(decGroup);
+        m_decisionPortSpin->setRange(1, 65535);
+        m_decisionPortSpin->setValue(m_decision->port());
+        m_decisionPortSpin->setFixedWidth(dpiScale(90));
+        hostRow->addWidget(m_decisionPortSpin);
+        decForm->addRow(tr("Host : porta:"), hostRow);
+
+        m_decisionThresholdSpin = new QDoubleSpinBox(decGroup);
+        m_decisionThresholdSpin->setRange(0.0, 1.0);
+        m_decisionThresholdSpin->setSingleStep(0.05);
+        m_decisionThresholdSpin->setDecimals(2);
+        m_decisionThresholdSpin->setValue(m_decision->threshold());
+        m_decisionThresholdSpin->setToolTip(
+            tr("Sotto questa confidenza l'intento viene ignorato e la richiesta "
+               "va all'LLM senza indicazioni aggiuntive."));
+        decForm->addRow(tr("Soglia confidenza:"), m_decisionThresholdSpin);
+
+        m_decisionVerifyChk = new QCheckBox(tr("Riverifica la risposta"), decGroup);
+        m_decisionVerifyChk->setChecked(m_decision->verifyEnabled());
+        m_decisionVerifyChk->setToolTip(
+            tr("Se attiva, la risposta viene mostrata solo dopo il verdetto del "
+               "decision model. Se il verdetto è negativo viene rigenerata una "
+               "volta; se anche il secondo tentativo viene bocciato, la risposta "
+               "viene mostrata comunque.\n\n"
+               "Attenzione: disattivandola si riacquistano i token in streaming."));
+        decLay->addWidget(m_decisionVerifyChk);
+
+        decLay->addLayout(decForm);
+
+        /* ── Cache ── */
+        auto* cacheRow = new QHBoxLayout;
+        m_decisionCacheTtlSpin = new QSpinBox(decGroup);
+        m_decisionCacheTtlSpin->setRange(1, 8760);
+        m_decisionCacheTtlSpin->setSuffix(tr(" h"));
+        m_decisionCacheTtlSpin->setValue(m_decision->cacheTtlHours());
+        m_decisionCacheTtlSpin->setToolTip(
+            tr("Le classificazioni identiche entro questo intervallo non "
+               "chiedono una seconda inferenza al decision model."));
+        cacheRow->addWidget(m_decisionCacheLbl = new QLabel(tr("Cache"), decGroup));
+        cacheRow->addWidget(m_decisionCacheTtlSpin);
+        auto* clearCacheBtn = new QPushButton(tr("Svuota cache"), decGroup);
+        clearCacheBtn->setObjectName("actionBtn");
+        connect(clearCacheBtn, &QPushButton::clicked,
+                this, &ImpostazioniPage::onDecisionClearCache);
+        cacheRow->addWidget(clearCacheBtn);
+        cacheRow->addStretch(1);
+        decLay->addLayout(cacheRow);
+
+        /* ── Registro + download ── */
+        auto* regLbl = new QLabel(tr("Decision model registrati:"), decGroup);
+        regLbl->setObjectName("hintLabel");
+        decLay->addWidget(regLbl);
+
+        m_decisionModelList = new QListWidget(decGroup);
+        m_decisionModelList->setMaximumHeight(dpiScale(120));
+        m_decisionModelList->setToolTip(
+            tr("Un decision model installato ma assente da questo registro "
+               "non può essere usato come tale, e un modello qui registrato "
+               "non compare mai nella lista LLM."));
+        decLay->addWidget(m_decisionModelList);
+
+        auto* dlRow = new QHBoxLayout;
+        m_decisionDownloadEdit = new QLineEdit(decGroup);
+        m_decisionDownloadEdit->setPlaceholderText(tr("es. tev1:4b  \xe2\x80\xa2  qwen3:5.4b"));
+        dlRow->addWidget(m_decisionDownloadEdit, 1);
+        m_decisionDownloadBtn = new QPushButton(tr("\xe2\x8f\xb3  Scarica"), decGroup);
+        m_decisionDownloadBtn->setObjectName("actionBtn");
+        m_decisionDownloadBtn->setFixedWidth(dpiScale(120));
+        dlRow->addWidget(m_decisionDownloadBtn);
+        decLay->addLayout(dlRow);
+
+        m_decisionDownloadLbl = new QLabel("", decGroup);
+        m_decisionDownloadLbl->setObjectName("hintLabel");
+        decLay->addWidget(m_decisionDownloadLbl);
+
+        /* Il significato del pulsante cambia col backend: "Scarica" per
+           Ollama/DwarfStar, "Registra" per llama-server, "Verifica" per
+           ONNX (i modelli sono inclusi nella build). */
+        connect(m_decisionBackendCombo,
+                QOverload<int>::of(&QComboBox::currentIndexChanged),
+                this, [this](int){ syncDecisionDownloadUi(); });
+        syncDecisionDownloadUi();
+
+        /* ── Salva + stato ── */
+        auto* decBtnRow = new QHBoxLayout;
+        auto* decSaveBtn = new QPushButton(tr("\xf0\x9f\x92\xbe  Salva"), decGroup);
+        decSaveBtn->setObjectName("actionBtn");
+        decSaveBtn->setFixedWidth(dpiScale(120));
+        m_decisionStatusLbl = new QLabel("", decGroup);
+        m_decisionStatusLbl->setObjectName("hintLabel");
+        decBtnRow->addWidget(decSaveBtn);
+        decBtnRow->addWidget(m_decisionStatusLbl);
+        decBtnRow->addStretch(1);
+        decLay->addLayout(decBtnRow);
+
+        innerLay->addWidget(decGroup);
+
+        connect(decSaveBtn, &QPushButton::clicked,
+                this, &ImpostazioniPage::onDecisionSaveClicked);
+        connect(m_decisionDownloadBtn, &QPushButton::clicked,
+                this, &ImpostazioniPage::onDecisionDownloadClicked);
+        connect(m_decisionModelList, &QListWidget::itemDoubleClicked,
+                this, [this](QListWidgetItem* it) {
+                    if (it) m_decisionDownloadEdit->setText(it->text().section(' ', 0, 0));
+                });
+
+        /* Popola lista e combo, e reagisce agli aggiornamenti. */
+        connect(m_decision, &DecisionEngine::installedReady,
+                this, [this](int){ refreshDecisionUi(); });
+        connect(m_decision, &DecisionEngine::downloadProgress,
+                this, [this](const QString&, const QString& s){ m_decisionDownloadLbl->setText(s); });
+        connect(m_decision, &DecisionEngine::downloadFinished,
+                this, [this](const QString& model, bool ok){
+                    syncDecisionDownloadUi();
+                    if (!ok) m_decisionDownloadLbl->setText(tr("\xe2\x9d\x8c  Download fallito: %1").arg(model));
+                    refreshDecisionUi();
+                });
+
+        /* ── 2) Modello più accurato per tipologia ── */
+        auto* typeGroup = new QGroupBox(
+            tr("\xf0\x9f\x8e\xaf  Modello per tipologia"), inner);
+        typeGroup->setObjectName("cardGroup");
+        auto* typeLay = new QVBoxLayout(typeGroup);
+        typeLay->setSpacing(8);
+
+        auto* typeDesc = new QLabel(
+            tr("Il classificatore resta unico (è lui a decidere la tipologia). "
+               "Qui scegli il decision model usato in <b>verifica</b> per ogni "
+               "tipologia: un modello può essere più accurato nel giudicare "
+               "codice che conversazione."), typeGroup);
+        typeDesc->setObjectName("hintLabel");
+        typeDesc->setWordWrap(true);
+        typeLay->addWidget(typeDesc);
+
+        auto* typeForm = new QFormLayout;
+        typeForm->setSpacing(6);
+        typeForm->setContentsMargins(0, 4, 0, 0);
+
+        auto makeCombo = [this, typeGroup]() {
+            auto* c = new QComboBox(typeGroup);
+            c->setObjectName("modelCombo");
+            return c;
+        };
+        m_decisionCodingCombo    = makeCombo();
+        m_decisionReasoningCombo = makeCombo();
+        m_decisionChatCombo      = makeCombo();
+        m_decisionOtherCombo     = makeCombo();
+
+        typeForm->addRow(tr("Coding:"),    m_decisionCodingCombo);
+        typeForm->addRow(tr("Reasoning:"), m_decisionReasoningCombo);
+        typeForm->addRow(tr("Chat:"),      m_decisionChatCombo);
+        typeForm->addRow(tr("Other:"),     m_decisionOtherCombo);
+        typeLay->addLayout(typeForm);
+
+        auto* typeHint = new QLabel(
+            tr("La scelta vale solo se il modello è installato: altrimenti "
+               "si usa automaticamente il predefinito."), typeGroup);
+        typeHint->setObjectName("hintLabel");
+        typeHint->setWordWrap(true);
+        typeLay->addWidget(typeHint);
+
+        auto* typeBtnRow = new QHBoxLayout;
+        auto* typeSaveBtn = new QPushButton(tr("\xf0\x9f\x92\xbe  Salva associazioni"), typeGroup);
+        typeSaveBtn->setObjectName("actionBtn");
+        m_decisionTypeStatusLbl = new QLabel("", typeGroup);
+        m_decisionTypeStatusLbl->setObjectName("hintLabel");
+        typeBtnRow->addWidget(typeSaveBtn);
+        typeBtnRow->addWidget(m_decisionTypeStatusLbl);
+        typeBtnRow->addStretch(1);
+        typeLay->addLayout(typeBtnRow);
+
+        innerLay->addWidget(typeGroup);
+
+        connect(typeSaveBtn, &QPushButton::clicked,
+                this, &ImpostazioniPage::onDecisionTypeSaveClicked);
+
+        refreshDecisionUi();
+    } else {
+        auto* noEngine = new QLabel(
+            tr("Decision engine non disponibile in questa build."), inner);
+        noEngine->setObjectName("hintLabel");
+        innerLay->addWidget(noEngine);
+    }
+
+    innerLay->addStretch(1);
+    sc->setWidget(inner);
+    outer->addWidget(sc, 1);
+
+    return page;
+}
+
+/* ── syncDecisionDownloadUi ─────────────────────────────────────────────
+   Il campo sotto il registro non significa sempre "scarica":
+   Ollama/DwarfStar scaricano, llama-server registra un alias già
+   servito, ONNX verifica i modelli inclusi nella build. */
+void ImpostazioniPage::syncDecisionDownloadUi()
+{
+    if (!m_decisionBackendCombo || !m_decisionDownloadBtn) return;
+
+    const auto b = static_cast<DecisionEngine::DecisionBackend>(
+        m_decisionBackendCombo->currentData().toInt());
+    const bool llama = (b == DecisionEngine::BackendLlamaServer);
+    const bool onnx  = (b == DecisionEngine::BackendOnnx);
+
+    if (llama)
+        m_decisionDownloadBtn->setText(tr("\xf0\x9f\x93\x9d  Registra"));
+    else if (onnx)
+        m_decisionDownloadBtn->setText(tr("\xf0\x9f\x94\x8d  Verifica"));
+    else
+        m_decisionDownloadBtn->setText(tr("\xe2\x8f\xb3  Scarica"));
+    m_decisionDownloadBtn->setEnabled(true);
+
+    if (m_decisionDownloadEdit) {
+        m_decisionDownloadEdit->setEnabled(true);
+        m_decisionDownloadEdit->setPlaceholderText(
+            llama ? tr("alias esposto da /v1/models")
+          : onnx  ? tr("onnx-decision")
+                  : tr("es. tev1:4b  \xe2\x80\xa2  qwen3:5.4b"));
+    }
+}
+
+/* ── refreshDecisionTypeCombos ─────────────────────────────────────────
+   Ricostruisce i quattro combo mantenendo la selezione corrente. La
+   voce vuota significa "usa il modello predefinito": è il default e
+   non richiede che il modello per tipologia sia installato. */
+void ImpostazioniPage::refreshDecisionTypeCombos()
+{
+    if (!m_decision) return;
+
+    const QVector<QPair<QString, QComboBox*>> combos = {
+        { QStringLiteral("coding"),    m_decisionCodingCombo    },
+        { QStringLiteral("reasoning"), m_decisionReasoningCombo },
+        { QStringLiteral("chat"),      m_decisionChatCombo      },
+        { QStringLiteral("other"),     m_decisionOtherCombo     },
+    };
+
+    for (const auto& pair : combos) {
+        QComboBox* c = pair.second;
+        if (!c) continue;
+
+        const QString current = c->currentData().toString();
+        const QString configured = current.isEmpty()
+            ? m_decision->modelForIntentSetting(pair.first)
+            : current;
+
+        c->blockSignals(true);
+        c->clear();
+        c->addItem(tr("\xe2\x80\x94  Predefinito (%1)").arg(
+                       m_decision->model().isEmpty() ? tr("nessuno")
+                                                     : m_decision->model()),
+                   QString());
+        for (const DecisionEngine::ModelSpec& s : m_decision->installedModels())
+            c->addItem(s.name, s.name);
+
+        int idx = configured.isEmpty() ? 0 : c->findData(configured);
+        c->setCurrentIndex(idx >= 0 ? idx : 0);
+        c->blockSignals(false);
+    }
+}
+
+void ImpostazioniPage::onDecisionTypeSaveClicked()
+{
+    if (!m_decision) return;
+
+    m_decision->setModelForIntent(QStringLiteral("coding"),
+        m_decisionCodingCombo    ? m_decisionCodingCombo->currentData().toString()    : QString());
+    m_decision->setModelForIntent(QStringLiteral("reasoning"),
+        m_decisionReasoningCombo ? m_decisionReasoningCombo->currentData().toString() : QString());
+    m_decision->setModelForIntent(QStringLiteral("chat"),
+        m_decisionChatCombo      ? m_decisionChatCombo->currentData().toString()      : QString());
+    m_decision->setModelForIntent(QStringLiteral("other"),
+        m_decisionOtherCombo     ? m_decisionOtherCombo->currentData().toString()     : QString());
+    m_decision->saveConfig();
+
+    if (m_decisionTypeStatusLbl) {
+        m_decisionTypeStatusLbl->setText(tr("\xe2\x9c\x85  Associazioni salvate"));
+        QTimer::singleShot(2500, m_decisionTypeStatusLbl,
+            [this]{
+                if (m_decisionTypeStatusLbl)
+                    m_decisionTypeStatusLbl->setText(QString());
+            });
+    }
 }
 
 namespace {  /* registro suite storiche — dati, non UI (D-35) */
