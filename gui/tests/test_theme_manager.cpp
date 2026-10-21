@@ -165,6 +165,29 @@ private slots:
         QCOMPARE(ThemeManager::instance()->currentId(), before);
     }
 
+    /* Performance: cliccare il tema già attivo non deve riapplicare il QSS.
+       reapply() invece deve forzare (serve allo zoom). */
+    void applyStessoTemaNonRiemette() {
+        ThemeManager* tm = ThemeManager::instance();
+        QSettings s("Prismalux", "GUI");
+        const QString prevSaved = s.value(P::SK::kTheme).toString();
+
+        tm->apply("dark_cyan", /*force=*/true);
+        QCOMPARE(tm->currentId(), QStringLiteral("dark_cyan"));
+
+        QSignalSpy spy(tm, &ThemeManager::changed);
+        tm->apply("dark_cyan");
+        QCOMPARE(spy.count(), 0);
+
+        tm->reapply();
+        QCOMPARE(spy.count(), 1);
+
+        if (prevSaved.isEmpty()) s.remove(P::SK::kTheme);
+        else                   s.setValue(P::SK::kTheme, prevSaved);
+        if (!prevSaved.isEmpty())
+            tm->apply(prevSaved, /*force=*/true);
+    }
+
     void scanExternalThemesNoCrash() {
         /* Se non ci sono file .qss esterni → nessun crash */
         ThemeManager::instance()->scanExternalThemes();

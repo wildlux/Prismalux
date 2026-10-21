@@ -243,6 +243,8 @@ Pattern one-shot preferito: `QMetaObject::Connection` come membro, disconnect es
 
 **Griglia temi (Impostazioni → Visuale → Aspetto):** 6 card per riga da 116×92, così i 26 temi stanno in 5 righe. L'anteprima legge `background-color` di `QMainWindow`, il primo colore di `#header` e il `color` di `#headerTitle` dal QSS reale: niente tabella colori duplicata. `base.qss` è escluso da `scanExternalThemes()` perché contiene solo regole strutturali.
 
+**Cambio tema:** `ThemeManager::apply(id)` ritorna subito se `id == currentId`; usare `reapply()` per forzare (zoom o ricarica QSS). Durante `qApp->setStyleSheet()` vanno congelati **tutti** i top-level visibili (`setUpdatesEnabled(false)`), non solo il primo. `AgentiPage::recolorLog()` va chiamato solo quando si attraversa il confine dark↔light, e con `QTimer::singleShot(0, …)` per far apparire prima il nuovo tema.
+
 **LanServer shutdown:** `blockSignals(true)` prima di `stop()` — evita SIGSEGV.
 
 **QProcess figli nei distruttori widget:** `~QProcess` di un processo ancora attivo emette `finished()` **sincrono** (via `waitForFinished()` interno) durante `deleteChildren()` — i lambda connessi toccano label/bottoni già distrutti → SEGV. Il context object `this` nel connect NON protegge: la connessione è ancora viva mentre l'oggetto è semi-distrutto. Nel distruttore del widget: `findChildren<QProcess*>()` → `disconnect(this)` + `blockSignals(true)` + `kill()` + `waitForFinished(1000)` (copre anche i QProcess anonimi, non solo i membri m_*). Caso reale: `~VoiceClonerWidget` + probe di `checkTtsInstalled()` (coredump 2026-07-03, fix D-20).

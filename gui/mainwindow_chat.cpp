@@ -534,7 +534,7 @@ void MainWindow::showOnboardingWizard()
     connect(themeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
             themeCombo, [themeCombo](int idx) {
                 const QString id = themeCombo->itemData(idx).toString();
-                if (!id.isEmpty())
+                if (!id.isEmpty() && ThemeManager::instance()->currentId() != id)
                     QTimer::singleShot(0, qApp, [id]{ ThemeManager::instance()->apply(id); });
             });
 

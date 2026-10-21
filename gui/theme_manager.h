@@ -24,8 +24,9 @@ public:
     /* Lista temi disponibili */
     const QList<Theme>& themes() const { return m_themes; }
 
-    /* Applica tema e salva preferenza */
-    void apply(const QString& id);
+    /* Applica tema e salva preferenza. Se il tema è già attivo non
+       riapplica il QSS (evita ~1s di repolish inutile); reapply() forza. */
+    void apply(const QString& id, bool force = false);
 
     /* Carica e applica il tema salvato (fallback: dark_cyan) */
     void loadSaved();

@@ -568,6 +568,7 @@ QWidget* ImpostazioniPage::buildTemaTab() {
         /* Connessione: cambia tema al click */
         connect(card, &QPushButton::clicked, card,
             [tm, t, themes, group, grid_w]() {
+                if (tm->currentId() == t.id) return;  /* già attivo */
                 tm->apply(t.id);
                 /* Aggiorna border di tutte le card */
                 for (int j = 0; j < themes.size(); ++j) {

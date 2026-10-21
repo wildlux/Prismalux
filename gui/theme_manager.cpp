@@ -66,7 +66,12 @@ ThemeManager::ThemeManager(QObject* parent) : QObject(parent) {
     };
 }
 
-void ThemeManager::apply(const QString& id) {
+void ThemeManager::apply(const QString& id, bool force) {
+    /* Stesso tema: nessun repolish globale. reapply() passa force=true
+       quando serve ricalcolare lo zoom o ricaricare il QSS. */
+    if (!force && id == m_currentId)
+        return;
+
     /* Cerca il tema nella lista */
     QString resource;
     for (const auto& t : m_themes) {
@@ -149,17 +154,23 @@ void ThemeManager::apply(const QString& id) {
     /* ── Applica stylesheet ottimizzato ── */
     QApplication::setOverrideCursor(Qt::WaitCursor);
 
-    QWidget* root = nullptr;
+    /* Congela tutti i top-level visibili: durante setStyleSheet Qt
+       ripolish-a l'intero albero; senza freeze anche la finestra
+       Impostazioni ridisegna ad ogni widget. */
+    QList<QPair<QWidget*, bool>> roots;
     for (QWidget* w : qApp->topLevelWidgets()) {
-        if (w->isVisible()) { root = w; break; }
+        if (w->isVisible()) {
+            const bool wasEnabled = w->updatesEnabled();
+            w->setUpdatesEnabled(false);
+            roots.append({ w, wasEnabled });
+        }
     }
-    if (root) root->setUpdatesEnabled(false);
 
     qApp->setStyleSheet(m_cssCache.value(cacheKey));
 
-    if (root) {
-        root->setUpdatesEnabled(true);
-        root->update();
+    for (const auto& [w, wasEnabled] : roots) {
+        w->setUpdatesEnabled(wasEnabled);
+        if (wasEnabled) w->update();
     }
 
     QApplication::restoreOverrideCursor();
@@ -182,7 +193,7 @@ void ThemeManager::setZoomScale(double scale) {
 
 void ThemeManager::reapply() {
     if (!m_currentId.isEmpty())
-        apply(m_currentId);
+        apply(m_currentId, /*force=*/true);
 }
 
 void ThemeManager::loadSaved() {

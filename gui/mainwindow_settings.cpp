@@ -79,9 +79,19 @@ void MainWindow::ensureSettingsDialog()
     if (auto* ap = findChild<AgentiPage*>()) {
         connect(m_impPage, &ImpostazioniPage::bubbleStyleChanged,
                 ap, &AgentiPage::onBubbleStyleChanged);
-        /* Ricolora le bolle esistenti ogni volta che l'utente cambia tema */
-        connect(ThemeManager::instance(), &ThemeManager::changed,
-                ap, &AgentiPage::recolorLog);
+        /* Ricolora le bolle esistenti solo quando si passa dark↔light:
+         * le sostituzioni di recolorLog() mappano quei due insiemi di
+         * colori, quindi tra due temi scuri (o due chiari) non serve
+         * fare toHtml()+setHtml() sull'intero log. */
+        bool lastLight = ThemeManager::instance()->currentId().startsWith("light");
+        connect(ThemeManager::instance(), &ThemeManager::changed, ap,
+                [ap, lastLight](const QString& id) mutable {
+                    const bool nowLight = id.startsWith("light");
+                    if (nowLight == lastLight) return;
+                    lastLight = nowLight;
+                    /* Dopo il repaint del tema: il cambio appare subito. */
+                    QTimer::singleShot(0, ap, &AgentiPage::recolorLog);
+                });
     }
 
     /* Feedback indicizzazione RAG nella status bar — visibile anche a dialog chiuso */
