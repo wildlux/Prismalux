@@ -3,6 +3,7 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QDateTime>
+#include <QTimeZone>
 #include <QDir>
 #include <QStandardPaths>
 #include <QSet>
