@@ -185,6 +185,38 @@ private slots:
         auto* w = qobject_cast<QWidget*>(m_page);
         QVERIFY2(w != nullptr, "ImpostazioniPage non è un QWidget");
     }
+
+    /* D-75: anteprima della griglia temi (solo con variabile impostata).
+       Serve a verificare a video che le 26 card siano compatte e che ogni
+       anteprima usi i colori del proprio QSS, non un fallback grigio. */
+    void screenshotGrigliaTemi() {
+        const QString shot = qEnvironmentVariable("PRISMALUX_THEME_GRID_SCREENSHOT");
+        if (shot.isEmpty())
+            QSKIP("PRISMALUX_THEME_GRID_SCREENSHOT non impostata");
+
+        auto* outer = m_page->findChild<QTabWidget*>("settingsTabs");
+        QVERIFY(outer);
+        int visuale = -1;
+        for (int i = 0; i < outer->count(); ++i)
+            if (outer->tabText(i).contains("Visuale")) visuale = i;
+        QVERIFY2(visuale >= 0, "scheda esterna 'Visuale' non trovata");
+        outer->setCurrentIndex(visuale);
+
+        auto* inner = qobject_cast<QTabWidget*>(outer->widget(visuale));
+        QVERIFY2(inner, "la scheda Visuale non è un QTabWidget");
+        int aspetto = -1;
+        for (int i = 0; i < inner->count(); ++i)
+            if (inner->tabText(i).contains("Aspetto")) aspetto = i;
+        QVERIFY2(aspetto >= 0, "sotto-scheda 'Aspetto' non trovata");
+        inner->setCurrentIndex(aspetto);
+        QCoreApplication::processEvents();
+
+        m_page->resize(1600, 1000);
+        m_page->show();
+        QTest::qWait(500);
+        QVERIFY2(m_page->grab().save(shot),
+                 qPrintable("salvataggio screenshot fallito: " + shot));
+    }
 };
 
 /* ══════════════════════════════════════════════════════════════

@@ -205,6 +205,7 @@ void ThemeManager::scanExternalThemes() {
     const QStringList filters{ "*.qss", "*.QSS" };
     for (const QFileInfo& fi : QDir(dir).entryInfoList(filters, QDir::Files)) {
         const QString id = fi.baseName();
+        if (id == "base") continue;            /* regole strutturali, non un tema */
         if (existing.contains(id)) continue;   /* non duplicare i built-in */
         /* Label = nome file con prima lettera maiuscola e underscore → spazio */
         QString label = id;

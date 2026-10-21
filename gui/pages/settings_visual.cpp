@@ -50,6 +50,7 @@ namespace P = PrismaluxPaths;
 #include <QThread>
 #include <QStackedWidget>
 #include <QColorDialog>
+#include <QColor>
 #include <QPainter>
 #include <QPen>
 #include <QJsonDocument>
@@ -67,20 +68,42 @@ namespace P = PrismaluxPaths;
 
 struct ThemeVisual { QString id; QString bg; QString accent; QString bg2; };
 
-static const ThemeVisual kVisuals[] = {
-    { "dark_cyan",   "#13141f", "#00b8d9", "#1a1b28" },
-    { "dark_amber",  "#17140c", "#ffb300", "#211c10" },
-    { "dark_purple", "#130f1c", "#9c5ff0", "#1c1727" },
-    { "light",       "#f0f2fa", "#0072c6", "#e0e4f0" },
-    { "dark",        "#0f1117", "#6c63ff", "#1a1d2e" },
-    { "dracula",     "#282a36", "#bd93f9", "#21222c" },
-    { "nord",        "#2e3440", "#88c0d0", "#3b4252" },
-};
+/* Estrae il primo colore che segue @p pattern nel QSS. */
+static QString qssColor(const QString& qss, const QString& pattern) {
+    const QRegularExpression re(pattern);
+    const auto m = re.match(qss);
+    return m.hasMatch() ? m.captured(1) : QString();
+}
 
-static ThemeVisual visualFor(const QString& id) {
-    for (const auto& v : kVisuals)
-        if (v.id == id) return v;
-    return { id, "#1e2030", "#607080", "#252a3a" };  /* fallback per custom */
+/* Anteprima tema calcolata dal QSS reale, non da una tabella duplicata:
+   ogni tema mostra il proprio sfondo, header e accento anche quando viene
+   aggiunto o modificato in futuro. */
+static ThemeVisual visualFor(const ThemeManager::Theme& theme) {
+    ThemeVisual v{ theme.id, "#1e2030", "#607080", "#252a3a" };  /* fallback custom */
+    QFile f(theme.resource);
+    if (!f.open(QIODevice::ReadOnly | QIODevice::Text))
+        return v;
+    const QString qss = QString::fromUtf8(f.readAll());
+
+    const QString bg = qssColor(qss,
+        R"(QMainWindow\s*,\s*QWidget\s*\{[^}]*?background-color\s*:\s*(#[0-9a-fA-F]{6}))");
+    const QString bg2 = qssColor(qss,
+        R"(#header\s*\{[^}]*?(?:background|background-color)\s*:\s*[^;]*?(#[0-9a-fA-F]{6}))");
+    const QString accent = qssColor(qss,
+        R"(#headerTitle\s*\{[^}]*?color\s*:\s*(#[0-9a-fA-F]{6}))");
+
+    if (!bg.isEmpty())     v.bg     = bg;
+    if (!bg2.isEmpty())    v.bg2    = bg2;
+    if (!accent.isEmpty()) v.accent = accent;
+    return v;
+}
+
+/* Testo leggibile sulla banda colorata dell'anteprima. */
+static QString readableOn(const QString& hex) {
+    const QColor c(hex);
+    const double lum = 0.2126 * c.redF() + 0.7152 * c.greenF()
+                     + 0.0722 * c.blueF();
+    return (lum > 0.55) ? "#111827" : "#ffffff";
 }
 
 QWidget* ImpostazioniPage::buildTemaTab() {
@@ -452,13 +475,13 @@ QWidget* ImpostazioniPage::buildTemaTab() {
 
     /* ═══════════════ COLONNA DESTRA ═══════════════ */
     auto* rightColW = new QWidget(outer);
-    /* 4 card × 130px + 3 × 6px spaziatura + 16px margini = 554px minimo */
-    rightColW->setMinimumWidth(dpiScale(554));
+    /* 6 card compatte × 116px + 5 × 6px spaziatura + margini = 734px. */
+    rightColW->setMinimumWidth(dpiScale(734));
     auto* rightCol  = new QVBoxLayout(rightColW);
     rightCol->setContentsMargins(0, 0, 0, 0);
     rightCol->setSpacing(8);
 
-    /* ── Griglia card (4 per riga, card 130×100) ── */
+    /* ── Griglia card (6 per riga, card 116×92): 26 temi in 5 righe ── */
     auto* scroll = new QScrollArea(rightColW);
     scroll->setWidgetResizable(true);
     scroll->setFrameShape(QFrame::NoFrame);
@@ -467,6 +490,8 @@ QWidget* ImpostazioniPage::buildTemaTab() {
     auto* grid   = new QGridLayout(grid_w);
     grid->setSpacing(6);
     grid->setContentsMargins(0, 8, 0, 8);
+    /* Le card restano vicine: niente stretch che le sparpaglia. */
+    grid->setAlignment(Qt::AlignLeft | Qt::AlignTop);
     scroll->setWidget(grid_w);
     rightCol->addWidget(scroll, 1);
 
@@ -481,16 +506,16 @@ QWidget* ImpostazioniPage::buildTemaTab() {
     auto* group = new QButtonGroup(outer);
     group->setExclusive(true);
 
-    const int COLS = 4;
+    const int COLS = 6;
     for (int i = 0; i < themes.size(); ++i) {
         const auto& t = themes[i];
-        ThemeVisual v = visualFor(t.id);
+        ThemeVisual v = visualFor(t);
 
         /* ── Contenitore card ── */
         auto* card = new QPushButton(grid_w);
         card->setCheckable(true);
         card->setChecked(t.id == current);
-        card->setFixedSize(dpiSize(130, 100));
+        card->setFixedSize(dpiSize(116, 92));
         card->setObjectName("themeCard");
         card->setProperty("themeId", t.id);
 
@@ -521,11 +546,11 @@ QWidget* ImpostazioniPage::buildTemaTab() {
         nameLbl->setWordWrap(true);
         nameLbl->setStyleSheet(QString(
             "color: %1; font-size: 11px; font-weight: 600; background: transparent;")
-            .arg((t.id == "light") ? "#1a1e30" : "#e5e7eb"));
+            .arg(readableOn(v.accent)));
         {
-            const int cardW = dpiScale(130);
-            const int cardH = dpiScale(100);
-            const int lblH  = dpiScale(32);
+            const int cardW = dpiScale(116);
+            const int cardH = dpiScale(92);
+            const int lblH  = dpiScale(30);
             nameLbl->setGeometry(0, cardH - lblH, cardW, lblH);
         }
 
@@ -537,7 +562,7 @@ QWidget* ImpostazioniPage::buildTemaTab() {
             "color: %1; font-size: 16px; font-weight: 700; "
             "background: transparent; padding: 4px 6px 0 0;")
             .arg(v.accent));
-        check->setFixedSize(dpiSize(130, 30));
+        check->setFixedSize(dpiSize(116, 28));
         check->setVisible(t.id == current);
 
         /* Connessione: cambia tema al click */
@@ -548,7 +573,7 @@ QWidget* ImpostazioniPage::buildTemaTab() {
                 for (int j = 0; j < themes.size(); ++j) {
                     auto* btn = qobject_cast<QPushButton*>(group->button(j));
                     if (!btn) continue;
-                    ThemeVisual vj = visualFor(themes[j].id);
+                    ThemeVisual vj = visualFor(themes[j]);
                     const QString bc = (themes[j].id == t.id) ? vj.accent : "#404040";
                     /* Aggiorna solo la border-color senza ricostruire tutto lo stile */
                     QString s = btn->styleSheet();

@@ -168,6 +168,9 @@ private slots:
     void scanExternalThemesNoCrash() {
         /* Se non ci sono file .qss esterni → nessun crash */
         ThemeManager::instance()->scanExternalThemes();
+        /* base.qss contiene solo regole strutturali: non è un tema. */
+        for (const ThemeManager::Theme& t : ThemeManager::instance()->themes())
+            QVERIFY2(t.id != "base", "base.qss non deve apparire come tema custom");
     }
 
     void loadSavedNoCrash() {

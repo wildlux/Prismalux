@@ -1385,6 +1385,12 @@ if(BUILD_TESTS)
         ${CMAKE_SOURCE_DIR}/tests
     )
     target_link_libraries(test_impostazioni_page PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
+    # La griglia temi legge i .qss accanto all'eseguibile (anteprime reali).
+    add_custom_command(TARGET test_impostazioni_page POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${CMAKE_SOURCE_DIR}/themes
+            $<TARGET_FILE_DIR:test_impostazioni_page>/themes
+        COMMENT "Copio themes/ per test_impostazioni_page")
     if(NOT WIN32)
         target_link_libraries(test_impostazioni_page PRIVATE pthread m)
     endif()
