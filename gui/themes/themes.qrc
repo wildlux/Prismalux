@@ -25,5 +25,8 @@
     <file>light_rose.qss</file>
     <file>light_sand.qss</file>
     <file>light_sky.qss</file>
+    <file>dark.qss</file>
+    <file>dracula.qss</file>
+    <file>nord.qss</file>
 </qresource>
 </RCC>

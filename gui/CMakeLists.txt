@@ -940,6 +940,12 @@ if(BUILD_TESTS)
     target_compile_definitions(test_theme_manager PRIVATE
         PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
     )
+    # I test di apply()/screenshot leggono i .qss accanto all'eseguibile.
+    add_custom_command(TARGET test_theme_manager POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${CMAKE_SOURCE_DIR}/themes
+            $<TARGET_FILE_DIR:test_theme_manager>/themes
+        COMMENT "Copio themes/ per i test ThemeManager")
     if(NOT WIN32)
         target_link_libraries(test_theme_manager PRIVATE pthread m)
     endif()

@@ -72,6 +72,9 @@ static const ThemeVisual kVisuals[] = {
     { "dark_amber",  "#17140c", "#ffb300", "#211c10" },
     { "dark_purple", "#130f1c", "#9c5ff0", "#1c1727" },
     { "light",       "#f0f2fa", "#0072c6", "#e0e4f0" },
+    { "dark",        "#0f1117", "#6c63ff", "#1a1d2e" },
+    { "dracula",     "#282a36", "#bd93f9", "#21222c" },
+    { "nord",        "#2e3440", "#88c0d0", "#3b4252" },
 };
 
 static ThemeVisual visualFor(const QString& id) {

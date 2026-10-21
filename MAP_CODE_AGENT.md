@@ -624,7 +624,7 @@ Metodi: `open()`, `addNode()`, `addEdge()`, `neighbours()` (BFS), `searchNodes()
 | `ai_utils.h` | `AiUtils` | `populateModelCombo`, emoji interfacce. |
 | `hardware_monitor.*` | `HWDetectThread`, `HardwareMonitor` | Rilevamento HW una tantum + polling ~2 s. |
 | `monitor_panel.*` | `MonitorPanel` | Diagnostica inferenza: TTFT, durata, token, RAM, score. |
-| `theme_manager.*` | `ThemeManager` | QSS, temi esterni, sistema chiaro/scuro, zoom. |
+| `theme_manager.*` | `ThemeManager` | QSS, temi esterni, sistema chiaro/scuro, zoom. 26 temi built-in allineati per ID/nome/palette alla webchat LAN (`test_theme_manager::paritaTemiConWebchat`); le preferenze restano separate: QSettings `theme` sul desktop, `localStorage['plx-theme']` nel web. |
 | `log_bus.*` | `LogBus` | Bus log process-wide. |
 | `app_config.h` | `AppConfig::s()` | Singleton `QSettings("Prismalux","GUI")`. |
 | `chat_history.*` | `ChatHistory` | Sessioni JSON atomiche in `~/.prismalux_chats/`. |
