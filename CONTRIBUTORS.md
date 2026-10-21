@@ -8,6 +8,7 @@ Prismalux è mantenuto da **wildlux** e riceve contributi dalle persone e dagli 
 |---|---|
 | **wildlux** | Maintainer — architecture, Qt6 GUI, AI pipeline, releases / Maintainer — architettura, GUI Qt6, pipeline AI, release |
 | **OpenCode — DeepSeek V4.1 Flash Free** | AI coding assistant — Docker/AppImage packaging, documentation, verification and release notes / Assistente AI — packaging Docker/AppImage, documentazione, verifica e note di rilascio |
+| **Claude Code — Opus 5.5** | AI coding assistant — code review, implementation and verification / Assistente AI — code review, implementazione e verifica |
 
 ---
 

@@ -696,7 +696,7 @@ Vedi `gui/CLAUDE.md` per le convenzioni complete (ThemeManager, LanServer shutdo
 
 ## Collaboratori
 
-Un ringraziamento speciale a **OpenCode — DeepSeek V4.1 Flash Free** per il supporto a Docker/AppImage, documentazione, verifica e note di rilascio.
+Un ringraziamento speciale a **OpenCode — DeepSeek V4.1 Flash Free** e **Claude Code — Opus 5.5** per il supporto a Docker/AppImage, documentazione, verifica e note di rilascio.
 
 Elenco completo: [CONTRIBUTORS.md](CONTRIBUTORS.md).
 

@@ -121,7 +121,7 @@ Note: the UI language is Italian (English i18n is planned — see `TODO.md`, ite
 
 ## Contributors
 
-Special thanks to **OpenCode — DeepSeek V4.1 Flash Free** for Docker/AppImage packaging, documentation, verification and release notes.
+Special thanks to **OpenCode — DeepSeek V4.1 Flash Free** and **Claude Code — Opus 5.5** for Docker/AppImage packaging, documentation, verification and release notes.
 
 Full list: [CONTRIBUTORS.md](CONTRIBUTORS.md).
 
