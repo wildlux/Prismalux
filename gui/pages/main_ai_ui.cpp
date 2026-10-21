@@ -130,6 +130,23 @@ void AgentiPage::buildToolbarTtsSection(QHBoxLayout* toolLay, QWidget* toolbar)
     m_waitLbl->setVisible(false);
     toolLay->addWidget(m_waitLbl, 1);
 
+    /* Badge Decision Model: intento classificato / esito riverifica.
+       Creato qui perché vive accanto allo stato di elaborazione; resta
+       nascosto finché AiClient non emette i segnali decisionali. */
+    m_decisionLbl = new QLabel(this);
+    m_decisionLbl->setObjectName("decisionBadge");
+    m_decisionLbl->setStyleSheet(
+        "color:#60a5fa; font-size:11px; padding:1px 6px;"
+        "border:1px solid #3b82f6; border-radius:6px;");
+    m_decisionLbl->setVisible(false);
+    toolLay->addWidget(m_decisionLbl);
+
+    m_decisionBadgeTimer = new QTimer(this);
+    m_decisionBadgeTimer->setSingleShot(true);
+    connect(m_decisionBadgeTimer, &QTimer::timeout, this, [this] {
+        if (m_decisionLbl) m_decisionLbl->setVisible(false);
+    });
+
     m_btnTtsStop = new QPushButton(tr("\xe2\x8f\xb9 Ferma lettura"), toolbar);
     m_btnTtsStop->setObjectName("actionBtn");
     m_btnTtsStop->setToolTip(tr("Interrompi la lettura vocale"));
@@ -1451,6 +1468,8 @@ void AgentiPage::buildExtraConnections()
 void AgentiPage::_setRunBusy(bool busy)
 {
     if (busy) {
+        /* Nuova richiesta: il badge della precedente non deve restare. */
+        _resetDecisionBadge();
         m_btnRun->setText(tr("\xe2\x8f\xb9 Stop"));
         m_btnRun->setProperty("danger", true);
     } else {

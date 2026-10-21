@@ -190,6 +190,8 @@ private:
     QCheckBox*    m_chkController = nullptr; ///< Abilita/disabilita il Controller LLM post-agente
     QLabel*       m_autoLbl   = nullptr;   ///< Stato auto-assegnazione / preset
     QLabel*       m_waitLbl   = nullptr;   ///< ⏳ durante elaborazione AI
+    QLabel*       m_decisionLbl = nullptr; ///< 🏷 badge Decision Model (intento / verifica)
+    QTimer*       m_decisionBadgeTimer = nullptr; ///< nasconde il badge dopo la verifica
     int           m_maxShots  = 6;
     int           m_tokenCount = 0;
 
@@ -680,6 +682,12 @@ private slots:
     void onCmbModeMathChanged(int idx);
     void onAiAborted();
     void onAiModelChanged(const QString& newModel);
+
+    /* ── Decision Model (badge in toolbar) ── */
+    void onDecisionClassified(const QString& intent, double confidence, bool cached);
+    void onDecisionRetry(const QString& reason);
+    void onDecisionVerified(bool approved, const QString& reason);
+    void _resetDecisionBadge();
 
     /* ── STT / download ── */
     void onRecProcFinished(int exitCode, QProcess::ExitStatus status);

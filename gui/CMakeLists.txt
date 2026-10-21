@@ -562,6 +562,20 @@ if(BUILD_TESTS)
         target_link_libraries(test_signal_lifetime PRIVATE pthread m)
     endif()
 
+    # ── test_decision_badge: badge Decision Model nella toolbar chat (D-72) ──
+    add_executable(test_decision_badge
+        tests/test_decision_badge.cpp
+        tests/mock_ai_client.h
+    )
+    target_include_directories(test_decision_badge PRIVATE
+        ${CMAKE_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/tests
+    )
+    target_link_libraries(test_decision_badge PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
+    if(NOT WIN32)
+        target_link_libraries(test_decision_badge PRIVATE pthread m)
+    endif()
+
     # ── test_rag_engine: solo rag_engine.cpp + Qt (nessuna dipendenza UI) ──
     add_executable(test_rag_engine
         tests/test_rag_engine.cpp
@@ -789,6 +803,20 @@ if(BUILD_TESTS)
     target_link_libraries(test_chat_live PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
     if(NOT WIN32)
         target_link_libraries(test_chat_live PRIVATE pthread m)
+    endif()
+
+    # ── test_decision_live: pipeline Decision Model con Ollama reale (D-72) ──
+    # Non in ctest: richiede tev1:4b + un modello conversazionale.
+    add_executable(test_decision_live
+        tests/test_decision_live.cpp
+    )
+    target_include_directories(test_decision_live PRIVATE
+        ${CMAKE_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/tests
+    )
+    target_link_libraries(test_decision_live PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
+    if(NOT WIN32)
+        target_link_libraries(test_decision_live PRIVATE pthread m)
     endif()
 
     # ── test_multi_agente_live: AgentiMultiPage + GraphMemory ↔ Ollama reale ──
@@ -1634,6 +1662,7 @@ if(BUILD_TESTS)
     add_test(NAME GraphMemoryConcurrent COMMAND test_graph_memory_concurrent)
     add_test(NAME PraticoFinanza        COMMAND test_pratico_finanza)
     add_test(NAME SignalLifetime        COMMAND test_signal_lifetime)
+    add_test(NAME DecisionBadge         COMMAND test_decision_badge)
     add_test(NAME RagEngine            COMMAND test_rag_engine)
     add_test(NAME CodeUtils            COMMAND test_code_utils)
     add_test(NAME RandomTool           COMMAND test_random_tool)

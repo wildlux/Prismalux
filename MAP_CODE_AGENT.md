@@ -377,6 +377,9 @@ Il modulo è `gui/device_split.h/.cpp` (logica pura, nessun hardware):
 `requestStarted(model, backend)`, `toolCallRequired(name, QJsonObject)`.
 `routedToCloud(bool)`, `decisionClassified(intent, confidence, cached)`,
 `decisionRetry(reason)`, `decisionVerified(approved, reason)`.
+`AgentiPage` consuma i tre segnali decisionali per il badge `decisionBadge`
+nella toolbar: intento+confidenza durante la generazione, esito dopo la
+riverifica. I segnali arrivano solo con Decision Model attivo.
 
 ### 7.4 Metodi
 
@@ -644,7 +647,7 @@ Metodi: `open()`, `addNode()`, `addEdge()`, `neighbours()` (BFS), `searchNodes()
 | `main_ai_ui.cpp` | 1738 | `setupUI()` 77, toolbar, chat log, input, pannelli. |
 | `main_ai_panels.cpp` | 1184 | Tools panel, MCP toggle, format bar. |
 | `main_ai_pipeline.cpp` | 2442 | Schemi tool 121–345, `runPipeline()` 531, `advancePipeline()` 860, `runAgent()` 1037, `_finishedPipeline()` 1342, sandbox Docker 2140. |
-| `main_ai_stream.cpp` | 556 | `onToken()` 35, `onFinished()` 180, `onError()` 312. |
+| `main_ai_stream.cpp` | 644 | `onToken()` 35, `onFinished()` 180, `onError()` 312, badge Decision Model (`onDecisionClassified/Retry/Verified`) in coda. |
 | `main_ai_slots.cpp` | 1589 | Send/stop/mode/model/agent, salvataggio chat. |
 | `main_ai_tools.cpp` | 2332 | MCP launch 118, `onToolMcpCall()` 192, discovery 395, `runToolCall()` 490, batch nativo ~2220. |
 | `main_ai_tools_calls.cpp` | 1361 | Un `onTool<Name>()` per tool. |
@@ -987,7 +990,7 @@ Gruppi principali:
 
 ## 15. Test
 
-80 target in `gui/CMakeLists.txt`. Elenco:
+82 target in `gui/CMakeLists.txt`. Elenco:
 
 ```
 test_signal_lifetime test_rag_engine test_code_utils test_random_tool
@@ -1002,7 +1005,7 @@ test_chat_history_stress test_matematica_page test_qr_code_widget
 test_hw_detect_amd test_knowledge_injection test_agenti_pipeline
 test_voice_cloner test_tool_dispatchers_d33 test_agents_config_dialog
 test_ai_client test_ai_math test_ai_knowledge_lookup test_ai_routing
-test_decision_engine test_decision_pipeline test_decision_onnx test_device_split test_lan_wan_core test_mcp_integration test_lan_server
+test_decision_engine test_decision_pipeline test_decision_onnx test_decision_badge test_decision_live test_device_split test_lan_wan_core test_mcp_integration test_lan_server
 test_lan_server_endpoints test_lan_server_queue test_wan_compute_tasks
 test_sci_compute test_sintetizzatore test_stt_whisper test_stt_whisper_live
 test_onboarding test_impostazioni_page test_manutenzione_bugs test_grafico
@@ -1015,15 +1018,17 @@ test_dep_check_panel test_perceptor_scripts test_streamlink_mcp
 
 Categorie:
 
-- **Puri / senza rete**: `test_decision_engine`, `test_decision_pipeline`, `test_decision_onnx`, `test_device_split`, `test_rag_engine`, `test_rag_engine_avanzato`,
+- **Puri / senza rete**: `test_decision_engine`, `test_decision_pipeline`, `test_decision_onnx`, `test_decision_badge`, `test_device_split`, `test_rag_engine`, `test_rag_engine_avanzato`,
   `test_formula_parser`, `test_chat_history`, `test_graph_memory`, `test_thinking_detect`,
   `test_hw_detect_amd`, `test_qr_code_widget`, `test_simulatore_algos`, `test_pratico_finanza`.
-- **Live / richiedono Ollama o rete**: `test_chat_live`, `test_multi_agente_live`,
-  `test_agente_autonomo_live`, `test_stt_whisper_live`, `test_ai_stress`,
-  `test_ai_integration`, `test_lan_server*`.
+- **Live / richiedono Ollama o rete**: `test_chat_live`, `test_decision_live`,
+  `test_multi_agente_live`, `test_agente_autonomo_live`, `test_stt_whisper_live`,
+  `test_ai_stress`, `test_ai_integration`, `test_lan_server*`.
 - **GUI offscreen**: usare `QT_QPA_PLATFORM=offscreen`. D-73:
   `PRISMALUX_D73_SCREENSHOT=/tmp/d73.png QT_QPA_PLATFORM=offscreen ./build_tests/test_impostazioni_page`
   esegue anche i controlli su LLM & DM/Decision Model/RAG e salva lo screenshot.
+  D-72 badge: `PRISMALUX_D72_SCREENSHOT=/tmp/d72_badge.png QT_QPA_PLATFORM=offscreen ./build_tests/test_decision_badge`;
+  pipeline live: `PRISMALUX_D72_LIVE_SCREENSHOT=/tmp/d72_live.png QT_QPA_PLATFORM=offscreen ./build_tests/test_decision_live`.
 - **Qualità ONNX**: `python3 gui/tools/eval_decision_onnx.py --json /tmp/onnx-quality.json`.
 
 Esecuzione mirata:

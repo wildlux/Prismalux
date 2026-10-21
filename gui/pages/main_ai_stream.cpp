@@ -554,3 +554,91 @@ void AgentiPage::runWebSearchAgent(const QString& query)
 }
 
 
+
+/* ══════════════════════════════════════════════════════════════
+   Decision Model — badge in toolbar
+
+   AiClient emette i segnali solo quando il motore è attivo e il gate
+   è passato: nessun badge se il Decision Model è spento. Il badge non
+   sostituisce la risposta, la accompagna: intento durante la
+   generazione, esito della riverifica alla fine.
+   ══════════════════════════════════════════════════════════════ */
+void AgentiPage::_resetDecisionBadge()
+{
+    if (m_decisionBadgeTimer) m_decisionBadgeTimer->stop();
+    if (!m_decisionLbl) return;
+    m_decisionLbl->clear();
+    m_decisionLbl->setToolTip(QString());
+    m_decisionLbl->setVisible(false);
+}
+
+void AgentiPage::onDecisionClassified(const QString& intent, double confidence,
+                                      bool cached)
+{
+    if (!m_decisionLbl) return;
+    if (m_decisionBadgeTimer) m_decisionBadgeTimer->stop();
+
+    const int pct = qBound(0, qRound(confidence * 100.0), 100);
+    if (intent.isEmpty()) {
+        m_decisionLbl->setText(
+            tr("\xf0\x9f\x8f\xb7  intento sotto soglia \xc2\xb7 %1%").arg(pct));
+        m_decisionLbl->setStyleSheet(
+            "color:#94a3b8; font-size:11px; padding:1px 6px;"
+            "border:1px solid #475569; border-radius:6px;");
+        m_decisionLbl->setToolTip(
+            tr("Il Decision Model non ha raggiunto la soglia: la richiesta "
+               "procede senza etichetta di intento."));
+    } else {
+        QString txt = tr("\xf0\x9f\x8f\xb7  %1 \xc2\xb7 %2%")
+                          .arg(intent)
+                          .arg(pct);
+        if (cached) txt += tr(" \xc2\xb7 cache");
+        m_decisionLbl->setText(txt);
+        m_decisionLbl->setStyleSheet(
+            "color:#60a5fa; font-size:11px; padding:1px 6px;"
+            "border:1px solid #3b82f6; border-radius:6px;");
+        m_decisionLbl->setToolTip(
+            cached ? tr("Intento %1 (dalla cache del Decision Model)").arg(intent)
+                   : tr("Intento %1 rilevato dal Decision Model").arg(intent));
+    }
+    m_decisionLbl->setVisible(true);
+}
+
+void AgentiPage::onDecisionRetry(const QString& reason)
+{
+    if (!m_decisionLbl) return;
+    if (m_decisionBadgeTimer) m_decisionBadgeTimer->stop();
+    m_decisionLbl->setText(tr("\xf0\x9f\x94\x81  riverifica: primo tentativo scartato"));
+    m_decisionLbl->setStyleSheet(
+        "color:#f59e0b; font-size:11px; padding:1px 6px;"
+        "border:1px solid #f59e0b; border-radius:6px;");
+    m_decisionLbl->setToolTip(reason.isEmpty()
+        ? tr("La riverifica ha bocciato la prima risposta: ne viene generata una nuova.")
+        : tr("La riverifica ha bocciato la prima risposta: %1").arg(reason));
+    m_decisionLbl->setVisible(true);
+}
+
+void AgentiPage::onDecisionVerified(bool approved, const QString& reason)
+{
+    if (!m_decisionLbl) return;
+    if (m_decisionBadgeTimer) m_decisionBadgeTimer->stop();
+
+    if (approved) {
+        m_decisionLbl->setText(tr("\xe2\x9c\x85  risposta verificata"));
+        m_decisionLbl->setStyleSheet(
+            "color:#4ade80; font-size:11px; padding:1px 6px;"
+            "border:1px solid #22c55e; border-radius:6px;");
+        m_decisionLbl->setToolTip(tr("Il Decision Model ha approvato la risposta."));
+    } else {
+        m_decisionLbl->setText(tr("\xe2\x9a\xa0  risposta non verificata"));
+        m_decisionLbl->setStyleSheet(
+            "color:#f87171; font-size:11px; padding:1px 6px;"
+            "border:1px solid #ef4444; border-radius:6px;");
+        m_decisionLbl->setToolTip(reason.isEmpty()
+            ? tr("La risposta non ha superato la riverifica ed è mostrata comunque.")
+            : tr("La risposta non ha superato la riverifica: %1").arg(reason));
+    }
+    m_decisionLbl->setVisible(true);
+    /* L'esito resta leggibile per qualche secondo, poi libera la toolbar. */
+    if (m_decisionBadgeTimer) m_decisionBadgeTimer->start(approved ? 6000 : 12000);
+}

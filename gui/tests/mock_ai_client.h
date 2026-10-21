@@ -34,6 +34,10 @@ public:
     /** Emette error — simula un errore di rete. */
     void emitError(const QString& msg) { emit error(msg); }
 
+    /** Emette aborted — simula l'annullamento di una richiesta in volo
+     *  (abort() reale emette solo se c'era traffico attivo). */
+    void emitAborted() { emit aborted(); }
+
     /** Sequenza completa: N token identici → finished.
      *  Ritorna il testo totale atteso (concatenazione token). */
     QString emitFullResponse(const QStringList& tokens) {

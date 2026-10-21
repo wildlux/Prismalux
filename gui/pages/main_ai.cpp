@@ -81,6 +81,15 @@ AgentiPage::AgentiPage(AiClient* ai, QWidget* parent)
        blockSignals previene il loop currentIndexChanged → setBackend. */
     connect(m_ai, &AiClient::modelChanged, this, &AgentiPage::onAiModelChanged);
 
+    /* Decision Model: badge intento / riverifica. I segnali arrivano solo
+       quando il motore è attivo e il gate è passato. */
+    connect(m_ai, &AiClient::decisionClassified,
+            this, &AgentiPage::onDecisionClassified);
+    connect(m_ai, &AiClient::decisionRetry,
+            this, &AgentiPage::onDecisionRetry);
+    connect(m_ai, &AiClient::decisionVerified,
+            this, &AgentiPage::onDecisionVerified);
+
     /* Salva automaticamente ogni chat completata nello storico persistente */
     connect(this, &AgentiPage::chatCompleted, this, &AgentiPage::onChatCompletedSave);
 

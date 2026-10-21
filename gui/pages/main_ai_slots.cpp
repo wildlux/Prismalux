@@ -1390,6 +1390,7 @@ void AgentiPage::onAiAborted()
     m_autoRetrySearchResults.clear();  /* niente salvataggio RAG da retry interrotto */
     m_autoAborted     = true;   /* ferma le continuazioni ReAct schedulate */
     m_waitLbl->setVisible(false);
+    _resetDecisionBadge();
 
     /* Rimuove il contenuto parziale dello streaming (testo grezzo non ancora
        convertito in bolla) che va da m_agentBlockStart alla fine del documento. */
