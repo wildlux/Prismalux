@@ -13,6 +13,8 @@
 
 **Local, distributed AI platform — zero cloud, zero subscriptions, everything on your own hardware.**
 
+👥 **Contributors:** wildlux · **OpenCode — DeepSeek V4.1 Flash Free** · **Claude Code — Opus 5.5** — [details](CONTRIBUTORS.md)
+
 🇮🇹 **[Documentazione completa in italiano → README.md](README.md)** (primary, most detailed)
 
 [![Donate PayPal](https://img.shields.io/badge/Donate-PayPal-00457C?style=flat-square&logo=paypal&logoColor=white)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=wildlux%40gmail.com&item_name=Prismalux&currency_code=EUR&source=url)
