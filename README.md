@@ -337,6 +337,16 @@ MCP pratici per il workflow quotidiano: i18n, database, monitoraggio, API, snipp
 
 ---
 
+## Novità (ottobre 2026)
+
+- **Docker** — GUI in container con X11/Wayland, Ollama sul host e dati persistenti; builder Docker separato per generare l'AppImage in modo riproducibile.
+- **Decision Model** — quattro backend: Ollama, DwarfStar, ONNX e llama.cpp, con badge nella chat, verifica e retry.
+- **DwarfStar (ds4)** — integrato il motore di inferenza di Salvatore Sanfilippo (antirez).
+- **Temi** — parità 26/26 tra desktop Qt e webchat LAN, griglia compatta e cambio tema più rapido.
+- **AppImage** — build CI su Ubuntu 24.04/Qt 6.4 e packaging corretto per NSS/OpenSSL.
+
+Dettagli completi: [Note di rilascio](EXPORT/RELEASE_NOTES_2026-10-21.md).
+
 ## Avvio rapido
 
 ### Linux — AppImage (consigliato, zero installazione)

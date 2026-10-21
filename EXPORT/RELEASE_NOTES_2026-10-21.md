@@ -13,7 +13,7 @@ Questo rilascio porta Prismalux più vicino a un'installazione "chiavi in mano":
 - **Docker** per eseguire la GUI e per compilare l'AppImage in modo riproducibile.
 - **Decision Model** con quattro backend: Ollama, DwarfStar, ONNX e llama.cpp.
 - **Temi** desktop/web allineati e cambio tema più rapido.
-- **DwarfStar (ds4) di Salvatore San Filippo / antirez** integrato come backend di inferenza.
+- **DwarfStar (ds4) di Salvatore Sanfilippo / antirez** integrato come backend di inferenza.
 - **Ollama, llama.cpp e ONNX** ricontrollati e fissati nei punti critici.
 
 ---
@@ -94,9 +94,9 @@ Funzionalità incluse:
 
 ---
 
-## DwarfStar (ds4) di Salvatore San Filippo
+## DwarfStar (ds4) di Salvatore Sanfilippo
 
-È stato aggiunto il backend **DwarfStar**, il motore di inferenza di Salvatore San Filippo (antirez), noto anche come **ds4**.
+È stato aggiunto il backend **DwarfStar**, il motore di inferenza di Salvatore Sanfilippo (antirez), noto anche come **ds4**.
 
 Caratteristiche dell'integrazione:
 

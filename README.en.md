@@ -41,6 +41,16 @@ Prismalux is a Qt6/C++ desktop application for people who want to run local AI m
 
 Everything runs locally. The only optional network calls are the ones you explicitly trigger (web search, currency rates, model downloads).
 
+## What's new (October 2026)
+
+- **Docker** — GUI in a container with X11/Wayland, host Ollama and persistent data; a separate Docker builder produces the AppImage reproducibly.
+- **Decision Model** — four backends: Ollama, DwarfStar, ONNX and llama.cpp, with in-chat badge, verification and retry.
+- **DwarfStar (ds4)** — integrated the inference engine by Salvatore Sanfilippo (antirez).
+- **Themes** — 26/26 parity between the Qt desktop and the LAN webchat, compact grid and faster theme switching.
+- **AppImage** — CI build on Ubuntu 24.04/Qt 6.4 and corrected NSS/OpenSSL packaging.
+
+Full details: [Release notes](EXPORT/RELEASE_NOTES_2026-10-21.md).
+
 ## Quick start
 
 ### Linux — AppImage (recommended)
@@ -53,6 +63,19 @@ chmod +x Prismalux-x86_64.AppImage
 ```
 
 Requirement: [Ollama](https://ollama.com) running on `localhost:11434` with at least one model pulled.
+
+### Linux — Docker (GUI or AppImage)
+
+```bash
+# GUI in a container (X11/Wayland, host Ollama, persistent data)
+docker compose -f Tools/docker/docker-compose.yml build
+bash Tools/docker/avvia_docker.sh
+
+# Reproducible AppImage builder (Ubuntu 24.04 / Qt 6.4)
+bash Tools/docker/build_appimage_docker.sh
+```
+
+Details and known limitations: [Release notes](EXPORT/RELEASE_NOTES_2026-10-21.md) and `Tools/docker/`.
 
 ### Build from source
 
