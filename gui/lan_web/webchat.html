@@ -202,6 +202,21 @@ body{font-family:var(--font-ui);background:var(--bg);color:var(--txt);height:100
   #snd{padding:var(--sp-2) 12px;font-size:var(--fs-md)}
   .tab-hd{font-size:15px}
 }
+
+/* ── LW-4: CollapsibleSection + tabelle (equivalenti desktop) ── */
+details.plx-details{border:1px solid var(--brd);border-radius:var(--radius);background:var(--aim);margin-bottom:var(--sp-3);overflow:hidden}
+details.plx-details>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:var(--sp-2);padding:var(--sp-2) var(--sp-3);font-size:var(--fs-md);font-weight:600;color:var(--txt);background:var(--hdr);border-bottom:1px solid transparent}
+details.plx-details>summary::-webkit-details-marker{display:none}
+details.plx-details>summary::before{content:"\25B6";font-size:9px;color:var(--dim);transition:transform .15s}
+details.plx-details[open]>summary{border-bottom-color:var(--brd)}
+details.plx-details[open]>summary::before{transform:rotate(90deg)}
+details.plx-details>summary:focus-visible{outline:2px solid var(--acc);outline-offset:-2px}
+.plx-details-body{padding:var(--sp-3)}
+.plx-table{width:100%;border-collapse:collapse;font-size:var(--fs-md)}
+.plx-table td,.plx-table th{padding:var(--sp-1) var(--sp-2);border-bottom:1px solid var(--brd);vertical-align:middle}
+.plx-table tr:last-child td{border-bottom:none}
+.plx-table tr:hover td{background:rgba(255,255,255,.04)}
+.plx-table thead th{position:sticky;top:0;z-index:1;background:var(--hdr);text-align:left;color:var(--dim);font-size:var(--fs-sm);text-transform:uppercase;letter-spacing:.4px}
 </style>
 <link rel="stylesheet" href="/katex/katex.min.css">
 <script defer src="/katex/katex.min.js"></script>
@@ -250,7 +265,7 @@ body{font-family:var(--font-ui);background:var(--bg);color:var(--txt);height:100
 <div id="tab-fin" style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:none;box-sizing:border-box">
 <div class="tab-hd">💰 Finanza — Codice Fiscale</div>
 <p style="font-size:13px;color:var(--dim);margin-bottom:12px">Calcola il Codice Fiscale italiano (D.M. 1976) — logica eseguita dal server Qt.</p>
-<div style="display:flex;flex-direction:column;gap:10px;max-width:480px">
+<details class="plx-details" data-key="fin-parametri" open><summary>Dati anagrafici</summary><div class="plx-details-body" style="display:flex;flex-direction:column;gap:10px;max-width:480px">
   <div style="display:flex;gap:8px"><div style="flex:1"><span style="font-size:12px;color:var(--dim);display:block;margin-bottom:3px">Nome</span><input id="fin-nome" type="text" class="form-control" placeholder="Mario"></div><div style="flex:1"><span style="font-size:12px;color:var(--dim);display:block;margin-bottom:3px">Cognome</span><input id="fin-cogn" type="text" class="form-control" placeholder="Rossi"></div></div>
   <div style="display:flex;gap:8px"><div style="flex:1"><span style="font-size:12px;color:var(--dim);display:block;margin-bottom:3px">Data di nascita</span><input id="fin-data" type="date" class="form-control"></div><div style="flex:0 0 120px"><span style="font-size:12px;color:var(--dim);display:block;margin-bottom:3px">Sesso</span><select id="fin-sesso" class="form-select" aria-label="Sesso"><option value="M">Maschio</option><option value="F">Femmina</option></select></div></div>
   <div><span style="font-size:12px;color:var(--dim);display:block;margin-bottom:3px">Comune di nascita</span><input id="fin-comune" type="text" class="form-control" placeholder="Roma"></div>
@@ -261,13 +276,13 @@ body{font-family:var(--font-ui);background:var(--bg);color:var(--txt);height:100
     <div id="fin-cf" style="font-size:28px;font-weight:700;font-family:monospace;color:var(--acc);letter-spacing:2px"></div>
     <button id="fin-copy" style="margin-top:10px;background:transparent;border:1px solid var(--brd);color:var(--txt);border-radius:8px;padding:6px 16px;cursor:pointer;font-size:13px">📋 Copia</button>
   </div>
-</div>
+</div></details>
 </div>
 <!-- ── Tab 📅 730 IRPEF ── -->
 <div id="tab-irp" style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:none;box-sizing:border-box">
 <div class="tab-hd">&#x1F4C5; 730 — Calcolo IRPEF 2024</div>
 <p style="font-size:13px;color:var(--dim);margin-bottom:14px">Stima indicativa IRPEF. Aliquote 2024: 23% fino a 28.000€ · 35% fino a 50.000€ · 43% oltre.</p>
-<div style="display:flex;flex-direction:column;gap:10px;max-width:480px">
+<details class="plx-details" data-key="irp-parametri" open><summary>Parametri di calcolo</summary><div class="plx-details-body" style="display:flex;flex-direction:column;gap:10px;max-width:480px">
   <div style="display:flex;gap:8px;flex-wrap:wrap">
     <div style="flex:1;min-width:160px"><span style="font-size:12px;color:var(--dim);display:block;margin-bottom:3px">Reddito lordo annuo (€)</span><input id="irp-reddito" type="number" min="0" max="2000000" step="100" value="30000" class="form-control" placeholder="30000"></div>
     <div style="flex:1;min-width:160px"><span style="font-size:12px;color:var(--dim);display:block;margin-bottom:3px">Detrazioni aggiuntive (€)</span><input id="irp-detr" type="number" min="0" value="0" class="form-control" placeholder="0"></div>
@@ -278,13 +293,13 @@ body{font-family:var(--font-ui);background:var(--bg);color:var(--txt);height:100
   </div>
   <button id="irp-calc" style="background:var(--acc);color:#fff;border:none;border-radius:8px;padding:11px;font-size:15px;cursor:pointer;font-weight:600">&#x1F9EE; Calcola IRPEF</button>
   <div id="irp-result" style="display:none;background:var(--aim);border:1px solid var(--brd);border-radius:10px;padding:14px;font-size:13px;line-height:2"></div>
-</div>
+</div></details>
 </div>
 <!-- ── Tab 📋 P.IVA Forfettario ── -->
 <div id="tab-piv" style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:none;box-sizing:border-box">
 <div class="tab-hd">&#x1F4CB; P.IVA Regime Forfettario</div>
 <p style="font-size:13px;color:var(--dim);margin-bottom:14px">Calcolo imposta sostitutiva + contributi INPS Gestione Separata (regime forfettario L.190/2014).</p>
-<div style="display:flex;flex-direction:column;gap:10px;max-width:480px">
+<details class="plx-details" data-key="piv-parametri" open><summary>Parametri di calcolo</summary><div class="plx-details-body" style="display:flex;flex-direction:column;gap:10px;max-width:480px">
   <div><span style="font-size:12px;color:var(--dim);display:block;margin-bottom:3px">Ricavi/compensi annui (€)</span><input id="piv-ricavi" type="number" min="0" max="85000" step="500" value="40000" class="form-control" placeholder="40000"></div>
   <div style="display:flex;gap:8px;flex-wrap:wrap">
     <div style="flex:2;min-width:180px"><span style="font-size:12px;color:var(--dim);display:block;margin-bottom:3px">Categoria / coefficiente redditività</span><select id="piv-coeff" class="form-select" aria-label="Categoria forfettaria"><option value="0.78">Servizi profess. (78%)</option><option value="0.67">Commercio al dettaglio (67%)</option><option value="0.86">Costruzioni e impianti (86%)</option><option value="0.62">Intermediari del commercio (62%)</option><option value="0.40">Commercio ambulante alim. (40%)</option><option value="0.54">Altre att. economiche (54%)</option></select></div>
@@ -296,7 +311,7 @@ body{font-family:var(--font-ui);background:var(--bg);color:var(--txt);height:100
   </div>
   <button id="piv-calc" style="background:var(--acc);color:#fff;border:none;border-radius:8px;padding:11px;font-size:15px;cursor:pointer;font-weight:600">&#x1F9EE; Calcola</button>
   <div id="piv-result" style="display:none;background:var(--aim);border:1px solid var(--brd);border-radius:10px;padding:14px;font-size:13px;line-height:2"></div>
-</div>
+</div></details>
 </div>
 <!-- ── Tab 🔒 Security Analyzer ── -->
 <div id="tab-sec" style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:none;box-sizing:border-box">
@@ -360,7 +375,7 @@ body{font-family:var(--font-ui);background:var(--bg);color:var(--txt);height:100
 <div id="tab-tfr" style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:none;box-sizing:border-box">
 <div class="tab-hd">📊 TFR — Trattamento di Fine Rapporto</div>
 <p style="font-size:13px;color:var(--dim);margin-bottom:14px">Calcolo TFR secondo art. 2120 c.c. — logica eseguita dal server Qt.</p>
-<div style="display:flex;flex-direction:column;gap:10px;max-width:480px">
+<details class="plx-details" data-key="tfr-parametri" open><summary>Parametri di calcolo</summary><div class="plx-details-body" style="display:flex;flex-direction:column;gap:10px;max-width:480px">
   <div style="display:flex;gap:8px">
     <div style="flex:2"><span style="font-size:12px;color:var(--dim);display:block;margin-bottom:3px">Stipendio lordo annuo (€)</span><input id="tfr-stip" type="number" class="form-control" value="30000" min="1"></div>
     <div style="flex:1"><span style="font-size:12px;color:var(--dim);display:block;margin-bottom:3px">Anni lavorati</span><input id="tfr-anni" type="number" class="form-control" value="10" min="1" max="50"></div>
@@ -372,7 +387,7 @@ body{font-family:var(--font-ui);background:var(--bg);color:var(--txt);height:100
   <button id="tfr-calc" style="background:var(--acc);color:#fff;border:none;border-radius:8px;padding:11px;font-size:15px;cursor:pointer;font-weight:600">📊 Calcola TFR</button>
   <div id="tfr-status" style="font-size:13px;color:var(--dim)"></div>
   <div id="tfr-result" style="display:none;background:var(--aim);border:1px solid var(--acc);border-radius:10px;padding:16px;font-size:14px;line-height:1.8"></div>
-</div>
+</div></details>
 </div>
 
 <!-- ── Tab 🌿 Git ── -->
@@ -703,6 +718,14 @@ var TIRP=document.getElementById('tab-irp'),TPIV=document.getElementById('tab-pi
 var TRIC=document.getElementById('tab-ric'),TCRN=document.getElementById('tab-crn'),TMAG=document.getElementById('tab-mag'),TOSC=document.getElementById('tab-osc');
 function switchTab(n){TABS.forEach(function(t){t.classList.toggle('on',t.dataset.tab===n);});TC.className=n==='chat'?'tab-on-flex':'tab-off';TA.className=n==='apps'?'tab-on-block':'tab-off';TS.className=n==='sys'?'tab-on-block':'tab-off';TM.className=n==='mat'?'tab-on-block':'tab-off';TG.className=n==='age'?'tab-on-block':'tab-off';TI.className=n==='imp'?'tab-on-block':'tab-off';TU.className=n==='mul'?'tab-on-block':'tab-off';TR.className=n==='rag'?'tab-on-block':'tab-off';TCOD.className=n==='cod'?'tab-on-block':'tab-off';TGVZ.className=n==='gvz'?'tab-on-block':'tab-off';TWSP.className=n==='wsp'?'tab-on-block':'tab-off';TLAV.className=n==='lav'?'tab-on-block':'tab-off';TFIL.className=n==='fil'?'tab-on-block':'tab-off';TFIN.className=n==='fin'?'tab-on-block':'tab-off';TGRF.className=n==='grf'?'tab-on-block':'tab-off';TREPL.className=n==='repl'?'tab-on-block':'tab-off';TKNW.className=n==='knw'?'tab-on-block':'tab-off';TTFR.className=n==='tfr'?'tab-on-block':'tab-off';TGIT.className=n==='git'?'tab-on-block':'tab-off';TWIK.className=n==='wik'?'tab-on-block':'tab-off';TAUT.className=n==='aut'?'tab-on-block':'tab-off';TSFD.className=n==='sfd'?'tab-on-block':'tab-off';TIRP.className=n==='irp'?'tab-on-block':'tab-off';TPIV.className=n==='piv'?'tab-on-block':'tab-off';TSEC.className=n==='sec'?'tab-on-block':'tab-off';TRIC.className=n==='ric'?'tab-on-block':'tab-off';TCRN.className=n==='crn'?'tab-on-block':'tab-off';TMAG.className=n==='mag'?'tab-on-block':'tab-off';TOSC.className=n==='osc'?'tab-on-block':'tab-off';if(n==='sys'){fetchSys();if(!sysItv)sysItv=setInterval(fetchSys,3000);}else{if(sysItv){clearInterval(sysItv);sysItv=null;}}}
 TABS.forEach(function(t){t.addEventListener('click',function(){switchTab(this.dataset.tab);});});
+
+/* LW-4: stato aperto/chiuso delle sezioni, per dispositivo (come D-61 sul desktop) */
+document.querySelectorAll('details.plx-details').forEach(function(d){
+  var k='plx-det-'+d.dataset.key, v=null;
+  try{v=localStorage.getItem(k);}catch(e){}
+  if(v==='1')d.open=true; else if(v==='0')d.open=false;
+  d.addEventListener('toggle',function(){try{localStorage.setItem(k,d.open?'1':'0');}catch(e){}});
+});
 switchTab('chat');
 document.querySelectorAll('.app-btn').forEach(function(btn){btn.addEventListener('click',async function(){const cmd=this.dataset.cmd;const st=this.querySelector('.app-st');if(st){st.textContent='...';st.className='app-st';}
 try{const r=await fetch('/api/launch',{method:'POST',headers:{'Content-Type':'application/json',{{AUTH_HEADERS_JS}}},body:JSON.stringify({app:cmd})});
@@ -958,7 +981,7 @@ document.getElementById('irp-calc').addEventListener('click',function(){
   var res=document.getElementById('irp-result');
   res.style.display='block';
   function fmt(n){return n.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})+'&#x20AC;';}
-  res.innerHTML='<table style="width:100%;border-collapse:collapse;font-size:13px">'
+  res.innerHTML='<table class="plx-table" style="width:100%">'
     +'<tr><td>Reddito lordo</td><td style="text-align:right;font-weight:600">'+fmt(R)+'</td></tr>'
     +'<tr style="color:var(--dim)"><td>&#8212; IRPEF lorda</td><td style="text-align:right">&#x2212;'+fmt(irpefLorda)+'</td></tr>'
     +'<tr style="color:#4ade80"><td>+ Detrazione tipo reddito</td><td style="text-align:right">+'+fmt(detrReddito)+'</td></tr>'
@@ -992,7 +1015,7 @@ document.getElementById('piv-calc').addEventListener('click',function(){
   var res=document.getElementById('piv-result');
   res.style.display='block';
   function fmt(n){return n.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})+'&#x20AC;';}
-  res.innerHTML='<table style="width:100%;border-collapse:collapse;font-size:13px">'
+  res.innerHTML='<table class="plx-table" style="width:100%">'
     +'<tr><td>Ricavi lordi</td><td style="text-align:right;font-weight:600">'+fmt(ricavi)+'</td></tr>'
     +'<tr style="color:var(--dim)"><td>Coefficiente redditività ('+Math.round(coeff*100)+'%)</td><td style="text-align:right">'+fmt(imponibile)+'</td></tr>'
     +(inps>0?'<tr style="color:var(--dim)"><td>&#8212; Contributi INPS</td><td style="text-align:right">&#x2212;'+fmt(inps)+'</td></tr>':'')
@@ -1277,7 +1300,7 @@ tfrCalc.addEventListener('click',async function(){
     var fmt=function(n){return n.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2});};
     tfrResult.innerHTML=
       '<b>💼 Scheda TFR — Trattamento di Fine Rapporto</b><br><br>'+
-      '<table style="width:100%;border-collapse:collapse;font-size:13px">'+
+      '<table class="plx-table" style="width:100%">'+
       '<tr><td style="color:var(--dim);padding:3px 0">Stipendio lordo annuo</td><td style="text-align:right"><b>'+fmt(d.stipendio_annuo)+' €</b></td></tr>'+
       '<tr><td style="color:var(--dim);padding:3px 0">Anni lavorati</td><td style="text-align:right"><b>'+d.anni+'</b></td></tr>'+
       '<tr><td style="color:var(--dim);padding:3px 0">Quota annua (÷ 13,5)</td><td style="text-align:right"><b>'+fmt(d.quota_annua)+' €</b></td></tr>'+
