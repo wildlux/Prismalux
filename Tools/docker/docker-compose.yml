@@ -1,8 +1,9 @@
 services:
   prismalux:
     build:
-      context: ..
-      dockerfile: DOCKER/Dockerfile
+      # Il compose si trova in Tools/docker/: la root del repo è ../..
+      context: ../..
+      dockerfile: Tools/docker/Dockerfile
       target: runtime
     image: prismalux:latest
     container_name: prismalux
@@ -14,6 +15,7 @@ services:
       - QT_QPA_PLATFORM=${QT_QPA_PLATFORM:-xcb}
       - QT_AUTO_SCREEN_SCALE_FACTOR=1
       - XAUTHORITY=${XAUTHORITY:-}
+      - XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/tmp/runtime-prismalux}
       # Ollama sul host Linux (network=host → localhost funziona direttamente)
       - OLLAMA_HOST=localhost
 
@@ -23,9 +25,11 @@ services:
       # Xauthority (autenticazione X11)
       - ${XAUTHORITY:-/dev/null}:/home/prismalux/.Xauthority:ro
       # Dati utente persistenti: settings, RAG, knowledge, chat history
-      - prismalux_data:/data/prismalux
+      - prismalux_data:/home/prismalux/.prismalux
       # Cartella RAG locale (montata in sola lettura)
       - ${HOME}/prismalux_rag_docs:/home/prismalux/prismalux_rag_docs:ro
+      # Wayland: monta la runtime dir del host (se disponibile)
+      - ${XDG_RUNTIME_DIR:-/tmp/runtime-prismalux}:${XDG_RUNTIME_DIR:-/tmp/runtime-prismalux}:rw
 
     # ── Rete ────────────────────────────────────────────────────────
     # host: il container condivide la rete del PC → localhost:11434 = Ollama sul host

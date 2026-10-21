@@ -1,0 +1,87 @@
+# ═══════════════════════════════════════════════════════════════════════
+#  Prismalux — Dockerfile builder AppImage (Ubuntu 24.04 + Qt 6.4)
+#
+#  Riproduce l'ambiente della CI GitHub e genera:
+#    /out/Prismalux-x86_64.AppImage
+#    /out/Prismalux-x86_64.AppImage.sha256
+#
+#  Build + estrazione (dalla root del repo):
+#    bash Tools/docker/build_appimage_docker.sh
+#
+#  Oppure manualmente:
+#    docker build -t prismalux-appimage-builder \
+#      -f Tools/docker/Dockerfile.appimage .
+#    cid=$(docker create prismalux-appimage-builder)
+#    docker cp "$cid:/out/Prismalux-x86_64.AppImage" EXPORT/linux/
+#    docker rm "$cid"
+#
+#  Nota: il contesto è la root del repo; .dockerignore include solo
+#  EXPORT/linux/crea_appimage.sh, non gli altri artefatti di EXPORT/.
+# ═══════════════════════════════════════════════════════════════════════
+
+FROM ubuntu:24.04 AS appimage
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    TZ=Europe/Rome
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    cmake \
+    ninja-build \
+    pkg-config \
+    curl \
+    ca-certificates \
+    file \
+    patchelf \
+    libfuse2t64 \
+    qt6-base-dev \
+    qt6-base-private-dev \
+    qt6-svg-dev \
+    qt6-multimedia-dev \
+    qt6-webengine-dev \
+    qtkeychain-qt6-dev \
+    libgl1-mesa-dev \
+    libgles2-mesa-dev \
+    libxkbcommon-x11-0 \
+    libxcb-cursor0 \
+    libxcb-icccm4 \
+    libxcb-image0 \
+    libxcb-keysyms1 \
+    libxcb-randr0 \
+    libxcb-render-util0 \
+    libxcb-shape0 \
+    libxcb-xinerama0 \
+    libxcb-xkb1 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /src
+
+COPY gui/                                       ./gui/
+COPY ICONA/                                     ./ICONA/
+COPY Tools/docker/quiz_ccna.db                  ./Tools/docker/quiz_ccna.db
+COPY EXPORT/linux/crea_appimage.sh              ./EXPORT/linux/crea_appimage.sh
+RUN chmod +x ./EXPORT/linux/crea_appimage.sh
+
+RUN cmake -S gui -B build_gui \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_CXX_FLAGS="-O2" \
+    && cmake --build build_gui -j"$(nproc)"
+
+# L'icona che crea_appimage.sh cerca per prima.
+RUN mkdir -p EXPORT/assets \
+    && cp ICONA/prismalux.png EXPORT/assets/prismalux.png
+
+# appimagetool è un'AppImage: la script lo esegue con APPIMAGE_EXTRACT_AND_RUN=1.
+RUN curl -fsSL -o /usr/local/bin/appimagetool \
+        "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage" \
+    && chmod +x /usr/local/bin/appimagetool
+
+RUN ./EXPORT/linux/crea_appimage.sh --no-build
+
+RUN mkdir -p /out \
+    && cp EXPORT/linux/Prismalux-x86_64.AppImage /out/ \
+    && cd /out \
+    && sha256sum Prismalux-x86_64.AppImage \
+         > Prismalux-x86_64.AppImage.sha256
+
+CMD ["/bin/bash"]

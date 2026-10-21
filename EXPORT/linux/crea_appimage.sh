@@ -204,6 +204,7 @@ QT6_NEEDED=(
   libQt6Positioning libQt6Quick libQt6Qml libQt6QmlModels
   libicui18n libicuuc libicudata
   libstdc++ libdouble-conversion libpcre2-16 libzstd
+  libssl libcrypto
   libharfbuzz libfreetype libfontconfig libpng16
   libxkbcommon libxkbcommon-x11 libxcb libxcb-util
   libxcb-cursor libxcb-icccm4 libxcb-image libxcb-keysyms1
@@ -323,6 +324,20 @@ for d in wayland-decoration-client wayland-graphics-integration-client wayland-s
   for f in "${QT_PLUGINS_DIR}/$d"/*.so; do
     [[ -f "$f" ]] && _copy_plugin "$f" "$d"
   done
+done
+
+# ── 7b. NSS/NSPR: NON includerli nell'AppImage ────────────────
+# QtWebEngine carica i moduli NSS del sistema (libsoftokn3.so,
+# libfreebl3.so, ...) che devono combaciare con libnssutil3.so.
+# Se includiamo la vecchia libnssutil3.so di Ubuntu 24.04, su host
+# con NSS più recente (es. Ubuntu 26.04) il modulo softokn del host
+# fallisce con "version `NSSUTIL_3.108' not found". Lasciamo quindi
+# che NSS/NSPR vengano presi interamente dal sistema.
+for _nss in libnss3.so libnssutil3.so libsmime3.so libssl3.so \
+            libsoftokn3.so libfreebl3.so libfreeblpriv3.so \
+            libnssckbi.so libnssdbm3.so libnsssysinit.so \
+            libnspr4.so libplc4.so libplds4.so; do
+  rm -f "${APPDIR}/usr/lib/${_nss}"*
 done
 
 ok "Plugin Qt copiati."

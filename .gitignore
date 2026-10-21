@@ -201,6 +201,7 @@ TOOL_TIP/KNOWLEDGE_USER/
 
 # ── Artefatti di distribuzione (rigenerati da aggiorna.sh) ───────────────────
 EXPORT/linux/Prismalux*.AppImage
+EXPORT/linux/Prismalux*.sha256
 EXPORT/linux/Prismalux*.zip
 EXPORT/windows/Prismalux*.zip
 EXPORT/CODICE_CONDIVISO/*.zip

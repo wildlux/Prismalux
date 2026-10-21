@@ -157,6 +157,27 @@ Altre define: `PRISMALUX_ROOT="<source>/.."` (path di sviluppo, verificato a run
 
 Post-build: copia `themes/` accanto al binario; su Windows `windeployqt`, su macOS `macdeployqt`.
 
+### 3.5 Docker e distribuzione
+
+| File | Scopo |
+|---|---|
+| `Tools/docker/Dockerfile` | Runtime GUI multi-stage: Ubuntu 24.04 + Qt 6.4, utente `prismalux`, temi e Quiz CCNA inclusi, volume `/home/prismalux/.prismalux`. |
+| `Tools/docker/Dockerfile.appimage` | Builder AppImage riproducibile: Ubuntu 24.04 + Qt 6.4, usa `EXPORT/linux/crea_appimage.sh` e produce `/out/Prismalux-x86_64.AppImage`. |
+| `Tools/docker/docker-compose.yml` | Compose per GUI: context `../..`, X11/Wayland, `network_mode: host` per Ollama, volume dati. |
+| `Tools/docker/avvia_docker.sh` | Avvio GUI con mount X11/Wayland, GPU opzionale e volume persistente. |
+| `Tools/docker/build_appimage_docker.sh` | Build del builder e estrazione di AppImage + checksum in `EXPORT/linux/`. |
+
+```bash
+# GUI in Docker
+docker compose -f Tools/docker/docker-compose.yml build
+bash Tools/docker/avvia_docker.sh
+
+# AppImage riproducibile
+bash Tools/docker/build_appimage_docker.sh
+```
+
+Nota AppImage: le librerie NSS/NSPR non vengono incluse, perché Qt WebEngine deve usare i moduli NSS del sistema; OpenSSL (`libssl`/`libcrypto`) viene invece incluso per il backend TLS di Qt.
+
 ---
 
 ## 4. Avvio

@@ -353,6 +353,19 @@ APPIMAGE_EXTRACT_AND_RUN=1 ./Prismalux-x86_64.AppImage
 sudo apt install libfuse2t64
 ```
 
+### Linux — Docker (GUI o AppImage)
+
+```bash
+# GUI in container (X11/Wayland, Ollama sul host, dati persistenti)
+docker compose -f Tools/docker/docker-compose.yml build
+bash Tools/docker/avvia_docker.sh
+
+# AppImage riproducibile in Ubuntu 24.04 / Qt 6.4
+bash Tools/docker/build_appimage_docker.sh
+```
+
+Dettagli e limitazioni in `EXPORT/RELEASE_NOTES_2026-10-21.md` e `Tools/docker/`.
+
 ### Linux — PC nuovo (script automatico)
 
 ```bash

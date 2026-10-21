@@ -3,11 +3,11 @@
 #  avvia_docker.sh — Avvia Prismalux in Docker con supporto X11/Wayland
 #
 #  Uso:
-#    bash DOCKER/avvia_docker.sh           # avvio normale
-#    bash DOCKER/avvia_docker.sh --build   # rebuild immagine + avvio
-#    bash DOCKER/avvia_docker.sh --shell   # entra nel container (debug)
-#    bash DOCKER/avvia_docker.sh --nvidia  # abilita GPU NVIDIA
-#    bash DOCKER/avvia_docker.sh --amd     # abilita GPU AMD via /dev/dri
+#    bash Tools/docker/avvia_docker.sh           # avvio normale
+#    bash Tools/docker/avvia_docker.sh --build   # rebuild immagine + avvio
+#    bash Tools/docker/avvia_docker.sh --shell   # entra nel container (debug)
+#    bash Tools/docker/avvia_docker.sh --nvidia  # abilita GPU NVIDIA
+#    bash Tools/docker/avvia_docker.sh --amd     # abilita GPU AMD via /dev/dri
 # ═══════════════════════════════════════════════════════════════════════
 set -euo pipefail
 
@@ -21,7 +21,7 @@ fail() { echo -e "${R}  ❌  $*${N}"; exit 1; }
 step() { echo -e "\n${B}▶ $*${N}"; }
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 DO_BUILD=0
 DO_SHELL=0
@@ -35,7 +35,7 @@ for arg in "$@"; do
         --nvidia) GPU_NVIDIA=1 ;;
         --amd)    GPU_AMD=1 ;;
         --help|-h)
-            echo "Uso: bash DOCKER/avvia_docker.sh [opzioni]"
+            echo "Uso: bash Tools/docker/avvia_docker.sh [opzioni]"
             echo "  --build   Ricostruisce l'immagine prima di avviare"
             echo "  --shell   Apre una shell nel container (debug)"
             echo "  --nvidia  Abilita GPU NVIDIA (richiede nvidia-container-toolkit)"
@@ -111,6 +111,10 @@ echo ""
 DRI_ARGS=()
 [ -d /dev/dri ] && DRI_ARGS=(--device /dev/dri)
 
+# Wayland: usa la runtime dir del host, così il socket wayland-* è visibile
+RUNTIME_DIR="${XDG_RUNTIME_DIR:-/tmp/runtime-prismalux}"
+mkdir -p "$RUNTIME_DIR" 2>/dev/null || true
+
 docker run --rm -it \
     --name prismalux \
     --network host \
@@ -119,10 +123,11 @@ docker run --rm -it \
     -e QT_QPA_PLATFORM="${QT_QPA_PLATFORM:-xcb}" \
     -e QT_AUTO_SCREEN_SCALE_FACTOR=1 \
     -e XAUTHORITY="${XAUTHORITY:-}" \
-    -e XDG_RUNTIME_DIR=/tmp/runtime-prismalux \
+    -e XDG_RUNTIME_DIR="$RUNTIME_DIR" \
     -v /tmp/.X11-unix:/tmp/.X11-unix:rw \
     -v "${XAUTHORITY:-/dev/null}:/home/prismalux/.Xauthority:ro" \
-    -v prismalux_data:/data/prismalux \
+    -v "$RUNTIME_DIR:$RUNTIME_DIR:rw" \
+    -v prismalux_data:/home/prismalux/.prismalux \
     "${DRI_ARGS[@]}" \
     "${GPU_ARGS[@]}" \
     prismalux:latest \

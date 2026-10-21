@@ -47,7 +47,11 @@ errore.txt
 
 # ── Screenshot e asset non necessari ──────────────────────────────
 SCREENSHOT/
-EXPORT/
+# EXPORT contiene AppImage/ZIP enormi: includi solo lo script del builder.
+EXPORT/*
+!EXPORT/linux/
+EXPORT/linux/*
+!EXPORT/linux/crea_appimage.sh
 TEST_OPENCODE/
 Test/
 web_preview/
