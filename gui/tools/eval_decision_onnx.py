@@ -11,11 +11,15 @@ non l'accuratezza sul training set.
 Uso:
     python3 gui/tools/eval_decision_onnx.py
     python3 gui/tools/eval_decision_onnx.py --json /tmp/onnx-quality.json
-    python3 gui/tools/eval_decision_onnx.py --min-classifier 0.70 --min-verifier 0.70
+    python3 gui/tools/eval_decision_onnx.py --min-classifier 0.70 --min-verifier 0.95
 
 Il verificatore è un modello lessicale: misura rifiuti, risposte vuote,
 bassa pertinenza e risposte generiche. Non è un fact-checker e non può
 sapere se "Berlino" è la risposta sbagliata alla domanda sulla Francia.
+Il benchmark stampa due righe: modello grezzo e modello + guardie
+deterministiche (il comportamento effettivo del backend), su un set dev
+e su un set blind. I casi di fatto sbagliato sono elencati in
+`OUT_OF_SCOPE` e non entrano nelle metriche.
 
 Dipendenze: numpy, onnxruntime. Il file `gen_decision_onnx.py` nella stessa
 cartella viene importato per usare le STESSE feature del runtime C++.
@@ -138,8 +142,6 @@ VERIFY = [
     ("N", "come si cura il mal di testa", "Basta."),
     ("N", "spiega la fotosintesi", "La fotosintesi è un processo molto importante e interessante."),
     ("N", "write a Python function to reverse a string", "I cannot help with that."),
-    ("N", "what is the capital of France", "Berlin."),
-    ("N", "why is the sky blue", "Because of gravity."),
     ("N", "consigliami un film", "No idea, sorry."),
     ("N", "come si usa git rebase", "Git è uno strumento utile."),
     ("N", "calcola l'area di un cerchio di raggio 3", "Il risultato è un numero."),
@@ -152,6 +154,92 @@ VERIFY = [
     ("N", "calcola l'area di un cerchio di raggio 3", "Il cerchio ha un raggio e un diametro."),
 ]
 
+
+
+# ── Secondo set held-out (blind) ──────────────────────────────────────
+# Non usato né per il training né per scegliere le guardie. Il caso
+# "Munich" è un errore di fatto ed è elencato in OUT_OF_SCOPE: un
+# verificatore lessicale non può correggerlo.
+BLIND = [
+    ('Y', 'come si inverte una stringa in Python',
+     'Puoi usare lo slicing: s[::-1].'),
+    ('Y', 'qual è la capitale della Spagna',
+     'Madrid.'),
+    ('Y', 'quanto fa 24 per 3',
+     '72.'),
+    ('Y', 'come si cura il raffreddore',
+     'Riposo, liquidi e, se serve, un decongestionante.'),
+    ('Y', 'spiega la gravità',
+     "La gravità è l'attrazione tra masse; sulla Terra ci tiene al suolo."),
+    ('Y', 'write a JavaScript function to sum two numbers',
+     'function sum(a,b){return a+b;}'),
+    ('Y', 'what is the capital of Germany',
+     'Berlin.'),
+    ('Y', 'why do leaves turn yellow in autumn',
+     'Chlorophyll breaks down, revealing yellow carotenoid pigments.'),
+    ('Y', 'consigliami un libro',
+     "Ti consiglio 'Il nome della rosa': mistero, storia e filosofia."),
+    ('Y', 'come si crea un branch in git',
+     'Usa git checkout -b nome-branch oppure git switch -c nome-branch.'),
+    ('Y', 'calcola il perimetro di un quadrato di lato 5',
+     'Perimetro = 4 × 5 = 20.'),
+    ('Y', 'chi ha dipinto la Cappella Sistina',
+     'Michelangelo Buonarroti.'),
+    ('Y', 'how do I reverse a list in Python',
+     'Use my_list[::-1] or my_list.reverse() to reverse in place.'),
+    ('Y', 'what is 20 percent of 150',
+     '30.'),
+    ('Y', 'explain photosynthesis',
+     'Plants use sunlight, water and CO2 to make glucose and release oxygen.'),
+    ('Y', 'quanto fa 9+7',
+     '16.'),
+    ('N', 'come si inverte una stringa in Python',
+     'Non lo so.'),
+    ('N', 'qual è la capitale della Spagna',
+     'Oggi piove.'),
+    ('N', 'quanto fa 24 per 3',
+     'Non posso rispondere.'),
+    ('N', 'come si cura il raffreddore',
+     'Basta.'),
+    ('N', 'spiega la gravità',
+     'La gravità è un argomento molto importante.'),
+    ('N', 'write a JavaScript function to sum two numbers',
+     'I cannot help with that.'),
+    ('N', 'why do leaves turn yellow in autumn',
+     'Because of the weather.'),
+    ('N', 'consigliami un libro',
+     'No idea, sorry.'),
+    ('N', 'come si crea un branch in git',
+     'Git è uno strumento utile.'),
+    ('N', 'calcola il perimetro di un quadrato di lato 5',
+     'Il risultato è un numero.'),
+    ('N', 'chi ha dipinto la Cappella Sistina',
+     'Non ho informazioni sufficienti.'),
+    ('N', 'how do I reverse a list in Python',
+     'Sure.'),
+    ('N', 'what is 20 percent of 150',
+     'The weather is nice.'),
+    ('N', 'explain photosynthesis',
+     'It is a famous process.'),
+    ('N', 'come si inverte una stringa in Python',
+     'Python è un linguaggio di programmazione.'),
+    ('N', 'qual è la capitale della Spagna',
+     'La Spagna è un paese europeo.'),
+    ('N', 'calcola il perimetro di un quadrato di lato 5',
+     'Il quadrato ha quattro lati.'),
+    ('N', 'how do I reverse a list in Python',
+     'Python is a programming language.'),
+    ('N', 'what is 20 percent of 150',
+     'The result is a number.'),
+]
+
+# Casi che il verificatore NON può giudicare: sono errori di fatto, non
+# problemi di pertinenza. Li teniamo separati e fuori dal conteggio.
+OUT_OF_SCOPE = [
+    ("N", "what is the capital of France", "Berlin.", "fatto sbagliato"),
+    ("N", "why is the sky blue", "Because of gravity.", "fatto sbagliato"),
+    ("N", "what is the capital of Germany", "Munich.", "fatto sbagliato"),
+]
 
 def softmax(x: np.ndarray) -> np.ndarray:
     e = np.exp(x - x.max())
@@ -213,22 +301,7 @@ def run_classifier(session):
     return result
 
 
-def run_verifier(session):
-    labels = gen.VERIFIER_LABELS
-    input_name = session.get_inputs()[0].name
-    rows = []
-    for expected, question, answer in VERIFY:
-        x = np.asarray([gen.features_pair(question, answer)], dtype=np.float32)
-        logits = session.run(None, {input_name: x})[0][0]
-        prob = softmax(logits)
-        pred = labels[int(prob.argmax())]
-        rows.append({
-            "expected": expected,
-            "predicted": pred,
-            "confidence": float(prob.max()),
-            "question": question,
-            "answer": answer,
-        })
+def _rows_metrics(rows, labels):
     result = metrics([r["expected"] for r in rows],
                      [r["predicted"] for r in rows], labels)
     result.update({
@@ -239,6 +312,49 @@ def run_verifier(session):
         "labels": labels,
     })
     return result
+
+
+def run_verifier(session, cases):
+    """Valuta modello grezzo e pipeline effettiva (modello + guardie)."""
+    labels = gen.VERIFIER_LABELS
+    input_name = session.get_inputs()[0].name
+    raw_rows, guarded_rows = [], []
+    for expected, question, answer in cases:
+        x = np.asarray([gen.features_pair(question, answer)], dtype=np.float32)
+        logits = session.run(None, {input_name: x})[0][0]
+        prob = softmax(logits)
+        raw_pred = labels[int(prob.argmax())]
+        raw_conf = float(prob.max())
+
+        guard_label, guard_reason = gen.relevance_guard(question, answer)
+        final_pred = guard_label or raw_pred
+
+        base = {
+            "expected": expected,
+            "question": question,
+            "answer": answer,
+        }
+        raw_rows.append({**base,
+                         "predicted": raw_pred,
+                         "confidence": raw_conf,
+                         "guard_reason": ""})
+        guarded_rows.append({**base,
+                             "predicted": final_pred,
+                             "confidence": 1.0 if guard_label else raw_conf,
+                             "guard_reason": guard_reason,
+                             "guard_applied": bool(guard_label)})
+
+    return {
+        "raw": _rows_metrics(raw_rows, labels),
+        "guarded": _rows_metrics(guarded_rows, labels),
+    }
+
+
+def print_verifier(title, result, show_errors=True):
+    print_section(title, result, show_errors)
+    applied = sum(1 for r in result["rows"] if r.get("guard_applied"))
+    if applied:
+        print(f"guardie deterministiche applicate: {applied}/{result['count']}")
 
 
 def print_section(title, result, show_errors=True):
@@ -272,7 +388,14 @@ def main() -> int:
     parser.add_argument("--min-classifier", type=float, default=0.0,
                         help="soglia minima di accuratezza classificatore (0-1)")
     parser.add_argument("--min-verifier", type=float, default=0.0,
-                        help="soglia minima di accuratezza verificatore (0-1)")
+                        help="soglia minima per il verificatore effettivo "
+                             "(modello + guardie) sul set dev (0-1)")
+    parser.add_argument("--min-verifier-raw", type=float, default=0.0,
+                        help="soglia minima per il solo modello verificatore "
+                             "sul set dev (0-1)")
+    parser.add_argument("--min-verifier-blind", type=float, default=0.0,
+                        help="soglia minima per il verificatore effettivo "
+                             "sul set blind (0-1)")
     parser.add_argument("--quiet-errors", action="store_true",
                         help="non stampare l'elenco degli errori")
     args = parser.parse_args()
@@ -287,16 +410,35 @@ def main() -> int:
     ver_session = ort.InferenceSession(str(ver_path), providers=["CPUExecutionProvider"])
 
     classifier = run_classifier(clf_session)
-    verifier = run_verifier(ver_session)
+    verifier = run_verifier(ver_session, VERIFY)
+    verifier_blind = run_verifier(ver_session, BLIND)
+    out_of_scope = run_verifier(
+        ver_session, [(e, q, a) for e, q, a, _ in OUT_OF_SCOPE])
 
     print("Decision ONNX — benchmark held-out")
     print(f"modelli: {clf_path.name} ({clf_path.stat().st_size} B), "
           f"{ver_path.name} ({ver_path.stat().st_size} B)")
     print_section("CLASSIFIER", classifier, not args.quiet_errors)
-    print_section("VERIFIER", verifier, not args.quiet_errors)
+    print_verifier("VERIFIER dev — modello grezzo", verifier["raw"],
+                   not args.quiet_errors)
+    print_verifier("VERIFIER dev — modello + guardie", verifier["guarded"],
+                   not args.quiet_errors)
+    print_verifier("VERIFIER blind — modello grezzo", verifier_blind["raw"],
+                   not args.quiet_errors)
+    print_verifier("VERIFIER blind — modello + guardie", verifier_blind["guarded"],
+                   not args.quiet_errors)
+
+    print("\nFuori scope (errori di fatto, NON contati nelle metriche):")
+    for r in out_of_scope["guarded"]["rows"]:
+        print(f"  atteso {r['expected']} -> effettivo {r['predicted']}  "
+              f"Q={r['question']} | A={r['answer']}")
 
     print("\nNota: il verificatore misura rifiuti/risposte vuote/bassa pertinenza; "
-          "non è un fact-checker.")
+          "non è un fact-checker. Le guardie sono deterministiche e non usano rete.")
+    print("La riga 'modello grezzo' è la qualità del modello ONNX; la riga "
+          "'modello + guardie' è il comportamento effettivo del backend. "
+          "Su questi set le guardie coprono molti/tutti i casi: non è "
+          "accuratezza appresa dal modello.")
 
     if args.json:
         payload = {
@@ -306,6 +448,8 @@ def main() -> int:
             },
             "classifier": classifier,
             "verifier": verifier,
+            "verifier_blind": verifier_blind,
+            "out_of_scope": out_of_scope,
         }
         Path(args.json).write_text(json.dumps(payload, indent=2, ensure_ascii=False),
                                    encoding="utf-8")
@@ -315,8 +459,17 @@ def main() -> int:
     if args.min_classifier and classifier["accuracy"] < args.min_classifier:
         print(f"❌ classifier {classifier['accuracy']:.3f} < {args.min_classifier:.3f}")
         failed = True
-    if args.min_verifier and verifier["accuracy"] < args.min_verifier:
-        print(f"❌ verifier {verifier['accuracy']:.3f} < {args.min_verifier:.3f}")
+    guarded_acc = verifier["guarded"]["accuracy"]
+    raw_acc = verifier["raw"]["accuracy"]
+    blind_acc = verifier_blind["guarded"]["accuracy"]
+    if args.min_verifier and guarded_acc < args.min_verifier:
+        print(f"❌ verifier guarded {guarded_acc:.3f} < {args.min_verifier:.3f}")
+        failed = True
+    if args.min_verifier_raw and raw_acc < args.min_verifier_raw:
+        print(f"❌ verifier raw {raw_acc:.3f} < {args.min_verifier_raw:.3f}")
+        failed = True
+    if args.min_verifier_blind and blind_acc < args.min_verifier_blind:
+        print(f"❌ verifier blind {blind_acc:.3f} < {args.min_verifier_blind:.3f}")
         failed = True
     return 1 if failed else 0
 

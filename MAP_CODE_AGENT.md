@@ -496,15 +496,28 @@ Due modelli lineari locali, **non LLM**, inclusi nel repository:
 
 - **Feature hashing** (`DecisionOnnx::featuresText/featuresPair`): normalizzazione
   lowercase + separatori, token parola, 4-grammi di carattere, bigrammi di parole,
-  FNV-1a 32 bit su UTF-8, mod 512, L2-normalize. Il verificatore aggiunge token
-  `a:` per la risposta e pseudo-token `x_ov_*`, `x_len_*`, `x_ratio_*`,
-  `x_refusal`, `x_empty`.
+  FNV-1a 32 bit su UTF-8, L2-normalize. Il classificatore usa 512 bucket di testo.
+  Il verificatore usa i **bucket 0..63 riservati ai segnali strutturati** (indice
+  fisso, niente collisioni con le parole) e i bucket 64..511 (448) per il testo.
+  Segnali: `x_ov_*`, `x_len_*`, `x_ratio_*`, `x_refusal`, `x_empty`, tipologia
+  domanda (`x_q_num/who/where/when/how/why/explain/open/fact/capital`), tipo
+  risposta (`x_a_num/proper/code/proc/causal/vague/short/digit`) e interazioni
+  (`x_num_*`, `x_how_*`, `x_why_*`, `x_fact_*`, `x_short_*`, `x_vague_neg`).
+- **Guardie deterministiche** (`DecisionOnnx::verify`): dopo il modello, regole
+  lessicali decidono i casi ovvi — rifiuto/vuoto → N; risposta breve con cifra o
+  nome proprio nuovo → Y; domanda numerica senza cifre → N; capitale senza nome
+  proprio nuovo → N; risposta generica → N; how/why/explain con procedura/causa
+  o spiegazione lunga → Y. Il campo `Result.reason` spiega la guardia applicata;
+  `DecisionEngine` lo mostra nel motivo del rifiuto. **Non è un fact-checker**:
+  non sa che «Berlino» non è la capitale della Francia.
 - **Parità C++↔Python**: la stessa funzione è in `gui/tools/gen_decision_onnx.py`.
-  La fixture `gui/tests/data/decision_onnx_features.json` congela i vettori attesi;
-  `test_decision_onnx` confronta tutti i 512 valori. Se cambi una delle due
-  implementazioni, rigenera i `.onnx` e la fixture.
-- **Rigenerazione**: `python3 gui/tools/gen_decision_onnx.py --check` (scrive i due
-  `.onnx` + `decision_onnx_meta.json`; servono `numpy`, `onnx`, `onnxruntime`).
+  La fixture `gui/tests/data/decision_onnx_features.json` congela i vettori attesi
+  e i casi delle guardie; `test_decision_onnx` confronta tutti i 512 valori e
+  verifica label/reason delle guardie. Se cambi una delle due implementazioni,
+  rigenera i `.onnx` e la fixture.
+- **Rigenerazione**: `python3 gui/tools/gen_decision_onnx.py --check --fixture gui/tests/data/decision_onnx_features.json`
+  (scrive i due `.onnx` + `decision_onnx_meta.json`; servono `numpy`, `onnx`,
+  `onnxruntime`).
 - **Percorsi**: `Frameworks/onnx/models` oppure `PRISMALUX_DECISION_ONNX_DIR`
   (usato dai test per simulare modelli mancanti).
 - **Runtime**: compilato solo con `HAVE_ONNX`; senza runtime `load()` fallisce con
@@ -516,12 +529,18 @@ Due modelli lineari locali, **non LLM**, inclusi nel repository:
   questo nome quando il backend è ONNX, così `active()` non resta legato a un
   modello Ollama.
 - **Qualità**: `python3 gui/tools/eval_decision_onnx.py` misura 48 prompt
-  classificatore + 35 coppie verificatore held-out (opzioni `--json`,
-  `--min-classifier`, `--min-verifier`). Baseline 2026-10-20: classificatore
-  37/48 = 77.1%, verificatore 21/35 = 60.0% (training 100% → overfit). Il
-  verificatore lessicale riconosce rifiuti/vuoti/bassa pertinenza, **non** è un
-  fact-checker; per la produzione serve un dataset etichettato o un modello più
-  espressivo.
+  classificatore + 33 coppie verificatore dev + 35 coppie blind (opzioni `--json`,
+  `--min-classifier`, `--min-verifier` per il verificatore effettivo,
+  `--min-verifier-raw`, `--min-verifier-blind`). Risultato 2026-10-20:
+  classificatore 37/48 = 77.1% (invariato); verificatore dev grezzo 30/33 = 90.9%,
+  dev con guardie 33/33 = 100%; blind grezzo 31/35 = 88.6%, blind con guardie
+  35/35 = 100%. **Attenzione**: su questi set le guardie coprono tutti i casi, quindi
+  il 100% è il comportamento ibrido, non accuratezza appresa; la qualità del modello
+  puro è la riga "grezzo". I casi di fatto sbagliato (Berlino/Monaco) sono in
+  `OUT_OF_SCOPE` e non contano: il verificatore è relevance/refusal-only. Per il
+  classificatore serve ancora un dataset etichettato o un modello più espressivo.
+  Diagnostica live (manuale, richiede Ollama): `python3 gui/tools/live_decision_ollama.py`
+  (default `tev1:4b`, `think:false`); ultimo esito classify 3/4, verify 6/6.
 
 ---
 
@@ -1061,8 +1080,19 @@ QT_QPA_PLATFORM=offscreen ./build_tests/test_decision_engine
 - **ONNX**: `active()` richiede `m_model == "onnx-decision"`; il salvataggio delle
   impostazioni forza quel nome quando il backend è ONNX.
 - **ONNX**: le feature C++ devono restare identiche a `gen_decision_onnx.py`; la fixture
-  `tests/data/decision_onnx_features.json` è il guardiano. Cambiare tokenizzazione senza
-  rigenerare i modelli produce predizioni casuali ma nessun errore evidente.
+  `tests/data/decision_onnx_features.json` è il guardiano. Cambiare tokenizzazione,
+  riservare diversamente i 64 bucket o cambiare le liste di cue senza rigenerare i
+  modelli produce predizioni casuali ma nessun errore evidente. Le guardie usano
+  `newProper` = nomi propri **non già presenti nella domanda**: un tema come "Git"
+  non deve far passare una risposta generica.
+- **ONNX**: le guardie deterministiche sono volutamente nel backend, non nel modello;
+  non vanno spinte a "fact-checking". I test live con `tev1:4b` (D-72) hanno dato
+  classificazione 3/4 e verifica 6/6: il modello reale non è perfetto, quindi non
+  usarlo come unica fonte di verità.
+- **ONNX**: la guardia numerica richiede cifre o un numero scritto in lettere; una
+  risposta puramente simbolica (es. formula senza cifre) può essere bocciata. La
+  guardia "capitale" richiede un nome proprio nuovo: una risposta con un pronome
+  ("la sua capitale...") può essere bocciata. Sono euristiche, non verità.
 - **ONNX**: `PRISMALUX_DECISION_ONNX_DIR` è letto a ogni `defaultDir()`; i test lo usano
   per simulare una cartella vuota. In build senza `HAVE_ONNX` `load()` fallisce con un
   errore esplicito, non con un crash.

@@ -830,7 +830,9 @@ void DecisionEngine::verify(const QString& question, const QString& answer,
         res.approved = (r.label == 1);  /* verifierLabels = {"N","Y"} */
         res.confidence = r.confidence;
         if (!res.approved)
-            res.reason = tr("ONNX: la risposta non è pertinente alla domanda");
+            res.reason = r.reason.isEmpty()
+                ? tr("ONNX: la risposta non è pertinente alla domanda")
+                : tr("ONNX: %1").arg(r.reason);
         if (cb) cb(res);
         return;
     }

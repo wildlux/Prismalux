@@ -7,11 +7,18 @@
 I modelli sono minuscoli (pesi lineari su feature hashing) e non
 richiedono un tokenizer esterno: le feature sono calcolate in C++ da
 `gui/decision_onnx.cpp` con la STESSA funzione riprodotta qui sotto.
-Se cambi una delle due implementazioni, rigenera i modelli e riesegui
-`test_decision_onnx`.
+Il verificatore usa 64 bucket riservati a segnali strutturati e 448
+bucket per il testo; `DecisionOnnx::verify()` applica poi guardie
+deterministiche per rifiuti, risposte brevi/generiche, domande
+numeriche e capitali. Non è un fact-checker.
+
+Se cambi una delle due implementazioni, rigenera i modelli e la
+fixture (`--fixture gui/tests/data/decision_onnx_features.json`) e
+riesegui `test_decision_onnx`.
 
 Uso:
     python3 gui/tools/gen_decision_onnx.py [--out DIR] [--check]
+    python3 gui/tools/gen_decision_onnx.py --fixture gui/tests/data/decision_onnx_features.json
 
 Dipendenze: numpy, onnx, onnxruntime (solo per la verifica).
 """
@@ -87,40 +94,358 @@ def features_text(text: str):
 REFUSALS = (
     "non lo so", "non posso", "impossibile", "mi dispiace", "non ne ho idea",
     "i don't know", "cannot", "unable", "not sure", "no idea",
+    "non ho informazioni", "non ho abbastanza",
 )
+
+# ── Verificatore: feature strutturate ─────────────────────────────────
+# Le feature testuali usano 448 bucket (64..511); i primi 64 bucket sono
+# riservati ai segnali strutturati. In questo modo un segnale come
+# "domanda numerica + risposta senza cifre" non collide con una parola.
+VERIFIER_TEXT_OFFSET = 64
+VERIFIER_TEXT_DIM = DIM - VERIFIER_TEXT_OFFSET
+
+VERIFIER_SIGNAL_INDEX = {
+    "x_ov_0": 0, "x_ov_1": 1, "x_ov_2": 2, "x_ov_3": 3,
+    "x_ov_4": 4, "x_ov_5": 5,
+    "x_len_0": 6, "x_len_1": 7, "x_len_2": 8, "x_len_3": 9,
+    "x_ratio_0": 10, "x_ratio_1": 11, "x_ratio_2": 12, "x_ratio_3": 13,
+    "x_refusal": 14, "x_empty": 15,
+    "x_q_num": 16, "x_q_who": 17, "x_q_where": 18, "x_q_when": 19,
+    "x_q_how": 20, "x_q_why": 21, "x_q_open": 22, "x_q_fact": 23,
+    "x_a_num": 24, "x_a_proper": 25, "x_a_code": 26, "x_a_proc": 27,
+    "x_a_causal": 28, "x_a_vague": 29, "x_a_short": 30,
+    "x_a_veryshort": 31,
+    "x_num_num": 32, "x_num_nonum": 33,
+    "x_who_proper": 34, "x_who_noproper": 35,
+    "x_where_proper": 36, "x_where_noproper": 37,
+    "x_fact_proper": 38, "x_fact_num": 39, "x_fact_noproper": 40,
+    "x_when_num": 41, "x_when_nonum": 42,
+    "x_how_proc": 43, "x_how_noproc": 44,
+    "x_why_causal": 45, "x_why_nocausal": 46,
+    "x_open_long": 47, "x_open_short": 48,
+    "x_short_proper": 49, "x_short_num": 50, "x_vague_neg": 51,
+    "x_noov_short_specific": 52, "x_noov_short_generic": 53,
+    "x_overlap_vague": 54,
+    "x_explain_long": 55, "x_explain_short": 56,
+    "x_a_digit": 57, "x_num_digit": 58, "x_num_nodigit": 59,
+    "x_short_proper_noov": 60, "x_short_num_noov": 61,
+    "x_q_explain": 62, "x_q_capital": 63,
+}
+assert max(VERIFIER_SIGNAL_INDEX.values()) < VERIFIER_TEXT_OFFSET
+
+
+def add_verifier_signal(vec, key: str, weight: float = 1.0):
+    idx = VERIFIER_SIGNAL_INDEX.get(key)
+    if idx is None:
+        raise KeyError("segnale verificatore sconosciuto: %s" % key)
+    vec[idx] += weight
+
+
+def add_verifier_text(vec, text: str, prefix: str = ""):
+    words = normalize(text).split()
+    for i, w in enumerate(words):
+        key = prefix + "w:" + w
+        vec[fnv1a(key) % VERIFIER_TEXT_DIM + VERIFIER_TEXT_OFFSET] += 1.0
+        for j in range(len(w) - 3):
+            key = prefix + "c:" + w[j:j + 4]
+            vec[fnv1a(key) % VERIFIER_TEXT_DIM + VERIFIER_TEXT_OFFSET] += 0.5
+        if i + 1 < len(words):
+            key = prefix + "b:" + w + "_" + words[i + 1]
+            vec[fnv1a(key) % VERIFIER_TEXT_DIM + VERIFIER_TEXT_OFFSET] += 0.5
+
+
+# Elenchi condivisi con decision_onnx.cpp. Le stringhe sono confrontate
+# in minuscolo sul testo grezzo (non normalizzato) per i cue.
+NUMBER_WORDS = (
+    "zero", "uno", "due", "tre", "quattro", "cinque", "sei", "sette",
+    "otto", "nove", "dieci", "cento", "mille",
+    "one", "two", "three", "four", "five", "six", "seven", "eight",
+    "nine", "ten", "hundred", "thousand",
+)
+
+VAGUE_CUES = (
+    "importante", "interessante", "utile", "argomento", "aspetto",
+    "numero casuale", "casuale", "famoso", "famosa", "famous",
+    "thing", "stuff", "sure", "basta", "tema", "discusso",
+    "strumento", "processo molto", "senza alcuna spiegazione",
+    "random number", "linguaggio di programmazione",
+    "programming language", "weather",
+)
+
+PROC_CUES = (
+    "usa ", "usare", "puoi ", "devi ", "sort", "sorted", "funzione",
+    "comando", "passo", "poi ", "prima ", "installa", "esegui",
+    "chiama", "aggiungi", "crea ", "definisci", "return ", "def ",
+    "riposo", "liquidi", "bevi", "mangia", "dormi", "evita",
+    "prendi", "assumi", "trattamento", "terapia", "medico", "farmaco",
+    "analgesico", "decongestionante", "checkout", "switch -c",
+    "reverse", "slicing",
+)
+
+CAUSAL_CUES = (
+    "perche", "perché", "because", "dovuto", "a causa", "causa",
+    "scattering", "gravita", "gravità", "pressione", "temperatura",
+    "breaks down", "reveals", "produce", "caused", "grazie a",
+    "dipende da",
+)
+
+# Parole comuni: un token capitalizzato che compare qui non è un nome
+# proprio. Serve a non trattare "Basta.", "Sure." o "Oggi" come entità.
+COMMON_WORDS = set("""
+il la lo un uno una i gli le the a an this that these those questo
+questa questi queste it he she they we you i me him her us them my your
+his its our their oggi ieri domani today tomorrow yesterday basta sure ok
+okay yes no si sì certo vero falso perché perche because grazie salve ciao
+ecco tutto tutti tutta tutte nulla niente nessuno sempre mai molto poco
+bene male meglio peggio prima dopo poi anche solo come quando dove quindi
+allora sono è era ha hanno può deve vuole fa fanno essere avere fare dire
+andare venire stare is are was were be been have has had do does did can
+could will would should may might must there here now then very really just
+only also and or but if of to in on at for with from by as about into over
+after before between under above again further once all any both each few
+more most other some such nor not too don esatto giusto corretto perfetto assolutamente certamente ovviamente naturalmente infatti appunto esattamente forse probabilmente chiaramente semplicemente volentieri prego scusa scusi buongiorno buonasera buonanotte arrivederci right correct exactly absolutely certainly obviously indeed true false maybe perhaps probably clearly simply please sorry hello hi goodbye welcome
+""".split())
+
+
+def content_words(text: str):
+    return {w for w in normalize(text).split() if len(w) > 2}
+
+
+def question_type(question: str) -> str:
+    """Tipologia usata dal verificatore (diversa dalle 4 classi AiClient)."""
+    import re
+    n = normalize(question)
+    if re.search(r"\b(quanto|quanti|quante|how many|how much|percent|"
+                 r"probabilita|probabilità|probability|calcola|calculate|"
+                 r"risolvi|solve)\b", n):
+        return "num"
+    if re.search(r"\b(chi|who)\b", n):
+        return "who"
+    if re.search(r"\b(dove|where)\b", n):
+        return "where"
+    if re.search(r"\b(quando|when|in che anno)\b", n):
+        return "when"
+    if re.search(r"\b(come|how)\b", n):
+        return "how"
+    if re.search(r"\b(perche|perché|why)\b", n):
+        return "why"
+    if re.search(r"\b(spiega|spiegami|explain|describe|descrivi|riassumi|"
+                 r"summarize)\b", n):
+        return "explain"
+    if re.search(r"\b(consigliami|recommend|che ne pensi|raccontami|"
+                 r"scrivimi|write|tell me|help me|puoi tradurre|translate|"
+                 r"parlami|dimmi|inventa)\b", n):
+        return "open"
+    if re.search(r"\b(capitale|capital)\b", n):
+        return "capital"
+    return "fact"
+
+
+def has_digit(text: str) -> bool:
+    import re
+    return bool(re.search(r"\d", text))
+
+
+def has_number(text: str) -> bool:
+    import re
+    low = text.lower()
+    return has_digit(text) or any(
+        re.search(r"\b" + w + r"\b", low) for w in NUMBER_WORDS)
+
+
+def proper_tokens(text: str):
+    """Token capitalizzati che non sono parole comuni."""
+    import re
+    toks = re.findall(r"[A-ZÀ-Ý][\wÀ-ÿ'-]+", text)
+    out = []
+    for tok in toks:
+        if len(tok) <= 1 or tok.lower() in COMMON_WORDS:
+            continue
+        out.append(tok)
+    return out
+
+
+def pair_signals(question: str, answer: str):
+    import re
+    qw = content_words(question)
+    aw = content_words(answer)
+    overlap = len(qw & aw) / max(1, len(qw)) if qw else 0.0
+    low = answer.lower()
+    qtype = question_type(question)
+    num = has_number(answer)
+    digit = has_digit(answer)
+    props = proper_tokens(answer)
+    # Un nome proprio che compare già nella domanda è il tema, non una
+    # nuova entità che risponde (es. "Git è uno strumento utile").
+    new_props = [p for p in props if p.lower() not in qw]
+    code = bool(re.search(r"(def |return |[{};]|\(\)|=>|==|import |"
+                          r"printf|console\.)", answer))
+    proc = any(c in low for c in PROC_CUES)
+    causal = any(c in low for c in CAUSAL_CUES)
+    vague = any(c in low for c in VAGUE_CUES)
+    refusal = any(c in low for c in REFUSALS)
+    alen = len(aw)
+    return {
+        "qwords": qw,
+        "awords": aw,
+        "overlap": overlap,
+        "alen": alen,
+        "qtype": qtype,
+        "num": num,
+        "digit": digit,
+        "proper": bool(props),
+        "new_props": new_props,
+        "code": code,
+        "proc": proc,
+        "causal": causal,
+        "vague": vague,
+        "refusal": refusal,
+        "short": alen <= 4,
+        "veryshort": alen <= 2,
+        "empty": alen < 3,
+    }
 
 
 def features_pair(question: str, answer: str):
-    """Feature del verificatore: testo di Q e A + segnali espliciti.
+    """Feature del verificatore: testo Q/A + segnali strutturati.
 
-    I segnali (x_ov_*, x_len_*, x_ratio_*, x_refusal, x_empty) sono
-    pseudo-token hashati: il modello impara un peso per ciascuno senza
-    bisogno di ingressi numerici separati.
+    I primi 64 bucket sono riservati ai segnali (indice fisso), il testo
+    usa i bucket 64..511. La stessa funzione è in decision_onnx.cpp.
     """
     vec = [0.0] * DIM
-    add_text(vec, question)
-    add_text(vec, answer)
-    add_text(vec, answer, "a:")
+    add_verifier_text(vec, question)
+    add_verifier_text(vec, answer)
+    add_verifier_text(vec, answer, "a:")
 
-    qw = {w for w in normalize(question).split() if len(w) > 2}
-    aw = {w for w in normalize(answer).split() if len(w) > 2}
-    overlap = len(qw & aw) / max(1, len(qw)) if qw else 0.0
-    add(vec, "x_ov_%d" % min(5, int(round(overlap * 5))), 2.0)
+    s = pair_signals(question, answer)
+    overlap = s["overlap"]
+    alen = s["alen"]
+    qtype = s["qtype"]
+    num = s["num"]
+    digit = s["digit"]
+    prop = s["proper"]
+    code = s["code"]
+    proc = s["proc"]
+    causal = s["causal"]
+    vague = s["vague"]
 
-    alen = len(aw)
+    ov_bin = min(5, int(overlap * 5 + 0.5))
+    add_verifier_signal(vec, "x_ov_%d" % ov_bin, 2.0)
+
     len_bin = 0 if alen < 5 else 1 if alen < 20 else 2 if alen < 60 else 3
-    add(vec, "x_len_%d" % len_bin, 2.0)
+    add_verifier_signal(vec, "x_len_%d" % len_bin, 2.0)
 
-    ratio = alen / max(1, len(qw))
+    ratio = alen / max(1, len(s["qwords"]))
     r_bin = 0 if ratio < 0.3 else 1 if ratio < 1.0 else 2 if ratio < 3.0 else 3
-    add(vec, "x_ratio_%d" % r_bin, 2.0)
+    add_verifier_signal(vec, "x_ratio_%d" % r_bin, 2.0)
 
-    low = answer.lower()
-    if any(t in low for t in REFUSALS):
-        add(vec, "x_refusal", 3.0)
-    if alen < 3:
-        add(vec, "x_empty", 3.0)
+    if s["refusal"]:
+        add_verifier_signal(vec, "x_refusal", 3.0)
+    if s["empty"]:
+        add_verifier_signal(vec, "x_empty", 3.0)
+
+    add_verifier_signal(vec, "x_q_" + qtype, 1.5)
+    if num:
+        add_verifier_signal(vec, "x_a_num", 2.0)
+    if digit:
+        add_verifier_signal(vec, "x_a_digit", 2.0)
+    if prop:
+        add_verifier_signal(vec, "x_a_proper", 2.0)
+    if code:
+        add_verifier_signal(vec, "x_a_code", 2.0)
+    if proc:
+        add_verifier_signal(vec, "x_a_proc", 1.5)
+    if causal:
+        add_verifier_signal(vec, "x_a_causal", 1.5)
+    if vague:
+        add_verifier_signal(vec, "x_a_vague", 2.0)
+    if s["short"]:
+        add_verifier_signal(vec, "x_a_short", 1.5)
+    if s["veryshort"]:
+        add_verifier_signal(vec, "x_a_veryshort", 1.0)
+
+    if qtype == "num":
+        add_verifier_signal(vec, "x_num_num" if num else "x_num_nonum", 3.0)
+        add_verifier_signal(vec, "x_num_digit" if digit else "x_num_nodigit", 3.0)
+    if qtype in ("who", "where", "fact"):
+        if prop:
+            add_verifier_signal(vec, "x_%s_proper" % qtype, 3.0)
+        elif qtype == "fact" and num:
+            add_verifier_signal(vec, "x_fact_num", 3.0)
+        else:
+            add_verifier_signal(vec, "x_%s_noproper" % qtype, 2.0)
+    if qtype == "when":
+        add_verifier_signal(vec, "x_when_num" if num else "x_when_nonum", 3.0)
+    if qtype == "how":
+        add_verifier_signal(vec, "x_how_proc" if (proc or code)
+                            else "x_how_noproc", 3.0)
+    if qtype == "why":
+        add_verifier_signal(vec, "x_why_causal" if causal
+                            else "x_why_nocausal", 3.0)
+    if qtype == "explain":
+        add_verifier_signal(vec, "x_explain_long" if alen >= 5
+                            else "x_explain_short", 3.0)
+    if qtype == "open":
+        add_verifier_signal(vec, "x_open_long" if alen >= 4
+                            else "x_open_short", 2.0)
+    if s["short"] and prop:
+        add_verifier_signal(vec, "x_short_proper", 2.0)
+    if s["short"] and num:
+        add_verifier_signal(vec, "x_short_num", 2.0)
+    if vague and not (num or prop or code):
+        add_verifier_signal(vec, "x_vague_neg", 2.5)
+    if overlap == 0 and s["short"] and (num or prop):
+        add_verifier_signal(vec, "x_noov_short_specific", 4.0)
+    if overlap == 0 and s["short"] and prop:
+        add_verifier_signal(vec, "x_short_proper_noov", 3.0)
+    if overlap == 0 and s["short"] and num:
+        add_verifier_signal(vec, "x_short_num_noov", 3.0)
+    if overlap == 0 and s["short"] and not (num or prop):
+        add_verifier_signal(vec, "x_noov_short_generic", 2.0)
+    if overlap > 0.25 and vague and not (num or prop or code):
+        add_verifier_signal(vec, "x_overlap_vague", 2.0)
+
     return l2(vec)
+
+
+def relevance_guard(question: str, answer: str):
+    """Guardie deterministiche applicate dopo il modello ONNX.
+
+    Ritorna (label, reason) se una regola decide con certezza, altrimenti
+    (None, ""). Non è un fact-checker: non può sapere che "Berlino" non è
+    la capitale della Francia.
+    """
+    s = pair_signals(question, answer)
+    if not answer.strip() or s["refusal"]:
+        return "N", "rifiuto o risposta vuota"
+    if s["qtype"] == "num":
+        if s["digit"]:
+            return "Y", "domanda numerica con cifre"
+        if s["num"] and s["alen"] <= 2:
+            return "Y", "domanda numerica con numero"
+        return "N", "domanda numerica senza cifre"
+    if s["qtype"] == "capital":
+        if s["new_props"]:
+            return "Y", "capitale indicata"
+        return "N", "nessuna capitale nella risposta"
+    if s["veryshort"]:
+        if s["digit"] or s["new_props"]:
+            return "Y", "risposta breve specifica"
+        return "N", "risposta breve generica"
+    if s["vague"] and not (s["digit"] or s["new_props"] or s["code"]
+                           or s["proc"]):
+        return "N", "risposta generica"
+    if s["qtype"] in ("how", "why", "explain"):
+        if s["code"] or s["proc"] or s["causal"]:
+            return "Y", "risposta procedurale o causale"
+        if s["alen"] >= 6 and not s["vague"]:
+            return "Y", "spiegazione articolata"
+        return "N", "manca procedura/spiegazione"
+    if s["qtype"] == "open":
+        if s["alen"] >= 3 and not s["vague"]:
+            return "Y", "risposta aperta articolata"
+        return "N", "risposta aperta troppo generica"
+    return None, ""
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -451,16 +776,133 @@ NEGATIVE_ANSWERS = [
 ]
 
 
+SHORT_FACT_QUESTIONS = [
+    ("qual è la capitale del Giappone", "Tokyo"),
+    ("qual è la capitale della Francia", "Parigi"),
+    ("qual è la capitale della Spagna", "Madrid"),
+    ("qual è la capitale della Germania", "Berlino"),
+    ("chi ha dipinto la Gioconda", "Leonardo da Vinci"),
+    ("chi ha scritto la Divina Commedia", "Dante Alighieri"),
+    ("chi ha scoperto la penicillina", "Alexander Fleming"),
+    ("quanto fa 17 per 23", "391"),
+    ("quanto fa 12 per 12", "144"),
+    ("quanto fa 2+2", "4"),
+    ("qual è il simbolo chimico dell'acqua", "H2O"),
+    ("qual è il simbolo chimico del sodio", "Na"),
+    ("in che anno è caduto l'impero romano d'Occidente", "476"),
+    ("quanti giorni ha un anno bisestile", "366"),
+    ("quanti metri ci sono in un chilometro", "1000"),
+    ("what is the capital of Japan", "Tokyo"),
+    ("what is the capital of France", "Paris"),
+    ("who painted the Mona Lisa", "Leonardo da Vinci"),
+    ("what is 15 percent of 240", "36"),
+    ("what is the chemical symbol for water", "H2O"),
+    ("how many days are in a leap year", "366"),
+]
+
+GENERIC_NEGATIVES = [
+    "La domanda riguarda {kw}.",
+    "{kw} è un argomento importante e interessante.",
+    "Questo riguarda {kw} e altri aspetti simili.",
+    "Ci sono molti fattori da considerare su {kw}.",
+]
+
+# Parafrasi positive non coperte dai template: servono a insegnare che
+# una risposta breve e specifica è valida anche senza ripetere la domanda.
+MANUAL_POSITIVES = [
+    ("come si ordina una lista in Python",
+     "Puoi usare sorted() per crearne una nuova, oppure il metodo sort() "
+     "per modificarla sul posto."),
+    ("qual è la capitale del Giappone", "Tokyo è la città che cercavi."),
+    ("quanto fa 17 per 23", "Il prodotto è 391."),
+    ("come si cura il mal di testa",
+     "Riposo, idratazione e un analgesico da banco possono aiutare; "
+     "se persiste consulta un medico."),
+    ("spiega la fotosintesi",
+     "Le piante catturano la luce solare e la usano per produrre zuccheri, "
+     "rilasciando ossigeno."),
+    ("what is the capital of France", "Paris is the city you are looking for."),
+    ("why is the sky blue",
+     "Shorter wavelengths of sunlight are scattered more strongly by air "
+     "molecules."),
+    ("come si usa git rebase",
+     "Sposta i tuoi commit su una nuova base e richiede la risoluzione dei "
+     "conflitti."),
+    ("calcola l'area di un cerchio di raggio 3",
+     "Il valore è 28,27 unità quadrate."),
+    ("chi ha scritto la Divina Commedia", "L'autore è Dante Alighieri."),
+]
+
+
 def verification_dataset():
-    X, y = [], []
+    """Dataset verificatore: positivi pertinenti + negativi difficili.
+
+    I negativi includono rifiuti, risposte vuote, fuori tema e risposte
+    che ripetono parole della domanda senza rispondere. Non ci sono
+    negativi basati su fatti sbagliati: un verificatore lessicale non può
+    distinguerli e non deve fingere di farlo.
+    """
+    rows = []
+
+    def add(q, a, label):
+        rows.append((features_pair(q, a), label))
+
     for q, kw in VERIFY_QUESTIONS:
         for tmpl in POSITIVE_TEMPLATES:
-            X.append(features_pair(q, tmpl.format(kw=kw)))
-            y.append(1)
+            add(q, tmpl.format(kw=kw), 1)
         for ans in NEGATIVE_ANSWERS:
-            X.append(features_pair(q, ans))
-            y.append(0)
-    return np.asarray(X, dtype=np.float32), np.asarray(y, dtype=np.int64)
+            add(q, ans, 0)
+        for tmpl in GENERIC_NEGATIVES[:2]:
+            add(q, tmpl.format(kw=kw), 0)
+
+        t = question_type(q)
+        if t == "how":
+            for ans in (f"{kw} è uno strumento utile.",
+                        f"{kw} è un argomento importante.",
+                        "Questo è un linguaggio di programmazione.",
+                        "Si tratta di un sistema molto diffuso."):
+                add(q, ans, 0)
+            if "python" in normalize(q):
+                add(q, "Python è un linguaggio di programmazione.", 0)
+        if t == "num":
+            for ans in ("Il risultato è un numero.",
+                        "La risposta dipende dai valori.",
+                        "Non serve un calcolo preciso.",
+                        "Il valore è descritto nel testo."):
+                add(q, ans, 0)
+        if t == "fact":
+            for ans in (f"{kw} è un paese asiatico.",
+                        f"{kw} è una città importante.",
+                        "È un argomento molto interessante.",
+                        "Si tratta di un elemento naturale."):
+                add(q, ans, 0)
+            words = normalize(q).split()
+            subj = words[-1] if words else kw
+            for ans in (f"{subj.capitalize()} è un paese.",
+                        f"{subj.capitalize()} è una città importante.",
+                        f"{subj.capitalize()} è un argomento interessante."):
+                add(q, ans, 0)
+
+    for q, a in SHORT_FACT_QUESTIONS:
+        for ans in (a + ".", "La risposta è " + a + ".",
+                    a + " è corretto.", "Sì: " + a + "."):
+            add(q, ans, 1)
+        for ans in ("Non lo so.", "Ok.", "Basta.", "Non posso rispondere."):
+            add(q, ans, 0)
+        words = normalize(q).split()
+        kw = " ".join(words[-3:])
+        for tmpl in GENERIC_NEGATIVES[:2]:
+            add(q, tmpl.format(kw=kw), 0)
+        if question_type(q) == "num":
+            for ans in ("Il risultato è un numero.",
+                        "La figura ha un raggio e un diametro."):
+                add(q, ans, 0)
+
+    for q, a in MANUAL_POSITIVES:
+        add(q, a, 1)
+
+    return (np.asarray([r[0] for r in rows], dtype=np.float32),
+            np.asarray([r[1] for r in rows], dtype=np.int64))
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -564,12 +1006,113 @@ def ort_check(path, samples, labels, is_pair):
               % (str(text)[:60], got, float(probs.max()), expected))
 
 
+def write_fixture(path):
+    """Fixture JSON per test_decision_onnx (parità C++ ↔ Python)."""
+    texts = {
+        "ascii": "scrivi una funzione python che legge un file json",
+        "accented": "perché il cielo è blu e la radice di 2 è irrazionale",
+    }
+    pairs = {
+        "relevant": ("come si ordina una lista in python",
+                     "Per ordinare una lista in python usa sorted e verifica "
+                     "il risultato."),
+        "refusal": ("qual è la capitale della Francia", "Non lo so."),
+        "empty": ("spiegami il teorema di pitagora", "Ok."),
+        "short_factual": ("qual è la capitale della Spagna", "Madrid."),
+        "numeric": ("quanto fa 24 per 3", "72."),
+        "code": ("write a JavaScript function to sum two numbers",
+                 "function sum(a,b){return a+b;}"),
+        "how_generic": ("come si crea un branch in git",
+                        "Git è uno strumento utile."),
+        "capital_generic": ("qual è la capitale della Spagna",
+                            "La Spagna è un paese europeo."),
+        "numeric_generic": ("calcola il perimetro di un quadrato di lato 5",
+                            "Il quadrato ha quattro lati."),
+        "explain": ("explain photosynthesis",
+                    "Plants use sunlight, water and CO2 to make glucose and "
+                    "release oxygen."),
+        "why": ("why do leaves turn yellow in autumn",
+                "Chlorophyll breaks down, revealing yellow carotenoid pigments."),
+        "short_negative": ("come si cura il raffreddore", "Basta."),
+        "english_generic": ("how do I reverse a list in Python", "Sure."),
+        "accented_proper": ("chi ha scritto la Divina Commedia",
+                            "L'autore è Dante Alighieri."),
+        "accented_why": ("perché il cielo è blu",
+                         "La luce blu viene diffusa più delle altre lunghezze d'onda."),
+        "accented_numeric": ("qual è la probabilità di estrarre due assi",
+                             "Circa 0,45%."),
+        "where": ("dove si trova la Torre Eiffel",
+                  "La Torre Eiffel si trova a Parigi."),
+        "when": ("in che anno è caduto l'impero romano d'Occidente",
+                 "Nel 476."),
+        "fact": ("what is the chemical symbol for water", "H2O."),
+        "open": ("consigliami un film", "Ti consiglio 'Il nome della rosa'."),
+        "wrong_fact": ("what is the capital of France", "Berlin."),
+    }
+
+    root = {
+        "feature_dim": DIM,
+        "texts": {
+            key: {"text": text, "features": features_text(text)}
+            for key, text in texts.items()
+        },
+        "pairs": {
+            key: {
+                "question": q,
+                "answer": a,
+                "features": features_pair(q, a),
+            }
+            for key, (q, a) in pairs.items()
+        },
+        # Casi in cui una guardia deterministica decide (o deve decidere)
+        # indipendentemente dal modello. "model" = lascia decidere il modello.
+        "guards": [
+            {"question": "qual è la capitale della Spagna", "answer": "Madrid.",
+             "expected": "Y", "reason_contains": "capitale indicata"},
+            {"question": "quanto fa 24 per 3", "answer": "72.",
+             "expected": "Y", "reason_contains": "numerica con cifre"},
+            {"question": "write a JavaScript function to sum two numbers",
+             "answer": "function sum(a,b){return a+b;}",
+             "expected": "Y", "reason_contains": "aperta"},
+            {"question": "come si crea un branch in git",
+             "answer": "Git è uno strumento utile.",
+             "expected": "N", "reason_contains": "generica"},
+            {"question": "qual è la capitale della Spagna",
+             "answer": "La Spagna è un paese europeo.",
+             "expected": "N", "reason_contains": "capitale"},
+            {"question": "calcola il perimetro di un quadrato di lato 5",
+             "answer": "Il quadrato ha quattro lati.",
+             "expected": "N", "reason_contains": "numerica senza cifre"},
+            {"question": "explain photosynthesis",
+             "answer": "Plants use sunlight, water and CO2 to make glucose "
+                       "and release oxygen.",
+             "expected": "Y", "reason_contains": "spiegazione"},
+            {"question": "why do leaves turn yellow in autumn",
+             "answer": "Chlorophyll breaks down, revealing yellow carotenoid "
+                       "pigments.",
+             "expected": "Y", "reason_contains": "causale"},
+            {"question": "come si cura il raffreddore", "answer": "Basta.",
+             "expected": "N", "reason_contains": "breve generica"},
+            {"question": "how do I reverse a list in Python", "answer": "Sure.",
+             "expected": "N", "reason_contains": "breve generica"},
+            # Fuori scope: il verificatore lessicale non è un fact-checker.
+            {"question": "what is the capital of France", "answer": "Berlin.",
+             "expected": "Y", "reason_contains": "capitale"},
+        ],
+    }
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(root, f, indent=2, ensure_ascii=False)
+        f.write("\n")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=None,
                     help="cartella di output (default: Frameworks/onnx/models)")
     ap.add_argument("--check", action="store_true",
                     help="stampa alcune predizioni di controllo")
+    ap.add_argument("--fixture", default=None, metavar="FILE",
+                    help="scrive la fixture di parità per test_decision_onnx")
     args = ap.parse_args()
 
     here = os.path.dirname(os.path.abspath(__file__))
@@ -590,7 +1133,7 @@ def main():
 
     # ── Verificatore ──
     Xv, yv = verification_dataset()
-    Wv, bv = train_softmax(Xv, yv, len(VERIFIER_LABELS))
+    Wv, bv = train_softmax(Xv, yv, len(VERIFIER_LABELS), epochs=1600)
     accv, confv = evaluate(Wv, bv, Xv, yv, VERIFIER_LABELS)
     print("verifier: %d esempi, accuratezza train %.3f" % (len(yv), accv))
     print("  matrice (righe=vero, colonne=predetto) N Y:")
@@ -615,6 +1158,10 @@ def main():
     print("scritti:")
     for p in (cpath, vpath):
         print("  %s (%d byte)" % (p, os.path.getsize(p)))
+
+    if args.fixture:
+        write_fixture(args.fixture)
+        print("fixture scritta in %s" % args.fixture)
 
     if args.check:
         print("controllo classificatore:")

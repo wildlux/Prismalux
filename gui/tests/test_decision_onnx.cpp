@@ -170,6 +170,43 @@ private slots:
         QCOMPARE(empty.label, 0);
     }
 
+    /* ── CAT-D2 ─────────────────────────────────────────────────
+       Guardie deterministiche: risposte brevi specifiche, domande
+       numeriche, risposte generiche. Devono funzionare anche quando
+       il modello lineare sbaglierebbe. */
+    void guardie_deterministiche()
+    {
+        if (!DecisionOnnx::runtimeAvailable() || !DecisionOnnx::modelsPresent())
+            QSKIP("ONNX Runtime o modelli non disponibili");
+
+        QFile f(dataPath());
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const QJsonObject root = QJsonDocument::fromJson(f.readAll()).object();
+        const QJsonArray guards = root.value("guards").toArray();
+        QVERIFY(!guards.isEmpty());
+
+        DecisionOnnx onnx;
+        QVERIFY2(onnx.load(), qPrintable(onnx.lastError()));
+
+        for (const QJsonValue& value : guards) {
+            const QJsonObject o = value.toObject();
+            const QString q = o.value("question").toString();
+            const QString a = o.value("answer").toString();
+            const QString expected = o.value("expected").toString();
+            const QString reason = o.value("reason_contains").toString();
+
+            const auto r = onnx.verify(q, a);
+            QVERIFY2(r.ok, qPrintable(r.error));
+            QCOMPARE(DecisionOnnx::verifierLabels().value(r.label), expected);
+            QVERIFY2(!r.reason.isEmpty(),
+                     qPrintable(QStringLiteral("guardia non applicata: %1 | %2")
+                                    .arg(q, a)));
+            QVERIFY2(r.reason.contains(reason),
+                     qPrintable(QStringLiteral("reason '%1' non contiene '%2'")
+                                    .arg(r.reason, reason)));
+        }
+    }
+
     /* ── CAT-E ────────────────────────────────────────────────── */
     void integrazione_decision_engine()
     {
@@ -222,6 +259,24 @@ private slots:
         QVERIFY(ndone);
         QVERIFY(nr.ok);
         QVERIFY(!nr.approved);
+        QVERIFY2(nr.reason.startsWith(QStringLiteral("ONNX:")),
+                 qPrintable(nr.reason));
+        QVERIFY2(nr.reason.contains(QStringLiteral("rifiuto")),
+                 qPrintable(nr.reason));
+
+        bool gdone = false;
+        DecisionEngine::VerifyResult gr;
+        dec.verify(QStringLiteral("qual è la capitale della Francia"),
+                   QStringLiteral("La Francia è un paese europeo."),
+                   QStringLiteral("other"),
+                   [&gdone, &gr](const DecisionEngine::VerifyResult& r) {
+                       gr = r; gdone = true;
+                   });
+        QVERIFY(gdone);
+        QVERIFY(gr.ok);
+        QVERIFY(!gr.approved);
+        QVERIFY2(gr.reason.contains(QStringLiteral("capitale")),
+                 qPrintable(gr.reason));
     }
 
     /* ── CAT-F ────────────────────────────────────────────────── */

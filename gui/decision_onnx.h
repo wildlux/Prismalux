@@ -15,10 +15,16 @@ class DecisionOnnxPrivate;
      decision_classifier.onnx : testo    -> A | B | C | D
      decision_verifier.onnx   : Q + A    -> N | Y
 
-   Le feature sono calcolate qui, non da un tokenizer esterno. La
-   stessa funzione è riprodotta in `gui/tools/gen_decision_onnx.py`:
+   Le feature sono calcolate qui, non da un tokenizer esterno. Il
+   classificatore usa 512 bucket di testo; il verificatore riserva i
+   primi 64 bucket a segnali strutturati (tipo domanda, cifre, nomi
+   propri, procedure, rifiuti) e usa i restanti 448 per il testo.
+   Dopo il modello, `verify()` applica guardie deterministiche per i
+   casi ovvi; non è un fact-checker.
+
+   La stessa funzione è riprodotta in `gui/tools/gen_decision_onnx.py`:
    se una delle due cambia, vanno rigenerati i modelli e rieseguito
-   `test_decision_onnx` (verifica di parità).
+   `test_decision_onnx` (verifica di parità feature + guardie).
 
    Senza HAVE_ONNX la classe compila ma load() fallisce con un
    errore esplicito: nessun fallback silenzioso su Ollama.
@@ -35,6 +41,7 @@ public:
         int     label = 0;       ///< indice: 0..3 classificatore, 0..1 verificatore
         double  confidence = 0.0;
         QString error;
+        QString reason;      ///< spiegazione della guardia deterministica, se applicata
     };
 
     DecisionOnnx();
