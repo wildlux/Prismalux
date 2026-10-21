@@ -119,6 +119,12 @@ ctest --test-dir build_tests --output-on-failure \
 
 Note: the UI language is Italian (English i18n is planned — see `TODO.md`, item OS-10).
 
+## Contributors
+
+Special thanks to **OpenCode — DeepSeek V4.1 Flash Free** for Docker/AppImage packaging, documentation, verification and release notes.
+
+Full list: [CONTRIBUTORS.md](CONTRIBUTORS.md).
+
 ## Security
 
 Local-first by design: the LAN/web servers bind to the interface you choose, use self-signed TLS and Bearer-token auth. Release binaries ship with SHA-256 checksums. See [SECURITY.md](SECURITY.md) for how to report vulnerabilities.

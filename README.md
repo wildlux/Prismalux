@@ -694,6 +694,14 @@ Vedi `gui/CLAUDE.md` per le convenzioni complete (ThemeManager, LanServer shutdo
 
 ---
 
+## Collaboratori
+
+Un ringraziamento speciale a **OpenCode — DeepSeek V4.1 Flash Free** per il supporto a Docker/AppImage, documentazione, verifica e note di rilascio.
+
+Elenco completo: [CONTRIBUTORS.md](CONTRIBUTORS.md).
+
+---
+
 ## Supporta il progetto ☕
 
 Prismalux è software libero, sviluppato nel tempo libero. Se ti è utile e vuoi contribuire alla sua crescita, puoi offrire un caffè:
