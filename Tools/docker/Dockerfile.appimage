@@ -40,6 +40,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     qt6-multimedia-dev \
     qt6-webengine-dev \
     qtkeychain-qt6-dev \
+    libqt6sql6-sqlite \
     libgl1-mesa-dev \
     libgles2-mesa-dev \
     libxkbcommon-x11-0 \

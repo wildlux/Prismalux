@@ -59,7 +59,7 @@ Output:
 - `EXPORT/linux/Prismalux-x86_64.AppImage`
 - `EXPORT/linux/Prismalux-x86_64.AppImage.sha256`
 
-Il builder usa **Ubuntu 24.04 + Qt 6.4**, quindi produce un'AppImage più portabile rispetto a una build fatta sulla macchina di sviluppo. L'artefatto include Qt WebEngine e pesa circa **135 MB**.
+Il builder usa **Ubuntu 24.04 + Qt 6.4**, quindi produce un'AppImage più portabile rispetto a una build fatta sulla macchina di sviluppo. L'artefatto include Qt WebEngine, il driver SQLite Qt e pesa circa **136 MB**.
 
 > Nota tecnica: le librerie NSS/NSPR non vengono incluse nell'AppImage, perché Qt WebEngine deve caricare i moduli NSS del sistema e versioni miste causano errori tipo `NSSUTIL_3.108 not found`.
 
