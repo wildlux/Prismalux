@@ -5,17 +5,17 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Prismalux — Chat AI</title>
 <style>
-:root{--bg:#0f1117;--hdr:#1a1d2e;--brd:#2a2d4e;--acc:#6c63ff;--usr:#6c63ff;--aim:#1e2235;--txt:#e0e0f0;--dim:#888;--inp:#0f1117;--fz:14px}
+:root{--bg:#0f1117;--hdr:#1a1d2e;--brd:#2a2d4e;--acc:#6c63ff;--usr:#6c63ff;--aim:#1e2235;--txt:#e0e0f0;--dim:#888;--inp:#0f1117;--fz:14px;--radius-sm:6px;--radius:8px;--radius-md:10px;--radius-lg:12px;--radius-pill:20px;--sp-1:4px;--sp-2:8px;--sp-3:12px;--sp-4:16px;--sp-5:24px;--tab-h:30px;--row-h:34px;--fs-xs:10px;--fs-sm:11px;--fs-md:13px;--fs-lg:14px;--fs-title:18px;--font-ui:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;--font-mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--txt);height:100vh;height:100dvh;display:flex;flex-direction:column;overflow:hidden}
+body{font-family:var(--font-ui);background:var(--bg);color:var(--txt);height:100vh;height:100dvh;display:flex;flex-direction:column;overflow:hidden}
 .dsec{padding:14px 16px;border-bottom:1px solid var(--brd)}
 .dsec h3{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px}
 #mdl-sel{width:100%;background:var(--inp);border:1px solid var(--brd);color:var(--txt);border-radius:8px;padding:8px 10px;font-size:14px}
 #mdl-sel:focus{outline:none;border-color:var(--acc)}
-.pbtn{display:flex;align-items:center;gap:8px;width:100%;padding:9px 12px;margin-bottom:4px;background:transparent;border:1px solid transparent;border-radius:8px;color:var(--txt);font-size:14px;cursor:pointer;text-align:left}
+.pbtn{display:flex;align-items:center;gap:var(--sp-2);width:100%;padding:var(--sp-2) var(--sp-3);margin-bottom:var(--sp-1);background:transparent;border:1px solid transparent;border-radius:var(--radius);color:var(--txt);font-size:var(--fs-lg);cursor:pointer;text-align:left}
 .pbtn:hover{background:rgba(255,255,255,.07)}
 .pbtn.on{background:rgba(128,128,200,.2);border-color:var(--acc);color:var(--acc);font-weight:600}
-.tbtn{display:flex;align-items:center;gap:8px;width:100%;padding:9px 12px;margin-bottom:4px;background:transparent;border:1px solid transparent;border-radius:8px;color:var(--txt);font-size:14px;cursor:pointer;text-align:left}
+.tbtn{display:flex;align-items:center;gap:var(--sp-2);width:100%;padding:var(--sp-2) var(--sp-3);margin-bottom:var(--sp-1);background:transparent;border:1px solid transparent;border-radius:var(--radius);color:var(--txt);font-size:var(--fs-lg);cursor:pointer;text-align:left}
 .tbtn:hover{background:rgba(255,255,255,.07)}
 .tbtn.on{background:rgba(80,200,120,.15);border-color:#50c878;color:#50c878;font-weight:600}
 #mic-btn{background:transparent;border:1px solid var(--brd);color:var(--dim);border-radius:8px;padding:8px 10px;font-size:16px;cursor:pointer;flex-shrink:0;line-height:1}
@@ -23,16 +23,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg
 #mic-btn.on{color:#ff4444;background:rgba(255,68,68,.12);border-color:#ff4444}
 #ham{background:transparent;border:none;color:var(--txt);font-size:22px;cursor:pointer;padding:4px 8px;border-radius:6px;flex-shrink:0}
 #ham:hover{background:rgba(255,255,255,.1)}
-#hdr{background:var(--hdr);border-bottom:1px solid var(--brd);padding:10px 16px;display:flex;align-items:center;gap:8px;flex-shrink:0}
+#hdr{background:var(--hdr);border-bottom:1px solid var(--brd);padding:var(--sp-2) var(--sp-4);display:flex;align-items:center;gap:8px;flex-shrink:0}
 #hdr h1{font-size:16px;font-weight:700;color:var(--txt);flex-shrink:0}
 .mdl{font-size:11px;color:var(--acc);border:1px solid var(--brd);border-radius:20px;padding:2px 10px;flex-shrink:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:110px}
 #tsel{width:100%;background:var(--inp);border:1px solid var(--brd);color:var(--txt);border-radius:8px;padding:8px 10px;font-size:14px}
 #tsel:focus{outline:none;border-color:var(--acc)}
-#log{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
-.msg{max-width:82%;padding:10px 14px;border-radius:14px;line-height:1.55;font-size:var(--fz);white-space:pre-wrap}
+#log{flex:1;overflow-y:auto;padding:var(--sp-4);display:flex;flex-direction:column;gap:10px}
+.msg{max-width:82%;padding:var(--sp-2) var(--sp-3);border-radius:14px;line-height:1.55;font-size:var(--fz);white-space:pre-wrap}
 .user{align-self:flex-end;background:var(--usr);color:#fff;border-bottom-right-radius:4px}
 .ai{align-self:flex-start;background:var(--aim);color:var(--txt);border-bottom-left-radius:4px;border:1px solid var(--brd)}
-#bar{display:flex;gap:8px;padding:10px 16px;background:var(--hdr);border-top:1px solid var(--brd);flex-shrink:0;align-items:flex-end}
+#bar{display:flex;gap:var(--sp-2);padding:var(--sp-2) var(--sp-4);background:var(--hdr);border-top:1px solid var(--brd);flex-shrink:0;align-items:flex-end}
 #bar-mid{flex:1;display:flex;flex-direction:column;gap:4px}
 #att-tag{display:none;align-items:center;gap:6px;background:rgba(255,255,255,.08);border-radius:6px;padding:4px 8px}
 #att-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--dim)}
@@ -61,9 +61,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg
 .tab-row{display:flex;align-items:stretch;border-bottom:1px solid var(--brd);flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
 .tab-row::-webkit-scrollbar{display:none}
 .tab-row:last-child{border-bottom:none}
-.sec-lbl{display:flex;align-items:center;padding:3px 7px;font-size:9px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.4px;border-right:2px solid var(--brd);white-space:nowrap;background:rgba(255,255,255,.02);flex-shrink:0}
+.sec-lbl{display:flex;align-items:center;padding:var(--sp-1) var(--sp-2);font-size:var(--fs-xs);font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.4px;border-right:2px solid var(--brd);white-space:nowrap;background:rgba(255,255,255,.02);flex-shrink:0}
 .sec-lbl+.sec-lbl,.tab+.sec-lbl{margin-left:2px}
-.tab{flex:0 0 auto;white-space:nowrap;padding:5px 8px;background:transparent;border:none;border-bottom:2px solid transparent;color:var(--dim);font-size:11px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.tab{flex:0 0 auto;white-space:nowrap;min-height:var(--tab-h);padding:var(--sp-1) var(--sp-2);background:transparent;border:none;border-bottom:2px solid transparent;color:var(--dim);font-size:var(--fs-sm);cursor:pointer;-webkit-tap-highlight-color:transparent}
 .tab.on{color:var(--acc);border-bottom-color:var(--acc);font-weight:600}
 #fz-ctrl{display:flex;align-items:center;gap:2px;margin-left:auto;flex-shrink:0;padding-right:4px}
 .fz-btn{background:transparent;border:1px solid var(--brd);color:var(--dim);border-radius:5px;padding:2px 6px;font-size:11px;cursor:pointer;font-weight:700;line-height:1.4;flex-shrink:0}
@@ -74,14 +74,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg
 .tab-on-flex{display:flex!important}.tab-on-block{display:block!important}.tab-off{display:none!important}
 .sec-hd{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.8px;margin:14px 0 8px;padding-bottom:5px;border-bottom:1px solid var(--brd)}
 .app-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:10px;margin-bottom:4px}
-.app-btn{display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 6px;background:var(--aim);border:1px solid var(--brd);border-radius:12px;color:var(--txt);font-size:11px;cursor:pointer;text-align:center;line-height:1.3;width:100%}
+.app-btn{display:flex;flex-direction:column;align-items:center;gap:var(--sp-1);padding:var(--sp-3) var(--sp-1);background:var(--aim);border:1px solid var(--brd);border-radius:var(--radius-lg);color:var(--txt);font-size:var(--fs-sm);cursor:pointer;text-align:center;line-height:1.3;width:100%}
 .app-btn:hover{border-color:var(--acc);background:rgba(128,128,255,.08)}
 .app-btn>span:first-child{font-size:24px}
 .app-st{font-size:10px;min-height:13px;border-radius:8px;padding:1px 5px;display:block;font-weight:600}
 .app-ok{background:rgba(80,200,120,.2);color:#50c878}
 .app-err{background:rgba(255,80,80,.2);color:#ff5050}
-.stat-card{background:var(--aim);border:1px solid var(--brd);border-radius:12px;padding:14px 16px;margin-bottom:10px}
-.stat-lbl{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.8px}
+.stat-card{background:var(--aim);border:1px solid var(--brd);border-radius:var(--radius-lg);padding:var(--sp-3) var(--sp-4);margin-bottom:var(--sp-3)}
+.stat-lbl{font-size:var(--fs-sm);color:var(--dim);text-transform:uppercase;letter-spacing:.8px}
 .stat-val{font-size:24px;font-weight:700;color:var(--txt);margin:4px 0}
 .stat-bar{height:5px;background:rgba(255,255,255,.1);border-radius:3px;overflow:hidden}
 .stat-fill{height:100%;background:var(--acc);border-radius:3px;transition:width .5s ease}
@@ -118,7 +118,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg
 #mcp-run{width:100%;background:var(--acc);color:#fff;border:none;border-radius:8px;padding:10px;font-size:14px;cursor:pointer;margin-bottom:8px}
 #mcp-result{background:var(--aim);border:1px solid var(--brd);border-radius:8px;padding:10px;font-size:12px;font-family:monospace;white-space:pre-wrap;word-break:break-all;max-height:220px;overflow-y:auto;display:none}
 #tab-rag{flex:1;min-height:0;overflow-y:auto;padding:16px;display:none;box-sizing:border-box}
-.rag-card{background:var(--aim);border:1px solid var(--brd);border-radius:10px;padding:12px 14px;margin-bottom:10px}
+.rag-card{background:var(--aim);border:1px solid var(--brd);border-radius:var(--radius-md);padding:var(--sp-3);margin-bottom:var(--sp-3)}
 .rag-card p{font-size:14px;line-height:1.55;white-space:pre-wrap;color:var(--txt);margin-bottom:6px}
 .rag-card small{font-size:11px;color:var(--dim)}
 #rag-query{width:100%;background:var(--inp);border:1px solid var(--brd);color:var(--txt);border-radius:8px;padding:10px;font-size:14px;resize:vertical;box-sizing:border-box;margin-bottom:10px}
@@ -133,7 +133,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg
 .ses-del{background:transparent;border:none;color:var(--dim);cursor:pointer;padding:2px 5px;font-size:13px;border-radius:4px;flex-shrink:0}
 .ses-del:hover{background:rgba(255,80,80,.15);color:#ff5555}
 #ses-act{display:flex;gap:6px;flex-wrap:wrap}
-.ses-btn{flex:1;padding:7px 8px;background:var(--aim);border:1px solid var(--brd);color:var(--txt);border-radius:8px;font-size:12px;cursor:pointer;text-align:center;white-space:nowrap}
+.ses-btn{flex:1;padding:var(--sp-1) var(--sp-2);background:var(--aim);border:1px solid var(--brd);color:var(--txt);border-radius:var(--radius);font-size:12px;cursor:pointer;text-align:center;white-space:nowrap}
 .ses-btn:hover{background:rgba(255,255,255,.07);border-color:var(--acc)}
 #ses-empty{font-size:12px;color:var(--dim);padding:8px 0;text-align:center}
 .mat-tab{background:none;border:none;padding:8px 14px;font-size:13px;color:var(--dim);cursor:pointer;border-bottom:2px solid transparent}
@@ -144,7 +144,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg
 #tab-cod{flex:1;min-height:0;overflow-y:auto;padding:16px;display:none}
 #tab-gvz{flex:1;min-height:0;overflow-y:auto;padding:16px;display:none}
 #tab-wsp{flex:1;min-height:0;overflow-y:auto;padding:16px;display:none}
-.tab-hd{font-size:18px;font-weight:700;margin-bottom:12px;color:var(--acc)}
+.tab-hd{font-size:var(--fs-title);font-weight:700;margin-bottom:var(--sp-3);color:var(--acc)}
 /* ── Drawer hamburger (CSS puro, niente Bootstrap Offcanvas) ── */
 #drw-bd{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1040}
 #drw-bd.open{display:block}
@@ -155,12 +155,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg
 #cls{background:transparent;border:none;color:var(--dim);font-size:20px;cursor:pointer;padding:2px 8px;border-radius:4px;line-height:1}
 #cls:hover{background:rgba(255,255,255,.1);color:var(--txt)}
 /* ── Form controls (standalone, no Bootstrap) ── */
-.form-control,.form-select{display:block;width:100%;padding:.375rem .75rem;background:var(--inp);border:1px solid var(--brd);border-radius:6px;color:var(--txt);font-size:13px;line-height:1.5}
+.form-control,.form-select{display:block;width:100%;padding:var(--sp-1) var(--sp-3);background:var(--inp);border:1px solid var(--brd);border-radius:var(--radius-sm);color:var(--txt);font-size:var(--fs-md);line-height:1.5}
 .form-select{appearance:none;background-image:url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23888' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");background-repeat:no-repeat;background-position:right .75rem center;background-size:16px 12px;padding-right:2.25rem}
 .form-control:focus,.form-select:focus{outline:none;border-color:var(--acc);box-shadow:0 0 0 .2rem color-mix(in srgb,var(--acc) 25%,transparent)}
 .form-control::placeholder{color:var(--dim)}
 /* ── Utility Bootstrap replicas ── */
-.card{border:1px solid var(--brd);border-radius:8px;overflow:hidden}
+.card{border:1px solid var(--brd);border-radius:var(--radius);overflow:hidden}
 .card-body{padding:1rem}
 .mb-2{margin-bottom:.5rem}
 .p-3{padding:1rem}
@@ -170,6 +170,38 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg
 .progress-bar{background:var(--acc);transition:width .5s ease;height:100%}
 /* ── Model badge ── */
 .badge-mdl{font-size:11px;color:var(--acc);border:1px solid var(--brd);border-radius:20px;padding:2px 10px;background:transparent}
+/* ── Responsive desktop-first (LW-5) ─────────────────────────────
+   La stessa pagina serve desktop e telefono: sotto 768px le spaziature
+   si comprimono, la barra delle tab resta scorrevole in orizzontale e
+   il testo delle bolle usa più larghezza. Nessun cambio di gerarchia. */
+@media (max-width:768px){
+  #hdr{padding:var(--sp-2) var(--sp-3);gap:var(--sp-1)}
+  #hdr h1{font-size:15px}
+  .mdl{max-width:88px}
+  .tab{padding:7px 9px;font-size:12px}
+  .sec-lbl{padding:7px var(--sp-1)}
+  #fz-ctrl{display:none}
+  #log{padding:var(--sp-3) var(--sp-2)}
+  .msg{max-width:92%}
+  .ai-actions,.ai-details{max-width:92%}
+  #bar{padding:var(--sp-2) var(--sp-3);gap:var(--sp-1)}
+  #snd{padding:var(--sp-2) 14px}
+  #tab-apps,#tab-sys,#tab-rag,#tab-cod,#tab-gvz,#tab-wsp,#tab-lav{padding:var(--sp-3) var(--sp-2)!important}
+  .tab-hd{font-size:16px}
+  .stat-val{font-size:20px}
+  .stat-card{padding:var(--sp-2) var(--sp-3)}
+  .app-grid{grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:var(--sp-2)}
+  #drw{width:min(280px,86vw)}
+}
+@media (max-width:420px){
+  #hdr h1{font-size:14px}
+  .mdl{display:none}
+  .tab{padding:7px var(--sp-2);font-size:11.5px}
+  #tab-apps,#tab-sys,#tab-rag,#tab-cod,#tab-gvz,#tab-wsp,#tab-lav{padding:var(--sp-2)!important}
+  .msg{max-width:96%;padding:var(--sp-2) 11px}
+  #snd{padding:var(--sp-2) 12px;font-size:var(--fs-md)}
+  .tab-hd{font-size:15px}
+}
 </style>
 <link rel="stylesheet" href="/katex/katex.min.css">
 <script defer src="/katex/katex.min.js"></script>
