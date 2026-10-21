@@ -629,7 +629,7 @@ Metodi: `open()`, `addNode()`, `addEdge()`, `neighbours()` (BFS), `searchNodes()
 | `app_config.h` | `AppConfig::s()` | Singleton `QSettings("Prismalux","GUI")`. |
 | `chat_history.*` | `ChatHistory` | Sessioni JSON atomiche in `~/.prismalux_chats/`. |
 | `https_redirect_server.*` | `HttpsRedirectServer` | TLS o redirect 301. |
-| `lan_server*.cpp` | `LanServer` | HTTP/HTTPS 11500: chat, RAG, knowledge, graph, whisper, sync, math, APK, webchat. |
+| `lan_server*.cpp` | `LanServer` | HTTP/HTTPS 11500: chat, RAG, knowledge, graph, whisper, sync, math, APK, webchat. Build Qt 6.4 (Ubuntu 24.04/CI): `lan_server.cpp` deve includere `<QTimeZone>` perché `QDateTime::timeZone()` restituisce un tipo solo forward-dichiarato. |
 | `blhm_engine.h/.c` | BLHM | Motore pesi Brain-Loop-Human. |
 | `hw_detect.h/.c` | `HWInfo` | CPU/GPU cross-platform. |
 | `qrcodegen.h/.c` | QR | Generatore QR vendorizzato. |
