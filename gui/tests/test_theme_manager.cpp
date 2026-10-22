@@ -248,6 +248,108 @@ private slots:
 };
 
 /* ══════════════════════════════════════════════════════════════
+   CAT-C — Parità web ↔ desktop (LW-6)
+   ──────────────────────────────────────────────────────────────
+   La webchat deve rispecchiare la gerarchia desktop: sezioni,
+   sotto-tab e decisioni "solo desktop" (LW-8 in TODO.md).
+   Questo test è il guard anti-drift: aggiungere una tab desktop
+   senza la controparte web (o viceversa) lo fa fallire.
+   ══════════════════════════════════════════════════════════════ */
+class TestWebParity : public QObject {
+    Q_OBJECT
+
+    static QString html() {
+        QFile f(QStringLiteral(PRISMALUX_ROOT "/gui/lan_web/webchat.html"));
+        if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) return QString();
+        return QString::fromUtf8(f.readAll());
+    }
+
+    /* Fonte di verità della mappa: TODO.md LW-1 + decisioni LW-8. */
+    static QMap<QString, QSet<QString>> attese() {
+        return {
+            { "ai",        { "chat", "age", "aut", "rag", "grf", "knw" } },
+            { "strumenti", { "imp", "sfd", "fil", "crn", "ric", "sys", "wik" } },
+            { "media",     { "mul", "wsp", "osc", "gvz" } },
+            { "prog",      { "cod", "repl", "git", "sec" } },
+            { "math",      { "mat" } },
+            { "util",      { "fin", "tfr", "irp", "piv", "lav", "mag", "apps" } },
+        };
+    }
+
+    static QMap<QString, QStringList> righe(const QString& h) {
+        QMap<QString, QStringList> out;
+        QRegularExpression re(
+            QStringLiteral("<div class=\"tab-row[^\"]*\" data-sec-row=\"([a-z]+)\"[^>]*>(.*?)</div>"),
+            QRegularExpression::DotMatchesEverythingOption);
+        auto it = re.globalMatch(h);
+        while (it.hasNext()) {
+            const auto m = it.next();
+            QStringList ids;
+            QRegularExpression tab(QStringLiteral("data-tab=\"([a-z]+)\""));
+            auto ti = tab.globalMatch(m.captured(2));
+            while (ti.hasNext()) ids << ti.next().captured(1);
+            out.insert(m.captured(1), ids);
+        }
+        return out;
+    }
+
+private slots:
+    void webchatLeggibile() {
+        QVERIFY2(!html().isEmpty(),
+                 "webchat.html non trovata o vuota (PRISMALUX_ROOT)");
+    }
+
+    /* Ogni sezione dichiarata ha esattamente le sotto-tab attese. */
+    void ogniSezioneHaLeSueTab() {
+        const auto r = righe(html());
+        const auto a = attese();
+        QCOMPARE(r.keys(), a.keys());
+        for (auto it = a.cbegin(); it != a.cend(); ++it) {
+            QVERIFY2(r.contains(it.key()),
+                     qPrintable("sezione web mancante: " + it.key()));
+            const QStringList lst = r.value(it.key());
+            const QSet<QString> web(lst.begin(), lst.end());
+            QCOMPARE(web, it.value());
+            QCOMPARE(lst.size(), it.value().size()); /* nessun duplicato */
+        }
+    }
+
+    /* Nessuna tab fuori da una sezione e nessun ID duplicato. */
+    void nessunaTabOrfana() {
+        const auto r = righe(html());
+        QSet<QString> viste;
+        for (auto it = r.cbegin(); it != r.cend(); ++it) {
+            for (const QString& id : it.value()) {
+                QVERIFY2(!viste.contains(id),
+                         qPrintable("tab duplicata tra sezioni: " + id));
+                viste.insert(id);
+            }
+        }
+        QRegularExpression all(QStringLiteral("data-tab=\"([a-z]+)\""));
+        auto ai = all.globalMatch(html());
+        QSet<QString> tutte;
+        while (ai.hasNext()) tutte.insert(ai.next().captured(1));
+        QCOMPARE(viste, tutte);
+    }
+
+    /* Bioinformatica e TeleComanda sono dichiarate "solo desktop" (LW-8). */
+    void sezioniSoloDesktopAssenti() {
+        const QString h = html();
+        QVERIFY2(!h.contains("data-sec=\"bio\"") &&
+                 !h.contains("data-sec=\"tele\""),
+                 "sezioni dichiarate solo-desktop presenti nel web");
+    }
+
+    /* Deep-link e memoria di sezione devono restare implementati. */
+    void deeplinkEMemoriaSezione() {
+        const QString h = html();
+        QVERIFY2(h.contains("hashchange"), "manca il listener hashchange");
+        QVERIFY2(h.contains("LAST_SEC"), "manca la memoria ultima tab/sezione");
+        QVERIFY2(h.contains("activateSection("), "manca activateSection()");
+    }
+};
+
+/* ══════════════════════════════════════════════════════════════
    Runner
    ══════════════════════════════════════════════════════════════ */
 int main(int argc, char** argv)
@@ -256,6 +358,7 @@ int main(int argc, char** argv)
     int status = 0;
     { TestThemeList t; status |= QTest::qExec(&t, argc, argv); }
     { TestThemeOps t;  status |= QTest::qExec(&t, argc, argv); }
+    { TestWebParity t; status |= QTest::qExec(&t, argc, argv); }
     return status;
 }
 
