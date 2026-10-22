@@ -873,8 +873,8 @@ Export/import:
 
 ### 13.8b Quiz in classe (live)
 
-- **Banca**: `gui/lan_web/quiz_bank.json` (556 domande: 510 CCNA da `Tools/docker/quiz_ccna.db`,
-  10 dall'allegato *Allenamento informatica*, 36 nuove). Campi: `id, materia, difficolta, fonte, q, opts[4], correct, exp`.
+- **Banca**: `gui/lan_web/quiz_bank.json` (556 domande: 500 CCNA da `Tools/docker/quiz_ccna.db`,
+  10 dall'allegato *Allenamento informatica*, 46 nuove). Campi: `id, materia, difficolta, fonte, q, opts[4], correct, exp`.
   Materie: `Reti e cybersecurity`, `Sicurezza informatica`, `Database`, `Programmazione`, `Informatica di base`.
 - **Host**: tab `sfd` della webchat → `POST /api/quiz/create` (Bearer) con le domande scelte; la risposta
   contiene `code` (5 caratteri) e `key` (32 hex, segreta). Il link per i telefoni è `/quiz?code=CODE&token=TOKEN`.
