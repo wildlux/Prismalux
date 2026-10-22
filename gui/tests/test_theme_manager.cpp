@@ -272,7 +272,8 @@ class TestWebParity : public QObject {
             { "media",     { "mul", "wsp", "osc", "gvz" } },
             { "prog",      { "cod", "repl", "git", "sec" } },
             { "math",      { "mat" } },
-            { "util",      { "fin", "tfr", "irp", "piv", "lav", "mag", "apps" } },
+            { "util",      { "fin", "tfr", "irp", "piv", "lav", "apps" } },
+            { "lanwan",    { "lan", "net", "wanro", "mag" } },
         };
     }
 
