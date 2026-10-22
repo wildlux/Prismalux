@@ -239,6 +239,39 @@ details.plx-details>summary:focus-visible{outline:2px solid var(--acc);outline-o
 .lan-note{font-size:var(--fs-md);color:var(--dim);background:var(--aim);border:1px solid var(--brd);border-radius:var(--radius);padding:var(--sp-2) var(--sp-3);margin-bottom:var(--sp-3);line-height:1.5}
 .lan-steps{margin:0 0 var(--sp-3) var(--sp-4);padding:0;font-size:var(--fs-md);color:var(--txt);line-height:1.8}
 .lan-steps li{margin-bottom:var(--sp-1)}
+
+/* ── Quiz in classe (host) — stile Duolingo ── */
+[hidden]{display:none!important}
+.qz-wrap{flex:1;min-height:0;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:12px}
+.qz-intro,.qz-hint{font-size:12.5px;color:var(--dim);line-height:1.5;margin:0}
+.qz-row{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end}
+.qz-lbl{flex:1;min-width:150px;font-size:12px;color:var(--dim);display:flex;flex-direction:column;gap:4px;font-weight:600}
+.qz-inp{background:var(--inp);border:1px solid var(--brd);color:var(--txt);border-radius:10px;padding:9px;font:inherit;font-size:13px}
+.qz-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;background:var(--acc);color:#fff;border:0;border-bottom:4px solid rgba(0,0,0,.25);border-radius:12px;padding:11px 16px;font:inherit;font-size:14px;font-weight:700;cursor:pointer;min-height:44px}
+.qz-btn:active{transform:translateY(1px);border-bottom-width:2px}
+.qz-btn:disabled{filter:grayscale(.5) opacity(.55);cursor:default}
+.qz-btn.ghost{background:transparent;color:var(--txt);border:1px solid var(--brd);border-bottom-width:4px;border-bottom-color:var(--brd)}
+.qz-btn.small{font-size:12.5px;padding:8px 12px;min-height:38px}
+.qz-link{background:none;border:0;color:var(--dim);font-size:12px;cursor:pointer;text-decoration:underline;align-self:flex-start;padding:2px 0}
+.qz-code-box{background:var(--aim);border:1px solid var(--brd);border-radius:14px;padding:14px;text-align:center}
+.qz-cap{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--dim);font-weight:700}
+.qz-code{font-family:var(--font-mono);font-size:34px;font-weight:800;letter-spacing:8px;color:var(--acc);margin:6px 0 10px}
+.qz-avatars{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.qz-av{background:var(--aim);border:1px solid var(--brd);color:var(--acc);border-radius:999px;padding:5px 11px;font-size:12px;font-weight:700}
+.qz-q{font-size:19px;font-weight:700;line-height:1.35;margin:2px 0 10px}
+.qz-opt{display:flex;align-items:center;gap:10px;background:var(--aim);border:2px solid var(--brd);border-bottom-width:5px;border-radius:12px;padding:10px 12px;margin-bottom:8px;font-size:13.5px}
+.qz-opt .k{flex:none;width:26px;height:26px;border-radius:8px;background:var(--inp);color:var(--acc);display:grid;place-items:center;font-weight:800;font-size:12px}
+.qz-opt.right{border-color:#4ade80;background:rgba(74,222,128,.14)}
+.qz-opt.right .k{background:#4ade80;color:#0b1a12}
+.qz-opt .n{margin-left:auto;font-weight:800;color:var(--dim);font-size:12px}
+.qz-top{display:flex;justify-content:space-between;font-size:12px;color:var(--dim);font-weight:600}
+.qz-lb{list-style:none;margin:0;padding:0}
+.qz-lb li{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--brd);font-size:14px;font-weight:600}
+.qz-lb li:last-child{border-bottom:0}
+.qz-lb .rk{width:28px;text-align:center;color:var(--dim);font-weight:800}
+.qz-lb .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.qz-lb .sc{color:var(--acc);font-weight:800}
+.qz-alert{background:rgba(248,113,113,.15);border:1px solid #f87171;color:#fca5a5;border-radius:10px;padding:9px 12px;font-size:13px}
 </style>
 <link rel="stylesheet" href="/katex/katex.min.css">
 <script defer src="/katex/katex.min.js"></script>
@@ -275,7 +308,63 @@ details.plx-details>summary:focus-visible{outline:2px solid var(--acc);outline-o
 <div id="tab-mat"><div class="sec-hd">π Matematica</div><div id="mat-tabs" style="display:flex;gap:0;border-bottom:1px solid var(--brd);padding:0 12px"><button class="mat-tab on" data-mt="seq">🔢 Sequenza</button><button class="mat-tab" data-mt="const">π Costanti</button><button class="mat-tab" data-mt="nth">#ₙ N-esimo</button><button class="mat-tab" data-mt="expr">🧮 Espressione</button><button class="mat-tab" data-mt="latex">&#x1F4D0; LaTeX</button></div><div id="mtp-seq" class="mtp" style="padding:12px;flex-direction:column;gap:10px"><span style="font-size:13px;color:var(--dim)">Sequenza (es. 1, 4, 9, 16, 25)</span><input id="mat-seq" type="text" style="background:var(--inp);border:1px solid var(--brd);color:var(--txt);border-radius:8px;padding:8px;font-size:13px" placeholder="es. 1, 1, 2, 3, 5, 8, 13"><div style="display:flex;gap:8px;align-items:center"><span style="font-size:13px;color:var(--dim)">Prossimi</span><input id="mat-nxt" type="number" value="5" min="1" max="20" style="width:60px;background:var(--inp);border:1px solid var(--brd);color:var(--txt);border-radius:8px;padding:6px;font-size:13px"><span style="font-size:13px;color:var(--dim)">termini</span></div><div id="mat-seq-res" style="font-size:13px;color:var(--acc);min-height:20px"></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button id="mat-local" class="mat-run">🔍 Rileva (locale)</button><button id="mat-sympy" class="mat-run">σ Interpola sympy</button><button id="mat-ai" class="mat-run" style="background:var(--acc);color:#fff">🤖 Analizza AI</button></div></div><div id="mtp-const" class="mtp" style="padding:12px;display:none;flex-direction:column;gap:10px"><span style="font-size:13px;color:var(--dim)">Costante</span><select id="mat-const" style="background:var(--inp);border:1px solid var(--brd);color:var(--txt);border-radius:8px;padding:8px;font-size:13px" aria-label="Costante matematica"><option value="pi">π  pi greco</option><option value="e">e  numero di Eulero</option><option value="phi">φ  sezione aurea</option><option value="sqrt2">√2  radice di 2</option><option value="sqrt3">√3  radice di 3</option><option value="sqrt5">√5  radice di 5</option><option value="euler_gamma">γ  Eulero-Mascheroni</option><option value="ln2">ln(2)  logaritmo naturale di 2</option><option value="catalan">C  costante di Catalan</option></select><div style="display:flex;gap:8px;align-items:center"><span style="font-size:13px;color:var(--dim)">Cifre decimali:</span><input id="mat-prec" type="number" value="100" min="10" max="100000" style="width:100px;background:var(--inp);border:1px solid var(--brd);color:var(--txt);border-radius:8px;padding:6px;font-size:13px"></div><div style="display:flex;gap:8px"><button id="mat-calc-const" class="mat-run" style="flex:1;background:var(--acc);color:#fff">π Calcola</button><button id="mat-all-const" class="mat-run" style="flex:1">Tutte (100 cifre)</button></div></div><div id="mtp-nth" class="mtp" style="padding:12px;display:none;flex-direction:column;gap:10px"><span style="font-size:13px;color:var(--dim)">Tipo</span><select id="mat-ntype" style="background:var(--inp);border:1px solid var(--brd);color:var(--txt);border-radius:8px;padding:8px;font-size:13px" aria-label="Tipo calcolo N-esimo"><option value="pi_digit">π  N-esima cifra di π</option><option value="e_digit">e  N-esima cifra di e</option><option value="prime">p  N-esimo numero primo</option><option value="fib">F  N-esimo Fibonacci</option><option value="fact">n!  N-esimo fattoriale</option><option value="pow2">2ᵏ  N-esima potenza di 2</option><option value="pi_block">πᵏ  Prime N cifre di π</option><option value="phi_block">φᵏ  Prime N cifre di φ</option></select><div id="mat-nth-desc" style="font-size:12px;color:var(--dim);min-height:16px"></div><div style="display:flex;gap:8px;align-items:center"><span style="font-size:13px;color:var(--dim)">N =</span><input id="mat-n" type="text" value="100" placeholder="es. 1000000" style="flex:1;background:var(--inp);border:1px solid var(--brd);color:var(--txt);border-radius:8px;padding:8px;font-size:13px"></div><button id="mat-calc-nth" class="mat-run" style="background:var(--acc);color:#fff">#ₙ Calcola</button></div><div id="mtp-expr" class="mtp" style="padding:12px;display:none;flex-direction:column;gap:10px"><span style="font-size:13px;color:var(--dim)">Espressione (sympy + mpmath)</span><input id="mat-expr" type="text" style="background:var(--inp);border:1px solid var(--brd);color:var(--txt);border-radius:8px;padding:8px;font-size:13px" placeholder="es. sqrt(2)+sin(pi/4) o integrate(x**2,(x,0,1))"><div style="display:flex;gap:8px;align-items:center"><span style="font-size:13px;color:var(--dim)">Precisione:</span><input id="mat-eprec" type="number" value="50" min="10" max="10000" style="width:80px;background:var(--inp);border:1px solid var(--brd);color:var(--txt);border-radius:8px;padding:6px;font-size:13px"><span style="font-size:12px;color:var(--dim)">cifre</span></div><div style="display:flex;flex-wrap:wrap;gap:4px"><button class="mat-ex mat-run" data-e="pi**2/6">π²/6</button><button class="mat-ex mat-run" data-e="exp(pi)-pi**exp(1)">eπ−πe</button><button class="mat-ex mat-run" data-e="integrate(x**2,(x,0,1))">∫x²dx</button><button class="mat-ex mat-run" data-e="sqrt(2+sqrt(3))">√(2+√3)</button><button class="mat-ex mat-run" data-e="factorial(1000)">1000!</button><button class="mat-ex mat-run" data-e="gcd(144,180)">mcd(144,180)</button><button class="mat-ex mat-run" data-e="log(factorial(100)).evalf()">Stirling 100</button><button class="mat-ex mat-run" data-e="phi**20">φ²°</button></div><div style="display:flex;gap:8px"><button id="mat-eval" class="mat-run" style="flex:1;background:var(--acc);color:#fff">🧮 Calcola</button><button id="mat-simp" class="mat-run" style="flex:1">♾ Semplifica</button></div></div><div style="padding:0 12px 12px"><div style="display:flex;gap:8px;align-items:center;margin-bottom:4px"><span id="mat-status" style="flex:1;font-size:12px;color:var(--dim)">Pronto.</span><button id="mat-copy" class="mat-run" style="padding:4px 10px;font-size:12px">📋 Copia</button><button id="mat-clr" class="mat-run" style="padding:4px 10px;font-size:12px">🗑 Cancella</button></div><div id="mat-out" style="background:var(--aim);border:1px solid var(--brd);border-radius:8px;padding:12px;min-height:80px;max-height:300px;overflow-y:auto;font-family:monospace;font-size:13px;white-space:pre-wrap;line-height:1.5"></div></div><div id="mtp-latex" class="mtp" style="padding:12px;display:none;flex-direction:column;gap:10px"><span style="font-size:13px;color:var(--dim)">Inserisci LaTeX (rendering live con KaTeX)</span><textarea id="mat-latex-in" rows="4" style="background:var(--inp);border:1px solid var(--brd);color:var(--txt);border-radius:8px;padding:8px;font-size:13px;font-family:monospace;resize:vertical;box-sizing:border-box" placeholder="Es: \int_0^\infty e^{-x^2} dx = \frac{\sqrt{\pi}}{2}"></textarea><div style="display:flex;gap:8px;flex-wrap:wrap"><button id="mat-latex-inline" class="mat-run" style="font-size:12px;padding:5px 10px">Inline \(...\)</button><button id="mat-latex-display" class="mat-run" style="font-size:12px;padding:5px 10px">Display \[...\]</button><button id="mat-latex-ex1" class="mat-run" style="font-size:12px;padding:5px 10px">Esempio 1</button><button id="mat-latex-ex2" class="mat-run" style="font-size:12px;padding:5px 10px">Esempio 2</button></div><div id="mat-latex-out" style="background:var(--aim);border:1px solid var(--brd);border-radius:8px;padding:16px;min-height:60px;font-size:16px;overflow-x:auto;color:var(--txt)"></div><span style="font-size:11px;color:var(--dim)">Delimitatori supportati: delimitatori standard KaTeX. Usa \frac, \int, \sum, \sqrt, \vec, \matrix ecc.</span></div><hr style="border-color:var(--brd);margin:0 12px"><div style="padding:12px;display:flex;flex-direction:column;gap:8px"><span style="font-size:13px;color:var(--dim)">Grafico f(x) (JS Math)</span><div style="display:flex;gap:8px"><input id="plot-fn" type="text" value="Math.sin(x)" style="flex:1;background:var(--inp);border:1px solid var(--brd);color:var(--txt);border-radius:8px;padding:8px;font-size:13px"><button id="plot-btn" class="mat-run">Traccia</button></div><canvas id="plot-cv" height="200" style="width:100%;background:var(--aim);border:1px solid var(--brd);border-radius:8px;display:none"></canvas></div></div>
 <div id="tab-age"><div class="sec-hd">🤖 Pipeline Multi-Agente</div><div style="padding:12px;display:flex;flex-direction:column;gap:10px"><div style="display:flex;gap:16px;padding:4px 0"><label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;color:var(--txt)"><input type="radio" name="age-mode" id="age-mode-pipe" value="pipe" checked> Pipeline</label><label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;color:var(--txt)"><input type="radio" name="age-mode" id="age-mode-byz" value="byz"> &#x269B;&#xFE0F; Byzantino (consenso)</label></div><span style="font-size:13px;color:var(--dim)">Task da eseguire</span><textarea id="age-task" rows="3" style="background:var(--inp);border:1px solid var(--brd);color:var(--txt);border-radius:8px;padding:8px;font-size:13px;resize:vertical;box-sizing:border-box" placeholder="Es: Scrivi un riassunto su x e revisiona il risultato"></textarea><div id="age-roles" style="display:flex;gap:8px;flex-wrap:wrap"><div style="flex:1;min-width:140px"><span style="font-size:12px;color:var(--dim)">Agente 1</span><select id="age-r1" style="width:100%;background:var(--inp);border:1px solid var(--brd);color:var(--txt);border-radius:8px;padding:6px;font-size:13px" aria-label="Ruolo agente 1"><option>Ricercatore</option><option>Scrittore</option><option>Revisore</option><option>Programmatore</option><option>Analista</option></select></div><div style="flex:1;min-width:140px"><span style="font-size:12px;color:var(--dim)">Agente 2</span><select id="age-r2" style="width:100%;background:var(--inp);border:1px solid var(--brd);color:var(--txt);border-radius:8px;padding:6px;font-size:13px" aria-label="Ruolo agente 2"><option>Scrittore</option><option>Ricercatore</option><option>Revisore</option><option>Programmatore</option><option>Analista</option></select></div><div style="flex:1;min-width:140px"><span style="font-size:12px;color:var(--dim)">Agente 3</span><select id="age-r3" style="width:100%;background:var(--inp);border:1px solid var(--brd);color:var(--txt);border-radius:8px;padding:6px;font-size:13px" aria-label="Ruolo agente 3"><option>Revisore</option><option>Ricercatore</option><option>Scrittore</option><option>Programmatore</option><option>Analista</option></select></div></div><button id="age-run" style="background:var(--acc);color:#fff;border:none;border-radius:8px;padding:12px;font-size:15px;cursor:pointer;font-weight:600">▶ Avvia Pipeline</button><div id="age-log" style="display:flex;flex-direction:column;gap:8px"></div></div></div>
 <div id="tab-aut"><div class="sec-hd">&#x1F916; Agente Autonomo &#x2014; ReAct</div><div style="padding:12px;display:flex;flex-direction:column;gap:10px"><span style="font-size:13px;color:var(--dim)">Task da completare autonomamente</span><textarea id="aut-task" rows="3" style="background:var(--inp);border:1px solid var(--brd);color:var(--txt);border-radius:8px;padding:8px;font-size:13px;resize:vertical;box-sizing:border-box" placeholder="Es: Analizza i pro e contro dell'uso di Rust vs C++ per sistemi embedded..."></textarea><div style="display:flex;gap:12px;align-items:center"><span style="font-size:12px;color:var(--dim)">Max passi:</span><input id="aut-steps" type="number" value="5" min="2" max="10" style="width:60px;background:var(--inp);border:1px solid var(--brd);color:var(--txt);border-radius:8px;padding:6px;font-size:13px"><span style="font-size:12px;color:var(--dim)">(2&#x2013;10)</span></div><button id="aut-run" style="background:var(--acc);color:#fff;border:none;border-radius:8px;padding:12px;font-size:15px;cursor:pointer;font-weight:600">&#x25B6; Avvia Agente</button><div id="aut-log" style="display:flex;flex-direction:column;gap:8px"></div></div></div>
-<div id="tab-sfd"><div class="sec-hd">&#x1F3C6; Sfida! &#x2014; Quiz AI</div><div style="padding:12px;display:flex;flex-direction:column;gap:10px"><div style="display:flex;gap:8px;flex-wrap:wrap"><select id="sfd-arg" style="flex:2;background:var(--inp);border:1px solid var(--brd);color:var(--txt);border-radius:8px;padding:8px;font-size:13px" aria-label="Argomento quiz"><option value="Programmazione">&#x1F4BB; Programmazione</option><option value="Matematica">&#x03C0; Matematica</option><option value="Fisica">&#x26DB; Fisica</option><option value="Reti e cybersecurity">&#x1F512; Reti e Cybersecurity</option><option value="Biologia">&#x1F9EC; Biologia</option><option value="Storia">&#x1F4DC; Storia</option><option value="Economia">&#x1F4B0; Economia</option><option value="Inglese">&#x1F1EC;&#x1F1E7; Inglese</option><option value="Scienza generale">&#x1F52C; Scienza generale</option></select><select id="sfd-diff" style="flex:1;background:var(--inp);border:1px solid var(--brd);color:var(--txt);border-radius:8px;padding:8px;font-size:13px" aria-label="Difficolta quiz"><option value="facile">&#x1F7E2; Facile</option><option value="medio" selected>&#x1F7E1; Medio</option><option value="difficile">&#x1F534; Difficile</option></select></div><input id="sfd-custom" type="text" placeholder="Oppure scrivi argomento libero..." style="background:var(--inp);border:1px solid var(--brd);color:var(--txt);border-radius:8px;padding:8px;font-size:13px"><button id="sfd-gen" style="background:var(--acc);color:#fff;border:none;border-radius:8px;padding:12px;font-size:15px;cursor:pointer;font-weight:600">&#x1F3AF; Genera Quiz (5 domande)</button><div id="sfd-status" style="font-size:12px;color:var(--dim);min-height:16px"></div><div id="sfd-quiz" style="display:none;flex-direction:column;gap:10px"><div id="sfd-progress" style="font-size:12px;color:var(--dim);text-align:right"></div><div id="sfd-question" style="background:var(--aim);border:1px solid var(--brd);border-radius:8px;padding:12px;font-size:14px;line-height:1.5;font-weight:500"></div><div id="sfd-options" style="display:flex;flex-direction:column;gap:6px"></div><div id="sfd-feedback" style="display:none;background:var(--aim);border:1px solid var(--brd);border-radius:8px;padding:10px;font-size:13px;line-height:1.5"></div><button id="sfd-next" style="display:none;background:var(--aim);border:1px solid var(--brd);color:var(--txt);border-radius:8px;padding:10px;font-size:14px;cursor:pointer">Prossima &#x2192;</button></div><div id="sfd-score" style="display:none;background:var(--aim);border:1px solid var(--brd);border-radius:10px;padding:16px;text-align:center;font-size:15px"></div></div></div>
+<div id="tab-sfd"><div class="sec-hd">&#x1F3C6; Sfida! &#x2014; Quiz in classe</div>
+<div class="qz-wrap">
+  <div id="qz-alert" class="qz-alert" hidden></div>
+
+  <div id="qz-setup">
+    <p class="qz-intro">Crea una stanza: gli studenti entrano dal telefono con codice e nome, come Kahoot. La banca ha centinaia di domande (reti, sicurezza, database, programmazione, informatica di base).</p>
+    <div class="qz-row">
+      <label class="qz-lbl">Materia<select id="qz-materia" class="qz-inp"><option value="">Tutte le materie</option></select></label>
+      <label class="qz-lbl">Domande<select id="qz-n" class="qz-inp"><option>5</option><option selected>10</option><option>15</option><option>20</option></select></label>
+    </div>
+    <div class="qz-row">
+      <label class="qz-lbl">Risposte giuste<select id="qz-reveal" class="qz-inp"><option value="subito">Subito dopo la risposta</option><option value="fine">Alla fine</option><option value="entrambe" selected>Entrambe</option></select></label>
+      <label class="qz-lbl">Tempo per domanda<select id="qz-sec" class="qz-inp"><option value="15">15 secondi</option><option value="20" selected>20 secondi</option><option value="30">30 secondi</option><option value="45">45 secondi</option></select></label>
+    </div>
+    <button id="qz-create" class="qz-btn">&#x1F389; Crea stanza</button>
+    <p class="qz-hint">La pagina giocatore &#232; <b>/quiz</b> sulla stessa rete: nessun dato esce dalla LAN.</p>
+  </div>
+
+  <div id="qz-lobby" hidden>
+    <div class="qz-code-box">
+      <div class="qz-cap">Codice stanza</div>
+      <div id="qz-code" class="qz-code">-----</div>
+      <div class="qz-row" style="justify-content:center">
+        <button id="qz-copy-link" class="qz-btn small">&#x1F517; Copia link telefoni</button>
+        <button id="qz-open" class="qz-btn small ghost">&#x2197; Apri</button>
+      </div>
+      <p class="qz-hint">Gli studenti aprono il link sul telefono (o <b>/quiz</b>) e inseriscono il codice.</p>
+    </div>
+    <div class="qz-players">
+      <div class="qz-cap">Giocatori <span id="qz-count">0</span></div>
+      <div id="qz-names" class="qz-avatars"><span class="qz-hint">In attesa che entrino…</span></div>
+    </div>
+    <div class="qz-row">
+      <button id="qz-start" class="qz-btn">&#x25B6; Avvia la sfida</button>
+      <button id="qz-close" class="qz-btn ghost">Chiudi</button>
+    </div>
+  </div>
+
+  <div id="qz-game" hidden>
+    <div class="qz-top"><span id="qz-progress"></span><span id="qz-timer">--</span></div>
+    <div class="qz-q" id="qz-q">&#x2014;</div>
+    <div id="qz-opts"></div>
+    <div id="qz-info" class="qz-hint"></div>
+    <div class="qz-row">
+      <button id="qz-reveal-btn" class="qz-btn">&#x1F441; Mostra soluzione</button>
+      <button id="qz-next" class="qz-btn">Prossima &#x2192;</button>
+    </div>
+    <button id="qz-end-now" class="qz-link">Termina la sfida</button>
+  </div>
+
+  <div id="qz-end" hidden>
+    <div class="qz-cap" style="margin-bottom:6px">Classifica finale</div>
+    <ol id="qz-lb" class="qz-lb"></ol>
+    <button id="qz-again" class="qz-btn" style="margin-top:12px">&#x1F195; Nuova stanza</button>
+  </div>
+</div>
+</div>
 <div id="tab-imp"><div class="sec-hd">📚 Impara con AI</div><div style="padding:12px;display:flex;flex-direction:column;gap:10px"><div style="display:flex;gap:8px;flex-wrap:wrap"><select id="imp-arg" style="flex:2;background:var(--inp);border:1px solid var(--brd);color:var(--txt);border-radius:8px;padding:8px;font-size:13px" aria-label="Argomento da imparare"><option value="">-- Scegli argomento --</option><option>Matematica</option><option>Fisica</option><option>Programmazione</option><option>Storia</option><option>Inglese</option><option>Economia</option><option>Chimica</option><option>Biologia</option></select><select id="imp-lv" style="flex:1;background:var(--inp);border:1px solid var(--brd);color:var(--txt);border-radius:8px;padding:8px;font-size:13px" aria-label="Livello di apprendimento"><option>Principiante</option><option>Intermedio</option><option>Avanzato</option></select></div><input id="imp-custom" type="text" placeholder="Oppure scrivi un argomento libero..." style="background:var(--inp);border:1px solid var(--brd);color:var(--txt);border-radius:8px;padding:8px;font-size:13px"><div style="display:flex;gap:8px"><button id="imp-spiega" style="flex:1;background:var(--acc);color:#fff;border:none;border-radius:8px;padding:10px;font-size:14px;cursor:pointer">📖 Spiega</button><button id="imp-quiz" style="flex:1;background:var(--aim);border:1px solid var(--brd);color:var(--txt);border-radius:8px;padding:10px;font-size:14px;cursor:pointer">❓ Quiz</button><button id="imp-esem" style="flex:1;background:var(--aim);border:1px solid var(--brd);color:var(--txt);border-radius:8px;padding:10px;font-size:14px;cursor:pointer">💡 Esempi</button></div><div id="imp-out" style="background:var(--aim);border:1px solid var(--brd);border-radius:8px;padding:12px;min-height:60px;font-size:14px;line-height:1.6;white-space:pre-wrap;overflow-y:auto;max-height:300px"></div></div></div>
 <div id="tab-mul"><div class="sec-hd">🎬 Multimedia — Sintetizzatore Toni</div><div style="padding:12px;display:flex;flex-direction:column;gap:14px"><div style="background:var(--aim);border:1px solid var(--brd);border-radius:10px;padding:12px"><div style="font-size:11px;color:var(--dim);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">🎵 Programmatore Toni</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px"><div><span style="font-size:11px;color:var(--dim);display:block;margin-bottom:3px">Frequenza (Hz)</span><input id="mul-freq" type="number" value="440" min="20" max="20000" style="width:100%;box-sizing:border-box;background:var(--inp);border:1px solid var(--brd);color:var(--txt);border-radius:8px;padding:7px;font-size:13px"></div><div><span style="font-size:11px;color:var(--dim);display:block;margin-bottom:3px">Durata (ms)</span><input id="mul-dur" type="number" value="500" min="50" max="5000" style="width:100%;box-sizing:border-box;background:var(--inp);border:1px solid var(--brd);color:var(--txt);border-radius:8px;padding:7px;font-size:13px"></div><div><span style="font-size:11px;color:var(--dim);display:block;margin-bottom:3px">Forma d’onda</span><select id="mul-wave" style="width:100%;background:var(--inp);border:1px solid var(--brd);color:var(--txt);border-radius:8px;padding:7px;font-size:13px" aria-label="Forma d'onda"><option value="sine">Sinusoidale</option><option value="square">Quadra</option><option value="triangle">Triangolare</option><option value="sawtooth">Dente di sega</option></select></div><div><span style="font-size:11px;color:var(--dim);display:block;margin-bottom:3px">Volume (<span id="mul-vol-lbl">70</span>%)</span><input id="mul-vol" type="range" min="0" max="100" value="70" style="width:100%;accent-color:var(--acc)"></div></div><div style="display:flex;gap:8px;margin-bottom:10px"><button id="mul-add" style="flex:1;background:var(--acc);color:#fff;border:none;border-radius:8px;padding:8px 12px;font-size:13px;cursor:pointer;font-weight:600">+ Aggiungi</button><button id="mul-prev" style="flex:1;background:var(--aim);border:1px solid var(--brd);color:var(--txt);border-radius:8px;padding:8px 12px;font-size:13px;cursor:pointer">🔊 Ascolta</button><button id="mul-clr" style="background:var(--aim);border:1px solid var(--brd);color:var(--txt);border-radius:8px;padding:8px 12px;font-size:13px;cursor:pointer">🗑</button></div><div id="mul-seq" style="display:flex;flex-wrap:wrap;gap:6px;min-height:28px"></div></div><div style="background:var(--aim);border:1px solid var(--brd);border-radius:10px;padding:12px"><div style="font-size:11px;color:var(--dim);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">📊 Assemblatore Visuale</div><div style="font-size:11px;color:var(--dim);margin-bottom:4px">Oscilloscopio</div><canvas id="mul-osc" height="90" style="width:100%;display:block;border-radius:6px;background:var(--inp);border:1px solid var(--brd);margin-bottom:8px"></canvas><div style="font-size:11px;color:var(--dim);margin-bottom:4px">Spettro frequenze</div><canvas id="mul-fq" height="70" style="width:100%;display:block;border-radius:6px;background:var(--inp);border:1px solid var(--brd);margin-bottom:10px"></canvas><div style="display:flex;align-items:center;gap:8px"><button id="mul-play" style="flex:1;background:var(--acc);color:#fff;border:none;border-radius:8px;padding:10px;font-size:14px;cursor:pointer;font-weight:600">▶ Riproduci</button><button id="mul-stop" style="flex:1;background:var(--aim);border:1px solid var(--brd);color:var(--txt);border-radius:8px;padding:10px;font-size:14px;cursor:pointer">⏹ Stop</button><span id="mul-status" style="font-size:12px;color:var(--dim)">Aggiungi toni e premi Riproduci</span></div></div></div></div>
 <div id="tab-rag"><div class="tab-hd">📚 RAG — Ricerca Semantica</div><div style="padding:12px;display:flex;flex-direction:column;gap:0"><span style="font-size:13px;color:var(--dim);margin-bottom:6px;display:block">Fai una domanda — l'AI cerca i chunk più rilevanti nel tuo indice RAG</span><textarea id="rag-query" rows="3" placeholder="Es: Come funziona il protocollo TCP?"></textarea><button id="rag-srch">🔍 Cerca nel RAG</button><div id="rag-results"></div></div></div>
@@ -1002,64 +1091,237 @@ AUT_RUN.addEventListener('click',async function(){
   AUT_RUN.disabled=false;AUT_RUN.textContent='&#x25B6; Avvia Agente';
 });
 })();
-/* ── Sfida! (Quiz AI) ───────────────────────────────────────────────────── */
+
+/* ── Sfida! — Quiz in classe (host) ─────────────────────────────────────── */
 (function(){
-var SFD_GEN=document.getElementById('sfd-gen'),SFD_STATUS=document.getElementById('sfd-status');
-var SFD_QUIZ=document.getElementById('sfd-quiz'),SFD_SCORE=document.getElementById('sfd-score');
-var SFD_Q=document.getElementById('sfd-question'),SFD_OPTS=document.getElementById('sfd-options');
-var SFD_FB=document.getElementById('sfd-feedback'),SFD_NEXT=document.getElementById('sfd-next');
-var SFD_PROG=document.getElementById('sfd-progress');
-var sfdQuestions=[],sfdIdx=0,sfdCorrect=0;
-function sfdShowQuestion(){
-  if(sfdIdx>=sfdQuestions.length){sfdFinish();return;}
-  var q=sfdQuestions[sfdIdx];
-  SFD_PROG.textContent='Domanda '+(sfdIdx+1)+' / '+sfdQuestions.length;
-  SFD_Q.textContent=q.q;
-  SFD_OPTS.innerHTML='';SFD_FB.style.display='none';SFD_NEXT.style.display='none';
-  q.opts.forEach(function(opt,i){
-    var btn=document.createElement('button');
-    btn.style.cssText='background:var(--aim);border:1px solid var(--brd);color:var(--txt);border-radius:8px;padding:10px 14px;font-size:13px;cursor:pointer;text-align:left;';
-    btn.textContent=String.fromCharCode(65+i)+'. '+opt;
-    btn.addEventListener('click',function(){
-      var correct=(i===q.correct);
-      if(correct){sfdCorrect++;btn.style.background='rgba(74,222,128,.2)';btn.style.borderColor='#4ade80';}
-      else{btn.style.background='rgba(248,113,113,.2)';btn.style.borderColor='#f87171';
-        SFD_OPTS.querySelectorAll('button')[q.correct].style.background='rgba(74,222,128,.2)';SFD_OPTS.querySelectorAll('button')[q.correct].style.borderColor='#4ade80';}
-      SFD_OPTS.querySelectorAll('button').forEach(function(b){b.disabled=true;});
-      SFD_FB.style.display='block';SFD_FB.innerHTML=(correct?'&#x2705; Corretto! ':'&#x274C; Sbagliato. ')+(q.exp||'');
-      SFD_NEXT.style.display='block';
+var QZ={code:"",key:"",state:null,poll:null,timer:null,sig:"",lastState:""};
+var SET={materia:"",n:"10",reveal:"entrambe",sec:"20"};
+try{SET=Object.assign(SET,JSON.parse(localStorage.getItem("plx-quiz-settings")||"{}"));}catch(e){}
+var QZ_AUTH={ {{AUTH_HEADERS_JS}} };
+
+function byId(id){return document.getElementById(id);}
+function qzSaveSet(){try{localStorage.setItem("plx-quiz-settings",JSON.stringify(SET));}catch(e){}}
+function qzAlert(msg){
+  var a=byId("qz-alert");
+  if(!msg){a.hidden=true;a.textContent="";return;}
+  a.hidden=false;a.textContent=msg;
+}
+async function qzApi(path,opts){
+  opts=opts||{};
+  opts.headers=Object.assign({"Content-Type":"application/json"},QZ_AUTH);
+  var r=await fetch(path,opts);
+  var j=null;try{j=await r.json();}catch(e){}
+  if(!r.ok)throw new Error((j&&(j.error||j.message))||("HTTP "+r.status));
+  return j||{};
+}
+function qzView(name){
+  ["setup","lobby","game","end"].forEach(function(v){byId("qz-"+v).hidden=(v!==name);});
+}
+function qzJoinUrl(){
+  var u=location.origin+"/quiz?code="+encodeURIComponent(QZ.code);
+  if(TOKEN)u+="&token="+encodeURIComponent(TOKEN);
+  return u;
+}
+
+/* ── impostazioni ── */
+(function(){
+  byId("qz-materia").value=SET.materia;
+  byId("qz-n").value=SET.n;
+  byId("qz-reveal").value=SET.reveal;
+  byId("qz-sec").value=SET.sec;
+  ["materia","n","reveal","sec"].forEach(function(k){
+    byId("qz-"+k).addEventListener("change",function(){SET[k]=this.value;qzSaveSet();});
+  });
+})();
+
+/* ── materie ── */
+(async function(){
+  try{
+    var j=await qzApi("/api/quiz/bank?n=1");
+    var sel=byId("qz-materia");
+    (j.materie||[]).forEach(function(m){
+      var o=document.createElement("option");
+      o.value=m.nome;o.textContent=m.nome+" ("+m.n+")";
+      sel.appendChild(o);
     });
-    SFD_OPTS.appendChild(btn);
+    sel.value=SET.materia;
+  }catch(e){/* offline: resta "Tutte" */}
+})();
+
+/* ── crea ── */
+byId("qz-create").addEventListener("click",async function(){
+  qzAlert("");
+  var btn=this;btn.disabled=true;var old=btn.innerHTML;btn.innerHTML="&#x23F3; Creo la stanza…";
+  try{
+    var q="/api/quiz/bank?n="+encodeURIComponent(SET.n)+
+      (SET.materia?"&materia="+encodeURIComponent(SET.materia):"");
+    var bank=await qzApi(q);
+    if(!bank.questions||!bank.questions.length)throw new Error("Nessuna domanda disponibile");
+    var r=await qzApi("/api/quiz/create",{method:"POST",body:JSON.stringify({
+      title:"Sfida di "+ (SET.materia||"informatica"),
+      questions:bank.questions,
+      reveal:SET.reveal,
+      seconds:parseInt(SET.sec,10)||20
+    })});
+    QZ.code=r.code;QZ.key=r.key;QZ.sig="";QZ.lastState="";
+    try{sessionStorage.setItem("plx-quiz-host",JSON.stringify({code:r.code,key:r.key}));}catch(e){}
+    qzRenderLobby({code:r.code,players:[],count:0});
+    qzStartPoll();
+  }catch(e){qzAlert("Errore: "+e.message);}
+  finally{btn.disabled=false;btn.innerHTML=old;}
+});
+
+/* ── polling host ── */
+function qzStartPoll(){
+  qzStopPoll();
+  QZ.poll=setInterval(qzPoll,1200);
+  qzPoll();
+}
+function qzStopPoll(){
+  if(QZ.poll){clearInterval(QZ.poll);QZ.poll=null;}
+  if(QZ.timer){clearInterval(QZ.timer);QZ.timer=null;}
+}
+async function qzPoll(){
+  if(!QZ.code||!QZ.key)return;
+  try{
+    var j=await qzApi("/api/quiz/host?code="+encodeURIComponent(QZ.code)+
+      "&key="+encodeURIComponent(QZ.key));
+    QZ.state=j;
+    qzRender(j);
+  }catch(e){
+    qzStopPoll();
+    QZ.code="";QZ.key="";
+    try{sessionStorage.removeItem("plx-quiz-host");}catch(x){}
+    qzView("setup");
+    qzAlert("Stanza chiusa o server riavviato: "+e.message);
+  }
+}
+
+function qzRender(j){
+  if(j.state==="lobby"){qzRenderLobby(j);return;}
+  if(j.state==="question"||j.state==="reveal"){qzRenderGame(j);return;}
+  if(j.state==="ended"){qzRenderEnd(j);return;}
+}
+function qzRenderLobby(j){
+  qzView("lobby");
+  byId("qz-code").textContent=j.code||QZ.code;
+  byId("qz-count").textContent=(j.count||0);
+  var box=byId("qz-names");box.innerHTML="";
+  var players=j.players||[];
+  if(!players.length){
+    var s=document.createElement("span");s.className="qz-hint";s.textContent="In attesa che entrino…";box.appendChild(s);
+  }else{
+    players.forEach(function(p){
+      var d=document.createElement("span");d.className="qz-av";
+      d.textContent=p.name||"—";
+      box.appendChild(d);
+    });
+  }
+}
+function qzRenderGame(j){
+  qzView("game");
+  var total=j.total||1, idx=(j.index||0);
+  byId("qz-progress").textContent="Domanda "+(idx+1)+" / "+total;
+  var q=j.question||{};
+  var sig=j.state+"|"+idx;
+  if(sig!==QZ.sig){
+    QZ.sig=sig;
+    byId("qz-q").textContent=q.q||"—";
+    var box=byId("qz-opts");box.innerHTML="";
+    (q.opts||[]).forEach(function(t,k){
+      var d=document.createElement("div");
+      d.className="qz-opt";d.dataset.k=k;
+      var key=document.createElement("span");key.className="k";key.textContent="ABCD"[k];
+      var tx=document.createElement("span");tx.textContent=t;
+      var n=document.createElement("span");n.className="n";n.textContent="";
+      d.appendChild(key);d.appendChild(tx);d.appendChild(n);
+      if(j.state==="reveal"&&k===j.correct)d.classList.add("right");
+      box.appendChild(d);
+    });
+    byId("qz-reveal-btn").hidden=(j.state==="reveal");
+    byId("qz-next").textContent=(idx+1>=total)?"Vedi classifica →":"Prossima →";
+  }
+  (j.counts||[]).forEach(function(c,k){
+    var d=byId("qz-opts").querySelector('.qz-opt[data-k="'+k+'"] .n');
+    if(d)d.textContent=c>0?String(c):"";
+  });
+  var answered=(j.players||[]).filter(function(p){return p.answered;}).length;
+  byId("qz-info").textContent=(j.state==="reveal"?("Soluzione: "+"ABCD"[(j.correct||0)]+". "+(j.exp||""))
+    :(answered+" / "+(j.count||0)+" hanno risposto"));
+  /* timer */
+  if(QZ.timer){clearInterval(QZ.timer);QZ.timer=null;}
+  if(j.state==="question"&&j.startedAt){
+    var totalMs=Math.max(1,(j.seconds||20)*1000);
+    var tick=function(){
+      var left=Math.max(0,j.startedAt+totalMs-Date.now());
+      byId("qz-timer").textContent=Math.ceil(left/1000)+"s";
+      if(left<=0){clearInterval(QZ.timer);QZ.timer=null;byId("qz-timer").textContent="0s";}
+    };
+    tick();QZ.timer=setInterval(tick,250);
+  }else{byId("qz-timer").textContent=j.state==="reveal"?"👁":"--";}
+}
+function qzRenderEnd(j){
+  qzView("end");
+  qzStopPoll();
+  var lb=byId("qz-lb");lb.innerHTML="";
+  (j.leaderboard||[]).forEach(function(p){
+    var li=document.createElement("li");
+    var rk=document.createElement("span");rk.className="rk";
+    rk.textContent=p.rank===1?"🥇":p.rank===2?"🥈":p.rank===3?"🥉":p.rank;
+    var nm=document.createElement("span");nm.className="nm";nm.textContent=p.name;
+    var sc=document.createElement("span");sc.className="sc";sc.textContent=p.score+" pt";
+    li.appendChild(rk);li.appendChild(nm);li.appendChild(sc);lb.appendChild(li);
   });
 }
-function sfdFinish(){
-  SFD_QUIZ.style.display='none';
-  var pct=Math.round(sfdCorrect/sfdQuestions.length*100);
-  var emoji=pct>=80?'&#x1F3C6;':pct>=60?'&#x1F44D;':pct>=40?'&#x1F60A;':'&#x1F4AA;';
-  SFD_SCORE.style.display='block';SFD_SCORE.innerHTML='<div style="font-size:32px">'+emoji+'</div><div style="font-size:20px;font-weight:600;margin:8px 0">'+sfdCorrect+' / '+sfdQuestions.length+' corrette</div><div style="color:var(--dim)">Punteggio: '+pct+'%</div><button onclick="document.getElementById(\'sfd-score\').style.display=\'none\';document.getElementById(\'sfd-gen\').disabled=false;" style="margin-top:12px;background:var(--acc);color:#fff;border:none;border-radius:8px;padding:10px 20px;cursor:pointer;font-size:14px">&#x1F501; Nuovo Quiz</button>';
-}
-SFD_NEXT.addEventListener('click',function(){sfdIdx++;sfdShowQuestion();});
-SFD_GEN.addEventListener('click',async function(){
-  var arg=document.getElementById('sfd-custom').value.trim()||document.getElementById('sfd-arg').value;
-  var diff=document.getElementById('sfd-diff').value;
-  SFD_GEN.disabled=true;SFD_STATUS.textContent='&#x23F3; Generazione quiz in corso...';
-  SFD_QUIZ.style.display='none';SFD_SCORE.style.display='none';
-  var sysP='Sei un creatore di quiz educativi. Genera ESATTAMENTE 5 domande a risposta multipla. Rispondi SOLO con un array JSON valido, senza markdown, senza testo prima o dopo, nel formato: [{"q":"testo domanda","opts":["opzione A","opzione B","opzione C","opzione D"],"correct":0,"exp":"breve spiegazione"}]. correct e\' l\'indice 0-3 della risposta giusta.';
-  var userP='Argomento: '+arg+'. Difficolta\': '+diff+'. Genera 5 domande variegate e interessanti.';
+
+/* ── azioni host ── */
+async function qzAction(name){
   try{
-    var r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json',{{AUTH_HEADERS_JS}}},body:JSON.stringify({model:curModel,messages:[{role:'system',content:sysP},{role:'user',content:userP}],stream:false})});
-    var j=await r.json();var raw=(j.message&&j.message.content)||j.response||'';
-    /* Estrai l'array JSON dalla risposta */
-    var m=raw.match(/\[[\s\S]*\]/);
-    if(!m)throw new Error('Formato JSON non trovato nella risposta AI');
-    sfdQuestions=JSON.parse(m[0]);
-    if(!Array.isArray(sfdQuestions)||!sfdQuestions.length)throw new Error('Quiz vuoto');
-    sfdIdx=0;sfdCorrect=0;
-    SFD_QUIZ.style.display='flex';SFD_STATUS.textContent='';
-    sfdShowQuestion();
-  }catch(e){SFD_STATUS.textContent='&#x274C; Errore: '+e.message;SFD_GEN.disabled=false;}
+    var j=await qzApi("/api/quiz/"+name,{method:"POST",body:JSON.stringify({
+      code:QZ.code,key:QZ.key})});
+    QZ.state=j;qzRender(j);
+  }catch(e){qzAlert("Errore: "+e.message);}
+}
+byId("qz-start").addEventListener("click",function(){qzAction("start");});
+byId("qz-reveal-btn").addEventListener("click",function(){qzAction("reveal");});
+byId("qz-next").addEventListener("click",function(){qzAction("next");});
+byId("qz-end-now").addEventListener("click",function(){
+  if(confirm("Terminare la sfida e mostrare la classifica?"))qzAction("end");
 });
+byId("qz-close").addEventListener("click",async function(){
+  if(!confirm("Chiudere la stanza? I telefoni non potranno più entrare."))return;
+  try{await qzApi("/api/quiz/end",{method:"POST",body:JSON.stringify({code:QZ.code,key:QZ.key})});}catch(e){}
+  qzReset();
+});
+byId("qz-again").addEventListener("click",qzReset);
+function qzReset(){
+  qzStopPoll();QZ.code="";QZ.key="";QZ.sig="";QZ.state=null;
+  try{sessionStorage.removeItem("plx-quiz-host");}catch(e){}
+  qzAlert("");qzView("setup");
+}
+
+/* ── link stanza ── */
+byId("qz-copy-link").addEventListener("click",function(){
+  var u=qzJoinUrl(),b=this,old=b.innerHTML;
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(u);}
+  else{var ta=document.createElement("textarea");ta.value=u;document.body.appendChild(ta);ta.select();
+    try{document.execCommand("copy");}catch(e){}ta.remove();}
+  b.innerHTML="✅ Copiato";
+  setTimeout(function(){b.innerHTML=old;},1500);
+});
+byId("qz-open").addEventListener("click",function(){
+  window.open(qzJoinUrl(),"_blank","noopener");
+});
+
+/* ── ripresa dopo refresh ── */
+try{
+  var saved=JSON.parse(sessionStorage.getItem("plx-quiz-host")||"null");
+  if(saved&&saved.code&&saved.key){
+    QZ.code=saved.code;QZ.key=saved.key;qzStartPoll();
+  }
+}catch(e){}
 })();
+
 /* ── IRPEF 730 ──────────────────────────────────────────────────────────── */
 document.getElementById('irp-calc').addEventListener('click',function(){
   var R=parseFloat(document.getElementById('irp-reddito').value)||0;

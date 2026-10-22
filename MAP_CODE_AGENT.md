@@ -650,7 +650,7 @@ Metodi: `open()`, `addNode()`, `addEdge()`, `neighbours()` (BFS), `searchNodes()
 | `app_config.h` | `AppConfig::s()` | Singleton `QSettings("Prismalux","GUI")`. |
 | `chat_history.*` | `ChatHistory` | Sessioni JSON atomiche in `~/.prismalux_chats/`. |
 | `https_redirect_server.*` | `HttpsRedirectServer` | TLS o redirect 301. |
-| `lan_server*.cpp` | `LanServer` | HTTP/HTTPS 11500: chat, RAG, knowledge, graph, whisper, sync, math, APK, webchat. Build Qt 6.4 (Ubuntu 24.04/CI): `lan_server.cpp` deve includere `<QTimeZone>` perché `QDateTime::timeZone()` restituisce un tipo solo forward-dichiarato. |
+| `lan_server*.cpp` | `LanServer` | HTTP/HTTPS 11500: chat, RAG, knowledge, graph, whisper, sync, math, APK, webchat, quiz live. `lan_server_quiz.cpp` serve `/quiz` (pagina giocatore) e `/api/quiz/*`; `quiz_room.*` tiene la stanza in memoria. Build Qt 6.4 (Ubuntu 24.04/CI): `lan_server.cpp` deve includere `<QTimeZone>` perché `QDateTime::timeZone()` restituisce un tipo solo forward-dichiarato. |
 | `blhm_engine.h/.c` | BLHM | Motore pesi Brain-Loop-Human. |
 | `hw_detect.h/.c` | `HWInfo` | CPU/GPU cross-platform. |
 | `qrcodegen.h/.c` | QR | Generatore QR vendorizzato. |
@@ -870,6 +870,25 @@ Export/import:
 3. Endpoint: chat, generate, models, RAG, knowledge, graphviz, whisper, sync, math,
    APK, index, webchat, KaTeX, file/repl/finance/git/wiki/graph.
 4. Coda LLM, rate limit, auth.
+
+### 13.8b Quiz in classe (live)
+
+- **Banca**: `gui/lan_web/quiz_bank.json` (556 domande: 510 CCNA da `Tools/docker/quiz_ccna.db`,
+  10 dall'allegato *Allenamento informatica*, 36 nuove). Campi: `id, materia, difficolta, fonte, q, opts[4], correct, exp`.
+  Materie: `Reti e cybersecurity`, `Sicurezza informatica`, `Database`, `Programmazione`, `Informatica di base`.
+- **Host**: tab `sfd` della webchat → `POST /api/quiz/create` (Bearer) con le domande scelte; la risposta
+  contiene `code` (5 caratteri) e `key` (32 hex, segreta). Il link per i telefoni è `/quiz?code=CODE&token=TOKEN`.
+- **Giocatori**: `/quiz` (pubblica come guscio) scambia `token` → cookie `p_session` come `/web`, poi
+  `POST /api/quiz/join {code,name}`. Nomi unici (suffisso " (2)"), max 18 caratteri, ingressi solo in lobby.
+- **Stato**: polling `GET /api/quiz/state?code&player` (~1.2 s); `GET /api/quiz/host?code&key` per il proiettore.
+  Fasi: `lobby → question → reveal → … → ended`.
+- **Punteggio**: risposta corretta = `500 + 500 * (1 - elapsed/seconds)`, arrotondato; max 1000.
+- **Reveal**: `subito` (risultato nell'API answer), `fine` (solo recap finale), `entrambe`. Il reveal manuale
+  dell'host non manda la soluzione ai telefoni in modalità `fine`.
+- **Memoria**: una sola stanza per processo, nessuna persistenza; un nuovo `create` sostituisce la precedente.
+- **Sicurezza**: player endpoint autenticati dal cookie di sessione (o aperti se il token è vuoto); le azioni
+  host richiedono anche `key`. La pagina `/quiz` da sola non espone dati.
+- **`--no-tls`**: flag del server headless per test locali/reverse proxy (altrimenti TLS self-signed).
 
 ### 13.9 Split CPU/GPU (D-54)
 
@@ -1153,7 +1172,16 @@ QT_QPA_PLATFORM=offscreen ./build_tests/test_decision_engine
 - Unicode: alcuni tool di editing falliscono sui caratteri box-drawing; usare Python
   o riscrittura completa del file.
 
-### 16.6 File enormi (>1000 righe)
+### 16.6 Quiz live — trappole
+
+- `webchat.html`, `quiz.html` e `quiz_bank.json` sono **embedded in qrc**: ogni modifica richiede
+  ricompilare `Prismalux_GUI`, non basta riavviare il server.
+- `QJsonArray` (Qt 6.4) non è `std::shuffle`-compatibile: copiare in `QList<QJsonObject>` e mescolare quella.
+- `QUrlQuery` non decodifica `+` come spazio: in `handleQuizApi` la query viene normalizzata prima.
+- La stanza vive in RAM: riavviare il server invalida anche le sessioni `p_session` (cookie) e la stanza.
+- I telefoni non hanno il Bearer: tutte le fetch del quiz usano `credentials:'same-origin'` (cookie).
+
+### 16.7 File enormi (>1000 righe)
 
 `mainwindow_slots.cpp`, `ai_client.cpp`, `settings_llm.cpp`, `settings_ai.cpp`,
 `settings_voice.cpp`, `settings_slots.cpp`, `settings_other.cpp`, `settings_main.cpp`,
@@ -1163,7 +1191,7 @@ QT_QPA_PLATFORM=offscreen ./build_tests/test_decision_engine
 `main_sim_sorting.cpp`, `main_programming_coding.cpp`, `main_tools_file.cpp`,
 `main_jobs.cpp`, `lan_server.cpp`, `prismalux_paths.h`, `CMakeLists.txt`.
 
-### 16.7 DeviceSplit (D-54)
+### 16.8 DeviceSplit (D-54)
 
 - `compute()` **non** legge QSettings: è puro e testabile; il dialog e
   `startLlamaServer()` chiamano `load()` separatamente.

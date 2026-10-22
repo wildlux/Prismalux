@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2F6FED">
+<title>Prismalux Quiz</title>
+<style>
+:root{
+  --bg:#EEF2F6;--card:#fff;--ink:#14213D;--mute:#5B6B80;--line:#D5DEE8;
+  --ok:#1F9D63;--okbg:#DDF4E8;--bad:#D63B43;--badbg:#FBE1E2;
+  --acc:#2F6FED;--accbg:#E3ECFD;--star:#F2A93B;--shadow:#C9D4E0;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#0F1620;--card:#18222F;--ink:#E8EEF5;--mute:#93A1B3;--line:#2A3647;
+    --ok:#43C48A;--okbg:#12362A;--bad:#FF6B72;--badbg:#3C1B1E;
+    --acc:#6A9BFF;--accbg:#1B2B4A;--star:#F2A93B;--shadow:#0A0F16;
+    color-scheme:dark;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Nunito",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-weight:600}
+main{max-width:560px;margin:0 auto;padding:18px 16px calc(32px + env(safe-area-inset-bottom,0px))}
+h1{font-size:26px;font-weight:800;margin:0 0 4px;letter-spacing:-.3px}
+h2{font-size:20px;font-weight:800;margin:0 0 8px}
+p{margin:0;color:var(--mute);line-height:1.5;font-weight:500}
+.hide{display:none!important}
+.card{background:var(--card);border:2px solid var(--line);border-bottom-width:5px;
+  border-radius:16px;padding:16px;margin-bottom:14px}
+.row{display:flex;gap:10px;align-items:center}
+.row.wrap{flex-wrap:wrap}
+label.fld{display:block;font-size:13px;color:var(--mute);margin:0 0 6px;font-weight:700}
+input,select,textarea{width:100%;font:inherit;font-size:16px;color:var(--ink);
+  background:var(--bg);border:2px solid var(--line);border-radius:12px;padding:12px 14px;outline:none}
+input:focus,select:focus{border-color:var(--acc)}
+input::placeholder{color:var(--mute)}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
+  font:inherit;font-size:17px;font-weight:800;color:#fff;background:var(--acc);
+  border:0;border-bottom:5px solid rgba(0,0,0,.22);border-radius:14px;
+  padding:13px 18px;cursor:pointer;min-height:52px;transition:transform .08s,filter .15s}
+.btn:active{transform:translateY(2px);border-bottom-width:3px}
+.btn:disabled{filter:grayscale(.5) opacity(.55);cursor:default;transform:none}
+.btn.sec{background:var(--card);color:var(--ink);border:2px solid var(--line);border-bottom-width:5px}
+.btn.danger{background:var(--bad)}
+.btn.small{width:auto;font-size:14px;min-height:42px;padding:9px 14px;border-bottom-width:4px}
+.stat{background:var(--card);border:2px solid var(--line);border-radius:14px;padding:9px 14px;font-weight:800}
+.stat small{display:block;color:var(--mute);font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.4px}
+.hint{font-size:13px;color:var(--mute);font-weight:500;line-height:1.5}
+.top{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+.x{background:none;border:0;color:var(--mute);font:inherit;font-size:26px;cursor:pointer;padding:2px 8px;line-height:1}
+.bar{flex:1;height:14px;background:var(--line);border-radius:7px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--ok);border-radius:7px;transition:width .25s linear}
+.pill{flex:none;font-size:13px;font-weight:800;color:var(--mute);min-width:52px;text-align:right}
+.q{font-size:22px;font-weight:800;line-height:1.35;margin:6px 0 18px}
+.opt{display:flex;align-items:center;gap:12px;width:100%;text-align:left;
+  background:var(--card);border:2px solid var(--line);border-bottom-width:5px;
+  border-radius:14px;padding:13px 15px;margin-bottom:10px;font:inherit;font-size:16px;
+  color:inherit;cursor:pointer;transition:transform .06s,border-color .15s}
+.opt:active{transform:translateY(1px)}
+.opt .k{flex:none;width:30px;height:30px;border-radius:9px;background:var(--accbg);color:var(--acc);
+  display:grid;place-items:center;font-weight:800;font-size:14px}
+.opt.sel{border-color:var(--acc);background:var(--accbg)}
+.opt.right{border-color:var(--ok);background:var(--okbg)}
+.opt.right .k{background:var(--ok);color:#fff}
+.opt.wrong{border-color:var(--bad);background:var(--badbg)}
+.opt.wrong .k{background:var(--bad);color:#fff}
+.opt:disabled{cursor:default}
+.opt .cnt{margin-left:auto;font-size:12px;font-weight:800;color:var(--mute)}
+.fb{border-radius:14px;padding:12px 14px;margin-top:12px;font-weight:700;line-height:1.45;font-size:15px}
+.fb.ok{background:var(--okbg);border:2px solid var(--ok);color:var(--ok)}
+.fb.no{background:var(--badbg);border:2px solid var(--bad);color:var(--bad)}
+.fb.wait{background:var(--accbg);border:2px solid var(--acc);color:var(--acc)}
+.fb b{display:block;font-size:16px;margin-bottom:2px}
+.fb span{color:inherit;font-weight:600;opacity:.92}
+.big{font-size:44px;line-height:1;text-align:center;margin:6px 0 10px}
+.center{text-align:center}
+.code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:30px;font-weight:800;
+  letter-spacing:6px;color:var(--acc);text-align:center;margin:6px 0 10px}
+.avatars{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.av{background:var(--accbg);color:var(--acc);border-radius:999px;padding:6px 12px;font-size:14px;font-weight:800}
+.lb{list-style:none;margin:0;padding:0}
+.lb li{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-weight:700}
+.lb li:last-child{border-bottom:0}
+.lb .rk{width:28px;text-align:center;font-weight:800;color:var(--mute)}
+.lb .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lb .sc{font-weight:800;color:var(--acc)}
+.recap details{border:2px solid var(--line);border-radius:14px;padding:10px 12px;margin-top:10px}
+.recap summary{cursor:pointer;font-weight:800}
+.recap .item{padding:10px 0;border-bottom:1px solid var(--line);font-size:14px;font-weight:600}
+.recap .item:last-child{border-bottom:0}
+.recap .item .qq{font-weight:800;margin-bottom:4px}
+.recap .item .ok{color:var(--ok)}.recap .item .no{color:var(--bad)}
+.err{background:var(--badbg);color:var(--bad);border:2px solid var(--bad);border-radius:12px;padding:10px 12px;font-size:14px;margin-bottom:12px}
+.spin{display:inline-block;width:16px;height:16px;border:3px solid var(--line);border-top-color:var(--acc);border-radius:50%;animation:sp .8s linear infinite;vertical-align:-3px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.seg{display:flex;background:var(--bg);border:2px solid var(--line);border-radius:12px;padding:3px;gap:3px}
+.seg button{flex:1;font:inherit;font-size:13px;font-weight:800;color:var(--mute);background:none;border:0;border-radius:9px;padding:9px 6px;cursor:pointer}
+.seg button.on{background:var(--acc);color:#fff}
+</style>
+</head>
+<body>
+<main>
+
+<!-- ═══ HOME ═══ -->
+<section id="v-home">
+  <h1>🏆 Prismalux Quiz</h1>
+  <p style="margin-bottom:16px">Allenati con centinaia di domande o entra nella stanza della tua classe.</p>
+
+  <div id="home-err" class="err hide"></div>
+
+  <div class="card">
+    <label class="fld" for="name">Il tuo nome</label>
+    <input id="name" type="text" maxlength="18" placeholder="Es. Giulia" autocomplete="nickname">
+    <p class="hint" style="margin-top:8px">Serve per la classifica: scegli il nome che usi in classe.</p>
+  </div>
+
+  <div class="card">
+    <h2>👩‍🏫 Entra in classe</h2>
+    <label class="fld" for="code">Codice stanza</label>
+    <input id="code" type="text" maxlength="6" placeholder="ABC23" autocapitalize="characters"
+           autocomplete="off" style="text-transform:uppercase;letter-spacing:3px;font-weight:800">
+    <button id="btn-join" class="btn" style="margin-top:12px">Entra nella stanza</button>
+  </div>
+
+  <div class="card">
+    <h2>🎯 Allenamento</h2>
+    <label class="fld" for="materia">Materia</label>
+    <select id="materia"><option value="">Tutte le materie</option></select>
+    <label class="fld" for="nq" style="margin-top:10px">Numero di domande</label>
+    <select id="nq">
+      <option value="5">5 domande</option>
+      <option value="10" selected>10 domande</option>
+      <option value="15">15 domande</option>
+      <option value="20">20 domande</option>
+    </select>
+    <label class="fld" style="margin-top:10px">Quando mostrare le risposte giuste</label>
+    <div class="seg" id="reveal-seg">
+      <button data-v="subito">Subito</button>
+      <button data-v="fine">Alla fine</button>
+      <button data-v="entrambe">Entrambe</button>
+    </div>
+    <button id="btn-train" class="btn" style="margin-top:12px">Inizia allenamento</button>
+  </div>
+  <p class="hint center">Le stanze sono visibili solo nella rete locale. Nessun dato esce dal tuo dispositivo.</p>
+</section>
+
+<!-- ═══ LOBBY ═══ -->
+<section id="v-lobby" class="hide">
+  <div class="top">
+    <button class="x" id="lobby-exit" aria-label="Esci">×</button>
+    <div class="bar"><i style="width:0%"></i></div>
+    <div class="pill" id="lobby-count">0</div>
+  </div>
+  <div class="card center">
+    <div style="font-size:40px">🎉</div>
+    <h2 id="lobby-title">Sei in classe!</h2>
+    <p id="lobby-sub">In attesa che il docente avvii la sfida…</p>
+    <div class="code" id="lobby-code">-----</div>
+    <p class="hint">Il tuo nome: <b id="lobby-name">—</b></p>
+  </div>
+  <div class="card">
+    <h2>Giocatori <span id="lobby-n" style="color:var(--mute)">0</span></h2>
+    <div class="avatars" id="lobby-players"></div>
+  </div>
+  <button class="btn sec" id="lobby-leave">Esci dalla stanza</button>
+</section>
+
+<!-- ═══ GAME ═══ -->
+<section id="v-game" class="hide">
+  <div class="top">
+    <button class="x" id="game-exit" aria-label="Esci">×</button>
+    <div class="bar"><i id="game-bar" style="width:0%"></i></div>
+    <div class="pill" id="game-timer">--</div>
+  </div>
+  <div class="row" style="justify-content:space-between;margin-bottom:4px">
+    <span class="hint" id="game-progress">Domanda 1</span>
+    <span class="stat" style="padding:5px 10px;font-size:13px">⭐ <span id="game-score">0</span></span>
+  </div>
+  <div class="q" id="game-q">—</div>
+  <div id="game-opts"></div>
+  <div id="game-fb"></div>
+  <button class="btn hide" id="game-next" style="margin-top:12px">Continua</button>
+</section>
+
+<!-- ═══ END ═══ -->
+<section id="v-end" class="hide">
+  <div class="card center">
+    <div class="big" id="end-emoji">🏆</div>
+    <h2 id="end-title">Sfida completata!</h2>
+    <p id="end-sub">—</p>
+  </div>
+  <div class="card" id="end-lb-card">
+    <h2>Classifica</h2>
+    <ol class="lb" id="end-lb"></ol>
+  </div>
+  <div class="card recap hide" id="end-recap-card">
+    <h2>Rivedi le risposte</h2>
+    <div id="end-recap"></div>
+  </div>
+  <button class="btn" id="end-home">Torna alla home</button>
+</section>
+
+</main>
+
+<script>
+(function(){
+"use strict";
+
+/* ── utility ─────────────────────────────────────────────────────────── */
+const $=function(id){return document.getElementById(id);};
+const esc=function(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){
+  return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});};
+const lsGet=function(k,d){try{return localStorage.getItem(k)||d;}catch(e){return d;}};
+const lsSet=function(k,v){try{localStorage.setItem(k,v);}catch(e){}};
+
+const S={
+  name: lsGet("plx-quiz-name",""),
+  reveal: lsGet("plx-quiz-reveal","entrambe"),
+  playerId: "",
+  code: "",
+  room: null,
+  timer: null,
+  skew: 0,
+  sig: "",
+  answers: {},      /* indice → risposta locale */
+  training: null,
+  poll: null
+};
+
+function show(id){
+  ["v-home","v-lobby","v-game","v-end"].forEach(function(v){
+    $(v).classList.toggle("hide", v!==id);
+  });
+  window.scrollTo(0,0);
+}
+function ensure(id){
+  if($(id).classList.contains("hide"))show(id);
+}
+function err(msg,where){
+  const el=$(where||"home-err");
+  if(!el)return;
+  el.textContent=msg;
+  el.classList.remove("hide");
+}
+function clearErr(where){
+  const el=$(where||"home-err");
+  if(el)el.classList.add("hide");
+}
+async function api(path,opts){
+  const o=opts||{};
+  o.credentials="same-origin";
+  o.headers=o.headers||{};
+  if(o.body && !o.headers["Content-Type"])o.headers["Content-Type"]="application/json";
+  const r=await fetch(path,o);
+  let j=null;
+  try{j=await r.json();}catch(e){}
+  if(!r.ok){
+    const m=(j&&(j.error||j.message))||("HTTP "+r.status+(r.status===401?" — apri il link fornito dal docente":""));
+    throw new Error(m);
+  }
+  return j||{};
+}
+function stopPoll(){if(S.poll){clearInterval(S.poll);S.poll=null;}}
+function stopTimer(){if(S.timer){clearInterval(S.timer);S.timer=null;}}
+function byId(id){return document.getElementById(id);}
+
+/* ── nome + reveal ───────────────────────────────────────────────────── */
+$("name").value=S.name;
+$("name").addEventListener("input",function(){
+  S.name=this.value.trim().slice(0,18);
+  lsSet("plx-quiz-name",S.name);
+});
+function paintReveal(){
+  document.querySelectorAll("#reveal-seg button").forEach(function(b){
+    b.classList.toggle("on", b.dataset.v===S.reveal);
+  });
+}
+paintReveal();
+document.querySelectorAll("#reveal-seg button").forEach(function(b){
+  b.addEventListener("click",function(){
+    S.reveal=b.dataset.v; lsSet("plx-quiz-reveal",S.reveal); paintReveal();
+  });
+});
+
+/* ── materie ─────────────────────────────────────────────────────────── */
+async function loadMaterie(){
+  try{
+    const j=await api("/api/quiz/bank?n=1");
+    const sel=$("materia");
+    (j.materie||[]).forEach(function(m){
+      const o=document.createElement("option");
+      o.value=m.nome;
+      o.textContent=m.nome+" ("+m.n+")";
+      sel.appendChild(o);
+    });
+  }catch(e){
+    /* se non autenticato mostriamo comunque la home: l'errore arriva al join */
+  }
+}
+loadMaterie();
+
+/* ── allenamento ─────────────────────────────────────────────────────── */
+$("btn-train").addEventListener("click",async function(){
+  clearErr();
+  const name=$("name").value.trim();
+  if(name.length<1){err("Scrivi il tuo nome prima di iniziare.");return;}
+  S.name=name; lsSet("plx-quiz-name",name);
+  const materia=$("materia").value;
+  const n=$("nq").value;
+  const btn=this; btn.disabled=true; btn.innerHTML='<span class="spin"></span> Carico le domande…';
+  try{
+    const j=await api("/api/quiz/bank?n="+encodeURIComponent(n)+
+      (materia?"&materia="+encodeURIComponent(materia):""));
+    if(!j.questions||!j.questions.length)throw new Error("Nessuna domanda disponibile");
+    startTraining(j.questions);
+  }catch(e){
+    err("Impossibile caricare le domande: "+e.message);
+  }finally{
+    btn.disabled=false; btn.textContent="Inizia allenamento";
+  }
+});
+
+function startTraining(qs){
+  stopPoll(); stopTimer();
+  S.training={qs:qs,i:0,score:0,correct:0,sel:-1,checked:false,answers:[]};
+  S.code=""; S.playerId=""; S.room=null;
+  show("v-game");
+  renderTraining();
+}
+function renderTraining(){
+  const T=S.training;
+  if(!T)return;
+  if(T.i>=T.qs.length){trainingEnd();return;}
+  const q=T.qs[T.i];
+  T.sel=-1; T.checked=false;
+  $("game-progress").textContent="Domanda "+(T.i+1)+" / "+T.qs.length;
+  $("game-score").textContent=T.score;
+  $("game-q").textContent=q.q;
+  $("game-fb").innerHTML="";
+  $("game-next").classList.add("hide");
+  $("game-timer").textContent="🎯";
+  $("game-bar").style.width=(T.i/T.qs.length*100)+"%";
+  const box=$("game-opts"); box.innerHTML="";
+  q.opts.forEach(function(txt,k){
+    const b=document.createElement("button");
+    b.className="opt";
+    b.innerHTML='<span class="k">'+"ABCD"[k]+'</span><span>'+esc(txt)+'</span>';
+    b.addEventListener("click",function(){pickTraining(k);});
+    box.appendChild(b);
+  });
+  /* In allenamento il pulsante Controlla compare solo con una selezione */
+  const c=document.createElement("button");
+  c.className="btn"; c.id="train-check"; c.textContent="Controlla";
+  c.disabled=true; c.style.marginTop="4px";
+  c.addEventListener("click",checkTraining);
+  box.appendChild(c);
+}
+function pickTraining(k){
+  const T=S.training; if(!T||T.checked)return;
+  T.sel=k;
+  document.querySelectorAll("#game-opts .opt").forEach(function(b,i){
+    b.classList.toggle("sel",i===k);
+  });
+  const c=$("train-check"); if(c)c.disabled=false;
+}
+function checkTraining(){
+  const T=S.training; if(!T||T.checked||T.sel<0)return;
+  const q=T.qs[T.i];
+  T.checked=true;
+  const ok=T.sel===q.correct;
+  if(ok){T.correct++;T.score+=100;}
+  T.answers.push({q:q,choice:T.sel});
+  document.querySelectorAll("#game-opts .opt").forEach(function(b,i){
+    b.disabled=true;
+    if(S.reveal!=="fine"){
+      if(i===q.correct)b.classList.add("right");
+      else if(i===T.sel)b.classList.add("wrong");
+    }else if(i===T.sel){
+      b.classList.add("sel");
+    }
+  });
+  const c=$("train-check"); if(c)c.remove();
+  $("game-score").textContent=T.score;
+  const fb=$("game-fb");
+  if(S.reveal!=="fine"){
+    fb.innerHTML='<div class="fb '+(ok?"ok":"no")+'"><b>'+(ok?"Giusto!":"Non proprio")+'</b><span>'+
+      esc(q.exp||"")+'</span></div>';
+  }else{
+    fb.innerHTML='<div class="fb wait"><b>Risposta salvata</b><span>Le soluzioni le vedrai alla fine.</span></div>';
+  }
+  const nx=$("game-next");
+  nx.textContent=(T.i+1>=T.qs.length)?"Vedi il risultato":"Continua";
+  nx.classList.remove("hide");
+  nx.onclick=function(){T.i++;renderTraining();};
+}
+function trainingEnd(){
+  const T=S.training;
+  const pct=T.qs.length?Math.round(T.correct/T.qs.length*100):0;
+  const emoji=pct>=80?"🏆":pct>=60?"👏":pct>=40?"🙂":"💪";
+  $("end-emoji").textContent=emoji;
+  $("end-title").textContent="Allenamento completato";
+  $("end-sub").textContent=T.correct+" / "+T.qs.length+" corrette · "+T.score+" punti";
+  $("end-lb-card").classList.add("hide");
+  renderRecap($("end-recap"), $("end-recap-card"), T.answers, S.reveal!=="subito");
+  show("v-end");
+  $("end-home").onclick=goHome;
+}
+function renderRecap(box,card,answers,withRecap){
+  box.innerHTML="";
+  if(!withRecap){card.classList.add("hide");return;}
+  card.classList.remove("hide");
+  answers.forEach(function(a,idx){
+    const q=a.q, choice=a.choice;
+    const ok=choice===q.correct;
+    const div=document.createElement("div");
+    div.className="item";
+    div.innerHTML='<div class="qq">'+(idx+1)+'. '+esc(q.q)+'</div>'+
+      '<div class="'+(ok?"ok":"no")+'">'+(ok?"✅ Corretta":"❌ La tua risposta: "+esc(q.opts[choice]||"—"))+
+      '</div>'+(ok?"":'<div class="ok">✔ '+esc(q.opts[q.correct])+'</div>')+
+      (q.exp?'<div class="hint" style="margin-top:4px">'+esc(q.exp)+'</div>':"");
+    box.appendChild(div);
+  });
+}
+
+/* ── stanza: join ────────────────────────────────────────────────────── */
+$("btn-join").addEventListener("click",joinRoom);
+$("code").addEventListener("keydown",function(e){if(e.key==="Enter")joinRoom();});
+async function joinRoom(){
+  clearErr();
+  const name=$("name").value.trim();
+  const code=$("code").value.trim().toUpperCase();
+  if(name.length<1){err("Scrivi il tuo nome prima di entrare.");return;}
+  if(code.length<4){err("Inserisci il codice stanza (es. ABC23).");return;}
+  S.name=name; lsSet("plx-quiz-name",name);
+  const btn=$("btn-join"); btn.disabled=true; btn.innerHTML='<span class="spin"></span> Entro…';
+  try{
+    const j=await api("/api/quiz/join",{method:"POST",body:JSON.stringify({code:code,name:name})});
+    S.playerId=j.playerId; S.code=j.code; S.answers={}; S.sig="";
+    sessionStorage.setItem("plx-quiz-player",S.playerId);
+    sessionStorage.setItem("plx-quiz-code",S.code);
+    show("v-lobby");
+    $("lobby-code").textContent=S.code;
+    $("lobby-name").textContent=j.name||name;
+    startPoll();
+  }catch(e){
+    err(e.message);
+  }finally{
+    btn.disabled=false; btn.textContent="Entra nella stanza";
+  }
+}
+
+/* ── stanza: polling ─────────────────────────────────────────────────── */
+function startPoll(){
+  stopPoll();
+  S.poll=setInterval(pollState,1200);
+  pollState();
+}
+async function pollState(){
+  if(!S.code||!S.playerId)return;
+  try{
+    const j=await api("/api/quiz/state?code="+encodeURIComponent(S.code)+
+      "&player="+encodeURIComponent(S.playerId));
+    if(j.serverNow){S.skew=j.serverNow-Date.now();}
+    S.room=j;
+    paintRoom(j);
+  }catch(e){
+    stopPoll();
+    if(/Giocatore non riconosciuto|Stanza non trovata/i.test(e.message)){
+      sessionStorage.removeItem("plx-quiz-player");
+      sessionStorage.removeItem("plx-quiz-code");
+      S.playerId="";S.code="";
+      goHome();
+      err(e.message);
+    }
+  }
+}
+function paintRoom(j){
+  if(j.state==="lobby"){renderLobby(j);return;}
+  if(j.state==="question"||j.state==="reveal"){renderRoomQuestion(j);return;}
+  if(j.state==="ended"){renderRoomEnd(j);return;}
+}
+function renderLobby(j){
+  ensure("v-lobby");
+  $("lobby-title").textContent=j.title||"Sei in classe!";
+  $("lobby-code").textContent=j.code||S.code;
+  $("lobby-count").textContent=(j.count||0)+"👤";
+  $("lobby-n").textContent=j.count||0;
+  const box=$("lobby-players"); box.innerHTML="";
+  (j.players||[]).forEach(function(n){
+    const d=document.createElement("span");d.className="av";d.textContent=n;box.appendChild(d);
+  });
+}
+
+function renderRoomQuestion(j){
+  const q=j.question||{};
+  const sig=j.state+"|"+j.index+"|"+(j.answered?"1":"0");
+  ensure("v-game");
+  $("game-progress").textContent="Domanda "+((j.index||0)+1)+" / "+j.total;
+  $("game-score").textContent=(j.you&&j.you.score)||0;
+  $("game-bar").style.width=((j.index||0)/Math.max(1,j.total)*100)+"%";
+  if(sig!==S.sig){
+    S.sig=sig;
+    $("game-q").textContent=q.q||"—";
+    const box=$("game-opts");box.innerHTML="";
+    (q.opts||[]).forEach(function(txt,k){
+      const b=document.createElement("button");
+      b.className="opt";
+      b.innerHTML='<span class="k">'+"ABCD"[k]+'</span><span>'+esc(txt)+'</span><span class="cnt"></span>';
+      b.disabled=(j.answered||j.state==="reveal");
+      b.addEventListener("click",function(){sendAnswer(k);});
+      box.appendChild(b);
+    });
+    const nx=$("game-next"); nx.classList.add("hide"); nx.onclick=null;
+  }
+  paintResult(j);
+  startRoomTimer(j);
+}
+function paintResult(j){
+  const q=j.question||{};
+  const opts=document.querySelectorAll("#game-opts .opt");
+  const res=j.result||S.answers[j.index];
+  const revealed=(j.state==="reveal")||(res&&res.correct!==undefined);
+  const locked=!!res||j.state==="reveal";
+  opts.forEach(function(b,k){
+    b.disabled=locked;
+    b.classList.remove("right","wrong");
+    if(revealed){
+      if(k===j.correct|| (res&&k===res.correct))b.classList.add("right");
+      else if(res&&k===res.choice)b.classList.add("wrong");
+    }else if(res&&k===res.choice){
+      b.classList.add("sel");
+    }
+    const c=b.querySelector(".cnt");
+    if(c&&j.counts&&j.counts[k]!==undefined)c.textContent=j.counts[k]>0?j.counts[k]:"";
+  });
+  const fb=$("game-fb");
+  if(res&&res.points!==undefined&&res.points>0&&revealed){
+    fb.innerHTML='<div class="fb ok"><b>+' + res.points + ' punti</b><span>'+esc(j.exp||res.exp||"")+'</span></div>';
+  }else if(revealed){
+    fb.innerHTML='<div class="fb no"><b>Risposta corretta: '+esc((q.opts||[])[j.correct!==undefined?j.correct:res.correct]||"")+
+      '</b><span>'+esc(j.exp||res.exp||"")+'</span></div>';
+  }else if(res){
+    fb.innerHTML='<div class="fb wait"><b>Risposta inviata ✅</b><span>In attesa degli altri giocatori…</span></div>';
+  }else if(j.state==="reveal"&&j.correct===undefined){
+    fb.innerHTML='<div class="fb wait"><b>Soluzione nascosta</b><span>Le risposte corrette le vedrai alla fine.</span></div>';
+  }else if(j.state==="reveal"){
+    fb.innerHTML='<div class="fb no"><b>Tempo scaduto</b><span>Non hai risposto a questa domanda.</span></div>';
+  }else{
+    fb.innerHTML="";
+  }
+}
+function startRoomTimer(j){
+  stopTimer();
+  if(!j.startedAt||j.state!=="question"){$("game-timer").textContent="⏳";return;}
+  const tick=function(){
+    const now=Date.now()+S.skew;
+    const total=Math.max(1,(j.seconds||20)*1000);
+    const left=Math.max(0,j.startedAt+total-now);
+    $("game-timer").textContent=Math.ceil(left/1000)+"s";
+    $("game-bar").style.width=(100-left/total*100)+"%";
+    if(left<=0){
+      stopTimer();
+      $("game-timer").textContent="0s";
+      if(!j.answered&&!S.answers[j.index]){
+        document.querySelectorAll("#game-opts .opt").forEach(function(b){b.disabled=true;});
+      }
+    }
+  };
+  tick();
+  S.timer=setInterval(tick,250);
+}
+async function sendAnswer(k){
+  const j=S.room; if(!j)return;
+  document.querySelectorAll("#game-opts .opt").forEach(function(b){b.disabled=true;});
+  try{
+    const r=await api("/api/quiz/answer",{method:"POST",body:JSON.stringify({
+      code:S.code,player:S.playerId,choice:k})});
+    S.answers[j.index]={choice:k,points:r.points,score:r.score,
+      correct:r.correct,ok:r.okAnswer,exp:r.exp};
+    if(j.you)j.you.score=r.score;
+    $("game-score").textContent=r.score;
+    if(r.correct!==undefined){
+      j.correct=r.correct;j.exp=r.exp;
+      paintResult({state:"question",question:j.question,index:j.index,total:j.total,
+        counts:j.counts,result:{choice:k,points:r.points,correct:r.correct,exp:r.exp}});
+    }else{
+      paintResult({state:j.state,question:j.question,index:j.index,total:j.total,counts:j.counts,
+        result:{choice:k,points:r.points}});
+    }
+  }catch(e){
+    $("game-fb").innerHTML='<div class="fb no"><b>Errore</b><span>'+esc(e.message)+'</span></div>';
+  }
+}
+function renderRoomEnd(j){
+  stopPoll(); stopTimer();
+  const you=j.you||{};
+  const lb=j.leaderboard||[];
+  let rank=0;
+  lb.forEach(function(p){if(p.name===you.name)rank=p.rank;});
+  $("end-emoji").textContent=rank===1?"🏆":rank<=3?"🥳":"💪";
+  $("end-title").textContent=rank===1?"Primo posto!":"Sfida completata";
+  $("end-sub").textContent=(you.score||0)+" punti · "+(you.correct||0)+" risposte corrette"+
+    (rank?" · posizione "+rank:"");
+  const list=$("end-lb"); list.innerHTML="";
+  lb.forEach(function(p){
+    const li=document.createElement("li");
+    li.innerHTML='<span class="rk">'+(p.rank===1?"🥇":p.rank===2?"🥈":p.rank===3?"🥉":p.rank)+
+      '</span><span class="nm">'+esc(p.name)+'</span><span class="sc">'+p.score+'</span>';
+    list.appendChild(li);
+  });
+  $("end-lb-card").classList.remove("hide");
+  /* recap: il server lo manda solo se la modalità lo prevede */
+  if(j.recap){
+    const answers=j.recap.map(function(x){return {q:x,choice:x.your};});
+    renderRecap($("end-recap"),$("end-recap-card"),answers,true);
+  }else{
+    $("end-recap-card").classList.add("hide");
+  }
+  ensure("v-end");
+  $("end-home").onclick=goHome;
+}
+
+/* ── uscite ──────────────────────────────────────────────────────────── */
+function leaveRoom(){
+  if(!S.code||!S.playerId)return;
+  if(!S.room||S.room.state!=="lobby")return;
+  try{
+    fetch("/api/quiz/leave",{method:"POST",credentials:"same-origin",keepalive:true,
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({code:S.code,player:S.playerId})});
+  }catch(e){}
+}
+function goHome(){
+  leaveRoom();
+  stopPoll(); stopTimer();
+  S.training=null;S.room=null;S.sig="";S.answers={};
+  S.code="";S.playerId="";
+  $("btn-train").disabled=false;
+  show("v-home");
+}
+["lobby-exit","lobby-leave","game-exit"].forEach(function(id){
+  const el=$(id);
+  if(el)el.addEventListener("click",function(){
+    if(id==="game-exit"&&S.room&&S.room.state==="question"&&!confirm("Vuoi uscire dalla sfida?"))return;
+    goHome();
+  });
+});
+$("end-home").addEventListener("click",goHome);
+
+/* ── avvio: ?code=ABC23 → precompila e, se c'è il nome, entra ────────── */
+const params=new URLSearchParams(location.search);
+const urlCode=(params.get("code")||"").toUpperCase();
+if(urlCode)$("code").value=urlCode;
+if(urlCode&&S.name){
+  joinRoom();
+}else if(urlCode){
+  $("name").focus();
+}
+})();
+</script>
+</body>
+</html>

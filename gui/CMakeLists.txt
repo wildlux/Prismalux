@@ -221,6 +221,8 @@ set(CPP_SRCS
     lan_server_ai.cpp
     lan_server_compute.cpp
     lan_server_api.cpp
+    lan_server_quiz.cpp
+    quiz_room.cpp
     https_redirect_server.cpp
     lan_web.qrc
     emoji.qrc
@@ -612,6 +614,17 @@ if(BUILD_TESTS)
     target_link_libraries(test_random_tool PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
     if(NOT WIN32)
         target_link_libraries(test_random_tool PRIVATE pthread m)
+    endif()
+
+    # ── test_quiz_room: stanza live (create/join/answer/reveal/leaderboard) ──
+    add_executable(test_quiz_room
+        tests/test_quiz_room.cpp
+        quiz_room.cpp
+    )
+    target_include_directories(test_quiz_room PRIVATE ${CMAKE_SOURCE_DIR})
+    target_link_libraries(test_quiz_room PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
+    if(NOT WIN32)
+        target_link_libraries(test_quiz_room PRIVATE pthread m)
     endif()
 
     # ── test_external_ai_import: parseFile() per formati OpenAI/Claude/generico ──
@@ -1738,6 +1751,7 @@ if(BUILD_TESTS)
     add_test(NAME OpenCodePage            COMMAND test_opencode_page)
     add_test(NAME DockerSandbox           COMMAND test_docker_sandbox)
     add_test(NAME ImparaQuiz              COMMAND test_impara_quiz)
+    add_test(NAME QuizRoom                COMMAND test_quiz_room)
     add_test(NAME MonitorPanel            COMMAND test_monitor_panel)
     add_test(NAME SttWhisper              COMMAND test_stt_whisper)
     add_test(NAME SttWhisperLive          COMMAND test_stt_whisper_live)
@@ -1783,7 +1797,7 @@ if(BUILD_TESTS)
     set_tests_properties(FileParser         PROPERTIES TIMEOUT 30)
     set_tests_properties(ImparaQuiz         PROPERTIES TIMEOUT 30)
     set_tests_properties(MonitorPanel       PROPERTIES TIMEOUT 30)
-    message(STATUS "Build test abilitata: graph_memory, signal_lifetime, rag_engine, code_utils, random_tool, lavoro_page, app_controller, programmazione_page, thinking_detect, ai_integration, ai_stress, team_collab, lavoro_data, tutor_data, rag_engine_avanzato, chat_history, simulatore_algos, formula_parser, strumenti_rag, theme_manager, theme_manager_crash, hardware_monitor, manutenzione_cron, chat_history_stress, matematica_page, qr_code_widget, hw_detect_amd, knowledge_injection, lan_server_endpoints")
+    message(STATUS "Build test abilitata: graph_memory, signal_lifetime, rag_engine, code_utils, random_tool, lavoro_page, app_controller, programmazione_page, thinking_detect, ai_integration, ai_stress, team_collab, lavoro_data, tutor_data, rag_engine_avanzato, chat_history, simulatore_algos, formula_parser, strumenti_rag, theme_manager, theme_manager_crash, hardware_monitor, manutenzione_cron, chat_history_stress, matematica_page, qr_code_widget, hw_detect_amd, knowledge_injection, lan_server_endpoints, quiz_room")
 
     # Applica ASAN+UBSAN anche a tutti i test target quando ENABLE_SANITIZERS=ON
     if(ENABLE_SANITIZERS AND NOT MSVC)

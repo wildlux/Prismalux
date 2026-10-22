@@ -216,6 +216,9 @@ static int runHeadlessServer(int argc, char** argv) {
     auto* srv = new LanServer(ai, &app);
     srv->setAccessToken(token);
     srv->setHeadless(true);           /* disabilita /api/launch in headless */
+    /* --no-tls: utile per test locali, reverse proxy o ambienti senza openssl. */
+    if (args.contains("--no-tls"))
+        srv->setTlsEnabled(false);
     srv->setBindAddress(QHostAddress::LocalHost); /* bind 127.0.0.1 di default in headless */
 
     if (!srv->start(port)) {

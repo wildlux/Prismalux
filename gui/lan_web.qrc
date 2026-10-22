@@ -3,5 +3,7 @@
 <qresource prefix="/lan">
     <file alias="webchat.html">lan_web/webchat.html</file>
     <file alias="index.html">lan_web/index.html</file>
+    <file alias="quiz.html">lan_web/quiz.html</file>
+    <file alias="quiz_bank.json">lan_web/quiz_bank.json</file>
 </qresource>
 </RCC>

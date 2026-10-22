@@ -19,6 +19,8 @@
 #include "graph_memory.h"
 
 
+class QuizRoom;
+
 class LanServer : public QObject {
     Q_OBJECT
 public:
@@ -162,6 +164,8 @@ private:
     void handleGitApi(const Session& s);
     void handleWikiApi(const Session& s);
     void handleGraphApi(Session& s);
+    void handleQuizPage(Session& s);
+    void handleQuizApi(Session& s);
     void sendJson(QTcpSocket* sock, const QByteArray& json);
     void sendStreamLine(const QByteArray& json);
     void sendError(QTcpSocket* sock, int code, const QString& msg);
@@ -224,6 +228,7 @@ private:
 
     /* GraphMemory: borrowed pointer (owned by AgentiMultiPage) */
     GraphMemory*            m_graphMemory = nullptr;
+    QuizRoom*               m_quiz        = nullptr;  ///< stanza quiz live (una sola)
 
     /* Rate limiting /knowledge: max 10 req/min per IP */
     QMap<QString, int> m_knowledgeReqCount;

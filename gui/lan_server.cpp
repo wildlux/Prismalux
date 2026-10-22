@@ -1,4 +1,5 @@
 #include "lan_server.h"
+#include "quiz_room.h"
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
@@ -232,6 +233,8 @@ bool LanServer::_ensureCert(QString& certPath, QString& keyPath)
 LanServer::LanServer(AiClient* ai, QObject* parent)
     : QObject(parent), m_ai(ai)
 {
+    m_quiz = new QuizRoom(this);
+
     /* TLS self-signed abilitato di default (m_tlsRequested=true). Fallback HTTP
      * se openssl non è disponibile. Il browser mostrerà un avviso "non sicuro"
      * che l'utente deve accettare una volta — normale per certificati self-signed. */
@@ -695,6 +698,7 @@ void LanServer::processSession(Session& s)
     const bool isPublic = (s.path == "/"        ||
                            s.path == "/index"   ||
                            s.path == "/download"||
+                           s.path == "/quiz"    ||
                            s.path.startsWith("/katex/")     ||
                            s.path.startsWith("/bootstrap/"));
 
@@ -703,7 +707,8 @@ void LanServer::processSession(Session& s)
        query string — così la cronologia e la barra indirizzi del browser non mostrano
        mai il token. L'app Android legge il token dal testo del QR direttamente, non
        via questo flusso browser, quindi non è impattata. */
-    if (s.path == "/web" && s.method == "GET" &&
+    const bool quizShell = (s.path == "/quiz");
+    if ((s.path == "/web" || quizShell) && s.method == "GET" &&
         !s.authHeaderFallback.isEmpty() && !m_accessToken.isEmpty()) {
         const QString expected  = "Bearer " + m_accessToken;
         const QString presented = "Bearer " + s.authHeaderFallback;
@@ -713,8 +718,15 @@ void LanServer::processSession(Session& s)
                cambiare token revoca tutte le sessioni browser in un colpo.
                L'id è hex generato internamente: safe per RFC 6265 senza scrub. */
             const QString sid = createWebSession();
+            QByteArray location = quizShell ? QByteArray("/quiz") : QByteArray("/web");
+            if (quizShell) {
+                const QString code = QUrlQuery(s.queryString)
+                        .queryItemValue(QStringLiteral("code"));
+                if (!code.isEmpty())
+                    location += "?code=" + QUrl::toPercentEncoding(code);
+            }
             QByteArray resp = "HTTP/1.1 302 Found\r\n"
-                              "Location: /web\r\n";
+                              "Location: " + location + "\r\n";
             resp += "Set-Cookie: p_session=" + sid.toUtf8()
                     + "; HttpOnly; SameSite=Strict; Path=/; Max-Age="
                     + QByteArray::number(kWebSessionTtlSecs);
@@ -738,7 +750,7 @@ void LanServer::processSession(Session& s)
         const QString expected = "Bearer " + m_accessToken;
         bool authorized = !s.authHeader.isEmpty()
                           && timingSafeEqual(s.authHeader, expected);
-        if (!authorized && s.path == "/web")
+        if (!authorized && (s.path == "/web" || s.path.startsWith("/api/quiz/")))
             authorized = isValidWebSession(s.cookieSession);
         if (!authorized) {
             QByteArray resp = "HTTP/1.1 401 Unauthorized\r\n"
@@ -777,6 +789,10 @@ void LanServer::processSession(Session& s)
         handleIndex(s);
     } else if (s.path == "/web" && s.method == "GET") {
         handleWebChat(s);
+    } else if (s.path == "/quiz" && s.method == "GET") {
+        handleQuizPage(s);
+    } else if (s.path.startsWith("/api/quiz/")) {
+        handleQuizApi(s);
     } else if (s.path.startsWith("/katex/") && s.method == "GET") {
         handleKatex(s);
     } else if (s.path.startsWith("/bootstrap/") && s.method == "GET") {
